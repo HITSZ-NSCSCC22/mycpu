@@ -21,6 +21,10 @@ testbench.cpp       用于Verilator仿真，如果使用Vivado仿真，无需关
 
 ```
 
+## 设计文档
+
+- [译码器设计](doc/instr_decode.md)
+
 ## 开发流程
 
 ### Clone项目
