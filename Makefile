@@ -9,11 +9,11 @@ PROJECT_ROOT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 difftest: src/SimTop.v
 	cd difftest/
 		export NOOP_HOME=$(PROJECT_ROOT)
-		export NEMU_HOME=$(PROJECT_ROOT)/../la32-nemu/NEMU/
+		export NEMU_HOME=$(PROJECT_ROOT)/
 		# export EMU_TRACE=1
 		make -j emu
 	cd ../
-	./src/emu -b 0 -e 0 -i ram.bin  --diff=../la32-nemu/NEMU/build/la32-nemu-interpreter-so -I 6 --dump-wave
+	./src/emu -b 0 -e 0 -i test/ram.bin  --diff=./la32-nemu-interpreter-so -I 6 --dump-wave
 
 VERILATOR_FLAGS = +define+DUMP_WAVEFORM=1 --trace
 

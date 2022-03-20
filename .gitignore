@@ -18,3 +18,12 @@ wave.vcd
 
 # Misc log files
 logs/
+
+# Difftest related files
+difftest/
+src/emu-compile
+src/emu
+src/lock-emu
+src/time.log
+la32-nemu-interpreter-so
+test/*.bin
