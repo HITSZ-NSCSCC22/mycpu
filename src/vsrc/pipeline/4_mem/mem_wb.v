@@ -18,29 +18,34 @@ module mem_wb (
     output reg[`InstAddrBus] debug_commit_pc,
     output reg debug_commit_valid,
     output reg[`InstBus] debug_commit_instr
-);
+  );
 
-reg debug_commit_valid_0;
-reg debug_commit_valid_1;
+  reg debug_commit_valid_0;
+  reg debug_commit_valid_1;
+  reg [`InstBus] debug_commit_pc_0;
 
-always @ (posedge clk)begin
-    if (rst == `RstEnable)begin
-        wb_wd    <= `NOPRegAddr;
-        wb_wreg  <= `WriteDisable;
-        wb_wdata <= `ZeroWord;
-        debug_commit_instr <= `ZeroWord;
-        debug_commit_pc <= `ZeroWord;
-        debug_commit_valid <= `InstInvalid;
-    end else begin
-        wb_wd    <= mem_wd;
-        wb_wreg  <= mem_wreg;
-        wb_wdata <= mem_wdata;
-        debug_commit_pc <= mem_inst_pc;
-        debug_commit_valid_0 <= mem_inst_valid;
-        debug_commit_valid_1 <= debug_commit_valid_0;
-        debug_commit_valid <= debug_commit_valid_1;
-        debug_commit_instr <= mem_instr;
+  always @ (posedge clk)
+    begin
+      if (rst == `RstEnable)
+        begin
+          wb_wd    <= `NOPRegAddr;
+          wb_wreg  <= `WriteDisable;
+          wb_wdata <= `ZeroWord;
+          debug_commit_instr <= `ZeroWord;
+          debug_commit_pc <= `ZeroWord;
+          debug_commit_valid <= `InstInvalid;
+        end
+      else
+        begin
+          wb_wd    <= mem_wd;
+          wb_wreg  <= mem_wreg;
+          wb_wdata <= mem_wdata;
+          debug_commit_pc <= mem_inst_pc;
+          debug_commit_valid_1 <= mem_inst_valid;
+          // debug_commit_valid_1 <= debug_commit_valid_0;
+          debug_commit_valid <= ~debug_commit_valid_1;
+          debug_commit_instr <= mem_instr;
+        end
     end
-end
-    
+
 endmodule

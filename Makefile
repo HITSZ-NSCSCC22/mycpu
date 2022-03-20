@@ -8,13 +8,13 @@ PROJECT_ROOT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 .ONESHELL: # For cd
 # difftest: export NOOP_HOME=$(PROJECT_ROOT)/
 # difftest: export NEMU_HOME=$(PROJECT_ROOT)/
-build-difftest: src/SimTop.v
+build-difftest: src/
 	cd difftest/
 		# export EMU_TRACE=1
 		make -j emu
 	cd ../
 
-run-difftest:
+run-difftest: build-difftest
 	./test/test.sh
 
 VERILATOR_FLAGS = +define+DUMP_WAVEFORM=1 --trace
