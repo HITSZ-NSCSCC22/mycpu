@@ -21,7 +21,7 @@ jobs:
           path: difftest
 
       - name: Install Dependencies
-        run: sudo apt-get install -y verilator libsdl2-2.0-0 libsdl2-dev
+        run: sudo apt-get update && sudo apt-get install -y verilator libsdl2-2.0-0 libsdl2-dev
 
       - name: Download NEMU Interpreter
         uses: dsaltares/fetch-gh-release-asset@master
