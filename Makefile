@@ -6,8 +6,8 @@ sim-verilog:
 PROJECT_ROOT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
 .ONESHELL: # For cd
-difftest: export NOOP_HOME=$(PROJECT_ROOT)/
-difftest: export NEMU_HOME=$(PROJECT_ROOT)/
+# difftest: export NOOP_HOME=$(PROJECT_ROOT)/
+# difftest: export NEMU_HOME=$(PROJECT_ROOT)/
 difftest: src/SimTop.v
 	cd difftest/
 		# export EMU_TRACE=1

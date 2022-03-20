@@ -28,4 +28,4 @@ jobs:
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
       - name: Build & Test
-        run: make difftest
+        run: ls && make difftest
