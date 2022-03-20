@@ -8,12 +8,14 @@ PROJECT_ROOT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 .ONESHELL: # For cd
 # difftest: export NOOP_HOME=$(PROJECT_ROOT)/
 # difftest: export NEMU_HOME=$(PROJECT_ROOT)/
-difftest: src/SimTop.v
+build-difftest: src/SimTop.v
 	cd difftest/
 		# export EMU_TRACE=1
 		make -j emu
 	cd ../
-	./src/emu -b 0 -e 0 -i test/ram.bin  --diff=./la32-nemu-interpreter-so -I 6 --dump-wave
+
+run-difftest:
+	./test/test.sh
 
 VERILATOR_FLAGS = +define+DUMP_WAVEFORM=1 --trace
 
