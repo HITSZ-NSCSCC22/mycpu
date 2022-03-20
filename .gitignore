@@ -1,0 +1,20 @@
+# Vivado files
+.Xil/
+*.cache/
+*.hw/
+*.ip_user_files/
+*.runs/
+*.sim/
+*.srcs/
+*.ioplanning/
+vivado*
+
+# VSCode configuration files
+.vscode/
+
+# Verilator output files
+obj_dir/
+wave.vcd
+
+# Misc log files
+logs/

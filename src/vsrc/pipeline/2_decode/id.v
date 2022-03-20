@@ -1,0 +1,408 @@
+`include "../../defines.v"
+module id(
+    input wire rst,
+
+    // <- IF
+    input wire[`InstAddrBus] pc_i,
+    input wire[`InstBus] inst_i,
+
+    // <- Regfile
+    input wire[`RegBus] reg1_data_i,
+    input wire[`RegBus] reg2_data_i,
+
+    // <- EXE
+    input wire ex_wreg_i,
+    input wire[`RegAddrBus] ex_waddr_i,
+    input wire[`RegBus] ex_wdata_i,
+
+    // <- Mem
+    input wire mem_wreg_i,
+    input wire[`RegAddrBus] mem_waddr_i,
+    input wire[`RegBus] mem_wdata_i,
+
+    // -> Regfile
+    output reg reg1_read_o,
+    output reg reg2_read_o,
+
+    // -> EXE
+    output reg[`RegAddrBus] reg1_addr_o,
+    output reg[`RegAddrBus] reg2_addr_o,
+    output reg[`AluOpBus] aluop_o,
+    output reg[`AluSelBus] alusel_o,
+    output reg[`RegBus] reg1_o,
+    output reg[`RegBus] reg2_o,
+    output reg[`RegAddrBus] reg_waddr_o,
+    output reg wreg_o,
+    output reg inst_valid,
+    output reg[`InstAddrBus] inst_pc
+);
+
+wire[5:0] opcode_6 = inst_i[31:26];
+wire[6:0] opcode_7 = inst_i[31:25];
+wire[7:0] opcode_8 = inst_i[31:24];
+wire[9:0] opcode_10  = inst_i[31:22];
+wire[13:0] opcode_14 = inst_i[31:18];
+wire[16:0] opcode_17 = inst_i[31:15];
+wire[21:0] opcode_22 = inst_i[31:10];
+wire[4:0]  imm_5 = inst_i[14:0];
+wire[11:0] imm_12 = inst_i[21:10];
+wire[19:0] imm_20 = inst_i[24:5];
+wire[4:0] op1;
+assign op1 = inst_i[4:0];
+wire[4:0] op2 = inst_i[9:5];
+wire[4:0] op3 = inst_i[14:10];
+wire[4:0] op4 = inst_i[19:15]; 
+
+reg[`RegBus]	imm; 
+
+always @(*) begin
+    inst_pc = pc_i;
+end
+
+always @ (*)begin
+    if (rst == `RstEnable)begin
+        aluop_o     = `EXE_NOP_OP;
+        alusel_o    = `EXE_RES_NOP;
+        reg_waddr_o = `NOPRegAddr;
+        wreg_o      = `WriteDisable;
+        inst_valid  = `InstInvalid;
+        reg1_read_o = 1'b0;
+        reg2_read_o = 1'b0;
+        reg1_addr_o = `NOPRegAddr;
+        reg2_addr_o = `NOPRegAddr;
+        imm         = 32'h0;
+    end else begin
+        aluop_o     = `EXE_NOP_OP;
+        alusel_o    = `EXE_RES_NOP;
+        reg_waddr_o = op2;
+        wreg_o      = `WriteDisable;
+        inst_valid  = `InstInvalid;
+        reg1_read_o = 1'b0;
+        reg2_read_o = 1'b0;
+        reg1_addr_o = op1;
+        reg2_addr_o = op2;
+        imm         = `ZeroWord;
+        if(inst_i[30] == 1'b1)begin
+            case (opcode_6)
+                `EXE_JIRL:begin
+                    
+                end
+                `EXE_B:begin
+                    
+                end
+                `EXE_BL:begin
+                    
+                end
+                `EXE_BEQ:begin
+                    
+                end
+                `EXE_BNE:begin
+                    
+                end
+                `EXE_BLT:begin
+                    
+                end
+                `EXE_BGE:begin
+                    
+                end
+                `EXE_BLTU:begin
+                    
+                end
+                `EXE_BGEU:begin
+                    
+                end
+            endcase
+        end else if(inst_i[29] == 1'b1)begin
+            case(opcode_10)
+                `EXE_LD_B:begin
+                    
+                end
+                `EXE_LD_H:begin
+                    
+                end
+                `EXE_LD_W:begin
+                    
+                end
+                `EXE_ST_B:begin
+                    
+                end
+                `EXE_ST_H:begin
+                    
+                end
+                `EXE_ST_W:begin
+                    
+                end
+                `EXE_LD_BU:begin
+                    
+                end
+                `EXE_LD_HU:begin
+                    
+                end
+            endcase
+        end else if(inst_i[28] == 1'b1)begin
+            case (opcode_7)
+                `EXE_LU12I_W:begin
+                    wreg_o      = `WriteEnable;
+                    aluop_o     = `EXE_LUI_OP;
+                    alusel_o    = `EXE_RES_MOVE;
+                    reg1_read_o = 1'b1; 
+                    reg2_read_o = 1'b0; 
+                    imm         = {imm_20, 12'b0}; 
+                    reg_waddr_o = op1;
+                    inst_valid  = `InstValid;
+                end 
+                `EXE_PCADDU12I:begin
+                    
+                end
+            endcase
+        end else if(inst_i[26] == 1'b1)begin
+            if(inst_i[25] == 1'b0)begin
+               //CSRRD,CSRWR,CSRXCHG指令码相同，不做区分
+
+            end else if(inst_i[22] == 1'b0)begin
+                //CACOP
+            end else if(inst_i[15] == 1'b1)begin
+                case(opcode_17)
+                    `EXE_IDLE:begin
+                        
+                    end
+                    `EXE_INVTLB:begin
+                        
+                    end
+                endcase
+            end else begin
+                case(opcode_22)
+                    `EXE_TLBSRCH:begin
+                        
+                    end
+                    `EXE_TLBRD:begin
+                        
+                    end
+                    `EXE_TLBWR:begin
+                        
+                    end
+                    `EXE_TLBFILL:begin
+                        
+                    end
+                endcase
+            end
+        end else if(inst_i[25] == 1'b1)begin
+            case (opcode_10)
+                `EXE_SLTI:begin
+
+                end 
+                `EXE_SLTUI:begin
+                    
+                end
+                `EXE_ADDI_W:begin
+                    
+                end
+                `EXE_ANDI:begin
+                    wreg_o      = `WriteEnable;
+                    aluop_o     = `EXE_AND_OP;
+                    alusel_o    = `EXE_RES_LOGIC;
+                    reg1_read_o = 1'b1; 
+                    reg2_read_o = 1'b0; 
+                    imm         = {20'h0, imm_12}; 
+                    reg_waddr_o = op1;
+                    inst_valid  = `InstValid;
+                end
+                `EXE_ORI:begin
+                    wreg_o      = `WriteEnable;
+                    aluop_o     = `EXE_OR_OP;
+                    alusel_o    = `EXE_RES_LOGIC;
+                    reg1_read_o = 1'b1; 
+                    reg2_read_o = 1'b0; 
+                    imm         = {20'h0, imm_12}; 
+                    reg_waddr_o = op1;
+                    inst_valid  = `InstValid;
+                end
+                `EXE_XORI:begin
+                    wreg_o      = `WriteEnable;
+                    aluop_o     = `EXE_XOR_OP;
+                    alusel_o    = `EXE_RES_LOGIC;
+                    reg1_read_o = 1'b1; 
+                    reg2_read_o = 1'b0; 
+                    imm         = {20'h0, imm_12}; 
+                    reg_waddr_o = op1;
+                    inst_valid  = `InstValid;
+                end
+            endcase
+        end else if(inst_i[22] == 1'b1)begin
+            case (opcode_14)
+                `EXE_SLLI_W:begin
+                    wreg_o      = `WriteEnable;
+                    aluop_o     = `EXE_SLL_OP;
+                    alusel_o    = `EXE_RES_SHIFT;
+                    reg1_read_o = 1'b1; 
+                    reg2_read_o = 1'b0; 
+                    imm         = {27'b0,imm_5};
+                    reg_waddr_o = op1;
+                    inst_valid  = `InstValid;
+                end 
+                `EXE_SRLI_W:begin
+                    wreg_o      = `WriteEnable;
+                    aluop_o     = `EXE_SRL_OP;
+                    alusel_o    = `EXE_RES_SHIFT;
+                    reg1_read_o = 1'b1; 
+                    reg2_read_o = 1'b0; 
+                    imm         = {27'b0,imm_5};
+                    reg_waddr_o = op1;
+                    inst_valid  = `InstValid;
+                end
+                `EXE_SRAI_W:begin
+                    wreg_o      = `WriteEnable;
+                    aluop_o     = `EXE_SRA_OP;
+                    alusel_o    = `EXE_RES_SHIFT;
+                    reg1_read_o = 1'b1; 
+                    reg2_read_o = 1'b0; 
+                    imm         = {27'b0,imm_5};
+                    reg_waddr_o = op1;
+                    inst_valid  = `InstValid;
+                end
+            endcase
+        end else if(inst_i[21] == 1'b1)begin
+            case (opcode_17)
+                `EXE_DIV_W:begin
+                    
+                end 
+                `EXE_MOD_W:begin
+                    
+                end
+                `EXE_DIV_WU:begin
+                    
+                end
+                `EXE_MOD_WU:begin
+                    
+                end
+                `EXE_BREAK:begin
+                    
+                end
+                `EXE_SYSCALL:begin
+                    
+                end
+            endcase
+        end else if(inst_i[20] == 1'b1)begin
+            case (opcode_17)
+                `EXE_ADD_W:begin
+                    
+                end 
+                `EXE_SUB_W:begin
+                    
+                end
+                `EXE_SLT:begin
+                    
+                end
+                `EXE_SLTU:begin
+                    
+                end
+                `EXE_NOR:begin
+                    wreg_o      = `WriteEnable;
+                    aluop_o     = `EXE_NOR_OP;
+                    alusel_o    = `EXE_RES_LOGIC;
+                    reg1_read_o = 1'b1; 
+                    reg2_read_o = 1'b1; 
+                    reg_waddr_o = op1;
+                    inst_valid  = `InstValid;
+                end
+                `EXE_AND:begin
+                    wreg_o      = `WriteEnable;
+                    aluop_o     = `EXE_AND_OP;
+                    alusel_o    = `EXE_RES_LOGIC;
+                    reg1_read_o = 1'b1; 
+                    reg2_read_o = 1'b1; 
+                    reg_waddr_o = op1;
+                    inst_valid  = `InstValid;
+                end
+                `EXE_OR:begin
+                    wreg_o      = `WriteEnable;
+                    aluop_o     = `EXE_OR_OP;
+                    alusel_o    = `EXE_RES_LOGIC;
+                    reg1_read_o = 1'b1; 
+                    reg2_read_o = 1'b1; 
+                    reg_waddr_o = op1;
+                    inst_valid  = `InstValid;
+                end
+                `EXE_XOR:begin
+                    wreg_o      = `WriteEnable;
+                    aluop_o     = `EXE_XOR_OP;
+                    alusel_o    = `EXE_RES_LOGIC;
+                    reg1_read_o = 1'b1; 
+                    reg2_read_o = 1'b1; 
+                    reg_waddr_o = op1;
+                    inst_valid  = `InstValid;
+                end
+                `EXE_SLL_W:begin
+                    wreg_o      = `WriteEnable;
+                    aluop_o     = `EXE_SLL_OP;
+                    alusel_o    = `EXE_RES_SHIFT;
+                    reg1_read_o = 1'b1; 
+                    reg2_read_o = 1'b1; 
+                    reg_waddr_o = op1;
+                    inst_valid  = `InstValid;
+                end
+                `EXE_SRL_W:begin
+                    wreg_o      = `WriteEnable;
+                    aluop_o     = `EXE_SRL_OP;
+                    alusel_o    = `EXE_RES_SHIFT;
+                    reg1_read_o = 1'b1; 
+                    reg2_read_o = 1'b1; 
+                    reg_waddr_o = op1;
+                    inst_valid  = `InstValid;
+                end
+                `EXE_SRA_W:begin
+                    wreg_o      = `WriteEnable;
+                    aluop_o     = `EXE_SRA_OP;
+                    alusel_o    = `EXE_RES_SHIFT;
+                    reg1_read_o = 1'b1; 
+                    reg2_read_o = 1'b1; 
+                    reg_waddr_o = op1;
+                    inst_valid  = `InstValid;
+                end
+                `EXE_MUL_W:begin
+                    
+                end
+                `EXE_MULH_W:begin
+                    
+                end
+                `EXE_MULH_WU:begin
+                    
+                end
+            endcase
+        end else begin
+            
+        end
+    end
+end
+
+always @ (*)begin
+    if (rst == `RstEnable)
+        reg1_o = `ZeroWord;
+    else if((reg1_read_o == 1'b1) && (ex_wreg_i == 1'b1) && (ex_wreg_i == reg1_addr_o))
+        reg1_o = ex_wdata_i;
+    else if((reg1_read_o == 1'b1) && (mem_wreg_i == 1'b1) && (mem_wreg_i == reg1_addr_o))
+        reg1_o = mem_wdata_i;
+    else if (reg1_read_o == 1'b1)
+        reg1_o = reg1_data_i;
+    else if (reg1_read_o == 1'b0)
+        reg1_o = imm;
+    else
+        reg1_o = `ZeroWord;
+end
+
+always @ (*)begin
+    if (rst == `RstEnable)
+        reg2_o = `ZeroWord;
+    else if((reg2_read_o == 1'b1) && (ex_wreg_i == 1'b1) && (ex_wreg_i == reg2_addr_o))
+        reg2_o = ex_wdata_i;
+    else if((reg2_read_o == 1'b1) && (mem_wreg_i == 1'b1) && (mem_wreg_i == reg2_addr_o))
+        reg2_o = mem_wdata_i;
+    else if (reg2_read_o == 1'b1)
+        reg2_o = reg2_data_i;
+    else if (reg2_read_o == 1'b0)
+        reg2_o = imm;
+    else
+        reg2_o = `ZeroWord;
+end
+
+endmodule
