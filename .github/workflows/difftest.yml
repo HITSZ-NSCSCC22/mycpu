@@ -18,6 +18,7 @@ jobs:
         with:
           repository: HITSZ-NSCSCC22/difftest
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          path: difftest
 
       - name: Download NEMU Interpreter
         uses: dsaltares/fetch-gh-release-asset@master
