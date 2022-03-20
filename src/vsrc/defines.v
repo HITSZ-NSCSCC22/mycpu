@@ -121,6 +121,15 @@
 `define EXE_SLL_OP   8'b00000101
 `define EXE_SRL_OP   8'b00000110
 `define EXE_SRA_OP   8'b00000111
+`define EXE_ADD_OP   8'b00001000
+`define EXE_SUB_OP   8'b00001001
+`define EXE_MUL_OP   8'b00001010
+`define EXE_MULH_OP  8'b00001011
+`define EXE_MULHU_OP 8'b00001100
+`define EXE_DIV_OP   8'b00001101
+`define EXE_MOD_OP   8'b00001110
+`define EXE_SLT_OP   8'b00001111
+
 
 
 //AluSel
@@ -128,6 +137,7 @@
 `define EXE_RES_LOGIC 3'b001
 `define EXE_RES_SHIFT 3'b010
 `define EXE_RES_MOVE  3'b011
+`define EXE_RES_ARITH 3'b100
 
 
 // Rom related
@@ -143,6 +153,7 @@
 `define RegNum 32
 `define RegNumLog2 5
 `define NOPRegAddr 5'b00000
+`define DoubleRegBus 63:0
 
 // SRAM latency
 `define CacheLatency 0

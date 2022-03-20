@@ -173,15 +173,36 @@ module id(
                 casez (opcode_2)
                   `EXE_SLTI:
                     begin
-
+                      wreg_o      = `WriteEnable;
+                      aluop_o     = `EXE_SLT_OP;
+                      alusel_o    = `EXE_RES_ARITH;
+                      reg1_read_o = 1'b1;
+                      reg2_read_o = 1'b0;
+                      imm         = {20'h0, imm_12};
+                      reg_waddr_o = op1;
+                      inst_valid  = `InstValid;
                     end
                   `EXE_SLTUI:
                     begin
-
+                      wreg_o      = `WriteEnable;
+                      aluop_o     = `EXE_SLT_OP;
+                      alusel_o    = `EXE_RES_ARITH;
+                      reg1_read_o = 1'b1;
+                      reg2_read_o = 1'b0;
+                      imm         = {20'h0, imm_12};
+                      reg_waddr_o = op1;
+                      inst_valid  = `InstValid;
                     end
                   `EXE_ADDI_W:
                     begin
-
+                      wreg_o      = `WriteEnable;
+                      aluop_o     = `EXE_ADD_OP;
+                      alusel_o    = `EXE_RES_ARITH;
+                      reg1_read_o = 1'b1;
+                      reg2_read_o = 1'b0;
+                      imm         = {20'h0, imm_12};
+                      reg_waddr_o = op1;
+                      inst_valid  = `InstValid;
                     end
                   `EXE_ANDI:
                     begin
@@ -221,27 +242,52 @@ module id(
                       case (opcode_3)
                         `EXE_ADD_W:
                           begin
-
+                            wreg_o      = `WriteEnable;
+                            aluop_o     = `EXE_ADD_OP;
+                            alusel_o    = `EXE_RES_ARITH;
+                            reg1_read_o = 1'b1;
+                            reg2_read_o = 1'b1;
+                            reg_waddr_o = op1;
+                            inst_valid  = `InstValid;
                           end
                         `EXE_SUB_W:
                           begin
-
+                            wreg_o      = `WriteEnable;
+                            aluop_o     = `EXE_ADD_OP;
+                            alusel_o    = `EXE_RES_ARITH;
+                            reg1_read_o = 1'b1;
+                            reg2_read_o = 1'b1;
+                            reg_waddr_o = op1;
+                            inst_valid  = `InstValid;
                           end
                         `EXE_SLT:
                           begin
-
+                            wreg_o      = `WriteEnable;
+                            aluop_o     = `EXE_SLT_OP;
+                            alusel_o    = `EXE_RES_ARITH;
+                            reg1_read_o = 1'b1;
+                            reg2_read_o = 1'b1;
+                            reg_waddr_o = op1;
+                            inst_valid  = `InstValid;
                           end
                         `EXE_SLTU:
                           begin
-
+                            wreg_o      = `WriteEnable;
+                            aluop_o     = `EXE_SLT_OP;
+                            alusel_o    = `EXE_RES_ARITH;
+                            reg1_read_o = 1'b1;
+                            reg2_read_o = 1'b1;
+                            reg_waddr_o = op1;
+                            inst_valid  = `InstValid;
                           end
                         `EXE_NOR:
                           begin
                             wreg_o      = `WriteEnable;
-                            aluop_o     = `EXE_NOR_OP;
-                            alusel_o    = `EXE_RES_LOGIC;
+                            aluop_o     = `EXE_ADD_OP;
+                            alusel_o    = `EXE_RES_ARITH;
                             reg1_read_o = 1'b1;
-                            reg2_read_o = 1'b1;
+                            reg2_read_o = 1'b0;
+                            imm         = {20'h0, imm_12};
                             reg_waddr_o = op1;
                             inst_valid  = `InstValid;
                           end
@@ -307,15 +353,33 @@ module id(
                           end
                         `EXE_MUL_W:
                           begin
-
+                            wreg_o      = `WriteEnable;
+                            aluop_o     = `EXE_MUL_OP;
+                            alusel_o    = `EXE_RES_ARITH;
+                            reg1_read_o = 1'b1;
+                            reg2_read_o = 1'b1;
+                            reg_waddr_o = op1;
+                            inst_valid  = `InstValid;
                           end
                         `EXE_MULH_W:
                           begin
-
+                            wreg_o      = `WriteEnable;
+                            aluop_o     = `EXE_MULH_OP;
+                            alusel_o    = `EXE_RES_ARITH;
+                            reg1_read_o = 1'b1;
+                            reg2_read_o = 1'b1;
+                            reg_waddr_o = op1;
+                            inst_valid  = `InstValid;
                           end
                         `EXE_MULH_WU:
                           begin
-
+                            wreg_o      = `WriteEnable;
+                            aluop_o     = `EXE_MULHU_OP;
+                            alusel_o    = `EXE_RES_ARITH;
+                            reg1_read_o = 1'b1;
+                            reg2_read_o = 1'b1;
+                            reg_waddr_o = op1;
+                            inst_valid  = `InstValid;
                           end
                         default:
                           begin
@@ -329,19 +393,43 @@ module id(
                       casez (opcode_3)
                         `EXE_DIV_W:
                           begin
-
+                            wreg_o      = `WriteEnable;
+                            aluop_o     = `EXE_DIV_OP;
+                            alusel_o    = `EXE_RES_ARITH;
+                            reg1_read_o = 1'b1;
+                            reg2_read_o = 1'b1;
+                            reg_waddr_o = op1;
+                            inst_valid  = `InstValid;
                           end
                         `EXE_MOD_W:
                           begin
-
+                            wreg_o      = `WriteEnable;
+                            aluop_o     = `EXE_MOD_OP;
+                            alusel_o    = `EXE_RES_ARITH;
+                            reg1_read_o = 1'b1;
+                            reg2_read_o = 1'b1;
+                            reg_waddr_o = op1;
+                            inst_valid  = `InstValid;
                           end
                         `EXE_DIV_WU:
                           begin
-
+                            wreg_o      = `WriteEnable;
+                            aluop_o     = `EXE_DIV_OP;
+                            alusel_o    = `EXE_RES_ARITH;
+                            reg1_read_o = 1'b1;
+                            reg2_read_o = 1'b1;
+                            reg_waddr_o = op1;
+                            inst_valid  = `InstValid;
                           end
                         `EXE_MOD_WU:
                           begin
-
+                            wreg_o      = `WriteEnable;
+                            aluop_o     = `EXE_MOD_OP;
+                            alusel_o    = `EXE_RES_ARITH;
+                            reg1_read_o = 1'b1;
+                            reg2_read_o = 1'b1;
+                            reg_waddr_o = op1;
+                            inst_valid  = `InstValid;
                           end
                         `EXE_BREAK:
                           begin
