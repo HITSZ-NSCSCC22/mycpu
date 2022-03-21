@@ -22,6 +22,7 @@ module ex (
 reg[`RegBus] logicout;
 reg[`RegBus] shiftout;
 reg[`RegBus] moveout;
+reg[`RegBus] arithout;
 
 always @(*) begin
     if(rst == `RstEnable)begin
@@ -70,6 +71,75 @@ always @(*) begin
     end
 end
 
+//比较模块
+wire reg1_lt_reg2;
+wire[`RegBus] reg2_i_mux;
+wire[`RegBus] result_compare;
+
+assign reg2_i_mux = (aluop_i == `EXE_SLT_OP) ? (~reg2_i)+1 : reg2_i;
+assign result_compare = reg1_i + reg2_i_mux;
+assign reg1_lt_reg2 = ((aluop_i == `EXE_SLT_OP)) ?
+                      ((reg1_i[31] && !reg2_i[31]) ||
+                       (!reg1_i[31] && reg2_i[31] && result_compare[31]) ||
+                       (reg1_i[31] && !reg2_i[31] && result_compare[31]))
+                        : (reg1_i < reg2_i);
+
+//乘法模块
+
+wire[`RegBus] opdata1_mul;
+wire[`RegBus] opdata2_mul;
+wire[`DoubleRegBus] hilo_temp;
+reg[`DoubleRegBus]mulres;
+
+assign opdata1_mul = (((aluop_i == `EXE_MUL_OP) || (aluop_i == `EXE_MULH_OP))
+                      && (reg1_i[31] == 1'b1)) ? (~reg1_i + 1) : reg1_i;
+
+assign opdata2_mul = (((aluop_i == `EXE_MUL_OP) || (aluop_i == `EXE_MULH_OP))
+                      && (reg2_i[31] == 1'b1)) ? (~reg2_i + 1) : reg1_i;
+
+assign hlio_temp = opdata1_mul * opdata2_mul;
+
+always @(*) begin
+    if(rst == `RstEnable)
+        mulres = {`ZeroWord,`ZeroWord};
+    else if((aluop_i == `EXE_MUL_OP) || (aluop_i == `EXE_MULH_OP))begin
+        if(reg1_i[31] ^ reg2_i[31] == 1'b1)
+            mulres = ~hilo_temp + 1;
+        else mulres = hilo_temp;
+    end else 
+        mulres = hilo_temp;
+end
+
+
+always @(*) begin
+    if(rst == `RstEnable)begin
+        arithout = `ZeroWord;
+    end else begin
+        inst_pc_o = inst_pc_i;
+        inst_valid_o = inst_valid_i;
+        case (aluop_i)
+            `EXE_ADD_OP:
+                arithout = reg1_i + reg2_i;
+            `EXE_SUB_OP:
+                arithout = reg1_i - reg2_i;
+            `EXE_MUL_OP:
+                arithout = mulres[31:0];
+            `EXE_MULH_OP,`EXE_MULHU_OP:
+                arithout = mulres[63:32];
+            `EXE_DIV_OP:
+                arithout = reg1_i / reg2_i;
+            `EXE_MOD_OP:
+                arithout = reg1_i % reg2_i;
+            `EXE_SLT_OP,`EXE_SLTU_OP:
+                arithout = reg1_lt_reg2;
+            default: begin
+            end
+        endcase
+    end
+end
+
+
+
 always @(*) begin
     if(rst == `RstEnable)begin
         moveout = `ZeroWord;
@@ -98,6 +168,9 @@ always @(*) begin
         end
         `EXE_RES_MOVE:begin
             wdata_o = moveout;
+        end
+        `EXE_RES_ARITH:begin
+            wdata_o = arithout;
         end
         default: begin
             wdata_o = `ZeroWord;
