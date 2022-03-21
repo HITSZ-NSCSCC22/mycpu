@@ -84,13 +84,13 @@ module id(
         begin
           aluop_o     = `EXE_NOP_OP;
           alusel_o    = `EXE_RES_NOP;
-          reg_waddr_o = op2;
+          reg_waddr_o = op1;
           wreg_o      = `WriteDisable;
           inst_valid  = `InstInvalid;
           reg1_read_o = 1'b0;
           reg2_read_o = 1'b0;
-          reg1_addr_o = op1;
-          reg2_addr_o = op2;
+          reg1_addr_o = op2;
+          reg2_addr_o = op3;
           imm         = `ZeroWord;
 
           case (opcode_1)
@@ -414,9 +414,11 @@ module id(
     begin
       if (rst == `RstEnable)
         reg1_o = `ZeroWord;
-      else if((reg1_read_o == 1'b1) && (ex_wreg_i == 1'b1) && (ex_wreg_i == reg1_addr_o))
+      else if ((reg1_read_o == 1'b1) && (reg1_addr_o == 0))
+        reg1_o = `ZeroWord;
+      else if((reg1_read_o == 1'b1) && (ex_wreg_i == 1'b1) && (ex_waddr_i == reg1_addr_o))
         reg1_o = ex_wdata_i;
-      else if((reg1_read_o == 1'b1) && (mem_wreg_i == 1'b1) && (mem_wreg_i == reg1_addr_o))
+      else if((reg1_read_o == 1'b1) && (mem_wreg_i == 1'b1) && (mem_waddr_i == reg1_addr_o))
         reg1_o = mem_wdata_i;
       else if (reg1_read_o == 1'b1)
         reg1_o = reg1_data_i;
@@ -430,9 +432,11 @@ module id(
     begin
       if (rst == `RstEnable)
         reg2_o = `ZeroWord;
-      else if((reg2_read_o == 1'b1) && (ex_wreg_i == 1'b1) && (ex_wreg_i == reg2_addr_o))
+      else if ((reg2_read_o == 1'b1) && (reg2_addr_o == 0))
+        reg2_o = `ZeroWord;
+      else if((reg2_read_o == 1'b1) && (ex_wreg_i == 1'b1) && (ex_waddr_i == reg2_addr_o))
         reg2_o = ex_wdata_i;
-      else if((reg2_read_o == 1'b1) && (mem_wreg_i == 1'b1) && (mem_wreg_i == reg2_addr_o))
+      else if((reg2_read_o == 1'b1) && (mem_wreg_i == 1'b1) && (mem_waddr_i == reg2_addr_o))
         reg2_o = mem_wdata_i;
       else if (reg2_read_o == 1'b1)
         reg2_o = reg2_data_i;
