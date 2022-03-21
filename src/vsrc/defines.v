@@ -130,6 +130,15 @@
 `define EXE_MOD_OP   8'b00001110
 `define EXE_SLT_OP   8'b00001111
 `define EXE_SLTU_OP  8'b00010000
+`define EXE_B_OP     8'b00010001
+`define EXE_BL_OP    8'b00010010
+`define EXE_BEQ_OP   8'b00010011
+`define EXE_BNE_OP   8'b00010100
+`define EXE_BLT_OP   8'b00010101
+`define EXE_BGE_OP   8'b00010110
+`define EXE_BLTU_OP  8'b00010111
+`define EXE_BGEU_OP  8'b00011000
+`define EXE_JIRL_OP  8'b00011001
 
 
 
@@ -139,6 +148,7 @@
 `define EXE_RES_SHIFT 3'b010
 `define EXE_RES_MOVE  3'b011
 `define EXE_RES_ARITH 3'b100
+`define EXE_RES_JUMP  3'b101
 
 
 // Rom related

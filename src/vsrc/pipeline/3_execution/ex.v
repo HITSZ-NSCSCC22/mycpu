@@ -111,7 +111,6 @@ always @(*) begin
 end
 
 
-
 always @(*) begin
     if(rst == `RstEnable)begin
         arithout = `ZeroWord;
