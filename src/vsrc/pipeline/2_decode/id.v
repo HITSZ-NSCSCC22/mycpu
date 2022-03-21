@@ -375,11 +375,10 @@ module id(
                         `EXE_NOR:
                           begin
                             wreg_o      = `WriteEnable;
-                            aluop_o     = `EXE_ADD_OP;
-                            alusel_o    = `EXE_RES_ARITH;
+                            aluop_o     = `EXE_NOR_OP;
+                            alusel_o    = `EXE_RES_LOGIC;
                             reg1_read_o = 1'b1;
-                            reg2_read_o = 1'b0;
-                            imm         = {20'h0, imm_12};
+                            reg2_read_o = 1'b1;
                             reg_waddr_o = op1;
                             inst_valid  = `InstValid;
                           end
