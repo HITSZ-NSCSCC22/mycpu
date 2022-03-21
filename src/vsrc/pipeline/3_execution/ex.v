@@ -71,6 +71,19 @@ always @(*) begin
     end
 end
 
+//比较模块
+wire reg1_lt_reg2;
+wire[`RegBus] reg2_i_mux;
+wire[`RegBus] result_compare;
+
+assign reg2_i_mux = (aluop_i == `EXE_SLT_OP) ? (~reg2_i)+1 : reg2_i;
+assign result_compare = reg1_i + reg2_i_mux;
+assign reg1_lt_reg2 = ((aluop_i == `EXE_SLT_OP)) ?
+                      ((reg1_i[31] && !reg2_i[31]) ||
+                       (!reg1_i[31] && reg2_i[31] && result_compare[31]) ||
+                       (reg1_i[31] && !reg2_i[31] && result_compare[31]))
+                        : (reg1_i < reg2_i);
+
 //乘法模块
 
 wire[`RegBus] opdata1_mul;
@@ -89,9 +102,11 @@ assign hlio_temp = opdata1_mul * opdata2_mul;
 always @(*) begin
     if(rst == `RstEnable)
         mulres = {`ZeroWord,`ZeroWord};
-    else if((aluop_i == `EXE_MUL_OP) || (aluop_i == `EXE_MULH_OP))
-        mulres = ~hilo_temp + 1;
-    else 
+    else if((aluop_i == `EXE_MUL_OP) || (aluop_i == `EXE_MULH_OP))begin
+        if(reg1_i[31] ^ reg2_i[31] == 1'b1)
+            mulres = ~hilo_temp + 1;
+        else mulres = hilo_temp;
+    end else 
         mulres = hilo_temp;
 end
 
@@ -112,12 +127,12 @@ always @(*) begin
                 arithout = mulres[31:0];
             `EXE_MULH_OP,`EXE_MULHU_OP:
                 arithout = mulres[63:32];
-            `EXE_DIV_OP:begin
+            `EXE_DIV_OP:
                 arithout = reg1_i / reg2_i;
-            end
-            `EXE_MOD_OP:begin
+            `EXE_MOD_OP:
                 arithout = reg1_i % reg2_i;
-            end
+            `EXE_SLT_OP,`EXE_SLTU_OP:
+                arithout = reg1_lt_reg2;
             default: begin
             end
         endcase

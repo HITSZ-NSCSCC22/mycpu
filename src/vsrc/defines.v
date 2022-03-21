@@ -129,6 +129,7 @@
 `define EXE_DIV_OP   8'b00001101
 `define EXE_MOD_OP   8'b00001110
 `define EXE_SLT_OP   8'b00001111
+`define EXE_SLTU_OP  8'b00010000
 
 
 

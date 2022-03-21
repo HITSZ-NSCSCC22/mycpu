@@ -89,8 +89,8 @@ module id(
           inst_valid  = `InstInvalid;
           reg1_read_o = 1'b0;
           reg2_read_o = 1'b0;
-          reg1_addr_o = op1;
-          reg2_addr_o = op2;
+          reg1_addr_o = op2;
+          reg2_addr_o = op3;
           imm         = `ZeroWord;
 
           case (opcode_1)
@@ -185,7 +185,7 @@ module id(
                   `EXE_SLTUI:
                     begin
                       wreg_o      = `WriteEnable;
-                      aluop_o     = `EXE_SLT_OP;
+                      aluop_o     = `EXE_SLTU_OP;
                       alusel_o    = `EXE_RES_ARITH;
                       reg1_read_o = 1'b1;
                       reg2_read_o = 1'b0;
@@ -273,7 +273,7 @@ module id(
                         `EXE_SLTU:
                           begin
                             wreg_o      = `WriteEnable;
-                            aluop_o     = `EXE_SLT_OP;
+                            aluop_o     = `EXE_SLTU_OP;
                             alusel_o    = `EXE_RES_ARITH;
                             reg1_read_o = 1'b1;
                             reg2_read_o = 1'b1;
