@@ -139,6 +139,14 @@
 `define EXE_BLTU_OP  8'b00010111
 `define EXE_BGEU_OP  8'b00011000
 `define EXE_JIRL_OP  8'b00011001
+`define EXE_LD_B_OP  8'b00011010
+`define EXE_LD_H_OP  8'b00010111
+`define EXE_LD_W_OP  8'b00011000
+`define EXE_ST_B_OP  8'b00011001
+`define EXE_ST_H_OP  8'b00011010
+`define EXE_ST_W_OP  8'b00011011
+`define EXE_LD_BU_OP 8'b00011100
+`define EXE_LD_HU_OP 8'b00011101
 
 
 
@@ -149,6 +157,7 @@
 `define EXE_RES_MOVE  3'b011
 `define EXE_RES_ARITH 3'b100
 `define EXE_RES_JUMP  3'b101
+`define EXE_RES_LOAD_STORE 3'b110
 
 
 // Rom related

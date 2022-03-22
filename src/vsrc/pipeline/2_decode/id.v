@@ -35,6 +35,7 @@ module id(
     output reg wreg_o,
     output reg inst_valid,
     output reg[`InstAddrBus] inst_pc,
+    output reg[`RegBus] inst_o,
 
     // -> PC
     output reg branch_flag_o,
@@ -118,6 +119,7 @@ module id(
                 alusel_o    = `EXE_RES_JUMP;
                 reg1_read_o = 1'b1;
                 reg2_read_o = 1'b0;
+                link_addr_o = pc_plus_4;
                 imm         = {{14{imm_16[15]}},imm_16,2'b0};
                 reg_waddr_o = op1;
                 inst_valid  = `InstValid;
@@ -155,7 +157,10 @@ module id(
                 reg2_read_o = 1'b1;
                 reg1_addr_o = op1;
                 reg2_addr_o = op2;
-                imm         = {{14{imm_16[15]}},imm_16,2'b0};
+                if(reg1_o == reg2_o)begin
+                  branch_flag_o = `Branch;
+                  branch_target_address_o = {{14{imm_16[15]}},imm_16,2'b0};
+                end
                 inst_valid  = `InstValid;
               end
             `EXE_BNE:
@@ -167,8 +172,10 @@ module id(
                 reg2_read_o = 1'b1;
                 reg1_addr_o = op1;
                 reg2_addr_o = op2;
-                imm         = {{14{imm_16[15]}},imm_16,2'b0};
-                reg_waddr_o = op1;
+                if(reg1_o != reg2_o)begin
+                  branch_flag_o = `Branch;
+                  branch_target_address_o = {{14{imm_16[15]}},imm_16,2'b0};
+                end
                 inst_valid  = `InstValid;
               end
             `EXE_BLT:
@@ -180,8 +187,10 @@ module id(
                 reg2_read_o = 1'b1;
                 reg1_addr_o = op1;
                 reg2_addr_o = op2;
-                imm         = {{14{imm_16[15]}},imm_16,2'b0};
-                reg_waddr_o = op1;
+                if(reg1_o <= reg2_o)begin
+                  branch_flag_o = `Branch;
+                  branch_target_address_o = {{14{imm_16[15]}},imm_16,2'b0};
+                end
                 inst_valid  = `InstValid;
               end
             `EXE_BGE:
@@ -193,8 +202,10 @@ module id(
                 reg2_read_o = 1'b1;
                 reg1_addr_o = op1;
                 reg2_addr_o = op2;
-                imm         = {{14{imm_16[15]}},imm_16,2'b0};
-                reg_waddr_o = op1;
+                if(reg1_o >= reg2_o)begin
+                  branch_flag_o = `Branch;
+                  branch_target_address_o = {{14{imm_16[15]}},imm_16,2'b0};
+                end
                 inst_valid  = `InstValid;
               end
             `EXE_BLTU:
@@ -206,8 +217,10 @@ module id(
                 reg2_read_o = 1'b1;
                 reg1_addr_o = op1;
                 reg2_addr_o = op2;
-                imm         = {{14{imm_16[15]}},imm_16,2'b0};
-                reg_waddr_o = op1;
+                if(reg1_o < reg2_o)begin
+                  branch_flag_o = `Branch;
+                  branch_target_address_o = {{14{imm_16[15]}},imm_16,2'b0};
+                end
                 inst_valid  = `InstValid;
               end
             `EXE_BGEU:
@@ -219,7 +232,10 @@ module id(
                 reg2_read_o = 1'b1;
                 reg1_addr_o = op1;
                 reg2_addr_o = op2;
-                imm         = {{14{imm_16[15]}},imm_16,2'b0};
+                if(reg1_o >= reg2_o)begin
+                  branch_flag_o = `Branch;
+                  branch_target_address_o = {{14{imm_16[15]}},imm_16,2'b0};
+                end
                 inst_valid  = `InstValid;
               end
             `EXE_LU12I_W:
@@ -246,7 +262,88 @@ module id(
                 casez (opcode_2)
                   `EXE_LD_B:
                     begin
-
+                      wreg_o      = `WriteEnable;
+                      aluop_o     = `EXE_LD_B_OP;
+                      alusel_o    = `EXE_RES_LOAD_STORE;
+                      reg1_read_o = 1'b1;
+                      reg2_read_o = 1'b0;
+                      imm         = {{20{imm_12[11]}},imm_12};
+                      reg_waddr_o = op1;
+                      inst_valid  = `InstValid;
+                    end
+                  `EXE_LD_H:
+                    begin
+                      wreg_o      = `WriteEnable;
+                      aluop_o     = `EXE_LD_H_OP;
+                      alusel_o    = `EXE_RES_LOAD_STORE;
+                      reg1_read_o = 1'b1;
+                      reg2_read_o = 1'b0;
+                      imm         = {{20{imm_12[11]}},imm_12};
+                      reg_waddr_o = op1;
+                      inst_valid  = `InstValid;
+                    end
+                  `EXE_LD_W:
+                    begin
+                      wreg_o      = `WriteEnable;
+                      aluop_o     = `EXE_LD_W_OP;
+                      alusel_o    = `EXE_RES_LOAD_STORE;
+                      reg1_read_o = 1'b1;
+                      reg2_read_o = 1'b0;
+                      imm         = {{20{imm_12[11]}},imm_12};
+                      reg_waddr_o = op1;
+                      inst_valid  = `InstValid;
+                    end
+                  `EXE_ST_B:
+                    begin
+                      wreg_o      = `WriteDisable;
+                      aluop_o     = `EXE_ST_B_OP;
+                      alusel_o    = `EXE_RES_LOAD_STORE;
+                      reg1_read_o = 1'b1;
+                      reg2_read_o = 1'b0;
+                      imm         = {{20{imm_12[11]}},imm_12};
+                      inst_valid  = `InstValid;
+                    end
+                  `EXE_ST_H:
+                    begin
+                      wreg_o      = `WriteDisable;
+                      aluop_o     = `EXE_ST_H_OP;
+                      alusel_o    = `EXE_RES_LOAD_STORE;
+                      reg1_read_o = 1'b1;
+                      reg2_read_o = 1'b0;
+                      imm         = {{20{imm_12[11]}},imm_12};
+                      inst_valid  = `InstValid;
+                    end
+                  `EXE_ST_W:
+                    begin
+                      wreg_o      = `WriteDisable;
+                      aluop_o     = `EXE_ST_W_OP;
+                      alusel_o    = `EXE_RES_LOAD_STORE;
+                      reg1_read_o = 1'b1;
+                      reg2_read_o = 1'b0;
+                      imm         = {{20{imm_12[11]}},imm_12};
+                      inst_valid  = `InstValid;
+                    end
+                  `EXE_LD_BU:
+                    begin
+                      wreg_o      = `WriteEnable;
+                      aluop_o     = `EXE_LD_BU_OP;
+                      alusel_o    = `EXE_RES_LOAD_STORE;
+                      reg1_read_o = 1'b1;
+                      reg2_read_o = 1'b0;
+                      imm         = {{20{imm_12[11]}},imm_12};
+                      reg_waddr_o = op1;
+                      inst_valid  = `InstValid;
+                    end
+                  `EXE_LD_HU:
+                    begin
+                      wreg_o      = `WriteEnable;
+                      aluop_o     = `EXE_LD_HU_OP;
+                      alusel_o    = `EXE_RES_LOAD_STORE;
+                      reg1_read_o = 1'b1;
+                      reg2_read_o = 1'b0;
+                      imm         = {{20{imm_12[11]}},imm_12};
+                      reg_waddr_o = op1;
+                      inst_valid  = `InstValid;
                     end
                   default:
                     begin
@@ -474,7 +571,6 @@ module id(
                           end
                         default:
                           begin
-
                           end
 
                       endcase

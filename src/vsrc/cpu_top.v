@@ -33,12 +33,17 @@ wire chip_enable;
 assign ram_en_o = chip_enable;
 assign ram_raddr_o = pc;
 
+wire branch_flag;
+wire[`RegBus] branch_target_address;
+wire[`RegBus] link_addr;
 
 pc_reg u_pc_reg(
     .clk(clk),
     .rst(rst),
     .pc(pc),
-    .ce(chip_enable)
+    .ce(chip_enable),
+    .branch_flag_i(branch_flag),
+    .branch_target_address(branch_target_address)
 );
 
 wire[`InstAddrBus] id_pc;
@@ -77,6 +82,7 @@ wire mem_wreg_o;
 wire[`RegAddrBus] mem_reg_waddr_o;
 wire[`RegBus] mem_reg_wdata_o;
 
+
 id u_id(
     .rst(rst),
     .pc_i(id_pc),
@@ -92,6 +98,7 @@ id u_id(
     .mem_wreg_i  (mem_wreg_o),
     .mem_waddr_i (mem_reg_waddr_o),
     .mem_wdata_i (mem_reg_wdata_o),
+
     .reg1_read_o (reg1_read ),
     .reg2_read_o (reg2_read ),
 
@@ -105,7 +112,11 @@ id u_id(
     .reg_waddr_o (id_reg_waddr ),
     .wreg_o      (id_wreg     ),
     .inst_valid(id_inst_valid),
-    .inst_pc(id_inst_pc)
+    .inst_pc(id_inst_pc),
+
+    .branch_flag_o(branch_flag),
+    .branch_target_address_o(branch_target_address),
+    .link_addr_o(link_addr)
 );
 
 wire[`AluOpBus] ex_aluop;
@@ -116,6 +127,7 @@ wire[`RegAddrBus] ex_reg_waddr_i;
 wire ex_wreg_i;
 wire ex_inst_valid_i;
 wire[`InstAddrBus] ex_inst_pc_i;
+wire[`RegBus] ex_link_address;
 
 id_ex id_ex0(
     .clk(clk),
@@ -129,6 +141,7 @@ id_ex id_ex0(
     .id_wreg(id_wreg),
     .id_inst_pc(id_inst_pc),
     .id_inst_valid(id_inst_valid),
+    .id_link_address(link_addr),
 
     .ex_aluop(ex_aluop),
     .ex_alusel(ex_alusel),
@@ -137,7 +150,8 @@ id_ex id_ex0(
     .ex_wd(ex_reg_waddr_i),
     .ex_wreg(ex_wreg_i),
     .ex_inst_pc(ex_inst_pc_i),
-    .ex_inst_valid(ex_inst_valid_i)
+    .ex_inst_valid(ex_inst_valid_i),
+    .ex_link_address(ex_link_address)
 );
 
 
@@ -155,6 +169,7 @@ ex u_ex(
     .wreg_i(ex_wreg_i),
     .inst_valid_i(ex_inst_valid_i),
     .inst_pc_i(ex_inst_pc_i),
+    .link_addr_i(link_addr),
 
     .wd_o(ex_reg_waddr_o),
     .wreg_o(ex_wreg_o),

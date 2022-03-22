@@ -11,18 +11,25 @@ module ex (
     input wire wreg_i,
     input wire inst_valid_i,
     input wire[`InstAddrBus] inst_pc_i,
+    input wire[`RegBus] inst_i,
+    input wire[`RegBus] link_addr_i,
 
     output reg[`RegAddrBus] wd_o,
     output reg wreg_o,
     output reg[`RegBus] wdata_o,
     output reg inst_valid_o,
-    output reg[`InstAddrBus] inst_pc_o
+    output reg[`InstAddrBus] inst_pc_o,
+    output wire[`AluOpBus] aluop_o,
+    output wire[`RegBus] mem_addr_o,
+    output wire[`RegBus] reg2_o
 );
     
 reg[`RegBus] logicout;
 reg[`RegBus] shiftout;
 reg[`RegBus] moveout;
 reg[`RegBus] arithout;
+
+
 
 always @(*) begin
     if(rst == `RstEnable)begin
@@ -171,6 +178,9 @@ always @(*) begin
         end
         `EXE_RES_ARITH:begin
             wdata_o = arithout;
+        end
+        `EXE_RES_ARITH:begin
+            wdata_o = link_addr_i;
         end
         default: begin
             wdata_o = `ZeroWord;
