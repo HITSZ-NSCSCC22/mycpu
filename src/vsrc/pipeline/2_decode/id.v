@@ -345,7 +345,7 @@ module id(
                         `EXE_SUB_W:
                           begin
                             wreg_o      = `WriteEnable;
-                            aluop_o     = `EXE_ADD_OP;
+                            aluop_o     = `EXE_SUB_OP;
                             alusel_o    = `EXE_RES_ARITH;
                             reg1_read_o = 1'b1;
                             reg2_read_o = 1'b1;
