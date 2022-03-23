@@ -13,7 +13,7 @@ module pc_reg (
   always @(posedge clk)
     begin
       if(ce == `ChipDisable)
-        pc <= 32'h1c000000 - 4;
+        pc <= 32'h1c000000;
       else if(branch_flag_i == `Branch)
         pc <= branch_target_address;
       else

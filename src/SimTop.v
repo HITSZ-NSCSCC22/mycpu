@@ -29,7 +29,7 @@ module SimTop(
   wire [`RegAddrBus] debug_commit_reg_waddr;
   wire [`RegBus] debug_commit_reg_wdata;
   wire[1023:0] debug_reg;
-
+  wire Instram_branch_flag;
   cpu_top u_cpu_top(
             .clk(clock),
             .rst(reset),
@@ -45,7 +45,8 @@ module SimTop(
             .debug_commit_wreg(debug_commit_wreg      ),
             .debug_commit_reg_waddr(debug_commit_reg_waddr ),
             .debug_commit_reg_wdata(debug_commit_reg_wdata ),
-            .debug_reg(debug_reg   )
+            .debug_reg(debug_reg   ),
+            .Instram_branch_flag(Instram_branch_flag)
           );
 
 `ifdef DUMP_WAVEFORM
@@ -68,7 +69,8 @@ module SimTop(
         .rdata (ram_rdata ),
         .waddr (ram_waddr ),
         .wdata (ram_wdata ),
-        .wen   (ram_wen   )
+        .wen   (ram_wen   ),
+        .branch_flag_i(Instram_branch_flag)
       );
 `endif
 

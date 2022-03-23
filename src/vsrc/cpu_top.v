@@ -1,5 +1,6 @@
 `include "defines.v"
 `include "pc_reg.v"
+`include "pc2_reg.v"
 `include "regfile.v"
 `include "pipeline/1_fetch/if_id.v"
 `include "pipeline/2_decode/id.v"
@@ -24,7 +25,8 @@ module cpu_top (
     output wire debug_commit_wreg,
     output wire[`RegAddrBus] debug_commit_reg_waddr,
     output wire[`RegBus] debug_commit_reg_wdata,
-    output wire[1023:0] debug_reg
+    output wire[1023:0] debug_reg,
+    output wire Instram_branch_flag
   );
 
   wire[`InstAddrBus] pc;
@@ -34,6 +36,7 @@ module cpu_top (
   assign ram_raddr_o = pc;
 
   wire branch_flag;
+  assign Instram_branch_flag=branch_flag;
   wire[`RegBus] branch_target_address;
   wire[`RegBus] link_addr;
 
@@ -46,18 +49,29 @@ module cpu_top (
            .branch_target_address(branch_target_address)
          );
 
+  wire [`InstAddrBus]pc2;
+  pc2_reg u_pc2_reg(
+           .clk(clk),
+           .rst(rst),
+           .pc(pc),
+           .branch_flag_i(branch_flag),
+           .pc2(pc2)
+         );
+
+
   wire[`InstAddrBus] id_pc;
   wire[`InstBus] id_inst;
 
-  wire if_id_instr_invalid;
+//  wire if_id_instr_invalid;
   if_id u_if_id(
           .clk(clk),
           .rst(rst),
-          .if_pc_i(pc),
+          .if_pc_i(pc2),
           .if_inst_i(ram_rdata_i),
           .id_pc_o(id_pc),
           .id_inst_o(id_inst),
-          .instr_invalid(if_id_instr_invalid) // <- ctrl block
+//          .instr_invalid(if_id_instr_invalid) // <- ctrl block
+          .branch_flag_i(branch_flag)
         );
 
   wire[`AluOpBus] id_aluop;
@@ -273,7 +287,7 @@ module cpu_top (
          .rst                   (rst                   ),
          .id_is_branch_instr_i  (branch_flag),
          .pc_instr_invalid_o    (),
-         .if_id_instr_invalid_o (if_id_instr_invalid)
+         .if_id_instr_invalid_o ()
        );
 
 
