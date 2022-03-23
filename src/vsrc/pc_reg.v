@@ -8,22 +8,24 @@ module pc_reg (
 
     output reg[`InstAddrBus] pc,
     output reg ce
-);
-    
-always @(posedge clk) begin
-    if(ce == `ChipDisable)
-        pc <= 32'h1c000000 - 4;
-    else if(branch_flag_i == `Branch)
-        pc <= branch_target_address;
-    else
-        pc <= pc + 4'h4;
-end
+  );
 
-always @(posedge clk) begin
-    if(rst == `RstEnable)
+  always @(posedge clk)
+    begin
+      if(ce == `ChipDisable)
+        pc <= 32'h1c000000 - 4;
+      else if(branch_flag_i == `Branch)
+        pc <= branch_target_address;
+      else
+        pc <= pc + 32'h4;
+    end
+
+  always @(posedge clk)
+    begin
+      if(rst == `RstEnable)
         ce <= `ChipDisable;
-    else
+      else
         ce <= `ChipEnable;
-end
+    end
 
 endmodule

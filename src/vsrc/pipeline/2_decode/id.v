@@ -132,7 +132,7 @@ module id(
                 reg1_read_o = 1'b0;
                 reg2_read_o = 1'b0;
                 branch_flag_o = `Branch;
-                branch_target_address_o = {{4{imm_10[9]}},imm_10,imm_16,2'b0};
+                branch_target_address_o = pc_i + {{4{imm_10[9]}},imm_10,imm_16,2'b0};
                 inst_valid  = `InstValid;
               end
             `EXE_BL:
@@ -157,10 +157,11 @@ module id(
                 reg2_read_o = 1'b1;
                 reg1_addr_o = op1;
                 reg2_addr_o = op2;
-                if(reg1_o == reg2_o)begin
-                  branch_flag_o = `Branch;
-                  branch_target_address_o = {{14{imm_16[15]}},imm_16,2'b0};
-                end
+                if(reg1_o == reg2_o)
+                  begin
+                    branch_flag_o = `Branch;
+                    branch_target_address_o = {{14{imm_16[15]}},imm_16,2'b0};
+                  end
                 inst_valid  = `InstValid;
               end
             `EXE_BNE:
@@ -172,10 +173,11 @@ module id(
                 reg2_read_o = 1'b1;
                 reg1_addr_o = op1;
                 reg2_addr_o = op2;
-                if(reg1_o != reg2_o)begin
-                  branch_flag_o = `Branch;
-                  branch_target_address_o = {{14{imm_16[15]}},imm_16,2'b0};
-                end
+                if(reg1_o != reg2_o)
+                  begin
+                    branch_flag_o = `Branch;
+                    branch_target_address_o = {{14{imm_16[15]}},imm_16,2'b0};
+                  end
                 inst_valid  = `InstValid;
               end
             `EXE_BLT:
@@ -187,10 +189,11 @@ module id(
                 reg2_read_o = 1'b1;
                 reg1_addr_o = op1;
                 reg2_addr_o = op2;
-                if(reg1_o <= reg2_o)begin
-                  branch_flag_o = `Branch;
-                  branch_target_address_o = {{14{imm_16[15]}},imm_16,2'b0};
-                end
+                if(reg1_o <= reg2_o)
+                  begin
+                    branch_flag_o = `Branch;
+                    branch_target_address_o = {{14{imm_16[15]}},imm_16,2'b0};
+                  end
                 inst_valid  = `InstValid;
               end
             `EXE_BGE:
@@ -202,10 +205,11 @@ module id(
                 reg2_read_o = 1'b1;
                 reg1_addr_o = op1;
                 reg2_addr_o = op2;
-                if(reg1_o >= reg2_o)begin
-                  branch_flag_o = `Branch;
-                  branch_target_address_o = {{14{imm_16[15]}},imm_16,2'b0};
-                end
+                if(reg1_o >= reg2_o)
+                  begin
+                    branch_flag_o = `Branch;
+                    branch_target_address_o = {{14{imm_16[15]}},imm_16,2'b0};
+                  end
                 inst_valid  = `InstValid;
               end
             `EXE_BLTU:
@@ -217,10 +221,11 @@ module id(
                 reg2_read_o = 1'b1;
                 reg1_addr_o = op1;
                 reg2_addr_o = op2;
-                if(reg1_o < reg2_o)begin
-                  branch_flag_o = `Branch;
-                  branch_target_address_o = {{14{imm_16[15]}},imm_16,2'b0};
-                end
+                if(reg1_o < reg2_o)
+                  begin
+                    branch_flag_o = `Branch;
+                    branch_target_address_o = {{14{imm_16[15]}},imm_16,2'b0};
+                  end
                 inst_valid  = `InstValid;
               end
             `EXE_BGEU:
@@ -232,10 +237,11 @@ module id(
                 reg2_read_o = 1'b1;
                 reg1_addr_o = op1;
                 reg2_addr_o = op2;
-                if(reg1_o >= reg2_o)begin
-                  branch_flag_o = `Branch;
-                  branch_target_address_o = {{14{imm_16[15]}},imm_16,2'b0};
-                end
+                if(reg1_o >= reg2_o)
+                  begin
+                    branch_flag_o = `Branch;
+                    branch_target_address_o = {{14{imm_16[15]}},imm_16,2'b0};
+                  end
                 inst_valid  = `InstValid;
               end
             `EXE_LU12I_W:
@@ -442,7 +448,7 @@ module id(
                         `EXE_SUB_W:
                           begin
                             wreg_o      = `WriteEnable;
-                            aluop_o     = `EXE_ADD_OP;
+                            aluop_o     = `EXE_SUB_OP;
                             alusel_o    = `EXE_RES_ARITH;
                             reg1_read_o = 1'b1;
                             reg2_read_o = 1'b1;

@@ -41,9 +41,10 @@ module mem_wb (
           wb_wreg  <= mem_wreg;
           wb_wdata <= mem_wdata;
           debug_commit_pc <= mem_inst_pc;
-          debug_commit_valid_1 <= mem_inst_valid;
+          // debug_commit_pc <= debug_commit_pc_0;
+          debug_commit_valid <= ~mem_inst_valid;
           // debug_commit_valid_1 <= debug_commit_valid_0;
-          debug_commit_valid <= ~debug_commit_valid_1;
+          // debug_commit_valid <= ~debug_commit_valid_1;
           debug_commit_instr <= mem_instr;
         end
     end
