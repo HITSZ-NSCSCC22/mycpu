@@ -121,6 +121,8 @@ module id(
                 reg2_read_o = 1'b0;
                 link_addr_o = pc_plus_4;
                 imm         = {{14{imm_16[15]}},imm_16,2'b0};
+                branch_flag_o = `Branch;
+                branch_target_address_o = pc_i + imm;
                 reg_waddr_o = op1;
                 inst_valid  = `InstValid;
               end
@@ -144,8 +146,8 @@ module id(
                 reg2_read_o = 1'b0;
                 branch_flag_o = `Branch;
                 link_addr_o = pc_plus_4;
-                branch_target_address_o = {{4{imm_10[9]}},imm_10,imm_16,2'b0};
-                reg_waddr_o = 1'b1;
+                branch_target_address_o = pc_i +{{4{imm_10[9]}},imm_10,imm_16,2'b0};
+                reg_waddr_o = 5'b1;
                 inst_valid  = `InstValid;
               end
             `EXE_BEQ:
@@ -160,7 +162,7 @@ module id(
                 if(reg1_o == reg2_o)
                   begin
                     branch_flag_o = `Branch;
-                    branch_target_address_o = {{14{imm_16[15]}},imm_16,2'b0};
+                    branch_target_address_o = pc_i +{{14{imm_16[15]}},imm_16,2'b0};
                   end
                 inst_valid  = `InstValid;
               end
@@ -176,7 +178,7 @@ module id(
                 if(reg1_o != reg2_o)
                   begin
                     branch_flag_o = `Branch;
-                    branch_target_address_o = {{14{imm_16[15]}},imm_16,2'b0};
+                    branch_target_address_o = pc_i +{{14{imm_16[15]}},imm_16,2'b0};
                   end
                 inst_valid  = `InstValid;
               end
@@ -189,10 +191,10 @@ module id(
                 reg2_read_o = 1'b1;
                 reg1_addr_o = op1;
                 reg2_addr_o = op2;
-                if(reg1_o <= reg2_o)
+                if({~reg1_o[31],reg1_o[30:0]} < {~reg2_o[31],reg2_o[30:0]})
                   begin
                     branch_flag_o = `Branch;
-                    branch_target_address_o = {{14{imm_16[15]}},imm_16,2'b0};
+                    branch_target_address_o = pc_i +{{14{imm_16[15]}},imm_16,2'b0};
                   end
                 inst_valid  = `InstValid;
               end
@@ -205,10 +207,10 @@ module id(
                 reg2_read_o = 1'b1;
                 reg1_addr_o = op1;
                 reg2_addr_o = op2;
-                if(reg1_o >= reg2_o)
+                if({~reg1_o[31],reg1_o[30:0]} >= {~reg2_o[31],reg2_o[30:0]})
                   begin
                     branch_flag_o = `Branch;
-                    branch_target_address_o = {{14{imm_16[15]}},imm_16,2'b0};
+                    branch_target_address_o = pc_i +{{14{imm_16[15]}},imm_16,2'b0};
                   end
                 inst_valid  = `InstValid;
               end
@@ -224,7 +226,7 @@ module id(
                 if(reg1_o < reg2_o)
                   begin
                     branch_flag_o = `Branch;
-                    branch_target_address_o = {{14{imm_16[15]}},imm_16,2'b0};
+                    branch_target_address_o = pc_i +{{14{imm_16[15]}},imm_16,2'b0};
                   end
                 inst_valid  = `InstValid;
               end
@@ -240,7 +242,7 @@ module id(
                 if(reg1_o >= reg2_o)
                   begin
                     branch_flag_o = `Branch;
-                    branch_target_address_o = {{14{imm_16[15]}},imm_16,2'b0};
+                    branch_target_address_o = pc_i +{{14{imm_16[15]}},imm_16,2'b0};
                   end
                 inst_valid  = `InstValid;
               end
