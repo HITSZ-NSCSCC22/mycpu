@@ -29,7 +29,9 @@ module ex (
   reg[`RegBus] moveout;
   reg[`RegBus] arithout;
 
-
+  assign aluop_o = aluop_i;
+  assign mem_addr_o = reg1_i + {{20{inst_i[21]}},inst_i[21:10]};
+  assign reg2_o = reg2_i;
 
   always @(*)
     begin
