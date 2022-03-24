@@ -120,9 +120,8 @@ module id(
                 reg1_read_o = 1'b1;
                 reg2_read_o = 1'b0;
                 link_addr_o = pc_plus_4;
-                imm         = {{14{imm_16[15]}},imm_16,2'b0};
                 branch_flag_o = `Branch;
-                branch_target_address_o = pc_i + imm;
+                branch_target_address_o = pc_i + {{14{imm_16[15]}},imm_16,2'b0};
                 reg_waddr_o = op1;
                 inst_valid  = `InstValid;
               end
