@@ -103,10 +103,13 @@ module cpu_top (
   wire ex_wreg_o;
   wire[`RegAddrBus] ex_reg_waddr_o;
   wire[`RegBus] ex_reg_wdata;
+  wire[`AluOpBus] ex_aluop_o;
 
   wire mem_wreg_o;
   wire[`RegAddrBus] mem_reg_waddr_o;
   wire[`RegBus] mem_reg_wdata_o;
+
+  wire stallreg_from_id;
 
 
   id u_id(
@@ -120,6 +123,7 @@ module cpu_top (
        .ex_wreg_i   (ex_wreg_o ),
        .ex_waddr_i  (ex_reg_waddr_o),
        .ex_wdata_i  (ex_reg_wdata),
+       .ex_aluop_i  (ex_aluop_o),
 
        .mem_wreg_i  (mem_wreg_o),
        .mem_waddr_i (mem_reg_waddr_o),
@@ -143,7 +147,9 @@ module cpu_top (
 
        .branch_flag_o(branch_flag),
        .branch_target_address_o(branch_target_address),
-       .link_addr_o(link_addr)
+       .link_addr_o(link_addr),
+
+       .stallreg(stallreg_from_id)
      );
 
   wire[`AluOpBus] ex_aluop;
@@ -187,7 +193,6 @@ module cpu_top (
 
   wire ex_inst_valid_o;
   wire[`InstAddrBus] ex_inst_pc_o;
-  wire[`AluOpBus] ex_aluop_o;
   wire[`RegBus] ex_addr_o;
   wire[`RegBus] ex_reg2_o;
 
@@ -250,7 +255,11 @@ module cpu_top (
            .mem_reg2(mem_reg2_i)
          );
 
-
+  wire LLbit_o;
+  wire wb_LLbit_we_i;
+  wire wb_LLbit_value_i;
+  wire mem_LLbit_we_o;
+  wire mem_LLbit_value_o;
 
   mem u_mem(
         .rst     (rst     ),
@@ -264,6 +273,11 @@ module cpu_top (
 
         .mem_data_i(dram_data_i),
 
+        .LLbit_i(LLbit_o),
+        .wb_LLbit_we_i(wb_LLbit_we_i),
+		    .wb_LLbit_value_i(wb_LLbit_value_i),
+
+
         .wd_o    (mem_reg_waddr_o),
         .wreg_o  (mem_wreg_o ),
         .wdata_o (mem_reg_wdata_o ),
@@ -272,7 +286,11 @@ module cpu_top (
         .mem_we_o(dram_we_o),
         .mem_sel_o(dram_sel_o),
         .mem_data_o(dram_data_o),
-        .mem_ce_o(dram_ce_o)
+        .mem_ce_o(dram_ce_o),
+
+        .LLbit_we_o(mem_LLbit_we_o),
+		    .LLbit_value_o(mem_LLbit_value_o)
+
       );
 
 
@@ -283,6 +301,8 @@ module cpu_top (
   assign debug_commit_wreg = wb_wreg;
   assign debug_commit_reg_waddr = wb_reg_waddr;
   assign debug_commit_reg_wdata = wb_reg_wdata;
+
+
 
   mem_wb mem_wb0(
            .clk(clk),
@@ -295,9 +315,15 @@ module cpu_top (
            .mem_instr          (mem_inst          ),
            .mem_inst_valid     (mem_inst_valid     ),
 
+           .mem_LLbit_we(mem_LLbit_we_o),
+           .mem_LLbit_value(mem_LLbit_value_o),
+
            .wb_wd(wb_reg_waddr),
            .wb_wreg(wb_wreg),
            .wb_wdata(wb_reg_wdata),
+
+           .wb_LLbit_we(wb_LLbit_we_i),
+           .wb_LLbit_value(wb_LLbit_value_i),
 
            .debug_commit_pc    (debug_commit_pc    ),
            .debug_commit_valid (debug_commit_valid ),
@@ -325,8 +351,18 @@ module cpu_top (
          .clk                   (clk                   ),
          .rst                   (rst                   ),
          .id_is_branch_instr_i  (branch_flag),
+         .stallreq_from_id(stallreq_from_id),
          .pc_instr_invalid_o    (),
          .if_id_instr_invalid_o ()
+       );
+
+  LLbit_reg u_LLbit_reg(
+         .clk(clk),
+         .rst(rst),
+         .flush(1'b0),
+         .LLbit_i(wb_LLbit_value_i),
+         .we(wb_LLbit_we_i),
+         .LLibt_o(LLbit_o)
        );
 
 

@@ -147,6 +147,9 @@
 `define EXE_ST_W_OP  8'b00011011
 `define EXE_LD_BU_OP 8'b00011100
 `define EXE_LD_HU_OP 8'b00011101
+`define EXE_LL_OP    8'b00011110
+`define EXE_SC_OP    8'b00011111
+`define EXE_PCADD_OP 8'b00100000
 
 
 

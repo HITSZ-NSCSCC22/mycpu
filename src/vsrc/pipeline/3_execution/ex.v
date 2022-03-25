@@ -188,6 +188,10 @@ module ex (
               begin
                 moveout = reg1_i;
               end
+            `EXE_PCADD_OP:
+              begin
+                moveout = reg1_i + inst_pc_i;
+              end
             default:
               begin
               end
