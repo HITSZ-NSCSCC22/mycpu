@@ -22,6 +22,13 @@ module SimTop(
   wire[`RegBus] ram_wdata;
   wire ram_wen;
 
+  wire dram_ce;
+  wire dram_we;
+  wire[`DataAddrBus] dram_addr;
+  wire[3:0] dram_sel;
+  wire[`DataBus] dram_data_i;
+  wire[`DataBus] dram_data_o;
+
   wire [`RegBus] debug_commit_pc;
   wire debug_commit_valid;
   wire[`InstBus] debug_commit_instr;
@@ -33,12 +40,21 @@ module SimTop(
   cpu_top u_cpu_top(
             .clk(clock),
             .rst(reset),
+            .dram_data_i(dram_data_i),
             .ram_rdata_i(ram_rdata),
+
             .ram_raddr_o(ram_raddr),
             .ram_wdata_o(ram_wdata),
             .ram_waddr_o(ram_waddr),
             .ram_wen_o (ram_wen),
             .ram_en_o (chip_enable),
+
+            .dram_addr_o(dram_addr),
+            .dram_data_o(dram_data_o),
+            .dram_we_o(dram_we),
+            .dram_sel_o(dram_sel),
+            .dram_ce_o(dram_ce),
+
             .debug_commit_pc(debug_commit_pc        ),
             .debug_commit_valid(debug_commit_valid     ),
             .debug_commit_instr(debug_commit_instr     ),
@@ -74,6 +90,18 @@ module SimTop(
       );
 `endif
 
+
+data_ram u_data_ram(
+    .clk(clock), 
+    .ce(dram_ce),
+    .we(dram_we),
+    .addr(dram_addr),
+    .sel(dram_sel),
+    .data_i(dram_data_i),
+    .data_o(dram_data_o)    
+);
+
+
 `ifdef DIFFTEST
 
   reg coreid = 0;
@@ -88,6 +116,12 @@ module SimTop(
 
   reg [63:0] cycleCnt;
   reg [63:0] instrCnt;
+  reg [`RegBus] debug_commit_pc_1;
+  reg debug_commit_valid_1;
+  reg [`InstBus] debug_commit_instr_1;
+  reg debug_commit_wreg_1;
+  reg [`RegAddrBus] debug_commit_reg_waddr_1;
+  reg [`RegBus] debug_commit_reg_wdata_1;
 
   always @(posedge clock or negedge reset_n)
     begin
@@ -95,11 +129,23 @@ module SimTop(
         begin
           cycleCnt <= 0;
           instrCnt <= 0;
+          debug_commit_instr_1 <= 0;
+          debug_commit_valid_1 <= 0;
+          debug_commit_pc_1 <= 0;
+          debug_commit_wreg_1 <= 0;
+          debug_commit_reg_waddr_1 <= 0;
+          debug_commit_reg_wdata_1 <= 0;
         end
       else
         begin
           cycleCnt <= cycleCnt + 1;
           instrCnt <= instrCnt + debug_commit_valid;
+          debug_commit_instr_1 <= debug_commit_instr;
+          debug_commit_valid_1 <= debug_commit_valid;
+          debug_commit_pc_1 <= debug_commit_pc & chip_enable;
+          debug_commit_wreg_1 <= debug_commit_wreg;
+          debug_commit_reg_waddr_1 <= debug_commit_reg_waddr;
+          debug_commit_reg_wdata_1 <= debug_commit_reg_wdata;
         end
     end
 
@@ -128,17 +174,17 @@ module SimTop(
                         .clock(clock),
                         .coreid(coreid),
                         .index(index),
-                        .valid(debug_commit_valid), // Non-zero means valid, checked per-cycle, if valid, instr count as as commit
-                        .pc(debug_commit_pc),
-                        .instr(debug_commit_instr),
+                        .valid(debug_commit_valid_1), // Non-zero means valid, checked per-cycle, if valid, instr count as as commit
+                        .pc(debug_commit_pc_1),
+                        .instr(debug_commit_instr_1),
                         .skip(),
                         .is_TLBFILL(),
                         .TLBFILL_index(),
                         .is_CNTinst(),
                         .timer_64_value(),
-                        .wen(debug_commit_wreg),
-                        .wdest(debug_commit_reg_waddr),
-                        .wdata(debug_commit_reg_wdata)
+                        .wen(debug_commit_wreg_1),
+                        .wdest(debug_commit_reg_waddr_1),
+                        .wdata(debug_commit_reg_wdata_1)
                       );
 
   DifftestArchIntRegState difftest_arch_int_reg_state(
