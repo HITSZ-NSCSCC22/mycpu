@@ -163,7 +163,7 @@ module ex (
             `EXE_MOD_OP:
               arithout = reg1_i % reg2_i;
             `EXE_SLT_OP,`EXE_SLTU_OP:
-              arithout = reg1_lt_reg2;
+              arithout = {31'b0,reg1_lt_reg2};
             default:
               begin
               end
