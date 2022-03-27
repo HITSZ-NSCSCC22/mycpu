@@ -15,7 +15,7 @@ module cpu_top (
     input wire rst,
     input wire[`RegBus] dram_data_i,
     input wire[`RegBus] ram_rdata_i,
-    
+
     output wire[`RegBus] ram_raddr_o,
     output wire[`RegBus] ram_wdata_o,
     output wire[`RegBus] ram_waddr_o,
@@ -60,18 +60,18 @@ module cpu_top (
 
   wire [`InstAddrBus]pc2;
   pc2_reg u_pc2_reg(
-           .clk(clk),
-           .rst(rst),
-           .pc(pc),
-           .branch_flag_i(branch_flag),
-           .pc2(pc2)
-         );
+            .clk(clk),
+            .rst(rst),
+            .pc(pc),
+            .branch_flag_i(branch_flag),
+            .pc2(pc2)
+          );
 
 
   wire[`InstAddrBus] id_pc;
   wire[`InstBus] id_inst;
 
-//  wire if_id_instr_invalid;
+  //  wire if_id_instr_invalid;
   if_id u_if_id(
           .clk(clk),
           .rst(rst),
@@ -79,7 +79,7 @@ module cpu_top (
           .if_inst_i(ram_rdata_i),
           .id_pc_o(id_pc),
           .id_inst_o(id_inst),
-//          .instr_invalid(if_id_instr_invalid) // <- ctrl block
+          //          .instr_invalid(if_id_instr_invalid) // <- ctrl block
           .branch_flag_i(branch_flag)
         );
 
@@ -109,7 +109,7 @@ module cpu_top (
   wire[`RegAddrBus] mem_reg_waddr_o;
   wire[`RegBus] mem_reg_wdata_o;
 
-  wire stallreg_from_id;
+  wire stallreq_from_id;
 
 
   id u_id(
@@ -149,7 +149,7 @@ module cpu_top (
        .branch_target_address_o(branch_target_address),
        .link_addr_o(link_addr),
 
-       .stallreg(stallreg_from_id)
+       .stallreq(stallreq_from_id)
      );
 
   wire[`AluOpBus] ex_aluop;
@@ -275,13 +275,13 @@ module cpu_top (
 
         .LLbit_i(LLbit_o),
         .wb_LLbit_we_i(wb_LLbit_we_i),
-		    .wb_LLbit_value_i(wb_LLbit_value_i),
+        .wb_LLbit_value_i(wb_LLbit_value_i),
 
 
         .wd_o    (mem_reg_waddr_o),
         .wreg_o  (mem_wreg_o ),
         .wdata_o (mem_reg_wdata_o ),
-        
+
         .mem_addr_o(dram_addr_o),
         .mem_we_o(dram_we_o),
         .mem_sel_o(dram_sel_o),
@@ -289,7 +289,7 @@ module cpu_top (
         .mem_ce_o(dram_ce_o),
 
         .LLbit_we_o(mem_LLbit_we_o),
-		    .LLbit_value_o(mem_LLbit_value_o)
+        .LLbit_value_o(mem_LLbit_value_o)
 
       );
 
@@ -312,7 +312,7 @@ module cpu_top (
            .mem_wreg(mem_wreg_o),
            .mem_wdata(mem_reg_wdata_o),
            .mem_inst_pc        (mem_inst_pc        ),
-           .mem_instr          (mem_inst          ),
+           .mem_instr          (          ),
            .mem_inst_valid     (mem_inst_valid     ),
 
            .mem_LLbit_we(mem_LLbit_we_o),
@@ -357,13 +357,13 @@ module cpu_top (
        );
 
   LLbit_reg u_LLbit_reg(
-         .clk(clk),
-         .rst(rst),
-         .flush(1'b0),
-         .LLbit_i(wb_LLbit_value_i),
-         .we(wb_LLbit_we_i),
-         .LLibt_o(LLbit_o)
-       );
+              .clk(clk),
+              .rst(rst),
+              .flush(1'b0),
+              .LLbit_i(wb_LLbit_value_i),
+              .we(wb_LLbit_we_i),
+              .LLbit_o(LLbit_o)
+            );
 
 
 endmodule

@@ -89,24 +89,26 @@ module id(
                              (ex_aluop_i == `EXE_ST_B_OP) ||
                              (ex_aluop_i == `EXE_ST_H_OP) ||
                              (ex_aluop_i == `EXE_ST_W_OP) ) ? 1'b1 : 1'b0;
-        
-  always @(*) begin
+
+  always @(*)
+    begin
       stallreq_for_reg1_loadrelate = `NoStop;
       if(rst == `RstEnable)
-          reg1_o = `ZeroWord;
+        reg1_o = `ZeroWord;
       else if(pre_inst_is_load == 1'b1 && ex_waddr_i == reg1_addr_o && reg1_read_o == 1'b1)
         stallreq_for_reg1_loadrelate = `Stop;
-  end
+    end
 
-  always @(*) begin
+  always @(*)
+    begin
       stallreq_for_reg2_loadrelate = `NoStop;
       if(rst == `RstEnable)
-          reg2_o = `ZeroWord;
+        reg2_o = `ZeroWord;
       else if(pre_inst_is_load == 1'b1 && ex_waddr_i == reg2_addr_o && reg2_read_o == 1'b1)
         stallreq_for_reg2_loadrelate = `Stop;
-  end
+    end
 
-  assign stallreg = stallreq_for_reg1_loadrelate | stallreq_for_reg2_loadrelate;
+  assign stallreq = stallreq_for_reg1_loadrelate | stallreq_for_reg2_loadrelate;
 
   always @(*)
     begin
@@ -305,7 +307,7 @@ module id(
               end
             `EXE_ATOMIC_MEM:
               begin
-                case (opcode_2)
+                casez (opcode_2)
                   `EXE_LL_W:
                     begin
                       wreg_o      = `WriteEnable;
@@ -325,9 +327,10 @@ module id(
                       reg2_read_o = 1'b1;
                       reg2_addr_o = op1;
                       inst_valid  = `InstValid;
-                    end 
-                  default:begin
-                  end
+                    end
+                  default:
+                    begin
+                    end
                 endcase
               end
             `EXE_MEM_RELATED:
