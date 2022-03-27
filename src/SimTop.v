@@ -22,6 +22,13 @@ module SimTop(
   wire[`RegBus] ram_wdata;
   wire ram_wen;
 
+  wire dram_ce;
+  wire dram_we;
+  wire[`DataAddrBus] dram_addr;
+  wire[3:0] dram_sel;
+  wire[`DataBus] dram_data_i;
+  wire[`DataBus] dram_data_o;
+
   wire [`RegBus] debug_commit_pc;
   wire debug_commit_valid;
   wire[`InstBus] debug_commit_instr;
@@ -33,12 +40,21 @@ module SimTop(
   cpu_top u_cpu_top(
             .clk(clock),
             .rst(reset),
+            .dram_data_i(dram_data_i),
             .ram_rdata_i(ram_rdata),
+
             .ram_raddr_o(ram_raddr),
             .ram_wdata_o(ram_wdata),
             .ram_waddr_o(ram_waddr),
             .ram_wen_o (ram_wen),
             .ram_en_o (chip_enable),
+
+            .dram_addr_o(dram_addr),
+            .dram_data_o(dram_data_o),
+            .dram_we_o(dram_we),
+            .dram_sel_o(dram_sel),
+            .dram_ce_o(dram_ce),
+
             .debug_commit_pc(debug_commit_pc        ),
             .debug_commit_valid(debug_commit_valid     ),
             .debug_commit_instr(debug_commit_instr     ),
@@ -73,6 +89,18 @@ module SimTop(
         .branch_flag_i(Instram_branch_flag)
       );
 `endif
+
+
+data_ram u_data_ram(
+    .clk(clock), 
+    .ce(dram_ce),
+    .we(dram_we),
+    .addr(dram_addr),
+    .sel(dram_sel),
+    .data_i(dram_data_i),
+    .data_o(dram_data_o)    
+);
+
 
 `ifdef DIFFTEST
 

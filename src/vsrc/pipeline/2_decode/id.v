@@ -14,6 +14,7 @@ module id(
     input wire ex_wreg_i,
     input wire[`RegAddrBus] ex_waddr_i,
     input wire[`RegBus] ex_wdata_i,
+    input wire[`AluOpBus] ex_aluop_i,
 
     // <- Mem
     input wire mem_wreg_i,
@@ -35,12 +36,15 @@ module id(
     output reg wreg_o,
     output reg inst_valid,
     output reg[`InstAddrBus] inst_pc,
-    output reg[`RegBus] inst_o,
+    output wire[`RegBus] inst_o,
 
     // -> PC
     output reg branch_flag_o,
     output reg[`RegBus] branch_target_address_o,
-    output reg[`RegBus] link_addr_o
+    output reg[`RegBus] link_addr_o,
+
+    // ->Ctrl
+    output stallreq
   );
 
   wire[5:0] opcode_6 = inst_i[31:26];
@@ -69,8 +73,40 @@ module id(
   wire[`RegBus] pc_plus_4;
 
   assign pc_plus_4 = pc_i + 4;
+  assign inst_o = inst_i;
 
   reg[`RegBus]	imm;
+
+  reg stallreq_for_reg1_loadrelate;
+  reg stallreq_for_reg2_loadrelate;
+  wire pre_inst_is_load;
+
+  assign pre_inst_is_load = ((ex_aluop_i == `EXE_LD_B_OP) ||
+                             (ex_aluop_i == `EXE_LD_H_OP) ||
+                             (ex_aluop_i == `EXE_LD_W_OP) ||
+                             (ex_aluop_i == `EXE_LD_BU_OP) ||
+                             (ex_aluop_i == `EXE_LD_HU_OP) ||
+                             (ex_aluop_i == `EXE_ST_B_OP) ||
+                             (ex_aluop_i == `EXE_ST_H_OP) ||
+                             (ex_aluop_i == `EXE_ST_W_OP) ) ? 1'b1 : 1'b0;
+        
+  always @(*) begin
+      stallreq_for_reg1_loadrelate = `NoStop;
+      if(rst == `RstEnable)
+          reg1_o = `ZeroWord;
+      else if(pre_inst_is_load == 1'b1 && ex_waddr_i == reg1_addr_o && reg1_read_o == 1'b1)
+        stallreq_for_reg1_loadrelate = `Stop;
+  end
+
+  always @(*) begin
+      stallreq_for_reg2_loadrelate = `NoStop;
+      if(rst == `RstEnable)
+          reg2_o = `ZeroWord;
+      else if(pre_inst_is_load == 1'b1 && ex_waddr_i == reg2_addr_o && reg2_read_o == 1'b1)
+        stallreq_for_reg2_loadrelate = `Stop;
+  end
+
+  assign stallreg = stallreq_for_reg1_loadrelate | stallreq_for_reg2_loadrelate;
 
   always @(*)
     begin
@@ -258,11 +294,41 @@ module id(
               end
             `EXE_PCADDU12I:
               begin
-
+                wreg_o      = `WriteEnable;
+                aluop_o     = `EXE_PCADD_OP;
+                alusel_o    = `EXE_RES_MOVE;
+                reg1_read_o = 1'b1;
+                reg2_read_o = 1'b0;
+                imm         = {imm_20, 12'b0};
+                reg_waddr_o = op1;
+                inst_valid  = `InstValid;
               end
             `EXE_ATOMIC_MEM:
               begin
-
+                case (opcode_2)
+                  `EXE_LL_W:
+                    begin
+                      wreg_o      = `WriteEnable;
+                      aluop_o     = `EXE_LL_OP;
+                      alusel_o    = `EXE_RES_LOAD_STORE;
+                      reg1_read_o = 1'b1;
+                      reg2_read_o = 1'b0;
+                      reg_waddr_o = op1;
+                      inst_valid  = `InstValid;
+                    end
+                  `EXE_SC_W:
+                    begin
+                      wreg_o      = `WriteEnable;
+                      aluop_o     = `EXE_SC_OP;
+                      alusel_o    = `EXE_RES_LOAD_STORE;
+                      reg1_read_o = 1'b1;
+                      reg2_read_o = 1'b1;
+                      reg2_addr_o = op1;
+                      inst_valid  = `InstValid;
+                    end 
+                  default:begin
+                  end
+                endcase
               end
             `EXE_MEM_RELATED:
               begin
@@ -274,7 +340,6 @@ module id(
                       alusel_o    = `EXE_RES_LOAD_STORE;
                       reg1_read_o = 1'b1;
                       reg2_read_o = 1'b0;
-                      imm         = {{20{imm_12[11]}},imm_12};
                       reg_waddr_o = op1;
                       inst_valid  = `InstValid;
                     end
@@ -285,7 +350,6 @@ module id(
                       alusel_o    = `EXE_RES_LOAD_STORE;
                       reg1_read_o = 1'b1;
                       reg2_read_o = 1'b0;
-                      imm         = {{20{imm_12[11]}},imm_12};
                       reg_waddr_o = op1;
                       inst_valid  = `InstValid;
                     end
@@ -296,7 +360,6 @@ module id(
                       alusel_o    = `EXE_RES_LOAD_STORE;
                       reg1_read_o = 1'b1;
                       reg2_read_o = 1'b0;
-                      imm         = {{20{imm_12[11]}},imm_12};
                       reg_waddr_o = op1;
                       inst_valid  = `InstValid;
                     end
@@ -306,8 +369,8 @@ module id(
                       aluop_o     = `EXE_ST_B_OP;
                       alusel_o    = `EXE_RES_LOAD_STORE;
                       reg1_read_o = 1'b1;
-                      reg2_read_o = 1'b0;
-                      imm         = {{20{imm_12[11]}},imm_12};
+                      reg2_read_o = 1'b1;
+                      reg2_addr_o = op1;
                       inst_valid  = `InstValid;
                     end
                   `EXE_ST_H:
@@ -316,8 +379,8 @@ module id(
                       aluop_o     = `EXE_ST_H_OP;
                       alusel_o    = `EXE_RES_LOAD_STORE;
                       reg1_read_o = 1'b1;
-                      reg2_read_o = 1'b0;
-                      imm         = {{20{imm_12[11]}},imm_12};
+                      reg2_read_o = 1'b1;
+                      reg2_addr_o = op1;
                       inst_valid  = `InstValid;
                     end
                   `EXE_ST_W:
@@ -326,8 +389,8 @@ module id(
                       aluop_o     = `EXE_ST_W_OP;
                       alusel_o    = `EXE_RES_LOAD_STORE;
                       reg1_read_o = 1'b1;
-                      reg2_read_o = 1'b0;
-                      imm         = {{20{imm_12[11]}},imm_12};
+                      reg2_read_o = 1'b1;
+                      reg2_addr_o = op1;
                       inst_valid  = `InstValid;
                     end
                   `EXE_LD_BU:
@@ -337,7 +400,6 @@ module id(
                       alusel_o    = `EXE_RES_LOAD_STORE;
                       reg1_read_o = 1'b1;
                       reg2_read_o = 1'b0;
-                      imm         = {{20{imm_12[11]}},imm_12};
                       reg_waddr_o = op1;
                       inst_valid  = `InstValid;
                     end
@@ -348,7 +410,6 @@ module id(
                       alusel_o    = `EXE_RES_LOAD_STORE;
                       reg1_read_o = 1'b1;
                       reg2_read_o = 1'b0;
-                      imm         = {{20{imm_12[11]}},imm_12};
                       reg_waddr_o = op1;
                       inst_valid  = `InstValid;
                     end
