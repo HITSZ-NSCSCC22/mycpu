@@ -14,3 +14,13 @@
   
 5. 代码没有经过测试  
 
+  
+### 2022.3.28  
+  
+  1. 修复了jirl指令PC相对寻址的bug
+   
+  2. 修改了cpu_top中link_address的bug
+
+  3. 修改了id模块中分支指令操作数1和操作数2搞反的问题，目前`reg1_address=op2,reg2_address=op1`
+
+  4. 转移指令全部测试通过
