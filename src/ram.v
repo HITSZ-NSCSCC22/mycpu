@@ -18,7 +18,7 @@ module ram (
   assign tmp_addr = raddr - 32'h1c000000;
   
   initial
-    $readmemh ("D:/cpu-test/latest/mycpu/src/inst_rom.data", mem);
+    $readmemh ("D:/Linnux_LongXin/Share/LoongArch/inst_rom.data", mem);
 
   always @ (posedge clock)
     begin
