@@ -6,10 +6,12 @@
 测试框架需要的依赖：
 - verilator: 仿真器，[安装说明](https://veripool.org/guide/latest/install.html)
 - ccache: 编译缓存
+- libsdl2-dev: 外设模拟
+- sqlite3: 数据记录
 
 在ubuntu下，可用以下命令安装
 ```
-sudo apt-get install -y verilator ccache
+sudo apt-get install -y verilator ccache libsdl2-dev sqlite3 libsqlite3-dev
 ```
 
 ### 框架下载
