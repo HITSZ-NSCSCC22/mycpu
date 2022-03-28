@@ -208,7 +208,7 @@ module cpu_top (
        .inst_valid_i(ex_inst_valid_i),
        .inst_pc_i(ex_inst_pc_i),
        .inst_i(ex_inst_i),
-       .link_addr_i(link_addr),
+       .link_addr_i(ex_link_address),
 
        .wd_o(ex_reg_waddr_o),
        .wreg_o(ex_wreg_o),

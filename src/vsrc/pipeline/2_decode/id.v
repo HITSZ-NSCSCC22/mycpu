@@ -159,7 +159,7 @@ module id(
                 reg2_read_o = 1'b0;
                 link_addr_o = pc_plus_4;
                 branch_flag_o = `Branch;
-                branch_target_address_o = pc_i + {{14{imm_16[15]}},imm_16,2'b0};
+                branch_target_address_o = reg1_o + {{14{imm_16[15]}},imm_16,2'b0};
                 reg_waddr_o = op1;
                 inst_valid  = `InstValid;
               end
@@ -194,8 +194,8 @@ module id(
                 alusel_o    = `EXE_RES_JUMP;
                 reg1_read_o = 1'b1;
                 reg2_read_o = 1'b1;
-                reg1_addr_o = op1;
-                reg2_addr_o = op2;
+                reg1_addr_o = op2;
+                reg2_addr_o = op1;
                 if(reg1_o == reg2_o)
                   begin
                     branch_flag_o = `Branch;
@@ -210,8 +210,8 @@ module id(
                 alusel_o    = `EXE_RES_JUMP;
                 reg1_read_o = 1'b1;
                 reg2_read_o = 1'b1;
-                reg1_addr_o = op1;
-                reg2_addr_o = op2;
+                reg1_addr_o = op2;
+                reg2_addr_o = op1;
                 if(reg1_o != reg2_o)
                   begin
                     branch_flag_o = `Branch;
@@ -226,8 +226,8 @@ module id(
                 alusel_o    = `EXE_RES_JUMP;
                 reg1_read_o = 1'b1;
                 reg2_read_o = 1'b1;
-                reg1_addr_o = op1;
-                reg2_addr_o = op2;
+                reg1_addr_o = op2;
+                reg2_addr_o = op1;
                 if({~reg1_o[31],reg1_o[30:0]} < {~reg2_o[31],reg2_o[30:0]})
                   begin
                     branch_flag_o = `Branch;
@@ -242,8 +242,8 @@ module id(
                 alusel_o    = `EXE_RES_JUMP;
                 reg1_read_o = 1'b1;
                 reg2_read_o = 1'b1;
-                reg1_addr_o = op1;
-                reg2_addr_o = op2;
+                reg1_addr_o = op2;
+                reg2_addr_o = op1;
                 if({~reg1_o[31],reg1_o[30:0]} >= {~reg2_o[31],reg2_o[30:0]})
                   begin
                     branch_flag_o = `Branch;
@@ -258,8 +258,8 @@ module id(
                 alusel_o    = `EXE_RES_JUMP;
                 reg1_read_o = 1'b1;
                 reg2_read_o = 1'b1;
-                reg1_addr_o = op1;
-                reg2_addr_o = op2;
+                reg1_addr_o = op2;
+                reg2_addr_o = op1;
                 if(reg1_o < reg2_o)
                   begin
                     branch_flag_o = `Branch;
@@ -274,8 +274,8 @@ module id(
                 alusel_o    = `EXE_RES_JUMP;
                 reg1_read_o = 1'b1;
                 reg2_read_o = 1'b1;
-                reg1_addr_o = op1;
-                reg2_addr_o = op2;
+                reg1_addr_o = op2;
+                reg2_addr_o = op1;
                 if(reg1_o >= reg2_o)
                   begin
                     branch_flag_o = `Branch;
