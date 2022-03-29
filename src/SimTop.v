@@ -154,7 +154,7 @@ module SimTop(
                       .coreid(coreid),
                       .valid(),
                       .code(),
-                      .pc(debug_commit_pc_1),
+                      .pc(debug_commit_pc),
                       .cycleCnt(cycleCnt),
                       .instrCnt(instrCnt)
                     );
@@ -175,7 +175,7 @@ module SimTop(
                         .coreid(coreid),
                         .index(index),
                         .valid(debug_commit_valid_1), // Non-zero means valid, checked per-cycle, if valid, instr count as as commit
-                        .pc(debug_commit_pc_1),
+                        .pc(debug_commit_pc),
                         .instr(debug_commit_instr_1),
                         .skip(),
                         .is_TLBFILL(),
