@@ -91,15 +91,15 @@ module SimTop(
 `endif
 
 
-data_ram u_data_ram(
-    .clk(clock), 
-    .ce(dram_ce),
-    .we(dram_we),
-    .addr(dram_addr),
-    .sel(dram_sel),
-    .data_i(dram_data_i),
-    .data_o(dram_data_o)    
-);
+  data_ram u_data_ram(
+             .clk(clock),
+             .ce(dram_ce),
+             .we(dram_we),
+             .addr(dram_addr),
+             .sel(dram_sel),
+             .data_i(dram_data_i),
+             .data_o(dram_data_o)
+           );
 
 
 `ifdef DIFFTEST
@@ -139,10 +139,10 @@ data_ram u_data_ram(
       else
         begin
           cycleCnt <= cycleCnt + 1;
-          instrCnt <= instrCnt + debug_commit_valid;
+          instrCnt <= instrCnt + debug_commit_valid_1;
           debug_commit_instr_1 <= debug_commit_instr;
-          debug_commit_valid_1 <= debug_commit_valid;
-          debug_commit_pc_1 <= debug_commit_pc & chip_enable;
+          debug_commit_valid_1 <= debug_commit_valid & chip_enable;
+          debug_commit_pc_1 <= debug_commit_pc;
           debug_commit_wreg_1 <= debug_commit_wreg;
           debug_commit_reg_waddr_1 <= debug_commit_reg_waddr;
           debug_commit_reg_wdata_1 <= debug_commit_reg_wdata;
@@ -154,7 +154,7 @@ data_ram u_data_ram(
                       .coreid(coreid),
                       .valid(),
                       .code(),
-                      .pc(debug_commit_pc),
+                      .pc(debug_commit_pc_1),
                       .cycleCnt(cycleCnt),
                       .instrCnt(instrCnt)
                     );
