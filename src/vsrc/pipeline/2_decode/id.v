@@ -288,7 +288,7 @@ module id(
                 wreg_o      = `WriteEnable;
                 aluop_o     = `EXE_LUI_OP;
                 alusel_o    = `EXE_RES_MOVE;
-                reg1_read_o = 1'b1;
+                reg1_read_o = 1'b0;
                 reg2_read_o = 1'b0;
                 imm         = {imm_20, 12'b0};
                 reg_waddr_o = op1;
@@ -299,7 +299,7 @@ module id(
                 wreg_o      = `WriteEnable;
                 aluop_o     = `EXE_PCADD_OP;
                 alusel_o    = `EXE_RES_MOVE;
-                reg1_read_o = 1'b1;
+                reg1_read_o = 1'b0;
                 reg2_read_o = 1'b0;
                 imm         = {imm_20, 12'b0};
                 reg_waddr_o = op1;

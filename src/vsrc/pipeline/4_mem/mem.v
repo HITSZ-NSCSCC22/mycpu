@@ -279,6 +279,10 @@ module mem (
                     wdata_o = 32'b0;
                   end
               end
+            default:
+              begin
+
+              end
           endcase
         end
     end
