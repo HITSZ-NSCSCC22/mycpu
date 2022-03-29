@@ -109,7 +109,6 @@ module SimTop(
   reg [7:0] index = 0;
   wire reset_n;
   assign reset_n = ~reset;
-  wire [63:0] ram_rdata;
 
 
 

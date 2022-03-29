@@ -1,6 +1,6 @@
 `include "defines.v"
 `include "pc_reg.v"
-`include "pc2_reg.v"
+`include "if_buffer.v"
 `include "regfile.v"
 `include "pipeline/1_fetch/if_id.v"
 `include "pipeline/2_decode/id.v"
@@ -59,17 +59,19 @@ module cpu_top (
          );
 
   wire [`InstAddrBus]pc2;
-  pc2_reg u_pc2_reg(
-            .clk(clk),
-            .rst(rst),
-            .pc(pc),
-            .branch_flag_i(branch_flag),
-            .pc2(pc2)
-          );
+  if_buffer if_buffer_1(
+              .clk(clk),
+              .rst(rst),
+              .pc_i(pc),
+              .branch_flag_i(branch_flag),
+              .pc_valid(if_inst_valid),
+              .pc_o(pc2)
+            );
 
 
   wire[`InstAddrBus] id_pc;
   wire[`InstBus] id_inst;
+  wire if_inst_valid;
 
   //  wire if_id_instr_invalid;
   if_id u_if_id(
@@ -79,7 +81,7 @@ module cpu_top (
           .if_inst_i(ram_rdata_i),
           .id_pc_o(id_pc),
           .id_inst_o(id_inst),
-          //          .instr_invalid(if_id_instr_invalid) // <- ctrl block
+          .if_inst_valid(if_inst_valid),
           .branch_flag_i(branch_flag)
         );
 
