@@ -19,7 +19,7 @@ int main(int argc, char const *argv[])
     sopc->reset = 1;
 
     // Simulation loop
-    for (size_t i = 0; i < 1000; i++)
+    for (size_t i = 0; i < 10000; i++)
     {
         if (i == 10)
         {

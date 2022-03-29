@@ -17,7 +17,8 @@ module SimTop(
 
   wire chip_enable;
   wire[`RegBus] ram_raddr;
-  wire[`RegBus] ram_rdata;
+  reg[`RegBus] ram_rdata;
+  wire[`RegBus] ramhelper_rdata;
   wire[`RegBus] ram_waddr;
   wire[`RegBus] ram_wdata;
   wire ram_wen;
@@ -146,6 +147,7 @@ module SimTop(
           debug_commit_wreg_1 <= debug_commit_wreg;
           debug_commit_reg_waddr_1 <= debug_commit_reg_waddr;
           debug_commit_reg_wdata_1 <= debug_commit_reg_wdata;
+          ram_rdata <= ramhelper_rdata;
         end
     end
 
@@ -163,7 +165,7 @@ module SimTop(
               .clk(clock),
               .en(chip_enable),
               .rIdx(ram_rIdx),
-              .rdata(ram_rdata),
+              .rdata(ramhelper_rdata),
               .wIdx(),
               .wdata(),
               .wmask(),
