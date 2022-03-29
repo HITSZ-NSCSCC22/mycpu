@@ -2,10 +2,11 @@
 module if_id (
     input wire clk,
     input wire rst,
-    
+
     input wire branch_flag_i,
     input wire[`InstAddrBus] if_pc_i,
     input wire[`InstAddrBus] if_inst_i,
+    input wire if_inst_valid,
     output reg[`InstAddrBus] id_pc_o,
     output reg[`InstBus] id_inst_o
   );
@@ -18,11 +19,11 @@ module if_id (
           id_pc_o <= `ZeroWord;
           id_inst_o <= `ZeroWord;
         end
-      else if(branch_flag_i)
-      begin
-        id_pc_o <= `ZeroWord;
-        id_inst_o <= `ZeroWord;
-      end
+      else if(branch_flag_i || if_inst_valid == `InstInvalid)
+        begin
+          id_pc_o <= `ZeroWord;
+          id_inst_o <= `ZeroWord;
+        end
       else
         begin
           id_inst_o <= if_inst_i;
