@@ -29,7 +29,9 @@ module ex (
   reg[`RegBus] moveout;
   reg[`RegBus] arithout;
 
-
+  assign aluop_o = aluop_i;
+  assign mem_addr_o = reg1_i + {{20{inst_i[21]}},inst_i[21:10]};
+  assign reg2_o = reg2_i;
 
   always @(*)
     begin
@@ -161,7 +163,7 @@ module ex (
             `EXE_MOD_OP:
               arithout = reg1_i % reg2_i;
             `EXE_SLT_OP,`EXE_SLTU_OP:
-              arithout = reg1_lt_reg2;
+              arithout = {31'b0,reg1_lt_reg2};
             default:
               begin
               end
@@ -184,7 +186,11 @@ module ex (
           case (aluop_i)
             `EXE_LUI_OP:
               begin
-                moveout = reg1_i;
+                moveout = reg2_i;
+              end
+            `EXE_PCADD_OP:
+              begin
+                moveout = reg2_i + inst_pc_o;
               end
             default:
               begin

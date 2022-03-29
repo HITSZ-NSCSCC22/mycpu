@@ -2,8 +2,10 @@ module ctrl (
     input wire clk,
     input wire rst,
     input wire id_is_branch_instr_i,
+    input wire stallreq_from_id,
     output wire pc_instr_invalid_o,
     output wire if_id_instr_invalid_o
+
   );
 
   wire rst_n = ~rst;
