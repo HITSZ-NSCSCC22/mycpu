@@ -186,11 +186,11 @@ module ex (
           case (aluop_i)
             `EXE_LUI_OP:
               begin
-                moveout = reg1_i;
+                moveout = reg1_i | reg2_i;
               end
             `EXE_PCADD_OP:
               begin
-                moveout = reg1_i + inst_pc_i;
+                moveout = ( reg1_i | reg2_i) + inst_pc_i;
               end
             default:
               begin
