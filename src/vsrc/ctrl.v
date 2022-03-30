@@ -44,9 +44,9 @@ module ctrl (
             flush <= 1'b1;
             case (excepttype_i)
               2'b01:
-                  new_pc <= 32'h00000020;
+                  new_pc <= 32'h0000000c;
               2'b10:
-                  new_pc <= 32'h00000040;
+                  new_pc <= 32'h0000000c;
               default:begin
               end
             endcase
