@@ -14,6 +14,8 @@ module mem_wb (
     input wire mem_LLbit_we,
     input wire mem_LLbit_value,
 
+    input wire flush,
+
     output reg[`RegAddrBus] wb_wd,
     output reg wb_wreg,
     output reg[`RegBus] wb_wdata,
@@ -43,7 +45,18 @@ module mem_wb (
           debug_commit_pc <= `ZeroWord;
           debug_commit_valid <= `InstInvalid;
         end
-      else
+      else if(flush == 1'b1)
+        begin
+          wb_wd    <= `NOPRegAddr;
+          wb_wreg  <= `WriteDisable;
+          wb_wdata <= `ZeroWord;
+          wb_LLbit_we <= 1'b0;
+          wb_LLbit_value <= 1'b0;
+          debug_commit_instr <= `ZeroWord;
+          debug_commit_pc <= `ZeroWord;
+          debug_commit_valid <= `InstInvalid;
+        end
+      else 
         begin
           wb_wd    <= mem_wd;
           wb_wreg  <= mem_wreg;

@@ -12,6 +12,9 @@ module ex_mem (
     input wire[`AluOpBus] ex_aluop,
     input wire[`RegBus] ex_mem_addr,
     input wire[`RegBus] ex_reg2,
+    input wire flush,
+    input wire[1:0] ex_excepttype,
+    input wire[`RegBus] ex_curent_inst_address,
 
     output reg[`RegAddrBus] mem_wd,
     output reg mem_wreg,
@@ -20,7 +23,9 @@ module ex_mem (
     output reg[`InstAddrBus] mem_inst_pc,
     output reg[`AluOpBus] mem_aluop,
     output reg[`RegBus] mem_mem_addr,
-    output reg[`RegBus] mem_reg2
+    output reg[`RegBus] mem_reg2,
+    output reg[1:0] mem_excepttype,
+    output reg[`RegBus] mem_current_inst_address
 );
 
 always @ (posedge clk)begin
@@ -33,6 +38,19 @@ always @ (posedge clk)begin
         mem_aluop <= `EXE_NOP_OP;
         mem_mem_addr <= `ZeroWord;
         mem_reg2 <= `ZeroWord;
+        mem_excepttype <= 2'b00;
+        mem_current_inst_address <= `ZeroWord;
+    end else if(flush == 1'b1)begin
+        mem_wd    <= `NOPRegAddr;
+        mem_wreg  <= `WriteDisable;
+        mem_wdata <= `ZeroWord;
+        mem_inst_pc <= `ZeroWord;
+        mem_inst_valid <= `InstInvalid;
+        mem_aluop <= `EXE_NOP_OP;
+        mem_mem_addr <= `ZeroWord;
+        mem_reg2 <= `ZeroWord;
+        mem_excepttype <= 2'b00;
+        mem_current_inst_address <= `ZeroWord;
     end else begin
         mem_wd    <= ex_wd;
         mem_wreg  <= ex_wreg;
@@ -42,6 +60,8 @@ always @ (posedge clk)begin
         mem_aluop <= ex_aluop;
         mem_mem_addr <= ex_mem_addr;
         mem_reg2 <= ex_reg2;
+        mem_excepttype <= ex_excepttype;
+        mem_current_inst_address <= ex_curent_inst_address;
     end
 end
     

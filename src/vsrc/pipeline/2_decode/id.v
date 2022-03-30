@@ -37,6 +37,8 @@ module id(
     output reg inst_valid,
     output reg[`InstAddrBus] inst_pc,
     output wire[`RegBus] inst_o,
+    output wire[1:0] excepttype_o,
+    output wire[`RegBus] current_inst_address_o,
 
     // -> PC
     output reg branch_flag_o,
@@ -90,6 +92,13 @@ module id(
                              (ex_aluop_i == `EXE_ST_H_OP) ||
                              (ex_aluop_i == `EXE_ST_W_OP) ) ? 1'b1 : 1'b0;
 
+  reg excepttype_is_syscall;
+  reg excepttype_is_break;
+
+  assign excepttype_o = {excepttype_is_syscall,excepttype_is_break};
+  assign current_inst_address_o = pc_i;
+
+
   always @(*)
     begin
       stallreq_for_reg1_loadrelate = `NoStop;
@@ -132,6 +141,8 @@ module id(
           branch_flag_o = `NotBranch;
           branch_target_address_o = `ZeroWord;
           link_addr_o = `ZeroWord;
+          excepttype_is_break = `False_v;
+          excepttype_is_syscall = `False_v;
         end
       else
         begin
@@ -691,11 +702,23 @@ module id(
                           end
                         `EXE_BREAK:
                           begin
-
+                            wreg_o      = `WriteDisable;
+                            aluop_o     = `EXE_BREAK_OP;
+                            alusel_o    = `EXE_RES_NOP;
+                            reg1_read_o = 1'b0;
+                            reg2_read_o = 1'b0;
+                            inst_valid  = `InstValid;
+                            excepttype_is_break = `True_v;
                           end
                         `EXE_SYSCALL:
                           begin
-
+                            wreg_o      = `WriteEnable;
+                            aluop_o     = `EXE_SYSCALL_OP;
+                            alusel_o    = `EXE_RES_NOP;
+                            reg1_read_o = 1'b0;
+                            reg2_read_o = 1'b0;
+                            inst_valid  = `InstValid;
+                            excepttype_is_syscall = `True_v;
                           end
                         default:
                           begin

@@ -48,6 +48,8 @@ module cpu_top (
   assign Instram_branch_flag=branch_flag;
   wire[`RegBus] branch_target_address;
   wire[`RegBus] link_addr;
+  wire flush;
+  wire[`RegBus] new_pc;
 
   pc_reg u_pc_reg(
            .clk(clk),
@@ -55,23 +57,26 @@ module cpu_top (
            .pc(pc),
            .ce(chip_enable),
            .branch_flag_i(branch_flag),
-           .branch_target_address(branch_target_address)
+           .branch_target_address(branch_target_address),
+           .flush(flush),
+           .new_pc(new_pc)
          );
 
   wire [`InstAddrBus]pc2;
+  wire if_inst_valid;
   if_buffer if_buffer_1(
               .clk(clk),
               .rst(rst),
               .pc_i(pc),
               .branch_flag_i(branch_flag),
               .pc_valid(if_inst_valid),
-              .pc_o(pc2)
+              .pc_o(pc2),
+              .flush(flush)
             );
 
 
   wire[`InstAddrBus] id_pc;
   wire[`InstBus] id_inst;
-  wire if_inst_valid;
 
   //  wire if_id_instr_invalid;
   if_id u_if_id(
@@ -82,7 +87,8 @@ module cpu_top (
           .id_pc_o(id_pc),
           .id_inst_o(id_inst),
           .if_inst_valid(if_inst_valid),
-          .branch_flag_i(branch_flag)
+          .branch_flag_i(branch_flag),
+          .flush(flush)
         );
 
   wire[`AluOpBus] id_aluop;
@@ -112,6 +118,9 @@ module cpu_top (
   wire[`RegBus] mem_reg_wdata_o;
 
   wire stallreq_from_id;
+
+  wire[1:0] id_excepttype_o;
+  wire[`RegBus] id_current_inst_address_o;
 
 
   id u_id(
@@ -151,7 +160,10 @@ module cpu_top (
        .branch_target_address_o(branch_target_address),
        .link_addr_o(link_addr),
 
-       .stallreq(stallreq_from_id)
+       .stallreq(stallreq_from_id),
+
+       .excepttype_o(id_excepttype_o),
+       .current_inst_address_o(id_current_inst_address_o)
      );
 
   wire[`AluOpBus] ex_aluop;
@@ -164,6 +176,8 @@ module cpu_top (
   wire[`InstAddrBus] ex_inst_pc_i;
   wire[`RegBus] ex_link_address;
   wire[`RegBus] ex_inst_i;
+  wire[1:0] ex_excepttype_i;
+  wire[`RegBus] ex_current_inst_address_i;
 
   id_ex id_ex0(
           .clk(clk),
@@ -179,6 +193,9 @@ module cpu_top (
           .id_inst_valid(id_inst_valid),
           .id_link_address(link_addr),
           .id_inst(id_inst_o),
+          .flush(flush),
+          .id_excepttype(id_excepttype_o),
+          .id_current_inst_address(id_current_inst_address_o),
 
           .ex_aluop(ex_aluop),
           .ex_alusel(ex_alusel),
@@ -189,7 +206,9 @@ module cpu_top (
           .ex_inst_pc(ex_inst_pc_i),
           .ex_inst_valid(ex_inst_valid_i),
           .ex_link_address(ex_link_address),
-          .ex_inst(ex_inst_i)
+          .ex_inst(ex_inst_i),
+          .ex_excepttype(ex_excepttype_i),
+          .ex_current_inst_address(ex_current_inst_address_i)
         );
 
 
@@ -197,6 +216,8 @@ module cpu_top (
   wire[`InstAddrBus] ex_inst_pc_o;
   wire[`RegBus] ex_addr_o;
   wire[`RegBus] ex_reg2_o;
+  wire[1:0] ex_excepttype_o;
+  wire[`RegBus] ex_current_inst_address_o;
 
   ex u_ex(
        .rst(rst),
@@ -211,6 +232,8 @@ module cpu_top (
        .inst_pc_i(ex_inst_pc_i),
        .inst_i(ex_inst_i),
        .link_addr_i(ex_link_address),
+       .excepttype_i(ex_excepttype_i),
+       .current_inst_address_i(ex_current_inst_address_i),
 
        .wd_o(ex_reg_waddr_o),
        .wreg_o(ex_wreg_o),
@@ -219,7 +242,9 @@ module cpu_top (
        .inst_pc_o(ex_inst_pc_o),
        .aluop_o(ex_aluop_o),
        .mem_addr_o(ex_addr_o),
-       .reg2_o(ex_reg2_o)
+       .reg2_o(ex_reg2_o),
+       .excepttype_o(ex_excepttype_o),
+       .current_inst_address_o(ex_current_inst_address_o)
      );
 
 
@@ -233,6 +258,8 @@ module cpu_top (
   wire[`AluOpBus] mem_aluop_i;
   wire[`RegBus] mem_addr_i;
   wire[`RegBus] mem_reg2_i;
+  wire[1:0] mem_excepttype_i;
+  wire[`RegBus] mem_current_inst_address_i;
 
   ex_mem u_ex_mem(
            .clk(clk       ),
@@ -246,6 +273,9 @@ module cpu_top (
            .ex_aluop(ex_aluop_o),
            .ex_mem_addr(ex_addr_o),
            .ex_reg2(ex_reg2_o),
+           .flush(flush),
+           .ex_excepttype(ex_excepttype_o),
+           .ex_current_inst_address(ex_current_inst_address_o),
 
            .mem_wd(mem_reg_waddr_i    ),
            .mem_wreg(mem_wreg_i  ),
@@ -254,7 +284,9 @@ module cpu_top (
            .mem_inst_pc(mem_inst_pc),
            .mem_aluop(mem_aluop_i),
            .mem_mem_addr(mem_addr_i),
-           .mem_reg2(mem_reg2_i)
+           .mem_reg2(mem_reg2_i),
+           .mem_excepttype(mem_excepttype_i),
+           .mem_current_inst_address(mem_current_inst_address_i)
          );
 
   wire LLbit_o;
@@ -262,6 +294,8 @@ module cpu_top (
   wire wb_LLbit_value_i;
   wire mem_LLbit_we_o;
   wire mem_LLbit_value_o;
+  wire[1:0] mem_excepttype_o;
+  wire[`RegBus] mem_current_inst_address_o;
 
   mem u_mem(
         .rst     (rst     ),
@@ -279,6 +313,9 @@ module cpu_top (
         .wb_LLbit_we_i(wb_LLbit_we_i),
         .wb_LLbit_value_i(wb_LLbit_value_i),
 
+        .excepttype_i(mem_excepttype_i),
+        .current_inst_address_i(mem_current_inst_address_i),
+
 
         .wd_o    (mem_reg_waddr_o),
         .wreg_o  (mem_wreg_o ),
@@ -291,7 +328,10 @@ module cpu_top (
         .mem_ce_o(dram_ce_o),
 
         .LLbit_we_o(mem_LLbit_we_o),
-        .LLbit_value_o(mem_LLbit_value_o)
+        .LLbit_value_o(mem_LLbit_value_o),
+
+        .excepttype_o(mem_excepttype_o),
+        .current_inst_address_o(mem_current_inst_address_o)
 
       );
 
@@ -319,6 +359,8 @@ module cpu_top (
 
            .mem_LLbit_we(mem_LLbit_we_o),
            .mem_LLbit_value(mem_LLbit_value_o),
+
+           .flush(flush),
 
            .wb_wd(wb_reg_waddr),
            .wb_wreg(wb_wreg),
@@ -354,6 +396,9 @@ module cpu_top (
          .rst                   (rst                   ),
          .id_is_branch_instr_i  (branch_flag),
          .stallreq_from_id(stallreq_from_id),
+         .excepttype_i(mem_excepttype_o),
+         .new_pc(new_pc),
+         .flush(flush),
          .pc_instr_invalid_o    (),
          .if_id_instr_invalid_o ()
        );

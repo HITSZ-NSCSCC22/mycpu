@@ -13,6 +13,8 @@ module ex (
     input wire[`InstAddrBus] inst_pc_i,
     input wire[`RegBus] inst_i,
     input wire[`RegBus] link_addr_i,
+    input wire[1:0] excepttype_i,
+    input wire[`RegBus] current_inst_address_i,
 
     output reg[`RegAddrBus] wd_o,
     output reg wreg_o,
@@ -21,7 +23,9 @@ module ex (
     output reg[`InstAddrBus] inst_pc_o,
     output wire[`AluOpBus] aluop_o,
     output wire[`RegBus] mem_addr_o,
-    output wire[`RegBus] reg2_o
+    output wire[`RegBus] reg2_o,
+    output wire[1:0] excepttype_o,
+    output wire[`RegBus] current_inst_address_o
   );
 
   reg[`RegBus] logicout;
@@ -32,6 +36,9 @@ module ex (
   assign aluop_o = aluop_i;
   assign mem_addr_o = reg1_i + {{20{inst_i[21]}},inst_i[21:10]};
   assign reg2_o = reg2_i;
+
+  assign excepttype_o = excepttype_i;
+  assign current_inst_address_o = current_inst_address_i;
 
   always @(*)
     begin
