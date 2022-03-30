@@ -14,7 +14,7 @@ module ex_mem (
     input wire[`RegBus] ex_reg2,
     input wire flush,
     input wire[1:0] ex_excepttype,
-    input wire[`RegBus] ex_curent_inst_address,
+    input wire[`RegBus] ex_current_inst_address,
 
     output reg[`RegAddrBus] mem_wd,
     output reg mem_wreg,
@@ -61,7 +61,7 @@ always @ (posedge clk)begin
         mem_mem_addr <= ex_mem_addr;
         mem_reg2 <= ex_reg2;
         mem_excepttype <= ex_excepttype;
-        mem_current_inst_address <= ex_curent_inst_address;
+        mem_current_inst_address <= ex_current_inst_address;
     end
 end
     

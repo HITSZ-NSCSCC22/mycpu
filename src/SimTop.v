@@ -17,7 +17,7 @@ module SimTop(
 
   wire chip_enable;
   wire[`RegBus] ram_raddr;
-  reg[`RegBus] ram_rdata;
+  wire[`RegBus] ram_rdata;
   wire[`RegBus] ramhelper_rdata;
   wire[`RegBus] ram_waddr;
   wire[`RegBus] ram_wdata;
