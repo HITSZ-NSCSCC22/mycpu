@@ -25,7 +25,9 @@ module ex (
     output wire[`RegBus] mem_addr_o,
     output wire[`RegBus] reg2_o,
     output wire[1:0] excepttype_o,
-    output wire[`RegBus] current_inst_address_o
+    output wire[`RegBus] current_inst_address_o,
+
+    output wire stallreq
   );
 
   reg[`RegBus] logicout;

@@ -4,9 +4,11 @@ module ctrl (
     input wire rst,
     input wire id_is_branch_instr_i,
     input wire stallreq_from_id,
+    input wire stallreq_from_ex,
 
     input wire[1:0] excepttype_i,
     
+    output reg[6:0]stall,
     output reg[`RegBus] new_pc,
     output reg flush,
 
@@ -25,6 +27,7 @@ module ctrl (
           branch_flush_cnt <= 2'b0;
           flush <= 1'b0;
           new_pc <= `ZeroWord;
+          stall <= 7'b0000000;
         end
       else
         if (!(branch_flush_cnt==0))
@@ -32,16 +35,19 @@ module ctrl (
             branch_flush_cnt <= branch_flush_cnt -1;
             flush <= 1'b0;
             new_pc <= `ZeroWord;
+            stall <= 7'b0000000;
           end
         else if(id_is_branch_instr_i)
           begin
             branch_flush_cnt <= 1;
             flush <= 1'b0;
             new_pc <= `ZeroWord;
+            stall <= 7'b0000000;
           end
         else if(excepttype_i != 0)
           begin
             flush <= 1'b1;
+            stall <= 7'b0000000;
             case (excepttype_i)
               2'b01:
                   new_pc <= 32'h0000000c;
@@ -53,9 +59,17 @@ module ctrl (
           end
         else if(stallreq_from_id == `Stop)
           begin
-            branch_flush_cnt <= 1;
+            branch_flush_cnt <= 0;
             flush <= 1'b0;
             new_pc <= `ZeroWord;
+            stall <= 7'b0000111;
+          end
+        else if(stallreq_from_ex == `Stop)
+          begin
+            branch_flush_cnt <= 0;
+            flush <= 1'b0;
+            new_pc <= `ZeroWord;
+            stall <= 7'b0001111;
           end
         else
           branch_flush_cnt <= branch_flush_cnt;

@@ -46,7 +46,7 @@ module id(
     output reg[`RegBus] link_addr_o,
 
     // ->Ctrl
-    output stallreq
+    output wire stallreq
   );
 
   wire[5:0] opcode_6 = inst_i[31:26];

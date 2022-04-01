@@ -2,6 +2,7 @@
 module pc_reg (
     input wire clk,
     input wire rst,
+    input wire[6:0] stall,
 
     input wire branch_flag_i,
     input wire[`RegBus] branch_target_address,
@@ -19,10 +20,13 @@ module pc_reg (
         pc <= 32'h1c000000;
       else if(flush == 1'b1)
         pc <= new_pc;
-      else if(branch_flag_i == `Branch)
-        pc <= branch_target_address;
-      else
-        pc <= pc + 32'h4;
+      else if(stall[0] == `NoStop)
+        begin
+          if(branch_flag_i == `Branch)
+              pc <= branch_target_address;
+          else
+              pc <= pc + 32'h4;
+        end
     end
 
   always @(posedge clk)

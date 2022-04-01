@@ -50,6 +50,7 @@ module cpu_top (
   wire[`RegBus] link_addr;
   wire flush;
   wire[`RegBus] new_pc;
+  wire[5:0] stall;
 
   pc_reg u_pc_reg(
            .clk(clk),
@@ -59,7 +60,8 @@ module cpu_top (
            .branch_flag_i(branch_flag),
            .branch_target_address(branch_target_address),
            .flush(flush),
-           .new_pc(new_pc)
+           .new_pc(new_pc),
+           .stall(stall)
          );
 
   wire [`InstAddrBus]pc2;
@@ -71,7 +73,8 @@ module cpu_top (
               .branch_flag_i(branch_flag),
               .pc_valid(if_inst_valid),
               .pc_o(pc2),
-              .flush(flush)
+              .flush(flush),
+              .stall(stall)
             );
 
 
@@ -88,7 +91,8 @@ module cpu_top (
           .id_inst_o(id_inst),
           .if_inst_valid(if_inst_valid),
           .branch_flag_i(branch_flag),
-          .flush(flush)
+          .flush(flush),
+          .stall(stall)
         );
 
   wire[`AluOpBus] id_aluop;
@@ -118,6 +122,7 @@ module cpu_top (
   wire[`RegBus] mem_reg_wdata_o;
 
   wire stallreq_from_id;
+  wire stallreq_from_ex;
 
   wire[1:0] id_excepttype_o;
   wire[`RegBus] id_current_inst_address_o;
@@ -182,6 +187,7 @@ module cpu_top (
   id_ex id_ex0(
           .clk(clk),
           .rst(rst),
+          .stall(stall),
 
           .id_aluop(id_aluop),
           .id_alusel(id_alusel),
@@ -244,7 +250,9 @@ module cpu_top (
        .mem_addr_o(ex_addr_o),
        .reg2_o(ex_reg2_o),
        .excepttype_o(ex_excepttype_o),
-       .current_inst_address_o(ex_current_inst_address_o)
+       .current_inst_address_o(ex_current_inst_address_o),
+
+       .stallreq(stallreq_from_ex)
      );
 
 
@@ -264,6 +272,7 @@ module cpu_top (
   ex_mem u_ex_mem(
            .clk(clk       ),
            .rst(rst       ),
+           .stall(stall),
 
            .ex_wd     (ex_reg_waddr_o    ),
            .ex_wreg   (ex_wreg_o   ),
@@ -349,6 +358,7 @@ module cpu_top (
   mem_wb mem_wb0(
            .clk(clk),
            .rst(rst),
+           .stall(stall),
 
            .mem_wd(mem_reg_waddr_o),
            .mem_wreg(mem_wreg_o),
@@ -396,6 +406,7 @@ module cpu_top (
          .rst                   (rst                   ),
          .id_is_branch_instr_i  (branch_flag),
          .stallreq_from_id(stallreq_from_id),
+         .stallreq_from_ex(stallreq_from_ex),
          .excepttype_i(mem_excepttype_o),
          .new_pc(new_pc),
          .flush(flush),
