@@ -50,7 +50,7 @@ module cpu_top (
   wire[`RegBus] link_addr;
   wire flush;
   wire[`RegBus] new_pc;
-  wire[5:0] stall;
+  wire[6:0] stall; // [pc_reg,if_buffer_1, if_id, id_ex, ex_mem, mem_wb, ctrl]
 
   pc_reg u_pc_reg(
            .clk(clk),
@@ -61,7 +61,7 @@ module cpu_top (
            .branch_target_address(branch_target_address),
            .flush(flush),
            .new_pc(new_pc),
-           .stall(stall)
+           .stall(stall[0])
          );
 
   wire [`InstAddrBus]pc2;
@@ -74,7 +74,7 @@ module cpu_top (
               .pc_valid(if_inst_valid),
               .pc_o(pc2),
               .flush(flush),
-              .stall(stall)
+              .stall(stall[1])
             );
 
 
@@ -92,7 +92,7 @@ module cpu_top (
           .if_inst_valid(if_inst_valid),
           .branch_flag_i(branch_flag),
           .flush(flush),
-          .stall(stall)
+          .stall(stall[2])
         );
 
   wire[`AluOpBus] id_aluop;
@@ -187,7 +187,7 @@ module cpu_top (
   id_ex id_ex0(
           .clk(clk),
           .rst(rst),
-          .stall(stall),
+          .stall(stall[3]),
 
           .id_aluop(id_aluop),
           .id_alusel(id_alusel),
@@ -272,7 +272,7 @@ module cpu_top (
   ex_mem u_ex_mem(
            .clk(clk       ),
            .rst(rst       ),
-           .stall(stall),
+           .stall(stall[4]),
 
            .ex_wd     (ex_reg_waddr_o    ),
            .ex_wreg   (ex_wreg_o   ),
@@ -358,7 +358,7 @@ module cpu_top (
   mem_wb mem_wb0(
            .clk(clk),
            .rst(rst),
-           .stall(stall),
+           .stall(stall[5]),
 
            .mem_wd(mem_reg_waddr_o),
            .mem_wreg(mem_wreg_o),
@@ -404,14 +404,12 @@ module cpu_top (
   ctrl u_ctrl(
          .clk                   (clk                   ),
          .rst                   (rst                   ),
-         .id_is_branch_instr_i  (branch_flag),
+         .stall(stall),
          .stallreq_from_id(stallreq_from_id),
          .stallreq_from_ex(stallreq_from_ex),
          .excepttype_i(mem_excepttype_o),
          .new_pc(new_pc),
-         .flush(flush),
-         .pc_instr_invalid_o    (),
-         .if_id_instr_invalid_o ()
+         .flush(flush)
        );
 
   LLbit_reg u_LLbit_reg(

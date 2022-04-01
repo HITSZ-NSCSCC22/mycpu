@@ -5,7 +5,7 @@ module if_buffer (
     input wire rst,
     input wire [`InstAddrBus] pc_i,
     input wire flush,
-    input wire[6:0] stall,
+    input wire stall,
 
     input wire branch_flag_i,
     output reg [`InstAddrBus] pc_o,
@@ -29,12 +29,12 @@ module if_buffer (
           pc_o <= `ZeroWord;
           pc_valid <= `InstInvalid;
         end
-      else if(stall[1] == `Stop && stall[2] == `NoStop)
+      else if(stall == `Stop) // Stall, hold output
         begin
-          pc_o <= `ZeroWord;
-          pc_valid <= `InstInvalid;
+          pc_o <= pc_o;
+          pc_valid <= pc_valid;
         end
-      else if(stall[1] == `NoStop)
+      else
         begin
           pc_o <= pc_i;
           pc_valid <= `InstValid;

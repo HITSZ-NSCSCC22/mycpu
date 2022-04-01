@@ -8,7 +8,7 @@ module if_id (
     input wire[`InstAddrBus] if_inst_i,
     input wire if_inst_valid,
     input wire flush,
-    input wire[5:0] stall,
+    input wire stall, // current stage stall, hold output
     output reg[`InstAddrBus] id_pc_o,
     output reg[`InstBus] id_inst_o
   );
@@ -31,12 +31,12 @@ module if_id (
           id_pc_o <= `ZeroWord;
           id_inst_o <= `ZeroWord;
         end
-      else if(stall[2] == `Stop && stall[3] == `NoStop)
+      else if(stall == `Stop)
         begin
-          id_inst_o <= `ZeroWord;
-          id_pc_o <= `ZeroWord;
+          id_inst_o <= id_inst_o;
+          id_pc_o <= id_pc_o;
         end
-      else if(stall[2] == `NoStop)
+      else
         begin
           id_inst_o <= if_inst_i;
           id_pc_o <= if_pc_i;
