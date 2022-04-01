@@ -51,6 +51,12 @@ module ctrl (
               end
             endcase
           end
+        else if(stallreq_from_id == `Stop)
+          begin
+            branch_flush_cnt <= 1;
+            flush <= 1'b0;
+            new_pc <= `ZeroWord;
+          end
         else
           branch_flush_cnt <= branch_flush_cnt;
 

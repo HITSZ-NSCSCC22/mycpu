@@ -41,7 +41,7 @@ module SimTop(
   cpu_top u_cpu_top(
             .clk(clock),
             .rst(reset),
-            .dram_data_i(dram_data_i),
+            .dram_data_i(dram_data_o),
             .ram_rdata_i(ram_rdata),
 
             .ram_raddr_o(ram_raddr),
@@ -51,7 +51,7 @@ module SimTop(
             .ram_en_o (chip_enable),
 
             .dram_addr_o(dram_addr),
-            .dram_data_o(dram_data_o),
+            .dram_data_o(dram_data_i),
             .dram_we_o(dram_we),
             .dram_sel_o(dram_sel),
             .dram_ce_o(dram_ce),
