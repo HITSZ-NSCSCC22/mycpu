@@ -449,7 +449,7 @@ module id(
                       alusel_o    = `EXE_RES_ARITH;
                       reg1_read_o = 1'b1;
                       reg2_read_o = 1'b0;
-                      imm         = {20'h0, imm_12};
+                      imm         = {{20{imm_12[11]}}, imm_12}; // Signed Extension
                       reg_waddr_o = op1;
                       inst_valid  = `InstValid;
                     end
@@ -460,7 +460,7 @@ module id(
                       alusel_o    = `EXE_RES_ARITH;
                       reg1_read_o = 1'b1;
                       reg2_read_o = 1'b0;
-                      imm         = {20'h0, imm_12};
+                      imm         = {{20{imm_12[11]}}, imm_12}; // Signed Extension
                       reg_waddr_o = op1;
                       inst_valid  = `InstValid;
                     end
@@ -471,7 +471,7 @@ module id(
                       alusel_o    = `EXE_RES_ARITH;
                       reg1_read_o = 1'b1;
                       reg2_read_o = 1'b0;
-                      imm         = {20'h0, imm_12};
+                      imm         = {{20{imm_12[11]}}, imm_12}; // Signed Extension
                       reg_waddr_o = op1;
                       inst_valid  = `InstValid;
                     end
