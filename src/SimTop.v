@@ -16,52 +16,83 @@ module SimTop(
   );
 
   wire chip_enable;
-  wire[`RegBus] ram_raddr;
-  wire[`RegBus] ram_rdata;
+  wire[`RegBus] ram_raddr_1;
+  wire[`RegBus] ram_raddr_2;
+  wire[`RegBus] ram_rdata_1;
+  wire[`RegBus] ram_rdata_2;
   wire[`RegBus] ramhelper_rdata;
   wire[`RegBus] ram_waddr;
   wire[`RegBus] ram_wdata;
   wire ram_wen;
 
-  wire dram_ce;
-  wire dram_we;
-  wire[`DataAddrBus] dram_addr;
-  wire[3:0] dram_sel;
-  wire[`DataBus] dram_data_i;
-  wire[`DataBus] dram_data_o;
+  wire dram_ce_1;
+  wire dram_we_1;
+  wire[`DataAddrBus] dram_addr_1;
+  wire[3:0] dram_sel_1;
+  wire[`DataBus] dram_data_i_1;
+  wire[`DataBus] dram_data_o_1;
 
-  wire [`RegBus] debug_commit_pc;
-  wire debug_commit_valid;
-  wire[`InstBus] debug_commit_instr;
-  wire debug_commit_wreg;
-  wire [`RegAddrBus] debug_commit_reg_waddr;
-  wire [`RegBus] debug_commit_reg_wdata;
+  wire dram_ce_2;
+  wire dram_we_2;
+  wire[`DataAddrBus] dram_addr_2;
+  wire[3:0] dram_sel_2;
+  wire[`DataBus] dram_data_i_2;
+  wire[`DataBus] dram_data_o_2;
+
+  wire [`RegBus] debug_commit_pc_o_1;
+  wire debug_commit_valid_o_1;
+  wire[`InstBus] debug_commit_instr_o_1;
+  wire debug_commit_wreg_o_1;
+  wire [`RegAddrBus] debug_commit_reg_waddr_o_1;
+  wire [`RegBus] debug_commit_reg_wdata_o_1;
+  wire [`RegBus] debug_commit_pc_o_2;
+  wire debug_commit_valid_o_2;
+  wire[`InstBus] debug_commit_instr_o_2;
+  wire debug_commit_wreg_o_2;
+  wire [`RegAddrBus] debug_commit_reg_waddr_o_2;
+  wire [`RegBus] debug_commit_reg_wdata_o_2;
   wire[1023:0] debug_reg;
   wire Instram_branch_flag;
   cpu_top u_cpu_top(
             .clk(clock),
             .rst(reset),
-            .dram_data_i(dram_data_o),
-            .ram_rdata_i(ram_rdata),
 
-            .ram_raddr_o(ram_raddr),
+            .dram_data_i_1(dram_data_o_1),
+            .dram_data_i_2(dram_data_o_2),
+            .ram_rdata_i_1(ram_rdata_1),
+            .ram_rdata_i_2(ram_rdata_2),
+
+            .ram_raddr_o_1(ram_raddr_1),
+            .ram_raddr_o_2(ram_raddr_2),
             .ram_wdata_o(ram_wdata),
             .ram_waddr_o(ram_waddr),
             .ram_wen_o (ram_wen),
             .ram_en_o (chip_enable),
 
-            .dram_addr_o(dram_addr),
-            .dram_data_o(dram_data_i),
-            .dram_we_o(dram_we),
-            .dram_sel_o(dram_sel),
-            .dram_ce_o(dram_ce),
+            .dram_addr_o_1(dram_addr_1),
+            .dram_data_o_1(dram_data_i_1),
+            .dram_we_o_1(dram_we_1),
+            .dram_sel_o_1(dram_sel_1),
+            .dram_ce_o_1(dram_ce_1),
 
-            .debug_commit_pc(debug_commit_pc        ),
-            .debug_commit_valid(debug_commit_valid     ),
-            .debug_commit_instr(debug_commit_instr     ),
-            .debug_commit_wreg(debug_commit_wreg      ),
-            .debug_commit_reg_waddr(debug_commit_reg_waddr ),
-            .debug_commit_reg_wdata(debug_commit_reg_wdata ),
+            .dram_addr_o_2(dram_addr_2),
+            .dram_data_o_2(dram_data_i_2),
+            .dram_we_o_2(dram_we_2),
+            .dram_sel_o_2(dram_sel_2),
+            .dram_ce_o_2(dram_ce_2),
+
+            .debug_commit_pc_1(debug_commit_pc_o_1        ),
+            .debug_commit_valid_1(debug_commit_valid_o_1     ),
+            .debug_commit_instr_1(debug_commit_instr_o_1     ),
+            .debug_commit_wreg_1(debug_commit_wreg_o_1      ),
+            .debug_commit_reg_waddr_1(debug_commit_reg_waddr_o_1 ),
+            .debug_commit_reg_wdata_1(debug_commit_reg_wdata_o_1 ),
+            .debug_commit_pc_2(debug_commit_pc_o_2        ),
+            .debug_commit_valid_2(debug_commit_valid_o_2     ),
+            .debug_commit_instr_2(debug_commit_instr_o_2     ),
+            .debug_commit_wreg_2(debug_commit_wreg_o_2      ),
+            .debug_commit_reg_waddr_2(debug_commit_reg_waddr_o_2 ),
+            .debug_commit_reg_wdata_2(debug_commit_reg_wdata_o_2 ),
             .debug_reg(debug_reg   ),
             .Instram_branch_flag(Instram_branch_flag)
           );
@@ -82,8 +113,10 @@ module SimTop(
         .clock (clock ),
         .reset (reset ),
         .ce    (chip_enable),
-        .raddr (ram_raddr ),
-        .rdata (ram_rdata ),
+        .raddr_1 (ram_raddr_1 ),
+        .rdata_1 (ram_rdata_1 ),
+        .raddr_2 (ram_raddr_2 ),
+        .rdata_2 (ram_rdata_2 ),
         .waddr (ram_waddr ),
         .wdata (ram_wdata ),
         .wen   (ram_wen   ),
@@ -94,12 +127,18 @@ module SimTop(
 
   data_ram u_data_ram(
              .clk(clock),
-             .ce(dram_ce),
-             .we(dram_we),
-             .addr(dram_addr),
-             .sel(dram_sel),
-             .data_i(dram_data_i),
-             .data_o(dram_data_o)
+             .ce_1(dram_ce_1),
+             .we_1(dram_we_1),
+             .addr_1(dram_addr_1),
+             .sel_1(dram_sel_1),
+             .data_i_1(dram_data_i_1),
+             .data_o_1(dram_data_o_1),
+             .ce_2(dram_ce_2),
+             .we_2(dram_we_2),
+             .addr_2(dram_addr_2),
+             .sel_2(dram_sel_2),
+             .data_i_2(dram_data_i_2),
+             .data_o_2(dram_data_o_2)
            );
 
 
@@ -116,12 +155,20 @@ module SimTop(
 
   reg [63:0] cycleCnt;
   reg [63:0] instrCnt;
-  reg [`RegBus] debug_commit_pc_1;
-  reg debug_commit_valid_1;
-  reg [`InstBus] debug_commit_instr_1;
-  reg debug_commit_wreg_1;
-  reg [`RegAddrBus] debug_commit_reg_waddr_1;
-  reg [`RegBus] debug_commit_reg_wdata_1;
+
+  reg [`RegBus] debug_commit_pc_i_1;
+  reg debug_commit_valid_i_1;
+  reg [`InstBus] debug_commit_instr_i_1;
+  reg debug_commit_wreg_i_1;
+  reg [`RegAddrBus] debug_commit_reg_waddr_i_1;
+  reg [`RegBus] debug_commit_reg_wdata_i_1;
+
+  reg [`RegBus] debug_commit_pc_i_2;
+  reg debug_commit_valid_i_2;
+  reg [`InstBus] debug_commit_instr_i_2;
+  reg debug_commit_wreg_i_2;
+  reg [`RegAddrBus] debug_commit_reg_waddr_i_2;
+  reg [`RegBus] debug_commit_reg_wdata_i_2;
 
   always @(posedge clock or negedge reset_n)
     begin
@@ -129,23 +176,35 @@ module SimTop(
         begin
           cycleCnt <= 0;
           instrCnt <= 0;
-          debug_commit_instr_1 <= 0;
-          debug_commit_valid_1 <= 0;
-          debug_commit_pc_1 <= 0;
-          debug_commit_wreg_1 <= 0;
-          debug_commit_reg_waddr_1 <= 0;
-          debug_commit_reg_wdata_1 <= 0;
+          debug_commit_instr_i_1 <= 0;
+          debug_commit_valid_i_1 <= 0;
+          debug_commit_pc_i_1 <= 0;
+          debug_commit_wreg_i_1 <= 0;
+          debug_commit_reg_waddr_i_1 <= 0;
+          debug_commit_reg_wdata_i_1 <= 0;
+          debug_commit_instr_i_2 <= 0;
+          debug_commit_valid_i_2 <= 0;
+          debug_commit_pc_i_2 <= 0;
+          debug_commit_wreg_i_2 <= 0;
+          debug_commit_reg_waddr_i_2 <= 0;
+          debug_commit_reg_wdata_i_2 <= 0;
         end
       else
         begin
           cycleCnt <= cycleCnt + 1;
-          instrCnt <= instrCnt + debug_commit_valid_1;
-          debug_commit_instr_1 <= debug_commit_instr;
-          debug_commit_valid_1 <= debug_commit_valid & chip_enable;
-          debug_commit_pc_1 <= debug_commit_pc;
-          debug_commit_wreg_1 <= debug_commit_wreg;
-          debug_commit_reg_waddr_1 <= debug_commit_reg_waddr;
-          debug_commit_reg_wdata_1 <= debug_commit_reg_wdata;
+          instrCnt <= instrCnt + debug_commit_valid__i1 + debug_commit_valid_i_2;
+          debug_commit_instr_i_1 <= debug_commit_instr_o_1;
+          debug_commit_valid_i_1 <= debug_commit_valid_o_1 & chip_enable;
+          debug_commit_pc_i_1 <= debug_commit_pc_o_1;
+          debug_commit_wreg_i_1 <= debug_commit_wreg_o_1;
+          debug_commit_reg_waddr_i_1 <= debug_commit_reg_waddr_o_1;
+          debug_commit_reg_wdata_i_1 <= debug_commit_reg_wdata_o_1;
+          debug_commit_instr_i_2 <= debug_commit_instr_o_2;
+          debug_commit_valid_i_2 <= debug_commit_valid_o_2 & chip_enable;
+          debug_commit_pc_i_2 <= debug_commit_pc_o_2;
+          debug_commit_wreg_i_2 <= debug_commit_wreg_o_2;
+          debug_commit_reg_waddr_i_2 <= debug_commit_reg_waddr_o_2;
+          debug_commit_reg_wdata_i_2 <= debug_commit_reg_wdata_o_2;
           ram_rdata <= ramhelper_rdata;
         end
     end
@@ -171,21 +230,38 @@ module SimTop(
               .wen()
             );
 
-  DifftestInstrCommit difftest_instr_commit(
+  DifftestInstrCommit difftest_instr_commit_1(
                         .clock(clock),
                         .coreid(coreid),
                         .index(index),
-                        .valid(debug_commit_valid_1), // Non-zero means valid, checked per-cycle, if valid, instr count as as commit
-                        .pc(debug_commit_pc),
-                        .instr(debug_commit_instr_1),
+                        .valid(debug_commit_valid_i_1), // Non-zero means valid, checked per-cycle, if valid, instr count as as commit
+                        .pc(debug_commit_pc_i_1),
+                        .instr(debug_commit_instr_i_1),
                         .skip(),
                         .is_TLBFILL(),
                         .TLBFILL_index(),
                         .is_CNTinst(),
                         .timer_64_value(),
-                        .wen(debug_commit_wreg_1),
-                        .wdest(debug_commit_reg_waddr_1),
-                        .wdata(debug_commit_reg_wdata_1)
+                        .wen(debug_commit_wreg_i_1),
+                        .wdest(debug_commit_reg_waddr_i_1),
+                        .wdata(debug_commit_reg_wdata_i_1)
+                      );
+
+  DifftestInstrCommit difftest_instr_commit_2(
+                        .clock(clock),
+                        .coreid(coreid),
+                        .index(index),
+                        .valid(debug_commit_valid_i_2), // Non-zero means valid, checked per-cycle, if valid, instr count as as commit
+                        .pc(debug_commit_pc_i_2),
+                        .instr(debug_commit_instr_i_2),
+                        .skip(),
+                        .is_TLBFILL(),
+                        .TLBFILL_index(),
+                        .is_CNTinst(),
+                        .timer_64_value(),
+                        .wen(debug_commit_wreg_i_2),
+                        .wdest(debug_commit_reg_waddr_i_2),
+                        .wdata(debug_commit_reg_wdata_i_2)
                       );
 
   DifftestArchIntRegState difftest_arch_int_reg_state(

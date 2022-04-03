@@ -2,12 +2,15 @@
 module ctrl (
     input wire clk,
     input wire rst,
-    input wire stallreq_from_id,
-    input wire stallreq_from_ex,
+    input wire stallreq_from_id_1,
+    input wire stallreq_from_ex_1,
+    input wire stallreq_from_id_2,
+    input wire stallreq_from_ex_2,
 
     input wire[1:0] excepttype_i,
 
-    output reg[6:0]stall,
+    output reg[6:0]stall1,
+    output reg[6:0]stall2,
     output reg[`RegBus] new_pc,
     output reg flush
   );
@@ -20,13 +23,11 @@ module ctrl (
         begin
           flush <= 1'b0;
           new_pc <= `ZeroWord;
-          stall <= 7'b0000000;
         end
       else
         if(excepttype_i != 0)
           begin
             flush <= 1'b1;
-            stall <= 7'b0000000;
             case (excepttype_i)
               2'b01:
                 new_pc <= 32'h0000000c;
@@ -37,25 +38,35 @@ module ctrl (
                 end
             endcase
           end
-        else if(stallreq_from_id == `Stop)
-          begin
-            flush <= 1'b0;
-            new_pc <= `ZeroWord;
-            stall <= 7'b0011111;
-          end
-        else if(stallreq_from_ex == `Stop)
-          begin
-            flush <= 1'b0;
-            new_pc <= `ZeroWord;
-            stall <= 7'b0011111;
-          end
         else
           begin
             flush <= 1'b0;
             new_pc <= `ZeroWord;
-            stall <= 7'b0000000;
           end
+    end
 
+  always @(posedge clk or negedge rst_n)
+    begin
+      if (!rst_n)
+          stall1 <= 7'b0000000;
+      else if(stallreq_from_ex_1 == `Stop)
+          stall1 <= 7'b0011111;
+      else if(stallreq_from_id_1 == `Stop)
+          stall1 <= 7'b0011111;
+      else
+          stall1 <= 7'b0000000;
+    end
+
+   always @(posedge clk or negedge rst_n)
+    begin
+      if (!rst_n)
+          stall2 <= 7'b0000000;
+      else if(stallreq_from_ex_2 == `Stop)
+          stall2 <= 7'b0011111;
+      else if(stallreq_from_id_2 == `Stop)
+          stall2 <= 7'b0011111;
+      else
+          stall2 <= 7'b0000000;
     end
 
 

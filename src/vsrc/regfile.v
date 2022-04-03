@@ -3,17 +3,26 @@ module regfile (
     input wire clk,
     input wire rst,
 
-    input wire we,
-    input wire [`RegAddrBus] waddr,
-    input wire [`RegBus] wdata,
+    input wire we_1,
+    input wire [`RegAddrBus] waddr_1,
+    input wire [`RegBus] wdata_1,
+    input wire we_2,
+    input wire [`RegAddrBus] waddr_2,
+    input wire [`RegBus] wdata_2,
 
-    input wire re1,
-    input wire [`RegAddrBus] raddr1,
-    output reg [`RegBus] rdata1,
+    input wire re1_1,
+    input wire [`RegAddrBus] raddr1_1,
+    output reg [`RegBus] rdata1_1,
+    input wire re1_2,
+    input wire [`RegAddrBus] raddr1_2,
+    output reg [`RegBus] rdata1_2,
 
-    input wire re2,
-    input wire [`RegAddrBus] raddr2,
-    output reg [`RegBus] rdata2,
+    input wire re2_1,
+    input wire [`RegAddrBus] raddr2_1,
+    output reg [`RegBus] rdata2_1,
+    input wire re2_2,
+    input wire [`RegAddrBus] raddr2_2,
+    output reg [`RegBus] rdata2_2,
 
     output wire[1023:0] debug_reg
 );
@@ -56,37 +65,68 @@ always @ (posedge clk)begin
         regs[2] <= `ZeroWord;
         regs[1] <= `ZeroWord;
         regs[0] <= `ZeroWord;
-    end else if ((we == `WriteEnable) && !(waddr == `RegNumLog2'h0))
-          regs[waddr] <= wdata;
-    
+    end else begin
+        if ((we_1 == `WriteEnable) && !(waddr_1 == `RegNumLog2'h0))
+          regs[waddr_1] <= wdata_1;
+        if ((we_2 == `WriteEnable) && !(waddr_2 == `RegNumLog2'h0))
+          regs[waddr_2] <= wdata_2;
+    end
 end
 
   always @ (*)
     begin
       if (rst == `RstEnable)
-        rdata1 = `ZeroWord;
-      else if (raddr1 == `RegNumLog2'h0)
-        rdata1 = `ZeroWord;
-      else if ((raddr1 == waddr) && (we == `WriteEnable) && (re1 == `ReadEnable))
-        rdata1 = wdata;
-      else if (re1 == `ReadEnable)
-        rdata1 = regs[raddr1];
+        rdata1_1 = `ZeroWord;
+      else if (raddr1_1 == `RegNumLog2'h0)
+        rdata1_1 = `ZeroWord;
+      else if ((raddr1_1 == waddr_1) && (we_1 == `WriteEnable) && (re1_1 == `ReadEnable))
+        rdata1_1 = wdata_1;
+      else if (re1_1 == `ReadEnable)
+        rdata1_1 = regs[raddr1_1];
       else
-        rdata1 = `ZeroWord;
+        rdata1_1 = `ZeroWord;
     end
 
   always @ (*)
     begin
       if (rst == `RstEnable)
-        rdata2 = `ZeroWord;
-      else if (raddr2 == `RegNumLog2'h0)
-        rdata2 = `ZeroWord;
-      else if ((raddr2 == waddr) && (we == `WriteEnable) && (re2 == `ReadEnable))
-        rdata2 = wdata;
-      else if (re2 == `ReadEnable)
-        rdata2 = regs[raddr2];
+        rdata1_2 = `ZeroWord;
+      else if (raddr1_2 == `RegNumLog2'h0)
+        rdata1_2 = `ZeroWord;
+      else if ((raddr1_2 == waddr_1) && (we_1 == `WriteEnable) && (re1_2 == `ReadEnable))
+        rdata1_2 = wdata_1;
+      else if (re1_2 == `ReadEnable)
+        rdata1_2 = regs[raddr1_2];
       else
-        rdata2 = `ZeroWord;
+        rdata1_2= `ZeroWord;
+    end
+
+  always @ (*)
+    begin
+      if (rst == `RstEnable)
+        rdata2_1 = `ZeroWord;
+      else if (raddr2_1 == `RegNumLog2'h0)
+        rdata2_1 = `ZeroWord;
+      else if ((raddr2_1 == waddr_2) && (we_2 == `WriteEnable) && (re2_1 == `ReadEnable))
+        rdata2_1 = wdata_2;
+      else if (re2_1 == `ReadEnable)
+        rdata2_1 = regs[raddr2_1];
+      else
+        rdata2_1 = `ZeroWord;
+    end
+
+  always @ (*)
+    begin
+      if (rst == `RstEnable)
+        rdata2_2 = `ZeroWord;
+      else if (raddr2_2 == `RegNumLog2'h0)
+        rdata2_2 = `ZeroWord;
+      else if ((raddr2_2 == waddr_2) && (we_2 == `WriteEnable) && (re2_2 == `ReadEnable))
+        rdata2_2 = wdata_2;
+      else if (re2_1 == `ReadEnable)
+        rdata2_2 = regs[raddr2_2];
+      else
+        rdata2_2 = `ZeroWord;
     end
 
 endmodule

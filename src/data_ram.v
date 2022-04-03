@@ -2,12 +2,20 @@
 
 module data_ram(
     input wire clk,
-    input wire ce,
-    input wire we,
-    input wire[`DataAddrBus] addr,
-    input wire[3:0]	sel,
-    input wire[`DataBus] data_i,
-    output reg[`DataBus] data_o
+
+    input wire ce_1,
+    input wire we_1,
+    input wire[`DataAddrBus] addr_1,
+    input wire[3:0]	sel_1,
+    input wire[`DataBus] data_i_1,
+    output reg[`DataBus] data_o_1,
+
+    input wire ce_2,
+    input wire we_2,
+    input wire[`DataAddrBus] addr_2,
+    input wire[3:0]	sel_2,
+    input wire[`DataBus] data_i_2,
+    output reg[`DataBus] data_o_2
 
   );
 
@@ -18,31 +26,61 @@ module data_ram(
 
   always @ (posedge clk)
     begin
-      if (ce == `ChipDisable)
+      if (ce_1 == `ChipDisable)
         begin
         end
-      else if(we == `WriteEnable)
+      else if(we_1 == `WriteEnable)
         begin
-          if (sel[3] == 1'b1)
-            data_mem3[addr[`DataMemNumLog2+1:2]] <= data_i[31:24];
-          if (sel[2] == 1'b1)
-            data_mem2[addr[`DataMemNumLog2+1:2]] <= data_i[23:16];
-          if (sel[1] == 1'b1)
-            data_mem1[addr[`DataMemNumLog2+1:2]] <= data_i[15:8];
-          if (sel[0] == 1'b1)
-            data_mem0[addr[`DataMemNumLog2+1:2]] <= data_i[7:0];
+          if (sel_1[3] == 1'b1)
+            data_mem3[addr_1[`DataMemNumLog2+1:2]] <= data_i_1[31:24];
+          if (sel_1[2] == 1'b1)
+            data_mem2[addr_1[`DataMemNumLog2+1:2]] <= data_i_1[23:16];
+          if (sel_1[1] == 1'b1)
+            data_mem1[addr_1[`DataMemNumLog2+1:2]] <= data_i_1[15:8];
+          if (sel_1[0] == 1'b1)
+            data_mem0[addr_1[`DataMemNumLog2+1:2]] <= data_i_1[7:0];
         end
     end
 
   always @ (posedge clk)
     begin
-      if (ce == `ChipDisable)
-        data_o <= `ZeroWord;
+      if (ce_1 == `ChipDisable)
+        data_o_1 <= `ZeroWord;
       else
-        data_o <= {data_mem3[addr[`DataMemNumLog2+1:2]],
-                   data_mem2[addr[`DataMemNumLog2+1:2]],
-                   data_mem1[addr[`DataMemNumLog2+1:2]],
-                   data_mem0[addr[`DataMemNumLog2+1:2]]};
+        data_o_1 <= {data_mem3[addr_1[`DataMemNumLog2+1:2]],
+                   data_mem2[addr_1[`DataMemNumLog2+1:2]],
+                   data_mem1[addr_1[`DataMemNumLog2+1:2]],
+                   data_mem0[addr_1[`DataMemNumLog2+1:2]]};
+
+    end
+
+  always @ (posedge clk)
+    begin
+      if (ce_2 == `ChipDisable)
+        begin
+        end
+      else if(we_2 == `WriteEnable)
+        begin
+          if (sel_2[3] == 1'b1)
+            data_mem3[addr_2[`DataMemNumLog2+1:2]] <= data_i_2[31:24];
+          if (sel_2[2] == 1'b1)
+            data_mem2[addr_2[`DataMemNumLog2+1:2]] <= data_i_2[23:16];
+          if (sel_2[1] == 1'b1)
+            data_mem1[addr_2[`DataMemNumLog2+1:2]] <= data_i_2[15:8];
+          if (sel_2[0] == 1'b1)
+            data_mem0[addr_2[`DataMemNumLog2+1:2]] <= data_i_2[7:0];
+        end
+    end
+
+  always @ (posedge clk)
+    begin
+      if (ce_2 == `ChipDisable)
+        data_o_2 <= `ZeroWord;
+      else
+        data_o_2 <= {data_mem3[addr_2[`DataMemNumLog2+1:2]],
+                   data_mem2[addr_2[`DataMemNumLog2+1:2]],
+                   data_mem1[addr_2[`DataMemNumLog2+1:2]],
+                   data_mem0[addr_2[`DataMemNumLog2+1:2]]};
 
     end
 

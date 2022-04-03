@@ -2,7 +2,8 @@
 module pc_reg (
     input wire clk,
     input wire rst,
-    input wire stall,
+    input wire stall1,
+    input wire stall2,
 
     input wire branch_flag_i,
     input wire[`RegBus] branch_target_address,
@@ -10,26 +11,46 @@ module pc_reg (
     input wire flush,
     input wire[`RegBus] new_pc,
 
-    output reg[`InstAddrBus] pc,
+    output reg[`InstAddrBus] pc_1,
+    output reg[`InstAddrBus] pc_2,
     output reg ce
   );
 
   always @(posedge clk)
     begin
       if(ce == `ChipDisable)
-        pc <= 32'h1c000000;
+        pc_1 <= 32'h1c000000;
       else if(flush == 1'b1)
-        pc <= new_pc;
-      else if(stall == `Stop) // Hold output
+        pc_1 <= new_pc;
+      else if(stall1 == `Stop) // Hold output
         begin
-          pc <= pc;
+          pc_1 <= pc_1;
         end
       else
         begin
           if(branch_flag_i == `Branch)
-            pc <= branch_target_address;
+            pc_1 <= branch_target_address;
           else
-            pc <= pc + 32'h4;
+            pc_1 <= pc_1 + 32'h8;
+        end
+    end
+
+    always @(posedge clk)
+    begin
+      if(ce == `ChipDisable)
+        pc_2 <= 32'h1c000004;
+      else if(flush == 1'b1)
+        pc_2 <= new_pc + 4'h4;
+      else if(stall2 == `Stop) // Hold output
+        begin
+          pc_2 <= pc_2;
+        end
+      else
+        begin
+          if(branch_flag_i == `Branch)
+            pc_2 <= branch_target_address + 4'h4;
+          else
+            pc_2 <= pc_2 + 32'h8;
         end
     end
 
