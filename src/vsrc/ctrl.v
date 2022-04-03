@@ -41,13 +41,13 @@ module ctrl (
           begin
             flush <= 1'b0;
             new_pc <= `ZeroWord;
-            stall <= 7'b0011111;
+            stall <= 7'b0111111;
           end
         else if(stallreq_from_ex == `Stop)
           begin
             flush <= 1'b0;
             new_pc <= `ZeroWord;
-            stall <= 7'b0011111;
+            stall <= 7'b0111111;
           end
         else
           begin

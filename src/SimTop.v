@@ -17,7 +17,7 @@ module SimTop(
 
   wire chip_enable;
   wire[`RegBus] ram_raddr;
-  wire[`RegBus] ram_rdata;
+  reg[`RegBus] ram_rdata;
   wire[`RegBus] ramhelper_rdata;
   wire[`RegBus] ram_waddr;
   wire[`RegBus] ram_wdata;
@@ -139,7 +139,7 @@ module SimTop(
       else
         begin
           cycleCnt <= cycleCnt + 1;
-          instrCnt <= instrCnt + debug_commit_valid_1;
+          instrCnt <= instrCnt + debug_commit_valid;
           debug_commit_instr_1 <= debug_commit_instr;
           debug_commit_valid_1 <= debug_commit_valid & chip_enable;
           debug_commit_pc_1 <= debug_commit_pc;
@@ -176,7 +176,7 @@ module SimTop(
                         .coreid(coreid),
                         .index(index),
                         .valid(debug_commit_valid_1), // Non-zero means valid, checked per-cycle, if valid, instr count as as commit
-                        .pc(debug_commit_pc),
+                        .pc(debug_commit_pc_1),
                         .instr(debug_commit_instr_1),
                         .skip(),
                         .is_TLBFILL(),
