@@ -31,12 +31,14 @@ module cpu_top (
     output wire dram_we_o_1,
     output wire[3:0] dram_sel_o_1,
     output wire dram_ce_o_1,
+    output wire[`InstAddrBus] dram_pc_o_1,
 
     output wire[`RegBus] dram_addr_o_2,
     output wire[`RegBus] dram_data_o_2,
     output wire dram_we_o_2,
     output wire[3:0] dram_sel_o_2,
     output wire dram_ce_o_2,
+    output wire[`InstAddrBus] dram_pc_o_2,
 
     output wire[`RegBus] debug_commit_pc_1,
     output wire debug_commit_valid_1,
@@ -177,23 +179,49 @@ module cpu_top (
   wire[1:0] id_excepttype_o_1;
   wire[`RegBus] id_current_inst_address_o_1;
 
+  wire ex_wreg_o_2;
+  wire[`RegAddrBus] ex_reg_waddr_o_2;
+  wire[`RegBus] ex_reg_wdata_2;
+  wire[`AluOpBus] ex_aluop_o_2;
+
+  wire mem_wreg_o_2;
+  wire[`RegAddrBus] mem_reg_waddr_o_2;
+  wire[`RegBus] mem_reg_wdata_o_2;
+
+  wire[`RegAddrBus] reg1_addr_2;
+  wire[`RegAddrBus] reg2_addr_2;
+
 
   id u_id_1(
        .rst(rst),
        .pc_i(id_pc_1),
        .inst_i(id_inst_1),
 
+       .pc_i_other(id_pc_2),
+
        .reg1_data_i (reg1_data_1 ),
        .reg2_data_i (reg2_data_1 ),
 
-       .ex_wreg_i   (ex_wreg_o_1 ),
-       .ex_waddr_i  (ex_reg_waddr_o_1),
-       .ex_wdata_i  (ex_reg_wdata_1),
-       .ex_aluop_i  (ex_aluop_o_1),
+       .reg1_addr_i_other(reg1_addr_2),
+       .reg2_addr_i_other(reg2_addr_2),
 
-       .mem_wreg_i  (mem_wreg_o_1),
-       .mem_waddr_i (mem_reg_waddr_o_1),
-       .mem_wdata_i (mem_reg_wdata_o_1),
+       .ex_wreg_i_1   (ex_wreg_o_1 ),
+       .ex_waddr_i_1  (ex_reg_waddr_o_1),
+       .ex_wdata_i_1  (ex_reg_wdata_1),
+       .ex_aluop_i_1  (ex_aluop_o_1),
+
+       .ex_wreg_i_2   (ex_wreg_o_2 ),
+       .ex_waddr_i_2  (ex_reg_waddr_o_2),
+       .ex_wdata_i_2  (ex_reg_wdata_2),
+       .ex_aluop_i_2  (ex_aluop_o_2),
+
+       .mem_wreg_i_1  (mem_wreg_o_1),
+       .mem_waddr_i_1 (mem_reg_waddr_o_1),
+       .mem_wdata_i_1 (mem_reg_wdata_o_1),
+
+       .mem_wreg_i_2  (mem_wreg_o_2),
+       .mem_waddr_i_2 (mem_reg_waddr_o_2),
+       .mem_wdata_i_2 (mem_reg_wdata_o_2),
 
        .reg1_read_o (reg1_read_1 ),
        .reg2_read_o (reg2_read_1 ),
@@ -233,19 +261,10 @@ module cpu_top (
 
   wire reg1_read_2;
   wire reg2_read_2;
-  wire[`RegAddrBus] reg1_addr_2;
-  wire[`RegAddrBus] reg2_addr_2;
   wire[`RegBus] reg1_data_2;
   wire[`RegBus] reg2_data_2;
 
-  wire ex_wreg_o_2;
-  wire[`RegAddrBus] ex_reg_waddr_o_2;
-  wire[`RegBus] ex_reg_wdata_2;
-  wire[`AluOpBus] ex_aluop_o_2;
-
-  wire mem_wreg_o_2;
-  wire[`RegAddrBus] mem_reg_waddr_o_2;
-  wire[`RegBus] mem_reg_wdata_o_2;
+ 
 
   wire stallreq_from_id_2;
   wire stallreq_from_ex_2;
@@ -258,17 +277,31 @@ module cpu_top (
        .pc_i(id_pc_2),
        .inst_i(id_inst_2),
 
+       .pc_i_other(id_pc_1),
+
        .reg1_data_i (reg1_data_2 ),
        .reg2_data_i (reg2_data_2 ),
 
-       .ex_wreg_i   (ex_wreg_o_2 ),
-       .ex_waddr_i  (ex_reg_waddr_o_2),
-       .ex_wdata_i  (ex_reg_wdata_2),
-       .ex_aluop_i  (ex_aluop_o_2),
+       .reg1_addr_i_other(reg1_addr_1),
+       .reg2_addr_i_other(reg2_addr_1),
 
-       .mem_wreg_i  (mem_wreg_o_2),
-       .mem_waddr_i (mem_reg_waddr_o_2),
-       .mem_wdata_i (mem_reg_wdata_o_2),
+       .ex_wreg_i_1   (ex_wreg_o_2 ),
+       .ex_waddr_i_1  (ex_reg_waddr_o_2),
+       .ex_wdata_i_1  (ex_reg_wdata_2),
+       .ex_aluop_i_1  (ex_aluop_o_2),
+
+       .ex_wreg_i_2   (ex_wreg_o_1 ),
+       .ex_waddr_i_2  (ex_reg_waddr_o_1),
+       .ex_wdata_i_2  (ex_reg_wdata_1),
+       .ex_aluop_i_2  (ex_aluop_o_1),
+
+       .mem_wreg_i_1  (mem_wreg_o_2),
+       .mem_waddr_i_1 (mem_reg_waddr_o_2),
+       .mem_wdata_i_1 (mem_reg_wdata_o_2),
+
+       .mem_wreg_i_2  (mem_wreg_o_1),
+       .mem_waddr_i_2 (mem_reg_waddr_o_1),
+       .mem_wdata_i_2 (mem_reg_wdata_o_1),
 
        .reg1_read_o (reg1_read_2 ),
        .reg2_read_o (reg2_read_2 ),
@@ -557,10 +590,12 @@ module cpu_top (
   wire mem_LLbit_value_o_1;
   wire[1:0] mem_excepttype_o_1;
   wire[`RegBus] mem_current_inst_address_o_1;
+  wire[`InstAddrBus] wb_inst_pc_1;
 
   mem u_mem_1(
         .rst     (rst     ),
 
+        .inst_pc_i(mem_inst_pc_1),
         .wd_i    (mem_reg_waddr_i_1    ),
         .wreg_i  (mem_wreg_i_1  ),
         .wdata_i (mem_reg_wdata_i_1),
@@ -577,7 +612,7 @@ module cpu_top (
         .excepttype_i(mem_excepttype_i_1),
         .current_inst_address_i(mem_current_inst_address_i_1),
 
-
+        .inst_pc_o(wb_inst_pc_1),
         .wd_o    (mem_reg_waddr_o_1),
         .wreg_o  (mem_wreg_o_1 ),
         .wdata_o (mem_reg_wdata_o_1 ),
@@ -603,10 +638,12 @@ module cpu_top (
   wire mem_LLbit_value_o_2;
   wire[1:0] mem_excepttype_o_2;
   wire[`RegBus] mem_current_inst_address_o_2 ;
+  wire[`InstAddrBus] wb_inst_pc_2;
 
   mem u_mem_2(
         .rst     (rst     ),
 
+        .inst_pc_i(mem_inst_pc_2),
         .wd_i    (mem_reg_waddr_i_2    ),
         .wreg_i  (mem_wreg_i_2  ),
         .wdata_i (mem_reg_wdata_i_2),
@@ -623,7 +660,7 @@ module cpu_top (
         .excepttype_i(mem_excepttype_i_2),
         .current_inst_address_i(mem_current_inst_address_i_2),
 
-
+        .inst_pc_o(wb_inst_pc_2),
         .wd_o    (mem_reg_waddr_o_2),
         .wreg_o  (mem_wreg_o_2 ),
         .wdata_o (mem_reg_wdata_o_2 ),
@@ -641,6 +678,9 @@ module cpu_top (
         .current_inst_address_o(mem_current_inst_address_o_2)
 
       );
+  
+  assign dram_pc_o_1 = wb_inst_pc_1;
+  assign dram_pc_o_2 = wb_inst_pc_2;
 
   wire wb_wreg_1;
   wire[`RegAddrBus] wb_reg_waddr_1;
@@ -723,9 +763,11 @@ module cpu_top (
             .rst(rst       ),
 
             .we_1        (wb_wreg_1),
+            .pc_i_1      (),
             .waddr_1     (wb_reg_waddr_1),
             .wdata_1     (wb_reg_wdata_1),
             .we_2        (wb_wreg_2),
+            .pc_i_2      (),
             .waddr_2     (wb_reg_waddr_2),
             .wdata_2     (wb_reg_wdata_2),
 

@@ -6,20 +6,39 @@ module id(
     input wire[`InstAddrBus] pc_i,
     input wire[`InstBus] inst_i,
 
+    // <- ANOTHER_IF
+    input wire[`InstAddrBus] pc_i_other,
+
     // <- Regfile
     input wire[`RegBus] reg1_data_i,
     input wire[`RegBus] reg2_data_i,
 
+    // <- ANOTHER_ID
+    input wire[`RegAddrBus] reg1_addr_i_other,
+    input wire[`RegAddrBus] reg2_addr_i_other,
+
     // <- EXE
-    input wire ex_wreg_i,
-    input wire[`RegAddrBus] ex_waddr_i,
-    input wire[`RegBus] ex_wdata_i,
-    input wire[`AluOpBus] ex_aluop_i,
+    input wire ex_wreg_i_1,
+    input wire[`RegAddrBus] ex_waddr_i_1,
+    input wire[`RegBus] ex_wdata_i_1,
+    input wire[`AluOpBus] ex_aluop_i_1,
+
+
+    // <- ANOTHER_EXE
+    input wire ex_wreg_i_2,
+    input wire[`RegAddrBus] ex_waddr_i_2,
+    input wire[`RegBus] ex_wdata_i_2,
+    input wire[`AluOpBus] ex_aluop_i_2,
 
     // <- Mem
-    input wire mem_wreg_i,
-    input wire[`RegAddrBus] mem_waddr_i,
-    input wire[`RegBus] mem_wdata_i,
+    input wire mem_wreg_i_1,
+    input wire[`RegAddrBus] mem_waddr_i_1,
+    input wire[`RegBus] mem_wdata_i_1,
+
+    // <- ANOTHER_Mem
+    input wire mem_wreg_i_2,
+    input wire[`RegAddrBus] mem_waddr_i_2,
+    input wire[`RegBus] mem_wdata_i_2,
 
     // -> Regfile
     output reg reg1_read_o,
@@ -83,14 +102,22 @@ module id(
   reg stallreq_for_reg2_loadrelate;
   wire pre_inst_is_load;
 
-  assign pre_inst_is_load = ((ex_aluop_i == `EXE_LD_B_OP) ||
-                             (ex_aluop_i == `EXE_LD_H_OP) ||
-                             (ex_aluop_i == `EXE_LD_W_OP) ||
-                             (ex_aluop_i == `EXE_LD_BU_OP) ||
-                             (ex_aluop_i == `EXE_LD_HU_OP) ||
-                             (ex_aluop_i == `EXE_ST_B_OP) ||
-                             (ex_aluop_i == `EXE_ST_H_OP) ||
-                             (ex_aluop_i == `EXE_ST_W_OP) ) ? 1'b1 : 1'b0;
+ assign pre_inst_is_load = (((ex_aluop_i_1 == `EXE_LD_B_OP) ||
+                             (ex_aluop_i_1 == `EXE_LD_H_OP) ||
+                             (ex_aluop_i_1 == `EXE_LD_W_OP) ||
+                             (ex_aluop_i_1 == `EXE_LD_BU_OP) ||
+                             (ex_aluop_i_1 == `EXE_LD_HU_OP) ||
+                             (ex_aluop_i_1 == `EXE_ST_B_OP) ||
+                             (ex_aluop_i_1 == `EXE_ST_H_OP) ||
+                             (ex_aluop_i_1 == `EXE_ST_W_OP) ||
+                             (ex_aluop_i_2 == `EXE_LD_B_OP) ||
+                             (ex_aluop_i_2 == `EXE_LD_H_OP) ||
+                             (ex_aluop_i_2 == `EXE_LD_W_OP) ||
+                             (ex_aluop_i_2 == `EXE_LD_BU_OP) ||
+                             (ex_aluop_i_2 == `EXE_LD_HU_OP) ||
+                             (ex_aluop_i_2 == `EXE_ST_B_OP) ||
+                             (ex_aluop_i_2 == `EXE_ST_H_OP) ||
+                             (ex_aluop_i_2 == `EXE_ST_W_OP)) && (pc_i + 4 == pc_i_other)) ? 1'b1 : 1'b0;
 
   reg excepttype_is_syscall;
   reg excepttype_is_break;
@@ -104,7 +131,7 @@ module id(
       stallreq_for_reg1_loadrelate = `NoStop;
       if(rst == `RstEnable)
         reg1_o = `ZeroWord;
-      else if(pre_inst_is_load == 1'b1 && ex_waddr_i == reg1_addr_o && reg1_read_o == 1'b1)
+      else if(pre_inst_is_load == 1'b1 && ex_waddr_i_1 == reg1_addr_o && reg1_read_o == 1'b1)
         stallreq_for_reg1_loadrelate = `Stop;
     end
 
@@ -113,11 +140,13 @@ module id(
       stallreq_for_reg2_loadrelate = `NoStop;
       if(rst == `RstEnable)
         reg2_o = `ZeroWord;
-      else if(pre_inst_is_load == 1'b1 && ex_waddr_i == reg2_addr_o && reg2_read_o == 1'b1)
+      else if(pre_inst_is_load == 1'b1 && ex_waddr_i_1 == reg2_addr_o && reg2_read_o == 1'b1)
         stallreq_for_reg2_loadrelate = `Stop;
     end
 
-  assign stallreq = stallreq_for_reg1_loadrelate | stallreq_for_reg2_loadrelate;
+  //如果这条指令与另一条相邻且存在依赖就直接暂停
+  assign stallreq = stallreq_for_reg1_loadrelate | stallreq_for_reg2_loadrelate | 
+          ((pc_i == pc_i_other - 4) && ((reg1_addr_o == reg1_addr_i_other) | (reg2_addr_o == reg2_addr_i_other)));
 
   always @(*)
     begin
@@ -785,10 +814,14 @@ module id(
         reg1_o = `ZeroWord;
       else if ((reg1_read_o == 1'b1) && (reg1_addr_o == 0))
         reg1_o = `ZeroWord;
-      else if((reg1_read_o == 1'b1) && (ex_wreg_i == 1'b1) && (ex_waddr_i == reg1_addr_o))
-        reg1_o = ex_wdata_i;
-      else if((reg1_read_o == 1'b1) && (mem_wreg_i == 1'b1) && (mem_waddr_i == reg1_addr_o))
-        reg1_o = mem_wdata_i;
+      else if((reg1_read_o == 1'b1) && (ex_wreg_i_2 == 1'b1) && (ex_waddr_i_2 == reg1_addr_o))
+        reg1_o = ex_wdata_i_2;
+      else if((reg1_read_o == 1'b1) && (mem_wreg_i_2 == 1'b1) && (mem_waddr_i_2 == reg1_addr_o))
+        reg1_o = mem_wdata_i_2;
+      else if((reg1_read_o == 1'b1) && (ex_wreg_i_1 == 1'b1) && (ex_waddr_i_1 == reg1_addr_o))
+        reg1_o = ex_wdata_i_1;
+      else if((reg1_read_o == 1'b1) && (mem_wreg_i_1 == 1'b1) && (mem_waddr_i_1 == reg1_addr_o))
+        reg1_o = mem_wdata_i_1;
       else if (reg1_read_o == 1'b1)
         reg1_o = reg1_data_i;
       else if (reg1_read_o == 1'b0)
@@ -803,10 +836,14 @@ module id(
         reg2_o = `ZeroWord;
       else if ((reg2_read_o == 1'b1) && (reg2_addr_o == 0))
         reg2_o = `ZeroWord;
-      else if((reg2_read_o == 1'b1) && (ex_wreg_i == 1'b1) && (ex_waddr_i == reg2_addr_o))
-        reg2_o = ex_wdata_i;
-      else if((reg2_read_o == 1'b1) && (mem_wreg_i == 1'b1) && (mem_waddr_i == reg2_addr_o))
-        reg2_o = mem_wdata_i;
+      else if((reg2_read_o == 1'b1) && (ex_wreg_i_2 == 1'b1) && (ex_waddr_i_2 == reg2_addr_o))
+        reg2_o = ex_wdata_i_2;
+      else if((reg2_read_o == 1'b1) && (mem_wreg_i_2 == 1'b1) && (mem_waddr_i_2 == reg2_addr_o))
+        reg2_o = mem_wdata_i_2;
+      else if((reg2_read_o == 1'b1) && (ex_wreg_i_1 == 1'b1) && (ex_waddr_i_1 == reg2_addr_o))
+        reg2_o = ex_wdata_i_1;
+      else if((reg2_read_o == 1'b1) && (mem_wreg_i_1 == 1'b1) && (mem_waddr_i_1 == reg2_addr_o))
+        reg2_o = mem_wdata_i_1;
       else if (reg2_read_o == 1'b1)
         reg2_o = reg2_data_i;
       else if (reg2_read_o == 1'b0)

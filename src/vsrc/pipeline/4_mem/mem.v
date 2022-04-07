@@ -3,6 +3,7 @@
 module mem (
     input wire rst,
 
+    input wire[`InstAddrBus] inst_pc_i,
     input wire[`RegAddrBus] wd_i,
     input wire wreg_i,
     input wire[`RegBus] wdata_i,
@@ -19,6 +20,7 @@ module mem (
     input wire[2:0] excepttype_i,
     input wire[`RegBus] current_inst_address_i,
 
+    output reg[`InstAddrBus] inst_pc_o,
     output reg[`RegAddrBus] wd_o,
     output reg wreg_o,
     output reg[`RegBus] wdata_o,
@@ -71,6 +73,7 @@ module mem (
           mem_ce_o = `ChipDisable;
           LLbit_we_o = 1'b0;
           LLbit_value_o = 1'b0;
+          inst_pc_o = `ZeroWord;
         end
       else
         begin
@@ -83,6 +86,7 @@ module mem (
           mem_sel_o = 4'b1111;
           LLbit_we_o = 1'b0;
           LLbit_value_o = 1'b0;
+          inst_pc_o = inst_pc_i;
           case (aluop_i)
             `EXE_LD_B_OP:
               begin

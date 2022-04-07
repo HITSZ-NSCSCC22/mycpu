@@ -31,6 +31,7 @@ module SimTop(
   wire[3:0] dram_sel_1;
   wire[`DataBus] dram_data_i_1;
   wire[`DataBus] dram_data_o_1;
+  wire[`InstAddrBus] dram_pc_1;
 
   wire dram_ce_2;
   wire dram_we_2;
@@ -38,6 +39,7 @@ module SimTop(
   wire[3:0] dram_sel_2;
   wire[`DataBus] dram_data_i_2;
   wire[`DataBus] dram_data_o_2;
+  wire[`InstAddrBus] dram_pc_2;
 
   wire [`RegBus] debug_commit_pc_o_1;
   wire debug_commit_valid_o_1;
@@ -74,12 +76,14 @@ module SimTop(
             .dram_we_o_1(dram_we_1),
             .dram_sel_o_1(dram_sel_1),
             .dram_ce_o_1(dram_ce_1),
+            .dram_pc_o_1(dram_pc_1),
 
             .dram_addr_o_2(dram_addr_2),
             .dram_data_o_2(dram_data_i_2),
             .dram_we_o_2(dram_we_2),
             .dram_sel_o_2(dram_sel_2),
             .dram_ce_o_2(dram_ce_2),
+            .dram_pc_o_2(dram_pc_2),
 
             .debug_commit_pc_1(debug_commit_pc_o_1        ),
             .debug_commit_valid_1(debug_commit_valid_o_1     ),
@@ -129,12 +133,14 @@ module SimTop(
              .clk(clock),
              .ce_1(dram_ce_1),
              .we_1(dram_we_1),
+             .pc_1(dram_pc_1),
              .addr_1(dram_addr_1),
              .sel_1(dram_sel_1),
              .data_i_1(dram_data_i_1),
              .data_o_1(dram_data_o_1),
              .ce_2(dram_ce_2),
              .we_2(dram_we_2),
+             .pc_2(dram_pc_2),
              .addr_2(dram_addr_2),
              .sel_2(dram_sel_2),
              .data_i_2(dram_data_i_2),

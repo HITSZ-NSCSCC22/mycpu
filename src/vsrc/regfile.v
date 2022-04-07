@@ -3,9 +3,11 @@ module regfile (
     input wire clk,
     input wire rst,
 
+    input wire[`InstAddrBus] pc_i_1,
     input wire we_1,
     input wire [`RegAddrBus] waddr_1,
     input wire [`RegBus] wdata_1,
+    input wire[`InstAddrBus] pc_i_2,
     input wire we_2,
     input wire [`RegAddrBus] waddr_2,
     input wire [`RegBus] wdata_2,
@@ -65,11 +67,19 @@ always @ (posedge clk)begin
         regs[2] <= `ZeroWord;
         regs[1] <= `ZeroWord;
         regs[0] <= `ZeroWord;
-    end else begin
-        if ((we_1 == `WriteEnable) && !(waddr_1 == `RegNumLog2'h0))
-          regs[waddr_1] <= wdata_1;
-        if ((we_2 == `WriteEnable) && !(waddr_2 == `RegNumLog2'h0))
-          regs[waddr_2] <= wdata_2;
+    end else begin                   //同时写入一个位置，将后面的写入
+        if ((we_1 == `WriteEnable) && (we_2 == `WriteEnable) && waddr_1 == waddr_2)begin
+          if(pc_i_1 > pc_i_2)
+              regs[waddr_1] <= wdata_1;
+          else 
+              regs[waddr_1] <= wdata_2;
+        end
+        else begin
+          if ((we_1 == `WriteEnable) && !(waddr_1 == `RegNumLog2'h0))
+              regs[waddr_1] <= wdata_1;
+          if ((we_2 == `WriteEnable) && !(waddr_2 == `RegNumLog2'h0))
+              regs[waddr_2] <= wdata_2;
+        end
     end
 end
 
