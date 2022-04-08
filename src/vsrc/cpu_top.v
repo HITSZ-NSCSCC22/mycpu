@@ -59,6 +59,7 @@ module cpu_top (
          );
 
   wire [`InstAddrBus]pc2;
+  wire if_inst_valid;
   if_buffer if_buffer_1(
               .clk(clk),
               .rst(rst),
@@ -71,7 +72,7 @@ module cpu_top (
 
   wire[`InstAddrBus] id_pc;
   wire[`InstBus] id_inst;
-  wire if_inst_valid;
+
 
   //  wire if_id_instr_invalid;
   if_id u_if_id(
