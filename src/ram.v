@@ -9,7 +9,9 @@ module ram (
     output reg[`InstBus] rdata,
     input wire[`RegBus] waddr,
     input wire[`RegBus] wdata,
-    input wire wen
+    input wire wen,
+    input wire [6:0]stall,
+    input wire flush
   );
 
   reg[`InstBus]  mem[0:`InstMemNum-1];
@@ -18,13 +20,15 @@ module ram (
   assign tmp_addr = raddr - 32'h1c000000;
   
   initial
-    $readmemh ("D:/cpu-test/latest/mycpu/la_code/inst_rom.data", mem);
+    $readmemh ("D:/Linnux_LongXin/Share/LoongArch/inst_rom.data", mem);
 
   always @ (posedge clock)
     begin
       if (ce == `ChipDisable)
         rdata <= `ZeroWord;
       else if(branch_flag_i)    rdata<=`ZeroWord;
+      else if(flush) rdata<=`ZeroWord;
+      else if(stall[0]) rdata<=rdata;
       else
         rdata <= mem[tmp_addr[`InstMemNumLog2+1:2]];
     end

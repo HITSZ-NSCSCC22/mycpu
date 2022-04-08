@@ -17,7 +17,7 @@ module SimTop(
 
   wire chip_enable;
   wire[`RegBus] ram_raddr;
-  reg[`RegBus] ram_rdata;
+  wire[`RegBus] ram_rdata;
   wire[`RegBus] ramhelper_rdata;
   wire[`RegBus] ram_waddr;
   wire[`RegBus] ram_wdata;
@@ -38,6 +38,8 @@ module SimTop(
   wire [`RegBus] debug_commit_reg_wdata;
   wire[1023:0] debug_reg;
   wire Instram_branch_flag;
+  wire ram_flush;
+  wire [6:0]ram_stall;
   cpu_top u_cpu_top(
             .clk(clock),
             .rst(reset),
@@ -63,7 +65,9 @@ module SimTop(
             .debug_commit_reg_waddr(debug_commit_reg_waddr ),
             .debug_commit_reg_wdata(debug_commit_reg_wdata ),
             .debug_reg(debug_reg   ),
-            .Instram_branch_flag(Instram_branch_flag)
+            .Instram_branch_flag(Instram_branch_flag),
+            .ram_flush(ram_flush),
+            .ram_stall(ram_stall)
           );
 
 `ifdef DUMP_WAVEFORM
@@ -87,7 +91,9 @@ module SimTop(
         .waddr (ram_waddr ),
         .wdata (ram_wdata ),
         .wen   (ram_wen   ),
-        .branch_flag_i(Instram_branch_flag)
+        .branch_flag_i(Instram_branch_flag),
+        .flush(ram_flush),
+        .stall(ram_stall)
       );
 `endif
 
@@ -122,6 +128,10 @@ module SimTop(
   reg debug_commit_wreg_1;
   reg [`RegAddrBus] debug_commit_reg_waddr_1;
   reg [`RegBus] debug_commit_reg_wdata_1;
+   
+  reg [`RegBus] reg_ram_rdata;
+  assign ram_rdata=reg_ram_rdata;
+
 
   always @(posedge clock or negedge reset_n)
     begin
@@ -146,7 +156,7 @@ module SimTop(
           debug_commit_wreg_1 <= debug_commit_wreg;
           debug_commit_reg_waddr_1 <= debug_commit_reg_waddr;
           debug_commit_reg_wdata_1 <= debug_commit_reg_wdata;
-          ram_rdata <= ramhelper_rdata;
+          reg_ram_rdata <= ramhelper_rdata;
         end
     end
 
