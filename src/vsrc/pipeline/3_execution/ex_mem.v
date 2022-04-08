@@ -3,7 +3,7 @@
 module ex_mem (
     input wire clk,
     input wire rst,
-    input wire stall,
+    input wire [6:0]stall,
 
     input wire[`RegAddrBus] ex_wd,
     input wire ex_wreg,
@@ -57,9 +57,32 @@ module ex_mem (
           mem_excepttype <= 2'b00;
           mem_current_inst_address <= `ZeroWord;
         end
-      else if(stall == `Stop)
+      else if(stall[4] == `Stop&&stall[5]==0)
         begin
+          mem_wd    <= `NOPRegAddr;
+          mem_wreg  <= `WriteDisable;
+          mem_wdata <= `ZeroWord;
+          mem_inst_pc <= `ZeroWord;
+          mem_inst_valid <= `InstInvalid;
+          mem_aluop <= `EXE_NOP_OP;
+          mem_mem_addr <= `ZeroWord;
+          mem_reg2 <= `ZeroWord;
+          mem_excepttype <= 2'b00;
+          mem_current_inst_address <= `ZeroWord;
         end
+      else if(stall[4]==`Stop)
+      begin
+          mem_wd    <= mem_wd;
+          mem_wreg  <= mem_wreg;
+          mem_wdata <= mem_wdata;
+          mem_inst_pc <= mem_inst_pc;
+          mem_inst_valid <= mem_inst_valid;
+          mem_aluop <= mem_aluop;
+          mem_mem_addr <= mem_mem_addr;
+          mem_reg2 <= mem_reg2;
+          mem_excepttype <= mem_excepttype;
+          mem_current_inst_address <= mem_current_inst_address;
+      end
       else
         begin
           mem_wd    <= ex_wd;

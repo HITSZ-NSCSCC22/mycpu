@@ -3,7 +3,7 @@
 module mem_wb (
     input wire clk,
     input wire rst,
-    input wire stall,
+    input wire [6:0]stall,
 
     input wire[`RegAddrBus] mem_wd,
     input wire mem_wreg,
@@ -57,12 +57,31 @@ module mem_wb (
           debug_commit_pc <= `ZeroWord;
           debug_commit_valid <= `InstInvalid;
         end
-      else if(stall == `Stop)
+      else if(stall[5] == `Stop&&stall[6]==0)
         begin
           debug_commit_pc <= `ZeroWord;
           debug_commit_instr <= `ZeroWord;
           debug_commit_valid <= ~`InstInvalid;
+          wb_wd    <= `NOPRegAddr;
+          wb_wreg  <= `WriteDisable;
+          wb_wdata <= `ZeroWord;
+          wb_LLbit_we <= 1'b0;
+          wb_LLbit_value <= 1'b0;
         end
+      else if(stall[5]==`Stop)
+      begin
+          wb_wd    <= wb_wd;
+          wb_wreg  <= wb_wreg;
+          wb_wdata <= wb_wdata;
+          wb_LLbit_we <= wb_LLbit_we;
+          wb_LLbit_value <= wb_LLbit_value;
+          debug_commit_pc <= debug_commit_pc;
+          // debug_commit_pc <= debug_commit_pc_0;
+          debug_commit_valid <= debug_commit_valid;
+          // debug_commit_valid_1 <= debug_commit_valid_0;
+          // debug_commit_valid <= ~debug_commit_valid_1;
+          debug_commit_instr <= debug_commit_instr;
+      end
       else
         begin
           wb_wd    <= mem_wd;

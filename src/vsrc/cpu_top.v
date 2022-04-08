@@ -9,7 +9,7 @@
 `include "pipeline/3_execution/ex_mem.v"
 `include "pipeline/4_mem/mem.v"
 `include "pipeline/4_mem/mem_wb.v"
-
+`include "pipeline/3_execution/div.v"
 module cpu_top (
     input wire clk,
     input wire rst,
@@ -35,7 +35,9 @@ module cpu_top (
     output wire[`RegAddrBus] debug_commit_reg_waddr,
     output wire[`RegBus] debug_commit_reg_wdata,
     output wire[1023:0] debug_reg,
-    output wire Instram_branch_flag
+    output wire Instram_branch_flag,
+    output wire [6:0]ram_flush, //both ram use
+    output wire [6:0]ram_stall //both ram use
   );
 
   wire[`InstAddrBus] pc;
@@ -187,7 +189,7 @@ module cpu_top (
   id_ex id_ex0(
           .clk(clk),
           .rst(rst),
-          .stall(stall[3]),
+          .stall(stall),
 
           .id_aluop(id_aluop),
           .id_alusel(id_alusel),
@@ -215,6 +217,7 @@ module cpu_top (
           .ex_inst(ex_inst_i),
           .ex_excepttype(ex_excepttype_i),
           .ex_current_inst_address(ex_current_inst_address_i)
+
         );
 
 
@@ -224,7 +227,16 @@ module cpu_top (
   wire[`RegBus] ex_reg2_o;
   wire[1:0] ex_excepttype_o;
   wire[`RegBus] ex_current_inst_address_o;
-
+  wire[`RegBus] dividend;
+  wire[`RegBus] divisor;
+  wire div_valid1;
+  wire div_valid2;
+  wire div_signed;
+  wire div_start;
+  wire ready; //finish flag
+  wire[63:0] result;
+  wire[31:0] cnt;
+  
   ex u_ex(
        .rst(rst),
 
@@ -252,8 +264,37 @@ module cpu_top (
        .excepttype_o(ex_excepttype_o),
        .current_inst_address_o(ex_current_inst_address_o),
 
+       
+       .dividend(dividend),
+       .divisor(divisor),
+       .div_start(div_start),
+       .div_signed(div_signed),
+       .div_valid1(div_valid1),
+       .div_valid2(div_valid2),
+       
+       .div_ready_i(ready),
+       .div_result_i(result),
+       .cnt(cnt),
+
        .stallreq(stallreq_from_ex)
      );
+
+
+
+  div u_div(
+    .clk(clk),
+    .rst(rst),
+    .dividend(dividend),
+    .divisor(divisor),
+    .div_start(div_start),
+    .valid1(div_valid1),
+    .valid2(div_valid2),
+    .isSigned(div_signed),
+
+    .ready(ready),
+    .result(result),
+    .cnt(cnt)
+  );
 
 
   wire mem_wreg_i;
@@ -272,7 +313,7 @@ module cpu_top (
   ex_mem u_ex_mem(
            .clk(clk       ),
            .rst(rst       ),
-           .stall(stall[4]),
+           .stall(stall),
 
            .ex_wd     (ex_reg_waddr_o    ),
            .ex_wreg   (ex_wreg_o   ),
@@ -358,7 +399,7 @@ module cpu_top (
   mem_wb mem_wb0(
            .clk(clk),
            .rst(rst),
-           .stall(stall[5]),
+           .stall(stall),
 
            .mem_wd(mem_reg_waddr_o),
            .mem_wreg(mem_wreg_o),
@@ -421,5 +462,6 @@ module cpu_top (
               .LLbit_o(LLbit_o)
             );
 
-
+  assign ram_flush=flush;
+  assign ram_stall=stall;
 endmodule

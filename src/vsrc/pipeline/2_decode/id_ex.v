@@ -2,7 +2,7 @@
 module id_ex (
     input wire clk,
     input wire rst,
-    input wire stall,
+    input wire [6:0]stall,
 
     input wire[`AluOpBus] id_aluop,
     input wire[`AluSelBus] id_alusel,
@@ -64,10 +64,36 @@ module id_ex (
           ex_excepttype <= 2'b00;
           ex_current_inst_address <= `ZeroWord;
         end
-      else if(stall == `Stop)
+      else if(stall[3] == `Stop&&stall[4]==0)
         begin
-
+          ex_aluop  <= `EXE_NOP_OP;
+          ex_alusel <= `EXE_RES_NOP;
+          ex_reg1   <= `ZeroWord;
+          ex_reg2   <= `ZeroWord;
+          ex_wd     <= `NOPRegAddr;
+          ex_wreg   <= `WriteDisable;
+          ex_inst_pc <= `ZeroWord;
+          ex_inst_valid <= `InstInvalid;
+          ex_link_address <= `ZeroWord;
+          ex_inst <= `ZeroWord;
+          ex_excepttype <= 2'b00;
+          ex_current_inst_address <= `ZeroWord;
         end
+      else if(stall[3]==`Stop)
+      begin
+          ex_aluop  <= ex_aluop;
+          ex_alusel <= ex_alusel;
+          ex_reg1   <= ex_reg1;
+          ex_reg2   <= ex_reg2;
+          ex_wd     <= ex_wd;
+          ex_wreg   <= ex_wreg;
+          ex_inst_pc <= ex_inst_pc;
+          ex_inst_valid <= ex_inst_valid;
+          ex_link_address <= ex_link_address;
+          ex_inst <= ex_inst;
+          ex_excepttype <= ex_excepttype;
+          ex_current_inst_address <= ex_current_inst_address;
+      end
       else
         begin
           ex_aluop  <= id_aluop;

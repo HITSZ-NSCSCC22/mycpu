@@ -683,7 +683,7 @@ module id(
                         `EXE_DIV_WU:
                           begin
                             wreg_o      = `WriteEnable;
-                            aluop_o     = `EXE_DIV_OP;
+                            aluop_o     = `EXE_DIVU_OP;
                             alusel_o    = `EXE_RES_ARITH;
                             reg1_read_o = 1'b1;
                             reg2_read_o = 1'b1;
@@ -693,7 +693,7 @@ module id(
                         `EXE_MOD_WU:
                           begin
                             wreg_o      = `WriteEnable;
-                            aluop_o     = `EXE_MOD_OP;
+                            aluop_o     = `EXE_MODU_OP;
                             alusel_o    = `EXE_RES_ARITH;
                             reg1_read_o = 1'b1;
                             reg2_read_o = 1'b1;
