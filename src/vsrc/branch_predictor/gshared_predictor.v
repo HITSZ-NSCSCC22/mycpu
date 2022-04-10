@@ -24,6 +24,7 @@ module gshared_predictor #(
   wire [`MAX_GHT_LENGTH-1:0] global_history_hashing[`MAX_GHT_LENGTH_LOG2];
   // Concat GHT input to desired length
   assign global_history_hashing[0] = {{(`MAX_GHT_LENGTH - GLOBAL_HISTORY_LENGTH){1'b0}}, global_history_i[GLOBAL_HISTORY_LENGTH-1:0]};
+
   // Fold GHT input from `MAX_GHT_LENGTH to 1
   genvar i;
   generate

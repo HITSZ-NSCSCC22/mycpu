@@ -21,6 +21,15 @@ module tage_predictor (
     output wire predict_valid
   );
 
+`ifdef DUMP_WAVEFORM
+
+  initial
+    begin
+      $dumpfile("logs/wave.vcd");
+      $dumpvars(0, tage_predictor);
+    end
+`endif
+
   // Global History Register
   reg [`GHR_BUS] GHR;
   always @(posedge clk)

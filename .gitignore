@@ -32,3 +32,6 @@ la32-nemu-interpreter-so
 test/*.bin
 test/*.s
 build/
+
+# Branch Predictor Test data
+src/vsrc/branch_predictor/data
