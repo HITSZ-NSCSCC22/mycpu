@@ -10,10 +10,11 @@
 // PHT parameters (Pattern History Table)
 `define PHT_DEPTH 65536
 `define PHT_DEPTH_LOG2 16
+`define PHT_TAG_WIDTH 8
 
 
 // GHR parameters (Global History Register)
-`define GHR_DEPTH 40
+`define GHR_DEPTH 200
 `define GHR_BUS `GHR_DEPTH-1:0
 `define MAX_GHT_LENGTH 512
 `define MAX_GHT_LENGTH_LOG2 9

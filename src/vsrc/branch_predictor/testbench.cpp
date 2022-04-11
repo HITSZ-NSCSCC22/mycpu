@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <queue>
+#include <deque>
 
 #define BRANCH_LATENCY (5)
 
@@ -84,7 +85,7 @@ int main(int argc, char const *argv[])
     sopc->eval();
     context->timeInc(1);
 
-    std::vector<bool> prediction_taken;
+    std::deque<bool> prediction_taken;
 
     // Simulation loop
     for (size_t i = 0; i < entries.size(); i++)
@@ -109,9 +110,20 @@ int main(int argc, char const *argv[])
         context->timeInc(1);
 
         // Retrieve prediction
+        // std::cout << "predicted, truth: " << (uint32_t)sopc->predict_branch_taken_o << " " << entries[i].taken << std::endl;
         prediction_taken.push_back(sopc->predict_branch_taken_o);
     }
+    uint32_t perf_tag_hit_counter[5];
+    std::memcpy(perf_tag_hit_counter, sopc->perf_tag_hit_counter, sizeof(uint32_t) * 5);
+    std::cout << perf_tag_hit_counter[4] << std::endl;
+    std::cout << perf_tag_hit_counter[3] << std::endl;
+    std::cout << perf_tag_hit_counter[2] << std::endl;
+    std::cout << perf_tag_hit_counter[1] << std::endl;
+    std::cout << perf_tag_hit_counter[0] << std::endl;
     sopc->final();
+
+    // First predicto is invalid
+    prediction_taken.pop_front();
 
     // Statistics
     uint64_t correct = 0;
