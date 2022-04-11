@@ -12,7 +12,7 @@
 // Work around
 double sc_time_stamp() { return 0; }
 
-static std::string test_filename = "data/gcc-8M.txt";
+static std::string test_filename = "data/traces/trace_01";
 
 struct instruction_entry
 {
@@ -41,7 +41,7 @@ std::vector<instruction_entry> parse_test_file(std::string filename)
         test_file >> std::hex >> pc;
         test_file >> taken_char;
 
-        entries.push_back({pc, taken_char == 'T'});
+        entries.push_back({pc, taken_char == 'T' || taken_char == '1'});
     }
 
     test_file.close();
@@ -63,7 +63,16 @@ int main(int argc, char const *argv[])
     sopc->rst = 1;
 
     // Parse input test file
-    auto entries = parse_test_file(test_filename);
+    std::string input_filename;
+    if (argc > 1)
+    {
+        input_filename = std::string(argv[1]);
+    }
+    else
+    {
+        input_filename = test_filename;
+    }
+    auto entries = parse_test_file(input_filename);
     std::cout << "Procceeding with test instructions: " << entries.size() << std::endl;
     std::cout << "First instruction: 0x" << std::hex << entries[0].pc << " " << entries[0].taken << std::dec << std::endl;
 
