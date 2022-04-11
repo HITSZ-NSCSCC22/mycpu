@@ -12,7 +12,7 @@
 // Work around
 double sc_time_stamp() { return 0; }
 
-static std::string test_filename = "data/traces/trace_01";
+static std::string test_filename = "data/gcc-8M.txt";
 
 struct instruction_entry
 {
@@ -132,7 +132,7 @@ int main(int argc, char const *argv[])
     sopc->final();
 
     // First predicto is invalid
-    prediction_taken.pop_front();
+    // prediction_taken.pop_front();
 
     // Statistics
     uint64_t correct = 0;

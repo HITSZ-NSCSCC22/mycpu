@@ -1,6 +1,9 @@
 
 benchmark: verilate
 	./benchmark.sh
+
+test: verilate
+	./obj_dir/Vtage_predictor
 	
 
 VERILATOR_FLAGS = -O3 +define+DUMP_WAVEFORM=1

@@ -24,8 +24,8 @@ module gshared_predictor #(
   wire rst_n = ~rst;
 
   // PHT
-  // - entry: {2bits bimodal, xbits tag}
-  reg[`PHT_TAG_WIDTH+1:0] PHT[`PHT_DEPTH];
+  // - entry: {3bits bimodal, xbits tag}
+  reg[`PHT_TAG_WIDTH+2:0] PHT[`PHT_DEPTH];
 
 
   // Fold GHT input to a fix length, the same as index range
@@ -62,10 +62,10 @@ module gshared_predictor #(
   wire [`PHT_DEPTH_LOG2-1:0] query_hashed_index = {hashed_ght_input ^ pc_i[2+`PHT_DEPTH_LOG2-1:2]};
 
   // Query logic //////////////////////////////////
-  wire [1:0] query_result_bimodal = PHT[query_hashed_index][`PHT_TAG_WIDTH+1:`PHT_TAG_WIDTH];
+  wire [2:0] query_result_bimodal = PHT[query_hashed_index][`PHT_TAG_WIDTH+2:`PHT_TAG_WIDTH];
   wire [`PHT_TAG_WIDTH-1:0] query_result_tag = PHT[query_hashed_index][`PHT_TAG_WIDTH-1:0];
 
-  assign taken = (query_result_bimodal == 2'b11) | (query_result_bimodal == 2'b01);
+  assign taken = (query_result_bimodal[2] == 1'b1);
   assign tag_hit = (hashed_pc_tag == query_result_tag);
   // assign tag_hit = 1;
 
@@ -103,31 +103,30 @@ module gshared_predictor #(
           // Reset all PHT to 01
           for (integer i = 0; i < `PHT_DEPTH; i = i + 1)
             begin
-              PHT[i] = {2'b01,{`PHT_TAG_WIDTH{1'b0}}};
+              PHT[i] = {3'b100,{`PHT_TAG_WIDTH{1'b0}}};
             end
         end
       else
         begin
           if (branch_valid)
             begin
-              case (PHT[update_index][`PHT_TAG_WIDTH+1:`PHT_TAG_WIDTH]) // 00,10 | 01,11
-                2'b00:
+              // 000,001,010,011 | 100,101,110,111
+
+              case(PHT[update_index][`PHT_TAG_WIDTH+2:`PHT_TAG_WIDTH])
+                3'b000:
                   begin
-                    PHT[update_index][`PHT_TAG_WIDTH+1:`PHT_TAG_WIDTH] <= branch_taken ? 2'b10: 2'b00;
+                    PHT[update_index][`PHT_TAG_WIDTH+2:`PHT_TAG_WIDTH] <= branch_taken ? 3'b001 : 3'b000;
                   end
-                2'b10:
+                3'b111:
                   begin
-                    PHT[update_index][`PHT_TAG_WIDTH+1:`PHT_TAG_WIDTH] <= branch_taken ? 2'b01: 2'b00;
+                    PHT[update_index][`PHT_TAG_WIDTH+2:`PHT_TAG_WIDTH] <= branch_taken ? 3'b111 : 3'b110;
                   end
-                2'b01:
+                default:
                   begin
-                    PHT[update_index][`PHT_TAG_WIDTH+1:`PHT_TAG_WIDTH] <= branch_taken ? 2'b11: 2'b10;
-                  end
-                2'b11:
-                  begin
-                    PHT[update_index][`PHT_TAG_WIDTH+1:`PHT_TAG_WIDTH] <= branch_taken ? 2'b11: 2'b01;
+                    PHT[update_index][`PHT_TAG_WIDTH+2:`PHT_TAG_WIDTH] <= branch_taken ? PHT[update_index][`PHT_TAG_WIDTH+2:`PHT_TAG_WIDTH] +1 : PHT[update_index][`PHT_TAG_WIDTH+2:`PHT_TAG_WIDTH] -1;
                   end
               endcase
+
               if (PHT[update_index][`PHT_TAG_WIDTH-1:0] != update_tag) // Miss tag
                 begin // Do swap
                   PHT[update_index][`PHT_TAG_WIDTH-1:0]<= {update_tag};
