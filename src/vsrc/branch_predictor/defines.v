@@ -8,8 +8,8 @@
 `define BTB_ENTRY_BUS `BTB_ENTRY_LENGTH-1:0
 
 // PHT parameters (Pattern History Table)
-`define PHT_DEPTH 64
-`define PHT_DEPTH_LOG2 6
+`define PHT_DEPTH 65536
+`define PHT_DEPTH_LOG2 16
 
 
 // GHR parameters (Global History Register)
@@ -19,6 +19,6 @@
 `define MAX_GHT_LENGTH_LOG2 9
 
 // Parameters
-`define FEEDBACK_LATENCY 2
+`define FEEDBACK_LATENCY 4
 
 `endif

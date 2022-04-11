@@ -18,6 +18,7 @@ module tage_predictor (
 
     // Prediction
     output wire [`RegBus] predicted_branch_target_o,
+    output wire predict_branch_taken_o,
     output wire predict_valid
   );
 
@@ -118,5 +119,7 @@ module tage_predictor (
       .branch_taken     (branch_taken_i     ),
       .taken            (t4_taken            )
     );
+
+  assign predict_branch_taken_o  = t4_taken;
 
 endmodule //tage_predictor

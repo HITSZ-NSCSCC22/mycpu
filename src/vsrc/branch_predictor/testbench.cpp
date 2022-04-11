@@ -11,7 +11,7 @@
 // Work around
 double sc_time_stamp() { return 0; }
 
-static std::string test_filename = "data/gcc-10K.txt";
+static std::string test_filename = "data/gcc-8M.txt";
 
 struct instruction_entry
 {
@@ -64,7 +64,7 @@ int main(int argc, char const *argv[])
     // Parse input test file
     auto entries = parse_test_file(test_filename);
     std::cout << "Procceeding with test instructions: " << entries.size() << std::endl;
-    std::cout << "First instruction: 0x" << std::hex << entries[0].pc << " " << entries[0].taken << std::endl;
+    std::cout << "First instruction: 0x" << std::hex << entries[0].pc << " " << entries[0].taken << std::dec << std::endl;
 
     // Delay queue
     std::queue<instruction_entry> delay_queue_taken;
@@ -84,9 +84,15 @@ int main(int argc, char const *argv[])
     sopc->eval();
     context->timeInc(1);
 
+    std::vector<bool> prediction_taken;
+
     // Simulation loop
-    for (size_t i = 0; i < 1000; i++)
+    for (size_t i = 0; i < entries.size(); i++)
     {
+
+        sopc->clk = 0;
+        sopc->eval();
+        context->timeInc(1);
 
         sopc->pc_i = entries[i].pc;
         sopc->branch_valid_i = delay_queue_valid.front();
@@ -98,14 +104,39 @@ int main(int argc, char const *argv[])
         delay_queue_taken.push(entries[i]);
 
         // Evaluate cycle
-        sopc->clk = 0;
-        sopc->eval();
-        context->timeInc(1);
         sopc->clk = 1;
         sopc->eval();
         context->timeInc(1);
+
+        // Retrieve prediction
+        prediction_taken.push_back(sopc->predict_branch_taken_o);
     }
     sopc->final();
+
+    // Statistics
+    uint64_t correct = 0;
+    uint64_t target_taken = 0;
+    uint64_t predicted_taken = 0;
+    for (size_t i = 0; i < prediction_taken.size(); i++)
+    {
+        if (entries[i].taken == prediction_taken[i])
+        {
+            correct++;
+        }
+        if (entries[i].taken)
+        {
+            target_taken++;
+        }
+        if (prediction_taken[i])
+        {
+            predicted_taken++;
+        }
+    }
+    std::cout << "Correct Taken: " << target_taken << '\n';
+    std::cout << "Predicted Taken: " << predicted_taken << '\n';
+    std::cout << "Correct: " << correct << '\n';
+    std::cout << "Wrong: " << prediction_taken.size() - correct << '\n';
+    std::cout << "Correct Rate: " << (double)correct / prediction_taken.size() << std::endl;
 
     return 0;
 }
