@@ -17,7 +17,7 @@ module mem (
     input wire wb_LLbit_we_i,
     input wire wb_LLbit_value_i,
 
-    input wire[2:0] excepttype_i,
+    input wire[1:0] excepttype_i,
     input wire[`RegBus] current_inst_address_i,
 
     output reg[`InstAddrBus] inst_pc_o,

@@ -6,16 +6,11 @@ module id(
     input wire[`InstAddrBus] pc_i,
     input wire[`InstBus] inst_i,
 
-    // <- ANOTHER_IF
-    input wire[`InstAddrBus] pc_i_other,
-
     // <- Regfile
     input wire[`RegBus] reg1_data_i,
     input wire[`RegBus] reg2_data_i,
 
-    // <- ANOTHER_ID
-    input wire[`RegAddrBus] reg1_addr_i_other,
-    input wire[`RegAddrBus] reg2_addr_i_other,
+    input wire[`InstAddrBus] pc_i_other,
 
     // <- EXE
     input wire ex_wreg_i_1,
@@ -102,6 +97,7 @@ module id(
   reg stallreq_for_reg2_loadrelate;
   wire pre_inst_is_load;
 
+
  assign pre_inst_is_load = (((ex_aluop_i_1 == `EXE_LD_B_OP) ||
                              (ex_aluop_i_1 == `EXE_LD_H_OP) ||
                              (ex_aluop_i_1 == `EXE_LD_W_OP) ||
@@ -109,7 +105,7 @@ module id(
                              (ex_aluop_i_1 == `EXE_LD_HU_OP) ||
                              (ex_aluop_i_1 == `EXE_ST_B_OP) ||
                              (ex_aluop_i_1 == `EXE_ST_H_OP) ||
-                             (ex_aluop_i_1 == `EXE_ST_W_OP) ||
+                             (ex_aluop_i_1 == `EXE_ST_W_OP))||(
                              (ex_aluop_i_2 == `EXE_LD_B_OP) ||
                              (ex_aluop_i_2 == `EXE_LD_H_OP) ||
                              (ex_aluop_i_2 == `EXE_LD_W_OP) ||
@@ -117,7 +113,7 @@ module id(
                              (ex_aluop_i_2 == `EXE_LD_HU_OP) ||
                              (ex_aluop_i_2 == `EXE_ST_B_OP) ||
                              (ex_aluop_i_2 == `EXE_ST_H_OP) ||
-                             (ex_aluop_i_2 == `EXE_ST_W_OP)) && (pc_i + 4 == pc_i_other)) ? 1'b1 : 1'b0;
+                             (ex_aluop_i_2 == `EXE_ST_W_OP)) && (pc_i == pc_i_other + 4)) ? 1'b1 : 1'b0;
 
   reg excepttype_is_syscall;
   reg excepttype_is_break;
@@ -145,8 +141,7 @@ module id(
     end
 
   //如果这条指令与另一条相邻且存在依赖就直接暂停
-  assign stallreq = stallreq_for_reg1_loadrelate | stallreq_for_reg2_loadrelate | 
-          ((pc_i == pc_i_other - 4) && ((reg1_addr_o == reg1_addr_i_other) | (reg2_addr_o == reg2_addr_i_other)));
+  assign stallreq = stallreq_for_reg1_loadrelate | stallreq_for_reg2_loadrelate;
 
   always @(*)
     begin

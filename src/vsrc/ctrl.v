@@ -17,22 +17,22 @@ module ctrl (
 
   wire rst_n = ~rst;
 
-  always @(posedge clk or negedge rst_n)
+  always @(*)
     begin
       if (!rst_n)
         begin
-          flush <= 1'b0;
-          new_pc <= `ZeroWord;
+          flush = 1'b0;
+          new_pc = `ZeroWord;
         end
       else
         if(excepttype_i != 0)
           begin
-            flush <= 1'b1;
+            flush = 1'b1;
             case (excepttype_i)
               2'b01:
-                new_pc <= 32'h0000000c;
+                new_pc = 32'h0000000c;
               2'b10:
-                new_pc <= 32'h0000000c;
+                new_pc = 32'h0000000c;
               default:
                 begin
                 end
@@ -40,33 +40,33 @@ module ctrl (
           end
         else
           begin
-            flush <= 1'b0;
-            new_pc <= `ZeroWord;
+            flush = 1'b0;
+            new_pc = `ZeroWord;
           end
     end
 
-  always @(posedge clk or negedge rst_n)
+  always @(*)
     begin
       if (!rst_n)
-          stall1 <= 7'b0000000;
+          stall1 = 7'b0000000;
       else if(stallreq_from_ex_1 == `Stop)
-          stall1 <= 7'b0011111;
+          stall1 = 7'b0011111;
       else if(stallreq_from_id_1 == `Stop)
-          stall1 <= 7'b0011111;
+          stall1 = 7'b0011111;
       else
-          stall1 <= 7'b0000000;
+          stall1 = 7'b0000000;
     end
 
-   always @(posedge clk or negedge rst_n)
+   always @(*)
     begin
       if (!rst_n)
-          stall2 <= 7'b0000000;
+          stall2 = 7'b0000000;
       else if(stallreq_from_ex_2 == `Stop)
-          stall2 <= 7'b0011111;
+          stall2 = 7'b0011111;
       else if(stallreq_from_id_2 == `Stop)
-          stall2 <= 7'b0011111;
+          stall2 = 7'b0011111;
       else
-          stall2 <= 7'b0000000;
+          stall2 = 7'b0000000;
     end
 
 

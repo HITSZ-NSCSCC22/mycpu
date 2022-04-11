@@ -128,7 +128,7 @@ module cpu_top (
           .if_inst_i(ram_rdata_i_1),
           .id_pc_o(id_pc_1),
           .id_inst_o(id_inst_1),
-          .if_inst_valid(if_inst_valid),
+          .if_inst_valid(if_inst_valid_1),
           .branch_flag_i(branch_flag),
           .flush(flush),
           .stall(stall1[2])
@@ -139,9 +139,9 @@ module cpu_top (
           .rst(rst),
           .if_pc_i(pc_buffer_2),
           .if_inst_i(ram_rdata_i_2),
-          .id_pc_o(id_pc_1),
+          .id_pc_o(id_pc_2),
           .id_inst_o(id_inst_2),
-          .if_inst_valid(if_inst_valid),
+          .if_inst_valid(if_inst_valid_2),
           .branch_flag_i(branch_flag),
           .flush(flush),
           .stall(stall2[2])
@@ -191,19 +191,24 @@ module cpu_top (
   wire[`RegAddrBus] reg1_addr_2;
   wire[`RegAddrBus] reg2_addr_2;
 
+  wire[`RegBus] link_addr_1;
+  wire[`RegBus] link_addr_2;
+
+  wire[`RegAddrBus] id_reg_waddr_2;
+
+  wire stallreq_to_next_1;
+  wire stallreq_to_next_2;
+
 
   id u_id_1(
        .rst(rst),
        .pc_i(id_pc_1),
        .inst_i(id_inst_1),
 
-       .pc_i_other(id_pc_2),
+       .pc_i_other(pc_buffer_2),
 
        .reg1_data_i (reg1_data_1 ),
        .reg2_data_i (reg2_data_1 ),
-
-       .reg1_addr_i_other(reg1_addr_2),
-       .reg2_addr_i_other(reg2_addr_2),
 
        .ex_wreg_i_1   (ex_wreg_o_1 ),
        .ex_waddr_i_1  (ex_reg_waddr_o_1),
@@ -241,9 +246,9 @@ module cpu_top (
 
        .branch_flag_o(branch_flag),
        .branch_target_address_o(branch_target_address),
-       .link_addr_o(link_addr),
+       .link_addr_o(link_addr_1),
 
-       .stallreq(stallreq_from_id_1),
+       .stallreq(stallreq_to_next_1),
 
        .excepttype_o(id_excepttype_o_1),
        .current_inst_address_o(id_current_inst_address_o_1)
@@ -253,7 +258,7 @@ module cpu_top (
   wire[`AluSelBus] id_alusel_2;
   wire[`RegBus] id_reg1_2;
   wire[`RegBus] id_reg2_2;
-  wire[`RegAddrBus] id_reg_waddr_2;
+  
   wire id_wreg_2;
   wire id_inst_valid_2;
   wire[`InstAddrBus] id_inst_pc_2;
@@ -272,18 +277,17 @@ module cpu_top (
   wire[1:0] id_excepttype_o_2;
   wire[`RegBus] id_current_inst_address_o_2;
 
+  
+
   id u_id_2(
        .rst(rst),
        .pc_i(id_pc_2),
        .inst_i(id_inst_2),
 
-       .pc_i_other(id_pc_1),
+       .pc_i_other(pc_buffer_1),
 
        .reg1_data_i (reg1_data_2 ),
        .reg2_data_i (reg2_data_2 ),
-
-       .reg1_addr_i_other(reg1_addr_1),
-       .reg2_addr_i_other(reg2_addr_1),
 
        .ex_wreg_i_1   (ex_wreg_o_2 ),
        .ex_waddr_i_1  (ex_reg_waddr_o_2),
@@ -321,12 +325,13 @@ module cpu_top (
 
        .branch_flag_o(branch_flag),
        .branch_target_address_o(branch_target_address),
-       .link_addr_o(link_addr),
+       .link_addr_o(link_addr_2),
 
-       .stallreq(stallreq_from_id_2),
+       .stallreq(stallreq_to_next_2),
 
        .excepttype_o(id_excepttype_o_2),
        .current_inst_address_o(id_current_inst_address_o_2)
+
      );
 
   wire[`AluOpBus] ex_aluop_1;
@@ -355,7 +360,7 @@ module cpu_top (
           .id_wreg(id_wreg_1),
           .id_inst_pc(id_inst_pc_1),
           .id_inst_valid(id_inst_valid_1),
-          .id_link_address(link_addr),
+          .id_link_address(link_addr_1),
           .id_inst(id_inst_o_1),
           .flush(flush),
           .id_excepttype(id_excepttype_o_1),
@@ -372,7 +377,17 @@ module cpu_top (
           .ex_link_address(ex_link_address_1),
           .ex_inst(ex_inst_i_1),
           .ex_excepttype(ex_excepttype_i_1),
-          .ex_current_inst_address(ex_current_inst_address_i_1)
+          .ex_current_inst_address(ex_current_inst_address_i_1),
+
+          .reg1_addr_i(reg1_addr_1),
+          .reg2_addr_i(reg2_addr_1),  
+          .pc_i_other(id_inst_pc_2),
+          .reg1_addr_i_other(reg1_addr_2),
+          .reg2_addr_i_other(reg2_addr_2),
+          .waddr_i_other(id_reg_waddr_2),
+
+          .stallreq_from_id(stallreq_to_next_1),
+          .stallreq(stallreq_from_id_1)
         );
 
   wire[`AluOpBus] ex_aluop_2;
@@ -418,7 +433,17 @@ module cpu_top (
           .ex_link_address(ex_link_address_2),
           .ex_inst(ex_inst_i_2),
           .ex_excepttype(ex_excepttype_i_2),
-          .ex_current_inst_address(ex_current_inst_address_i_2)
+          .ex_current_inst_address(ex_current_inst_address_i_2),
+
+          .reg1_addr_i(reg1_addr_2),
+          .reg2_addr_i(reg2_addr_2),  
+          .pc_i_other(id_inst_pc_1),
+          .reg1_addr_i_other(reg1_addr_1),
+          .reg2_addr_i_other(reg2_addr_2),
+          .waddr_i_other(id_reg_waddr_1),
+
+          .stallreq_from_id(stallreq_to_next_2),
+          .stallreq(stallreq_from_id_2)
         );
 
 
@@ -493,7 +518,7 @@ module cpu_top (
        .excepttype_o(ex_excepttype_o_2),
        .current_inst_address_o(ex_current_inst_address_o_2),
 
-       .stallreq(stallreq_from_ex_1_2)
+       .stallreq(stallreq_from_ex_2)
      );
 
 
@@ -588,7 +613,7 @@ module cpu_top (
   wire wb_LLbit_value_i_1;
   wire mem_LLbit_we_o_1;
   wire mem_LLbit_value_o_1;
-  wire[1:0] mem_excepttype_o_1;
+  wire[1:0] mem_excepttype_o;
   wire[`RegBus] mem_current_inst_address_o_1;
   wire[`InstAddrBus] wb_inst_pc_1;
 
@@ -626,7 +651,7 @@ module cpu_top (
         .LLbit_we_o(mem_LLbit_we_o_1),
         .LLbit_value_o(mem_LLbit_value_o_1),
 
-        .excepttype_o(mem_excepttype_o_1),
+        .excepttype_o(mem_excepttype_o),
         .current_inst_address_o(mem_current_inst_address_o_1)
 
       );
@@ -636,7 +661,6 @@ module cpu_top (
   wire wb_LLbit_value_i_2;
   wire mem_LLbit_we_o_2;
   wire mem_LLbit_value_o_2;
-  wire[1:0] mem_excepttype_o_2;
   wire[`RegBus] mem_current_inst_address_o_2 ;
   wire[`InstAddrBus] wb_inst_pc_2;
 
@@ -674,7 +698,7 @@ module cpu_top (
         .LLbit_we_o(mem_LLbit_we_o_2),
         .LLbit_value_o(mem_LLbit_value_o_2),
 
-        .excepttype_o(mem_excepttype_o_2),
+        .excepttype_o(mem_excepttype_o),
         .current_inst_address_o(mem_current_inst_address_o_2)
 
       );
@@ -750,8 +774,8 @@ module cpu_top (
            .wb_wreg(wb_wreg_2),
            .wb_wdata(wb_reg_wdata_2),
 
-           .wb_LLbit_we(wb_LLbit_we_i_2),
-           .wb_LLbit_value(wb_LLbit_value_i_2),
+           .wb_LLbit_we(wb_LLbit_we_i),
+           .wb_LLbit_value(wb_LLbit_value_2),
 
            .debug_commit_pc    (debug_commit_pc_2    ),
            .debug_commit_valid (debug_commit_valid_2 ),

@@ -29,8 +29,43 @@ module id_ex (
     output reg[`RegBus] ex_link_address,
     output reg[`RegBus] ex_inst,
     output reg[1:0]ex_excepttype,
-    output reg[`RegBus] ex_current_inst_address
+    output reg[`RegBus] ex_current_inst_address,
+
+    input wire[`RegAddrBus] reg1_addr_i,
+    input wire[`RegAddrBus] reg2_addr_i,  
+    input wire[`InstAddrBus] pc_i_other,
+    input wire[`RegAddrBus] reg1_addr_i_other,
+    input wire[`RegAddrBus] reg2_addr_i_other,
+    input wire[`RegAddrBus] waddr_i_other,
+
+    input stallreq_from_id,
+    output reg stallreq
   );
+  
+  wire stallreq1;
+  wire stallreq2;
+  wire stallreq3;
+  wire stallreq4;
+  wire stallreq5;
+  wire stallreq6;
+  wire stallreq7;
+
+  assign sallreq1 = id_inst_pc == pc_i_other + 4;
+  assign sallreq3 = (reg1_addr_i == reg1_addr_i_other) && reg1_addr_i != 0;
+  assign sallreq4 = (reg2_addr_i == reg2_addr_i_other) && reg2_addr_i != 0;
+  assign sallreq5 = reg1_addr_i == waddr_i_other;
+  assign sallreq6 = reg2_addr_i == waddr_i_other;
+  assign sallreq7 = stallreq3 | stallreq4 | stallreq5 | stallreq6;
+  
+  //always @(*) begin
+    //stallreq = stallreq_from_id | stallreq1 | stallreq7;
+  //end
+
+  always @(*) begin
+    stallreq = stallreq_from_id | ((id_inst_pc == pc_i_other + 4) && (((reg1_addr_i == reg1_addr_i_other) && reg1_addr_i != 0 ) | ((reg2_addr_i == reg2_addr_i_other) && reg2_addr_i != 0)
+               | (reg1_addr_i == waddr_i_other) | (reg2_addr_i == waddr_i_other)));
+  end
+
 
   always @(posedge clk)
     begin
@@ -64,7 +99,7 @@ module id_ex (
           ex_excepttype <= 2'b00;
           ex_current_inst_address <= `ZeroWord;
         end
-      else if(stall == `Stop)
+      else if(stall == `Stop || stallreq == `Stop)
         begin
 
         end

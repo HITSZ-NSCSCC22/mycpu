@@ -28,11 +28,11 @@ module data_ram(
 
   always @ (posedge clk)
     begin
-      if (ce_1 == `ChipEnable)
+      if(we_1 == `WriteEnable && we_2 == `WriteEnable && addr_1 == addr_2)
         begin
-          if(we_1 == `WriteEnable)
+          if(pc_1 > pc_2)
             begin
-               if (sel_1[3] == 1'b1)
+              if (sel_1[3] == 1'b1)
                 data_mem3[addr_1[`DataMemNumLog2+1:2]] <= data_i_1[31:24];
               if (sel_1[2] == 1'b1)
                 data_mem2[addr_1[`DataMemNumLog2+1:2]] <= data_i_1[23:16];
@@ -41,9 +41,31 @@ module data_ram(
               if (sel_1[0] == 1'b1)
                 data_mem0[addr_1[`DataMemNumLog2+1:2]] <= data_i_1[7:0];
             end
+          else 
+            begin
+              if (sel_2[3] == 1'b1)
+                data_mem3[addr_2[`DataMemNumLog2+1:2]] <= data_i_2[31:24];
+              if (sel_2[2] == 1'b1)
+                data_mem2[addr_2[`DataMemNumLog2+1:2]] <= data_i_2[23:16];
+              if (sel_2[1] == 1'b1)
+                data_mem1[addr_2[`DataMemNumLog2+1:2]] <= data_i_2[15:8];
+              if (sel_2[0] == 1'b1)
+                data_mem0[addr_2[`DataMemNumLog2+1:2]] <= data_i_2[7:0];
+            end
         end
-      if(ce_2 == `ChipEnable)
+      else 
         begin
+          if(we_1 == `WriteEnable)
+            begin
+              if (sel_1[3] == 1'b1)
+                data_mem3[addr_1[`DataMemNumLog2+1:2]] <= data_i_1[31:24];
+              if (sel_1[2] == 1'b1)
+                data_mem2[addr_1[`DataMemNumLog2+1:2]] <= data_i_1[23:16];
+              if (sel_1[1] == 1'b1)
+                data_mem1[addr_1[`DataMemNumLog2+1:2]] <= data_i_1[15:8];
+              if (sel_1[0] == 1'b1)
+                data_mem0[addr_1[`DataMemNumLog2+1:2]] <= data_i_1[7:0];
+            end
           if(we_2 == `WriteEnable)
             begin
               if (sel_2[3] == 1'b1)
@@ -58,24 +80,6 @@ module data_ram(
         end
     end
 
-
-  always @ (posedge clk)
-    begin
-      if (ce_2 == `ChipDisable)
-        begin
-        end
-      else if(we_2 == `WriteEnable)
-        begin
-          if (sel_2[3] == 1'b1)
-            data_mem3[addr_2[`DataMemNumLog2+1:2]] <= data_i_2[31:24];
-          if (sel_2[2] == 1'b1)
-            data_mem2[addr_2[`DataMemNumLog2+1:2]] <= data_i_2[23:16];
-          if (sel_2[1] == 1'b1)
-            data_mem1[addr_2[`DataMemNumLog2+1:2]] <= data_i_2[15:8];
-          if (sel_2[0] == 1'b1)
-            data_mem0[addr_2[`DataMemNumLog2+1:2]] <= data_i_2[7:0];
-        end
-    end
 
   always @ (posedge clk)
     begin

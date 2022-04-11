@@ -91,6 +91,8 @@ end
         rdata1_1 = `ZeroWord;
       else if ((raddr1_1 == waddr_1) && (we_1 == `WriteEnable) && (re1_1 == `ReadEnable))
         rdata1_1 = wdata_1;
+      else if ((raddr1_1 == waddr_2) && (we_2 == `WriteEnable) && (re1_1 == `ReadEnable))
+        rdata1_1 = wdata_2;
       else if (re1_1 == `ReadEnable)
         rdata1_1 = regs[raddr1_1];
       else
@@ -105,6 +107,8 @@ end
         rdata1_2 = `ZeroWord;
       else if ((raddr1_2 == waddr_1) && (we_1 == `WriteEnable) && (re1_2 == `ReadEnable))
         rdata1_2 = wdata_1;
+      else if ((raddr1_2 == waddr_2) && (we_2 == `WriteEnable) && (re1_2 == `ReadEnable))
+        rdata1_2 = wdata_2;
       else if (re1_2 == `ReadEnable)
         rdata1_2 = regs[raddr1_2];
       else
@@ -117,6 +121,8 @@ end
         rdata2_1 = `ZeroWord;
       else if (raddr2_1 == `RegNumLog2'h0)
         rdata2_1 = `ZeroWord;
+      else if ((raddr2_1 == waddr_1) && (we_1 == `WriteEnable) && (re2_1 == `ReadEnable))
+        rdata2_1 = wdata_1;
       else if ((raddr2_1 == waddr_2) && (we_2 == `WriteEnable) && (re2_1 == `ReadEnable))
         rdata2_1 = wdata_2;
       else if (re2_1 == `ReadEnable)
@@ -131,6 +137,8 @@ end
         rdata2_2 = `ZeroWord;
       else if (raddr2_2 == `RegNumLog2'h0)
         rdata2_2 = `ZeroWord;
+      else if ((raddr2_2 == waddr_1) && (we_1 == `WriteEnable) && (re2_2 == `ReadEnable))
+        rdata2_2 = wdata_1;
       else if ((raddr2_2 == waddr_2) && (we_2 == `WriteEnable) && (re2_2 == `ReadEnable))
         rdata2_2 = wdata_2;
       else if (re2_1 == `ReadEnable)
