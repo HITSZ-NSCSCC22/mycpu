@@ -7,12 +7,12 @@
 #include <queue>
 #include <deque>
 
-#define BRANCH_LATENCY (5)
+#define BRANCH_LATENCY (3)
 
 // Work around
 double sc_time_stamp() { return 0; }
 
-static std::string test_filename = "data/gcc-8M.txt";
+static std::string test_filename = "data/traces/trace_02";
 
 struct instruction_entry
 {

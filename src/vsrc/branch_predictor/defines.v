@@ -7,10 +7,6 @@
 `define BTB_ENTRY_LENGTH `BTB_TAG_LENGTH + 30 // tag[], target[30]
 `define BTB_ENTRY_BUS `BTB_ENTRY_LENGTH-1:0
 
-// PHT parameters (Pattern History Table)
-`define PHT_DEPTH 1024
-`define PHT_DEPTH_LOG2 10
-`define PHT_TAG_WIDTH 8
 
 
 // GHR parameters (Global History Register)

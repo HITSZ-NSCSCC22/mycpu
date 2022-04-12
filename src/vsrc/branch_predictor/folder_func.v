@@ -33,7 +33,6 @@ module folder_func #(
       end
   endgenerate
 
-  assign var_o = workspace[MAX_FOLD_ROUND-1][OUTPUT_LENGTH-1:
-         0];
+  assign var_o = workspace[MAX_FOLD_ROUND-1][OUTPUT_LENGTH-1:0];
 
 endmodule

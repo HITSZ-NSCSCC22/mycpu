@@ -3,6 +3,7 @@
 
 `include "../defines.v"
 `include "branch_predictor/defines.v"
+`include "branch_predictor/utils/fpa.v"
 
 
 module tage_predictor (
@@ -92,15 +93,16 @@ module tage_predictor (
         wire valid = (accept_prediction_id == provider_id) ? branch_valid_i : 0;
         gshared_predictor
           #(
-            .GLOBAL_HISTORY_LENGTH (provider_ghr_length[0])
+            .INPUT_GHR_LENGTH(provider_ghr_length[provider_id]),
+            .PHT_DEPTH_EXP2(12)
           )
-          t1(
+          tag_predictor(
             .clk              (clk              ),
             .rst              (rst              ),
-            .global_history_i (GHR ),
+            .global_history_i (GHR[provider_ghr_length[provider_id]-1:0]),
             .pc_i             (pc_i             ),
-            .branch_valid     (valid     ),
-            .branch_taken     (branch_taken_i     ),
+            .update_valid(branch_valid_i),
+            .update_instr_info({branch_pc_i, branch_taken_i}),
             .taken            (tag_taken[provider_id]),
             .tag_hit (tag_hit[provider_id])
           );
@@ -108,23 +110,16 @@ module tage_predictor (
   endgenerate
 
 
-  always @(*)
-    begin
-      casez (tag_hit)
-        4'b1???:
-          accept_prediction_id = 4;
-        4'b01??:
-          accept_prediction_id = 3;
-        4'b001?:
-          accept_prediction_id = 2;
-        4'b0001:
-          accept_prediction_id = 1;
-        default: // Use base predictor
-          accept_prediction_id = 0;
-      endcase
-    end
-  wire[4:
-       0] taken = {tag_taken, base_taken};
+  fpa
+    #(
+      .LINES (5)
+    )
+    u_fpa(
+      .unitary_in ({tag_hit, 1'b0}),
+      .binary_out (accept_prediction_id)
+    );
+
+  wire[4:0] taken = {tag_taken, base_taken};
   assign predict_branch_taken_o = taken[accept_prediction_id];
 
   // Counter
