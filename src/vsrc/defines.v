@@ -150,7 +150,10 @@
 `define EXE_LL_OP    8'b00100010
 `define EXE_SC_OP    8'b00100011
 `define EXE_PCADD_OP 8'b00100100
-
+`define EXE_SYSCALL_OP 8'b00100101
+`define EXE_BREAK_OP 8'b00100110
+`define EXE_DIVU_OP  8'b00100111
+`define EXE_MODU_OP  8'b00101000
 
 
 //AluSel

@@ -30,4 +30,5 @@ src/lock-emu
 src/time.log
 la32-nemu-interpreter-so
 test/*.bin
+test/*.s
 build/

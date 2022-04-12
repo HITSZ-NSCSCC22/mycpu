@@ -1,31 +1,62 @@
+`include "defines.v"
 module ctrl (
     input wire clk,
     input wire rst,
-    input wire id_is_branch_instr_i,
     input wire stallreq_from_id,
-    output wire pc_instr_invalid_o,
-    output wire if_id_instr_invalid_o
+    input wire stallreq_from_ex,
 
+    input wire[1:0] excepttype_i,
+
+    output reg[6:0]stall,//[pc_reg,if_buffer_1, if_id, id_ex, ex_mem, mem_wb, ctrl] 0 bit to 6 bit
+    output reg[`RegBus] new_pc,
+    output reg flush
   );
 
   wire rst_n = ~rst;
-  reg [1:0] branch_flush_cnt;
 
-  always @(posedge clk or negedge rst_n)
+  always @(*)
     begin
       if (!rst_n)
-        branch_flush_cnt <= 0;
+        begin
+          flush = 1'b0;
+          new_pc = `ZeroWord;
+          stall = 7'b0000000;
+        end
       else
-        if (!(branch_flush_cnt==0))
-          branch_flush_cnt <= branch_flush_cnt -1;
-        else if(id_is_branch_instr_i)
-          branch_flush_cnt <= 1;
+        if(excepttype_i != 0)
+          begin
+            flush = 1'b1;
+            stall = 7'b0000000;
+            case (excepttype_i)
+              2'b01:
+                new_pc = 32'h0000000c;
+              2'b10:
+                new_pc = 32'h0000000c;
+              default:
+                begin
+                end
+            endcase
+          end
+        else if(stallreq_from_ex == `Stop)
+          begin
+            flush = 1'b0;
+            new_pc = `ZeroWord;
+            stall = 7'b0011111;
+          end
+        else if(stallreq_from_id == `Stop)
+          begin
+            flush = 1'b0;
+            new_pc = `ZeroWord;
+            stall = 7'b0001111;
+          end
         else
-          branch_flush_cnt <= branch_flush_cnt;
+          begin
+            flush = 1'b0;
+            new_pc = `ZeroWord;
+            stall = 7'b0000000;
+          end
 
     end
 
-  assign  pc_instr_invalid_o = id_is_branch_instr_i;
-  assign  if_id_instr_invalid_o = id_is_branch_instr_i || (branch_flush_cnt == 1);
 
 endmodule //ctrl

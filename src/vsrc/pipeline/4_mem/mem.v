@@ -16,6 +16,9 @@ module mem (
     input wire wb_LLbit_we_i,
     input wire wb_LLbit_value_i,
 
+    input wire[1:0] excepttype_i,
+    input wire[`RegBus] current_inst_address_i,
+
     output reg[`RegAddrBus] wd_o,
     output reg wreg_o,
     output reg[`RegBus] wdata_o,
@@ -27,13 +30,19 @@ module mem (
     output reg mem_ce_o,
 
     output reg LLbit_we_o,
-    output reg LLbit_value_o
+    output reg LLbit_value_o,
+
+    output wire[1:0] excepttype_o,
+    output wire[`RegBus] current_inst_address_o
   );
 
   reg mem_we;
   reg LLbit;
 
-  assign mem_we_o = mem_we;
+  assign mem_we_o = mem_we & (~(|excepttype_i));
+
+  assign excepttype_o = excepttype_i;
+  assign current_inst_address_o = current_inst_address_i;
 
   always @(*)
     begin
