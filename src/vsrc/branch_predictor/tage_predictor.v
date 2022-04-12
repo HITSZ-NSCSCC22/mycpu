@@ -59,18 +59,37 @@ module tage_predictor (
         .btb_hit                 (btb_hit                 )
       );
 
+  // Base Predictor
+  wire base_taken;
+  base_predictor
+    #(
+      .TABLE_DEPTH_EXP2 (12),
+      .CTR_WIDTH        (2),
+      .PC_WIDTH         (`RegWidth)
+    )
+    u_base_predictor(
+      .clk               (clk               ),
+      .rst               (rst               ),
+      .pc_i              (pc_i              ),
+      .update_valid      (branch_valid_i    ),
+      .update_instr_info ({branch_pc_i, branch_taken_i}),
+      .taken             (base_taken        )
+    );
+
+
 
 
   // Tagged Predictors
-  wire[3:0] taken;
+  wire[3:0] tag_taken;
   wire[3:0] tag_hit;
-  reg[1:0] accept_prediction_id;
+  reg[2:0] accept_prediction_id;
   localparam integer provider_ghr_length[4] = '{5,10,20,40};
 
   generate
     genvar provider_id;
     for (provider_id = 0; provider_id <4; provider_id = provider_id +1)
       begin
+        wire valid = (accept_prediction_id == provider_id) ? branch_valid_i : 0;
         gshared_predictor
           #(
             .GLOBAL_HISTORY_LENGTH (provider_ghr_length[0])
@@ -80,9 +99,9 @@ module tage_predictor (
             .rst              (rst              ),
             .global_history_i (GHR ),
             .pc_i             (pc_i             ),
-            .branch_valid     (branch_valid_i     ),
+            .branch_valid     (valid     ),
             .branch_taken     (branch_taken_i     ),
-            .taken            (taken[provider_id]),
+            .taken            (tag_taken[provider_id]),
             .tag_hit (tag_hit[provider_id])
           );
       end
@@ -93,18 +112,33 @@ module tage_predictor (
     begin
       casez (tag_hit)
         4'b1???:
-          accept_prediction_id = 3;
+          accept_prediction_id = 4;
         4'b01??:
-          accept_prediction_id = 2;
+          accept_prediction_id = 3;
         4'b001?:
-          accept_prediction_id = 1;
+          accept_prediction_id = 2;
         4'b0001:
-          accept_prediction_id = 0;
-        default:
+          accept_prediction_id = 1;
+        default: // Use base predictor
           accept_prediction_id = 0;
       endcase
     end
-
+  wire[4:
+       0] taken = {tag_taken, base_taken};
   assign predict_branch_taken_o = taken[accept_prediction_id];
+
+  // Counter
+  generate
+    genvar i;
+    for (i=0;
+         i<5;
+         i=i+1)
+      begin
+        always @(posedge clk)
+          begin
+            perf_tag_hit_counter[i*32+31:i*32] <= perf_tag_hit_counter[i*32+31:i*32] + {31'b0,(i == accept_prediction_id)};
+          end
+      end
+  endgenerate
 
 endmodule //tage_predictor
