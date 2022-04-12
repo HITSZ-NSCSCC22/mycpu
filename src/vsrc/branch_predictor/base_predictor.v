@@ -49,17 +49,20 @@ module base_predictor #(
   wire update_taken = update_instr_info[0];
   always @(posedge clk)
     begin
-      if (PHT[update_index] == {CTR_WIDTH{1'b1}})
+      if (update_valid)
         begin
-          PHT[update_index] <= update_taken? PHT[update_index] : PHT[update_index]-1;
-        end
-      else if(PHT[update_index] == {CTR_WIDTH{1'b0}})
-        begin
-          PHT[update_index] <= update_taken? PHT[update_index] +1: PHT[update_index];
-        end
-      else
-        begin
-          PHT[update_index] <= update_taken? PHT[update_index] +1: PHT[update_index]-1;
+          if (PHT[update_index] == {CTR_WIDTH{1'b1}})
+            begin
+              PHT[update_index] <= update_taken? PHT[update_index] : PHT[update_index]-1;
+            end
+          else if(PHT[update_index] == {CTR_WIDTH{1'b0}})
+            begin
+              PHT[update_index] <= update_taken? PHT[update_index] +1: PHT[update_index];
+            end
+          else
+            begin
+              PHT[update_index] <= update_taken? PHT[update_index] +1: PHT[update_index]-1;
+            end
         end
     end
 endmodule
