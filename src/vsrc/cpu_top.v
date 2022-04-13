@@ -60,9 +60,12 @@ module cpu_top (
   wire[`InstAddrBus] pc_2;
   wire chip_enable;
 
+  wire [`InstAddrBus]pc_buffer_1;
+  wire [`InstAddrBus]pc_buffer_2;
+
   assign ram_en_o = chip_enable;
-  assign ram_raddr_o_1 = pc_1;
-  assign ram_raddr_o_2 = pc_2;
+  assign ram_raddr_o_1 = pc_buffer_1;
+  assign ram_raddr_o_2 = pc_buffer_2;
 
   wire branch_flag;
   assign Instram_branch_flag=branch_flag;
@@ -87,8 +90,6 @@ module cpu_top (
            .stall2(stall2[0])
          );
 
-  wire [`InstAddrBus]pc_buffer_1;
-  wire [`InstAddrBus]pc_buffer_2;
   wire if_inst_valid_1;
   wire if_inst_valid_2;
 
