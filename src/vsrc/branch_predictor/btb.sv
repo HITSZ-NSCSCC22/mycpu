@@ -22,7 +22,7 @@ module btb (
     [tag[`BTB_TAG_LENGTH], target[30]]
     - target: target[31:2], lower 2bit is usually 0
   */
-  reg [`BTB_ENTRY_BUS] btb_entries[`BTB_DEPTH];
+  reg [`BTB_ENTRY_BUS] btb_entries[`BTB_DEPTH-1:0];
 
 
   // Query logic ////////////////////////////////////

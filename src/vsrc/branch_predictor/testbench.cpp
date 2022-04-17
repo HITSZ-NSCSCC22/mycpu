@@ -12,7 +12,7 @@
 // Work around
 double sc_time_stamp() { return 0; }
 
-static std::string test_filename = "data/traces/trace_02";
+static std::string test_filename = "data/gcc-8M.txt";
 
 struct instruction_entry
 {
