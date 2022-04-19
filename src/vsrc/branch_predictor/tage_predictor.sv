@@ -56,7 +56,7 @@ module tage_predictor (
     // Base Predictor
     logic base_taken;
     base_predictor #(
-        .TABLE_DEPTH_EXP2(12),
+        .TABLE_DEPTH_EXP2(10),
         .CTR_WIDTH       (2),
         .PC_WIDTH        (`RegWidth)
     ) u_base_predictor (
@@ -143,7 +143,7 @@ module tage_predictor (
             tag_update_valid[update_valid_id] = 1'b1;
         end else begin  // Wrong prediction
             tag_update_valid[provider_history_buffer[provider_history_matched_id].accepted_provider_id] = 1'b1;
-            // tag_update_valid[provider_history_buffer[provider_history_matched_id].accepted_provider_id+1] = 1'b1;
+            tag_update_valid[provider_history_buffer[provider_history_matched_id].accepted_provider_id+1] = 1'b1;
         end
     end
 
