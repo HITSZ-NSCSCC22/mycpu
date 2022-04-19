@@ -1,7 +1,6 @@
 // Gshared predictor as base predictor
 `include "../defines.v"
 `include "branch_predictor/defines.v"
-`include "branch_predictor/folder_func.sv"
 `include "branch_predictor/utils/fpa.sv"
 
 
@@ -9,12 +8,14 @@ module tagged_predictor #(
     parameter INPUT_GHR_LENGTH = 4,
     parameter PC_WIDTH = 32,
     parameter PHT_DEPTH_EXP2 = 10,
-    parameter PHT_TAG_WIDTH = 10,
+    parameter PHT_TAG_WIDTH = 8,
     parameter HASH_BUFFER_SIZE = 10
 ) (
     input logic clk,
     input logic rst,
-    input logic [INPUT_GHR_LENGTH-1:0] global_history_i,
+
+    // Require one more bit input
+    input logic [INPUT_GHR_LENGTH:0] global_history_i,
     input logic [PC_WIDTH-1:0] pc_i,
 
     // Update signals
@@ -41,34 +42,57 @@ module tagged_predictor #(
 
 
     // Fold GHT input to a fix length, the same as index range
+    // Using a CSR, described in PPM-Liked essay
+    logic [PHT_DEPTH_EXP2-1:0] ght_hash_csr;
     logic [PHT_DEPTH_EXP2-1:0] hashed_ght_input;
-    folder_func #(
-        .INPUT_LENGTH  (INPUT_GHR_LENGTH),
-        .OUTPUT_LENGTH (PHT_DEPTH_EXP2),
-        .MAX_FOLD_ROUND(6)
-    ) ght_hash (
-        .var_i(global_history_i),
-        .var_o(hashed_ght_input)
-    );
+    assign hashed_ght_input = {
+        ght_hash_csr[PHT_DEPTH_EXP2-2:0],
+        ght_hash_csr[PHT_DEPTH_EXP2-1] ^ global_history_i[0] ^ global_history_i[INPUT_GHR_LENGTH] 
+    };
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            ght_hash_csr <= 0;
+        end else begin
+            ght_hash_csr <= PHT_DEPTH_EXP2 > INPUT_GHR_LENGTH ?hashed_ght_input : global_history_i;
+        end
+    end
+
 
     // Tag
-    // logic [`PHT_TAG_WIDTH-1:0] hashed_pc_tag = pc_i[2+`PHT_TAG_WIDTH-1:2];
+    // Generate a hashed tage from only pc, as described in PPM-Liked essay
+    // csr1 < ght[high] < csr2 < ght[0]
+    logic [PHT_TAG_WIDTH-1:0] pc_hash_csr1;
+    logic [PHT_TAG_WIDTH-2:0] pc_hash_csr2;
+    logic [PHT_TAG_WIDTH-1:0] pc_hash_csr1_next;
+    logic [PHT_TAG_WIDTH-2:0] pc_hash_csr2_next;
+
+    assign pc_hash_csr1_next = {
+        pc_hash_csr1[PHT_TAG_WIDTH-2:0],
+        pc_hash_csr2[PHT_TAG_WIDTH-2] ^ global_history_i[INPUT_GHR_LENGTH]
+    };
+    assign pc_hash_csr2_next = {
+        pc_hash_csr2[PHT_TAG_WIDTH-3:0], pc_hash_csr1[PHT_TAG_WIDTH-1] ^ global_history_i[0]
+    };
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            pc_hash_csr1 <= 0;
+            pc_hash_csr2 <= 0;
+        end else begin
+            pc_hash_csr1 <= pc_hash_csr1_next;
+            pc_hash_csr2 <= pc_hash_csr2_next;
+        end
+    end
+
     logic [PHT_TAG_WIDTH-1:0] hashed_pc_tag;
-    folder_func #(
-        .INPUT_LENGTH  (PC_WIDTH),
-        .OUTPUT_LENGTH (PHT_TAG_WIDTH),
-        .MAX_FOLD_ROUND(4)
-    ) pc_hash (
-        .var_i(pc_i),
-        .var_o(hashed_pc_tag)
-    );
+    assign hashed_pc_tag = pc_i[PHT_TAG_WIDTH+1:2] ^ pc_hash_csr1 ^ {pc_hash_csr2 , 1'b0};
 
 
 
-    // hash with pc, and concatenate to `PHT_DEPTH_LOG2
+    // hash with pc, and concatenate to PHT_DEPTH_EXP2
     // the low 2bits of pc is usually 0, so use upper bits
     logic [PHT_DEPTH_EXP2-1:0] query_hashed_index;
-    assign query_hashed_index = (hashed_ght_input ^ pc_i[2+PHT_DEPTH_EXP2-1:2]);
+    assign query_hashed_index = (ght_hash_csr ^ pc_i[PHT_DEPTH_EXP2-1:0] ^ pc_i[PHT_DEPTH_EXP2*2-1:PHT_DEPTH_EXP2]);
 
     // Query logic ========================================== 
     logic [2:0] query_result_bimodal;
@@ -83,15 +107,17 @@ module tagged_predictor #(
 
     // Use a buffer to hold the query_index and pc
     // entry: {valid 1, pc PC_WIDTH, query_index}
-    localparam HASH_BUFFER_WIDTH = 1 + PC_WIDTH + PHT_DEPTH_EXP2;
-    bit [HASH_BUFFER_WIDTH-1:0] hash_buffer[HASH_BUFFER_SIZE];
+    typedef struct packed {
+        bit valid;
+        bit [PC_WIDTH-1:0] pc;
+        bit [PHT_DEPTH_EXP2-1:0] index;
+        bit [PHT_TAG_WIDTH-1:0] tag;
+    } info_buffer_entry;
+    info_buffer_entry hash_buffer[HASH_BUFFER_SIZE];
     logic [HASH_BUFFER_SIZE-1:0] pc_match_table;  // indicates which entry in the buffer is a match
 
     // Move from lower to higher
-    // always @(posedge clk)
-    // begin
-    assign hash_buffer[0] = {(pc_i != 0), pc_i, query_hashed_index};
-    // end
+    assign hash_buffer[0] = {(pc_i != 0), pc_i, query_hashed_index, hashed_pc_tag};
     generate
         for (genvar i = 1; i < HASH_BUFFER_SIZE; i = i + 1) begin
             always @(posedge clk) begin
@@ -104,7 +130,7 @@ module tagged_predictor #(
     generate
         for (genvar i = 0; i < HASH_BUFFER_SIZE; i = i + 1) begin
             always @(*) begin
-                pc_match_table[i] = (hash_buffer[i][PC_WIDTH+PHT_DEPTH_EXP2-1:PHT_DEPTH_EXP2] == update_pc);
+                pc_match_table[i] = (hash_buffer[i].pc == update_pc);
             end
         end
     endgenerate
@@ -118,21 +144,11 @@ module tagged_predictor #(
         .binary_out(update_match_index)
     );
     logic [PHT_DEPTH_EXP2-1:0] update_index;
-    assign update_index = hash_buffer[update_match_index][PHT_DEPTH_EXP2-1:0];
-    logic update_match_valid;
-    assign update_match_valid = (update_match_index != 0) & (hash_buffer[update_match_index][HASH_BUFFER_WIDTH-1] == 1);
-
-    // Calculate update tag
+    assign update_index = hash_buffer[update_match_index].index;
     logic [PHT_TAG_WIDTH-1:0] update_tag;
-    folder_func #(
-        .INPUT_LENGTH  (PC_WIDTH),
-        .OUTPUT_LENGTH (PHT_TAG_WIDTH),
-        .MAX_FOLD_ROUND(4)
-    ) update_pc_hash (
-        .var_i(update_pc),
-        .var_o(update_tag)
-    );
-
+    assign update_tag = hash_buffer[update_match_index].tag;
+    logic update_match_valid;
+    assign update_match_valid = (update_match_index != 0) & hash_buffer[update_match_index].valid;
 
 
 

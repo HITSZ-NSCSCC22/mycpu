@@ -56,7 +56,7 @@ module tage_predictor (
     // Base Predictor
     logic base_taken;
     base_predictor #(
-        .TABLE_DEPTH_EXP2(10),
+        .TABLE_DEPTH_EXP2(12),
         .CTR_WIDTH       (2),
         .PC_WIDTH        (`RegWidth)
     ) u_base_predictor (
@@ -77,7 +77,7 @@ module tage_predictor (
     logic [3:0] tag_hit;
     logic [$clog2(TAG_COMPONENT_AMOUNT):0] accept_prediction_id;
     logic [4:0] tag_update_valid;
-    localparam integer provider_ghr_length[TAG_COMPONENT_AMOUNT] = '{5, 10, 20, 40};
+    localparam integer provider_ghr_length[TAG_COMPONENT_AMOUNT] = '{10, 20, 40, 80};
 
     generate
         genvar provider_id;
@@ -89,7 +89,7 @@ module tage_predictor (
             ) tag_predictor (
                 .clk              (clk),
                 .rst              (rst),
-                .global_history_i (GHR[provider_ghr_length[provider_id]-1:0]),
+                .global_history_i (GHR[provider_ghr_length[provider_id]:0]),
                 .pc_i             (pc_i),
                 .update_valid     (tag_update_valid[provider_id+1]),
                 .update_instr_info({branch_pc_i, branch_taken_i}),
@@ -143,7 +143,7 @@ module tage_predictor (
             tag_update_valid[update_valid_id] = 1'b1;
         end else begin  // Wrong prediction
             tag_update_valid[provider_history_buffer[provider_history_matched_id].accepted_provider_id] = 1'b1;
-            tag_update_valid[provider_history_buffer[provider_history_matched_id].accepted_provider_id+1] = 1'b1;
+            // tag_update_valid[provider_history_buffer[provider_history_matched_id].accepted_provider_id+1] = 1'b1;
         end
     end
 
