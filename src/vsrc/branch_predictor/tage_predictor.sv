@@ -81,7 +81,9 @@ module tage_predictor (
 
     generate
         genvar provider_id;
-        for (provider_id = 0; provider_id < 4; provider_id = provider_id + 1) begin
+        for (
+            provider_id = 0; provider_id < TAG_COMPONENT_AMOUNT; provider_id = provider_id + 1
+        ) begin
             logic valid = (accept_prediction_id == provider_id) ? branch_valid_i : 0;
             tagged_predictor #(
                 .INPUT_GHR_LENGTH(provider_ghr_length[provider_id]),
@@ -113,7 +115,7 @@ module tage_predictor (
     assign provider_history_buffer[0] = {pc_i, accept_prediction_id, predict_branch_taken_o};
     always_ff @(posedge clk) begin : shift
         for (integer i = 1; i < 10; i++) begin
-            if (i == provider_history_matched_id) begin
+            if (i == provider_history_matched_id + 1) begin
                 provider_history_buffer[i] <= 0;
             end else provider_history_buffer[i] <= provider_history_buffer[i-1];
         end
@@ -142,8 +144,10 @@ module tage_predictor (
         if (branch_taken_i == provider_history_buffer[provider_history_matched_id].taken) begin
             tag_update_valid[update_valid_id] = 1'b1;
         end else begin  // Wrong prediction
-            tag_update_valid[provider_history_buffer[provider_history_matched_id].accepted_provider_id] = 1'b1;
-            // tag_update_valid[provider_history_buffer[provider_history_matched_id].accepted_provider_id+1] = 1'b1;
+            tag_update_valid[update_valid_id] = 1'b1;
+            if (update_valid_id < TAG_COMPONENT_AMOUNT) begin
+                tag_update_valid[update_valid_id+1] = 1'b1;
+            end
         end
     end
 

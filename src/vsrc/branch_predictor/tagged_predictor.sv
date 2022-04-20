@@ -64,21 +64,21 @@ module tagged_predictor #(
     logic [PHT_TAG_WIDTH-2:0] pc_hash_csr2;
     csr_hash #(
         .INPUT_LENGTH (INPUT_GHR_LENGTH + 1),
-        .OUTPUT_LENGTH(PHT_TAG_WIDTH - 1)
-    ) pc_hash_csr_hash2 (
-        .clk   (clk),
-        .rst   (rst),
-        .data_i(global_history_i),
-        .hash_o(pc_hash_csr2)
-    );
-    csr_hash #(
-        .INPUT_LENGTH (INPUT_GHR_LENGTH + 1),
         .OUTPUT_LENGTH(PHT_TAG_WIDTH)
     ) pc_hash_csr_hash1 (
         .clk   (clk),
         .rst   (rst),
         .data_i(global_history_i),
         .hash_o(pc_hash_csr1)
+    );
+    csr_hash #(
+        .INPUT_LENGTH (INPUT_GHR_LENGTH + 1),
+        .OUTPUT_LENGTH(PHT_TAG_WIDTH - 1)
+    ) pc_hash_csr_hash2 (
+        .clk   (clk),
+        .rst   (rst),
+        .data_i(global_history_i),
+        .hash_o(pc_hash_csr2)
     );
 
     logic [PHT_TAG_WIDTH-1:0] hashed_pc_tag;
@@ -176,6 +176,7 @@ module tagged_predictor #(
                 if (PHT[update_index][PHT_TAG_WIDTH-1:0] != update_tag) // Miss tag
                 begin                                                   // Do swap
                     PHT[update_index][PHT_TAG_WIDTH-1:0] <= {update_tag};
+                    // PHT[update_index] <= {3'b100, update_tag};
                 end
             end
         end
