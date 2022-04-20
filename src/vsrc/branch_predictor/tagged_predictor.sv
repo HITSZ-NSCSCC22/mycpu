@@ -1,6 +1,7 @@
 // Gshared predictor as base predictor
 `include "../defines.v"
 `include "branch_predictor/defines.v"
+`include "branch_predictor/utils/csr_hash.sv"
 `include "branch_predictor/utils/fpa.sv"
 
 
@@ -43,19 +44,17 @@ module tagged_predictor #(
 
     // Fold GHT input to a fix length, the same as index range
     // Using a CSR, described in PPM-Liked essay
-    logic [PHT_DEPTH_EXP2-1:0] ght_hash_csr;
     logic [PHT_DEPTH_EXP2-1:0] hashed_ght_input;
-    assign hashed_ght_input = {
-        ght_hash_csr[PHT_DEPTH_EXP2-2:0],
-        ght_hash_csr[PHT_DEPTH_EXP2-1] ^ global_history_i[0] ^ global_history_i[INPUT_GHR_LENGTH] 
-    };
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            ght_hash_csr <= 0;
-        end else begin
-            ght_hash_csr <= PHT_DEPTH_EXP2 > INPUT_GHR_LENGTH ?hashed_ght_input : global_history_i;
-        end
-    end
+    csr_hash #(
+        .INPUT_LENGTH (INPUT_GHR_LENGTH + 1),
+        .OUTPUT_LENGTH(PHT_DEPTH_EXP2)
+    ) ght_hash_csr_hash (
+        .clk   (clk),
+        .rst   (rst),
+        .data_i(global_history_i),
+        .hash_o(hashed_ght_input)
+    );
+
 
 
     // Tag
@@ -63,36 +62,34 @@ module tagged_predictor #(
     // csr1 < ght[high] < csr2 < ght[0]
     logic [PHT_TAG_WIDTH-1:0] pc_hash_csr1;
     logic [PHT_TAG_WIDTH-2:0] pc_hash_csr2;
-    logic [PHT_TAG_WIDTH-1:0] pc_hash_csr1_next;
-    logic [PHT_TAG_WIDTH-2:0] pc_hash_csr2_next;
-
-    assign pc_hash_csr1_next = {
-        pc_hash_csr1[PHT_TAG_WIDTH-2:0],
-        pc_hash_csr2[PHT_TAG_WIDTH-2] ^ global_history_i[INPUT_GHR_LENGTH]
-    };
-    assign pc_hash_csr2_next = {
-        pc_hash_csr2[PHT_TAG_WIDTH-3:0], pc_hash_csr1[PHT_TAG_WIDTH-1] ^ global_history_i[0]
-    };
-
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            pc_hash_csr1 <= 0;
-            pc_hash_csr2 <= 0;
-        end else begin
-            pc_hash_csr1 <= pc_hash_csr1_next;
-            pc_hash_csr2 <= pc_hash_csr2_next;
-        end
-    end
+    csr_hash #(
+        .INPUT_LENGTH (INPUT_GHR_LENGTH + 1),
+        .OUTPUT_LENGTH(PHT_TAG_WIDTH - 1)
+    ) pc_hash_csr_hash2 (
+        .clk   (clk),
+        .rst   (rst),
+        .data_i(global_history_i),
+        .hash_o(pc_hash_csr2)
+    );
+    csr_hash #(
+        .INPUT_LENGTH (INPUT_GHR_LENGTH + 1),
+        .OUTPUT_LENGTH(PHT_TAG_WIDTH)
+    ) pc_hash_csr_hash1 (
+        .clk   (clk),
+        .rst   (rst),
+        .data_i(global_history_i),
+        .hash_o(pc_hash_csr1)
+    );
 
     logic [PHT_TAG_WIDTH-1:0] hashed_pc_tag;
-    assign hashed_pc_tag = pc_i[PHT_TAG_WIDTH+1:2] ^ pc_hash_csr1 ^ {pc_hash_csr2 , 1'b0};
+    assign hashed_pc_tag = pc_i[PHT_TAG_WIDTH-1:0] ^ pc_hash_csr1 ^ {pc_hash_csr2, 1'b0};
 
 
 
     // hash with pc, and concatenate to PHT_DEPTH_EXP2
     // the low 2bits of pc is usually 0, so use upper bits
     logic [PHT_DEPTH_EXP2-1:0] query_hashed_index;
-    assign query_hashed_index = (ght_hash_csr ^ pc_i[PHT_DEPTH_EXP2-1:0] ^ pc_i[PHT_DEPTH_EXP2*2-1:PHT_DEPTH_EXP2]);
+    assign query_hashed_index = (hashed_ght_input ^ pc_i[PHT_DEPTH_EXP2-1:0] ^ pc_i[PHT_DEPTH_EXP2*2-1:PHT_DEPTH_EXP2]);
 
     // Query logic ========================================== 
     logic [2:0] query_result_bimodal;
