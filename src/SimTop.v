@@ -129,24 +129,41 @@ module SimTop(
 `endif
 
 
-  data_ram u_data_ram(
-             .clk(clock),
-             .ce_1(dram_ce_1),
-             .we_1(dram_we_1),
-             .pc_1(dram_pc_1),
-             .addr_1(dram_addr_1),
-             .sel_1(dram_sel_1),
-             .data_i_1(dram_data_i_1),
-             .data_o_1(dram_data_o_1),
-             .ce_2(dram_ce_2),
-             .we_2(dram_we_2),
-             .pc_2(dram_pc_2),
-             .addr_2(dram_addr_2),
-             .sel_2(dram_sel_2),
-             .data_i_2(dram_data_i_2),
-             .data_o_2(dram_data_o_2)
-           );
+  //data_ram u_data_ram(
+  //           .clk(clock),
+  //           .ce_1(dram_ce_1),
+  //           .we_1(dram_we_1),
+  //           .pc_1(dram_pc_1),
+  //           .addr_1(dram_addr_1),
+  //           .sel_1(dram_sel_1),
+  //           .data_i_1(dram_data_i_1),
+  //           .data_o_1(dram_data_o_1),
+  //           .ce_2(dram_ce_2),
+  //           .we_2(dram_we_2),
+  //           .pc_2(dram_pc_2),
+  //          .addr_2(dram_addr_2),
+  //           .sel_2(dram_sel_2),
+  //           .data_i_2(dram_data_i_2),
+  //           .data_o_2(dram_data_o_2)
+  //         );
 
+  
+  dual_data_rom u_dual_data_rom(
+              .clka(clock),
+              .rsta(reset),
+              .wea(dram_sel_1),
+              .addra(dram_addr_1),
+              .dina(dram_data_i_1),
+              .douta(dram_data_o_1),
+              .clkb(clock),
+              .rstb(reset),
+              .enb(1'b1),
+              .web(dram_sel_2),
+              .addrb(dram_addr_2),
+              .dinb(dram_data_i_2),
+              .doutb(dram_data_o_2)
+
+  );
 
 `ifdef DIFFTEST
 

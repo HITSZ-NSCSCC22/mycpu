@@ -1,4 +1,4 @@
-`include "../../defines.v"
+`include "defines.v"
 
 module mem_wb (
     input wire clk,

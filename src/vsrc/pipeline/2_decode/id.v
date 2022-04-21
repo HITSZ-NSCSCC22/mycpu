@@ -1,4 +1,4 @@
-`include "../../defines.v"
+`include "defines.v"
 module id(
     input wire rst,
 
@@ -72,6 +72,7 @@ module id(
   wire[21:0] opcode_22 = inst_i[31:10];
   wire[4:0] imm_5 = inst_i[14:10];
   wire[9:0] imm_10 = inst_i[9:0];
+  wire[13:0] imm_14 = inst_i[23:10];
   wire[15:0] imm_16 = inst_i[25:10];
   wire[11:0] imm_12 = inst_i[21:10];
   wire[19:0] imm_20 = inst_i[24:5];
@@ -124,18 +125,17 @@ module id(
 
   always @(*)
     begin
-      stallreq_for_reg1_loadrelate = `NoStop;
       if(rst == `RstEnable)
-        reg1_o = `ZeroWord;
+        stallreq_for_reg1_loadrelate = `NoStop;
       else if(pre_inst_is_load == 1'b1 && ex_waddr_i_1 == reg1_addr_o && reg1_read_o == 1'b1)
         stallreq_for_reg1_loadrelate = `Stop;
     end
 
   always @(*)
     begin
-      stallreq_for_reg2_loadrelate = `NoStop;
+      
       if(rst == `RstEnable)
-        reg2_o = `ZeroWord;
+        stallreq_for_reg2_loadrelate = `NoStop;
       else if(pre_inst_is_load == 1'b1 && ex_waddr_i_1 == reg2_addr_o && reg2_read_o == 1'b1)
         stallreq_for_reg2_loadrelate = `Stop;
     end
@@ -459,8 +459,107 @@ module id(
 
             `EXE_SPECIAL:
               begin
-                // All CSR related instr is 8'b00000100
-
+                case (opcode_2)
+                  `EXE_CSR_RELATED:begin
+                    case (op2)
+                      `EXE_CSRRD:begin
+                        wreg_o      = `WriteEnable;
+                        aluop_o     = `EXE_CSRRD_OP;
+                        reg1_read_o = 1'b0;
+                        reg2_read_o = 1'b0;
+                        imm         = {18'b0,imm_14};
+                        reg_waddr_o = op1;
+                        inst_valid  = `InstValid;
+                      end
+                      `EXE_CSRWR:begin
+                        wreg_o      = `WriteEnable;
+                        aluop_o     = `EXE_CSRWR_OP;
+                        reg1_read_o = 1'b1;
+                        reg2_read_o = 1'b0;
+                        imm         = {18'b0,imm_14};
+                        reg1_addr_o = op1;
+                        reg_waddr_o = op1;
+                        inst_valid  = `InstValid;
+                      end 
+                      default:begin
+                        wreg_o      = `WriteEnable;
+                        aluop_o     = `EXE_CSRXCHG_OP;
+                        reg1_read_o = 1'b0;
+                        reg2_read_o = 1'b0;
+                        imm         = {18'b0,imm_14};
+                        reg_waddr_o = op1;
+                        inst_valid  = `InstValid;
+                      end
+                    endcase
+                  end 
+                  `EXE_OTHER:begin
+                    case (opcode_3)
+                      `EXE_TLB_RELATED:begin
+                        case (opcode_22)
+                          `EXE_TLBFILL:begin
+                            wreg_o      = `WriteDisable;
+                            aluop_o     = `EXE_TLBFILL_OP;
+                            reg1_read_o = 1'b0;
+                            reg2_read_o = 1'b0;
+                            inst_valid  = `InstValid;
+                          end 
+                          `EXE_TLBRD:begin
+                            wreg_o      = `WriteDisable;
+                            aluop_o     = `EXE_TLBRD_OP;
+                            reg1_read_o = 1'b0;
+                            reg2_read_o = 1'b0;
+                            inst_valid  = `InstValid;
+                          end
+                          `EXE_TLBSRCH:begin
+                            wreg_o      = `WriteDisable;
+                            aluop_o     = `EXE_TLBSRCH_OP;
+                            reg1_read_o = 1'b0;
+                            reg2_read_o = 1'b0;
+                            inst_valid  = `InstValid;
+                          end
+                          `EXE_TLBWR:begin
+                            wreg_o      = `WriteDisable;
+                            aluop_o     = `EXE_TLBWR_OP;
+                            reg1_read_o = 1'b0;
+                            reg2_read_o = 1'b0;
+                            inst_valid  = `InstValid;
+                          end
+                          `EXE_ERTN:begin
+                            wreg_o      = `WriteDisable;
+                            aluop_o     = `EXE_ERTN_OP;
+                            reg1_read_o = 1'b0;
+                            reg2_read_o = 1'b0;
+                            inst_valid  = `InstValid;
+                          end
+                          default:begin
+                          end
+                        endcase
+                      end
+                      default:begin
+                        case (opcode_17)
+                          `EXE_IDLE:begin
+                            wreg_o      = `WriteDisable;
+                            aluop_o     = `EXE_IDLE_OP;
+                            reg1_read_o = 1'b0;
+                            reg2_read_o = 1'b0;
+                            inst_valid  = `InstValid;
+                          end 
+                          `EXE_INVTLB:begin
+                            wreg_o      = `WriteDisable;
+                            aluop_o     = `EXE_INVTLB_OP;
+                            reg1_read_o = 1'b0;
+                            reg2_read_o = 1'b0;
+                            inst_valid  = `InstValid;
+                          end
+                          default: begin
+                          end
+                        endcase
+                      end
+                    endcase
+                  end
+                  default:begin
+                  end
+                endcase
               end
 
             `EXE_ARITHMETIC:

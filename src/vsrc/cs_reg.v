@@ -29,6 +29,10 @@ reg [31:0] csr_asid;
 reg [31:0] csr_cpuid;
 reg [31:0] csr_pgdl;
 reg [31:0] csr_pgdh;
+reg [31:0] csr_save0;
+reg [31:0] csr_save1;
+reg [31:0] csr_save2;
+reg [31:0] csr_save3;
 
 
 //crmd
@@ -89,6 +93,77 @@ always @(posedge clk) begin
         csr_ectl <= 32'b0;
     else if(we == 1'b1 && csr_num == `ECTL)
         csr_ectl[`LIE] <= wdata[`LIE];
+end
+
+always @(posedge clk) begin
+    
+end
+
+//era
+always @(posedge clk) begin
+    if (excp_flush) begin
+        
+    end
+    else if (we == 1'b1 && csr_num == `ERA) begin
+        csr_era <= wdata;
+    end
+end
+
+//badv
+always @(posedge clk) begin
+    if (we == 1'b1 && csr_num == `BADV) begin
+        csr_badv <= wdata;
+    end
+    else if (va_error_in) begin
+        csr_badv <= bad_va_in;
+    end
+end
+
+//eentry
+always @(posedge clk) begin
+    if (rst) begin
+        csr_eentry[5:0] <= 6'b0;
+    end
+    else if (we == 1'b1 && csr_num == `EENTRY) begin
+        csr_eentry[31:6] <= wdata[31:6];
+    end
+end
+
+//cpuid
+always @(posedge clk) begin
+    if (rst) begin
+        csr_cpuid <= 32'b0;
+    end 
+end
+
+//save0
+always @(posedge clk) begin
+    if (we == 1'b1 && csr_num == `SAVE0) csr_save0 <= wdata;
+end
+
+//save1
+always @(posedge clk) begin
+    if (we == 1'b1 && csr_num == `SAVE1) csr_save1 <= wdata;
+end
+
+//save2
+always @(posedge clk) begin
+    if (we == 1'b1 && csr_num == `SAVE2) csr_save2 <= wdata;
+end
+
+//save3
+always @(posedge clk) begin
+    if (we == 1'b1 && csr_num == `SAVE3) csr_save3 <= wdata;
+end
+
+//pgdl
+always @(posedge clk) begin
+    if (we == 1'b1 && csr_num == `PGDL) csr_pgdl[`BASE] <= wr_data[`BASE];
+end
+
+//pgdh
+always @(posedge clk) begin
+    if (we == 1'b1 && csr_num == `PGDH) csr_pgdh[`BASE] <= wr_data[`BASE];
 end
     
 endmodule
