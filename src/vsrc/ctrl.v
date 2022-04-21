@@ -7,7 +7,8 @@ module ctrl (
     input wire stallreq_from_id_2,
     input wire stallreq_from_ex_2,
 
-    input wire[1:0] excepttype_i,
+    input wire[1:0] excepttype_i_1,
+    input wire[1:0] excepttype_i_2,
 
     output reg[6:0]stall1,
     output reg[6:0]stall2,
@@ -25,10 +26,23 @@ module ctrl (
           new_pc = `ZeroWord;
         end
       else
-        if(excepttype_i != 0)
+        if(excepttype_i_1 != 0)
           begin
             flush = 1'b1;
-            case (excepttype_i)
+            case (excepttype_i_1)
+              2'b01:
+                new_pc = 32'h0000000c;
+              2'b10:
+                new_pc = 32'h0000000c;
+              default:
+                begin
+                end
+            endcase
+          end
+        else if(excepttype_i_2 != 0)
+          begin
+            flush = 1'b1;
+            case (excepttype_i_2)
               2'b01:
                 new_pc = 32'h0000000c;
               2'b10:

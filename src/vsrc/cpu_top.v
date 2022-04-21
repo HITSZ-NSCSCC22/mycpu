@@ -67,9 +67,11 @@ module cpu_top (
   assign ram_raddr_o_1 = pc_buffer_1;
   assign ram_raddr_o_2 = pc_buffer_2;
 
-  wire branch_flag;
+  wire branch_flag_1;
+  wire branch_flag_2;
   assign Instram_branch_flag=branch_flag;
-  wire[`RegBus] branch_target_address;
+  wire[`RegBus] branch_target_address_1;
+  wire[`RegBus] branch_target_address_2;
   wire[`RegBus] link_addr;
   wire flush;
   wire[`RegBus] new_pc;
@@ -82,8 +84,10 @@ module cpu_top (
            .pc_1(pc_1),
            .pc_2(pc_2),
            .ce(chip_enable),
-           .branch_flag_i(branch_flag),
-           .branch_target_address(branch_target_address),
+           .branch_flag_i_1(branch_flag_1),
+           .branch_target_address_1(branch_target_address_1),
+           .branch_flag_i_2(branch_flag_2),
+           .branch_target_address_2(branch_target_address_2),
            .flush(flush),
            .new_pc(new_pc),
            .stall1(stall1[0]),
@@ -245,8 +249,8 @@ module cpu_top (
        .inst_pc(id_inst_pc_1),
        .inst_o(id_inst_o_1),
 
-       .branch_flag_o(branch_flag),
-       .branch_target_address_o(branch_target_address),
+       .branch_flag_o(branch_flag_1),
+       .branch_target_address_o(branch_target_address_1),
        .link_addr_o(link_addr_1),
 
        .stallreq(stallreq_to_next_1),
@@ -324,8 +328,8 @@ module cpu_top (
        .inst_pc(id_inst_pc_2),
        .inst_o(id_inst_o_2),
 
-       .branch_flag_o(branch_flag),
-       .branch_target_address_o(branch_target_address),
+       .branch_flag_o(branch_flag_2),
+       .branch_target_address_o(branch_target_address_2),
        .link_addr_o(link_addr_2),
 
        .stallreq(stallreq_to_next_2),
@@ -614,7 +618,8 @@ module cpu_top (
   wire wb_LLbit_value_i_1;
   wire mem_LLbit_we_o_1;
   wire mem_LLbit_value_o_1;
-  wire[1:0] mem_excepttype_o;
+  wire[1:0] mem_excepttype_o_1;
+  wire[1:0] mem_excepttype_o_2;
   wire[`RegBus] mem_current_inst_address_o_1;
   wire[`InstAddrBus] wb_inst_pc_1;
 
@@ -652,7 +657,7 @@ module cpu_top (
         .LLbit_we_o(mem_LLbit_we_o_1),
         .LLbit_value_o(mem_LLbit_value_o_1),
 
-        .excepttype_o(mem_excepttype_o),
+        .excepttype_o(mem_excepttype_o_1),
         .current_inst_address_o(mem_current_inst_address_o_1)
 
       );
@@ -699,7 +704,7 @@ module cpu_top (
         .LLbit_we_o(mem_LLbit_we_o_2),
         .LLbit_value_o(mem_LLbit_value_o_2),
 
-        .excepttype_o(mem_excepttype_o),
+        .excepttype_o(mem_excepttype_o_2),
         .current_inst_address_o(mem_current_inst_address_o_2)
 
       );
@@ -820,7 +825,8 @@ module cpu_top (
          .stall2(stall2),
          .stallreq_from_id_2(stallreq_from_id_2),
          .stallreq_from_ex_2(stallreq_from_ex_2),
-         .excepttype_i(mem_excepttype_o),
+         .excepttype_i_1(mem_excepttype_o_1),
+         .excepttype_i_2(mem_excepttype_o_2),
          .new_pc(new_pc),
          .flush(flush)
        );
