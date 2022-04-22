@@ -30,10 +30,17 @@ module tage_predictor (
     end
 `endif
 
+
+    // Reset
+    logic rst_n;
+    assign rst_n = ~rst;
+
     // Global History Register
     bit [`GHR_BUS] GHR;
-    always @(posedge clk) begin
-        if (branch_valid_i) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            GHR <= 0;
+        end else if (branch_valid_i) begin
             // Shift left for every valid branch
             GHR <= {GHR[`GHR_DEPTH-2:0], branch_taken_i};
         end
@@ -77,14 +84,13 @@ module tage_predictor (
     logic [3:0] tag_hit;
     logic [$clog2(TAG_COMPONENT_AMOUNT):0] accept_prediction_id;
     logic [4:0] tag_update_valid;
-    localparam integer provider_ghr_length[TAG_COMPONENT_AMOUNT] = '{10, 20, 40, 80};
+    localparam integer provider_ghr_length[TAG_COMPONENT_AMOUNT] = '{5, 10, 40, 130};
 
     generate
         genvar provider_id;
         for (
             provider_id = 0; provider_id < TAG_COMPONENT_AMOUNT; provider_id = provider_id + 1
         ) begin
-            logic valid = (accept_prediction_id == provider_id) ? branch_valid_i : 0;
             tagged_predictor #(
                 .INPUT_GHR_LENGTH(provider_ghr_length[provider_id]),
                 .PHT_DEPTH_EXP2  (10)
@@ -152,9 +158,10 @@ module tage_predictor (
     end
 
 
+    // Output logic, select the longest matched provider
     fpa #(
         .LINES(5)
-    ) u_fpa (
+    ) prediction_select (
         .unitary_in({tag_hit, 1'b1}),
         .binary_out(accept_prediction_id)
     );
