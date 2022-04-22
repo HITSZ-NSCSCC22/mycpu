@@ -1,6 +1,6 @@
 
-cbp3: *.v *.sv
-	verilator $(VERILATOR_FLAGS) tage_predictor.sv --exe cbp3.cpp --cc -I../ | true # Ignore errors
+cbp3:  *.sv
+	verilator -O3 tage_predictor.sv --exe cbp3.cpp --cc -I../ | true # Ignore errors
 	@make -C obj_dir -f Vtage_predictor.mk 2>&1 >/dev/null
 	trace_id=0; while [[ $$trace_id -lt 20 ]]; do \
 		echo $$(./obj_dir/Vtage_predictor $$trace_id | grep MPKI); \
@@ -16,7 +16,7 @@ test: verilate
 
 VERILATOR_FLAGS = -O3 #+define+DUMP_WAVEFORM=1 --trace
 
-verilate: *.v *.sv
+verilate: *.sv
 	verilator $(VERILATOR_FLAGS) tage_predictor.sv --exe testbench.cpp --cc -I../ | true # Ignore errors
 	@make -C obj_dir -f Vtage_predictor.mk 2>&1 >/dev/null
 

@@ -15,7 +15,5 @@
 `define MAX_GHT_LENGTH 512
 `define MAX_GHT_LENGTH_LOG2 9
 
-// Parameters
-`define FEEDBACK_LATENCY 4
 
 `endif

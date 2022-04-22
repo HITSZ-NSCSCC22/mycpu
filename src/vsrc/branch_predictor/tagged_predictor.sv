@@ -1,6 +1,6 @@
 // Gshared predictor as base predictor
 `include "../defines.v"
-`include "branch_predictor/defines.v"
+`include "branch_predictor/defines.sv"
 `include "branch_predictor/utils/csr_hash.sv"
 `include "branch_predictor/utils/fpa.sv"
 
@@ -23,7 +23,9 @@ module tagged_predictor #(
 
     // Update signals
     input logic update_valid,
-    input logic [PC_WIDTH:0] update_instr_info,
+    input logic [PC_WIDTH+2:0] update_instr_info,
+    // Useful counter for update policy
+    output logic [PHT_USEFUL_WIDTH-1:0] update_query_useful_o,
 
     output logic taken,
     output logic tag_hit
@@ -33,11 +35,15 @@ module tagged_predictor #(
     logic rst_n;
     assign rst_n = ~rst;
 
-    // Unpack update instr info
-    logic [PC_WIDTH-1:0] update_pc;
-    assign update_pc = update_instr_info[PC_WIDTH:1];
-    logic update_taken;
-    assign update_taken = update_instr_info[0];
+    // Update Info
+    typedef struct packed {
+        logic [PC_WIDTH-1:0] pc;
+        logic taken;
+        logic inc;
+        logic useful;
+    } update_info_struct;
+    update_info_struct update_info;
+    assign update_info = update_instr_info;
 
     // PHT
     typedef struct packed {
@@ -129,7 +135,7 @@ module tagged_predictor #(
     generate
         for (genvar i = 0; i < HASH_BUFFER_SIZE; i = i + 1) begin
             always @(*) begin
-                pc_match_table[i] = (hash_buffer[i].pc == update_pc);
+                pc_match_table[i] = (hash_buffer[i].pc == update_info.pc);
             end
         end
     endgenerate
@@ -153,7 +159,11 @@ module tagged_predictor #(
 
     // Update logic =========================================================== 
 
-    always_ff @(posedge clk or negedge rst_n) begin
+    // Give out the matched useful counter
+    assign update_query_useful_o = PHT[update_index].useful;
+
+    // Main update ff
+    always_ff @(posedge clk or negedge rst_n) begin : update_ff
         if (!rst_n) begin
             // Reset all PHT, useful to 0, ctr to weak taken
             for (integer i = 0; i < 2 ** PHT_DEPTH_EXP2; i = i + 1) begin
@@ -166,24 +176,36 @@ module tagged_predictor #(
                 // Update PHT entry
                 case (PHT[update_index].ctr)
                     {PHT_CTR_WIDTH{1'b0}} : begin
-                        PHT[update_index].ctr <= update_taken ? {{PHT_CTR_WIDTH-1{1'b0}},1'b1} : {PHT_CTR_WIDTH{1'b0}};
+                        PHT[update_index].ctr <= update_info.taken ? {{PHT_CTR_WIDTH-1{1'b0}},1'b1} : {PHT_CTR_WIDTH{1'b0}};
                     end
                     {PHT_CTR_WIDTH{1'b1}} : begin
-                        PHT[update_index].ctr <= update_taken ? {PHT_CTR_WIDTH{1'b1}}:{{PHT_CTR_WIDTH-1{1'b1}},1'b0};
+                        PHT[update_index].ctr <= update_info.taken ? {PHT_CTR_WIDTH{1'b1}}:{{PHT_CTR_WIDTH-1{1'b1}},1'b0};
                     end
                     default: begin
-                        PHT[update_index].ctr <= update_taken ? PHT[update_index].ctr +1 : PHT[update_index].ctr -1;
+                        PHT[update_index].ctr <= update_info.taken ? PHT[update_index].ctr +1 : PHT[update_index].ctr -1;
                     end
                 endcase
+
+                // Update useful
+                if (update_info.useful) begin
+                    case (PHT[update_index].useful)
+                        {PHT_USEFUL_WIDTH{1'b1}} : begin
+                            PHT[update_index].useful <= update_info.inc ? {PHT_USEFUL_WIDTH{1'b1}} : PHT[update_index].useful -1;
+                        end
+                        {PHT_USEFUL_WIDTH{1'b0}} : begin
+                            PHT[update_index].useful <= update_info.inc ? PHT[update_index].useful +1 : {PHT_USEFUL_WIDTH{1'b0}};
+                        end
+                        default: begin
+                            PHT[update_index].useful <= update_info.inc ? PHT[update_index].useful +1 : PHT[update_index].useful -1;
+                        end
+                    endcase
+                end
 
                 if (PHT[update_index].tag != update_tag) // Miss tag
                 begin
                     PHT[update_index].tag <= update_tag;
                     PHT[update_index].ctr <= {1'b1, {PHT_CTR_WIDTH - 1{1'b0}}};  // Reset CTR
                     PHT[update_index].useful <= 0;  // Reset useful counter
-
-
-                    // PHT[update_index] <= {3'b100, update_tag};
                 end
             end
         end
