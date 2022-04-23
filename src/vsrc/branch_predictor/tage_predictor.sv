@@ -161,7 +161,9 @@ module tage_predictor #(
         for (integer i = 1; i < 10; i++) begin
             if (i == provider_history_matched_id + 1) begin
                 provider_history_buffer[i] <= 0;
-            end else provider_history_buffer[i] <= provider_history_buffer[i-1];
+            end else begin
+                provider_history_buffer[i] <= provider_history_buffer[i-1];
+            end
         end
     end
 
@@ -190,12 +192,35 @@ PROVIDER_HISTORY_BUFFER_SIZE
         end
     end
     logic [$clog2(TAG_COMPONENT_AMOUNT+1)-1:0] tag_update_useful_zero_id;
-    fpa #(
-        .LINES(TAG_COMPONENT_AMOUNT + 1)
-    ) u_fpa_tag_update_useful_match (
-        .unitary_in({tag_update_query_useful_match, 1'b1}),
-        .binary_out(tag_update_useful_zero_id)
-    );
+    // Allocation policy, according to TAGE essay
+    always_comb begin
+        tag_update_useful_zero_id = 0;  // default 0
+        for (integer i = TAG_COMPONENT_AMOUNT - 1; i >= 0; i--) begin
+            if (tag_update_query_useful_match[i]) begin
+                // 1/2 probability when longer history tag want to be selected
+                if (tag_update_useful_pingpong_counter[i] != 2'b00) begin
+                    tag_update_useful_zero_id = i + 1;
+                end
+            end
+        end
+    end
+
+    // pingpong counter, is a random number array
+    bit [1:0] tag_update_useful_pingpong_counter[TAG_COMPONENT_AMOUNT];
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            for (integer i = 0; i < TAG_COMPONENT_AMOUNT; i++) begin
+                tag_update_useful_pingpong_counter[i] <= 2'b11;
+            end
+        end else begin
+            // LSFR pseudo random number generator
+            tag_update_useful_pingpong_counter[TAG_COMPONENT_AMOUNT-1] <= tag_update_useful_pingpong_counter[0] ^ tag_update_useful_pingpong_counter[TAG_COMPONENT_AMOUNT-1];
+            for (integer i = 0; i < TAG_COMPONENT_AMOUNT - 1; i++) begin
+                tag_update_useful_pingpong_counter[i] <= tag_update_useful_pingpong_counter[i+1];
+            end
+        end
+    end
+
 
 
     logic [2:0] update_valid_id;
@@ -225,7 +250,7 @@ PROVIDER_HISTORY_BUFFER_SIZE
             if (tag_update_useful_zero_id > update_valid_id) begin
                 tag_update_valid[tag_update_useful_zero_id] = 1'b1;
             end else if (update_valid_id < TAG_COMPONENT_AMOUNT) begin
-                tag_update_valid[update_valid_id+1] = 1'b1;
+                // tag_update_valid[update_valid_id+1] = 1'b1;
             end
         end
     end
