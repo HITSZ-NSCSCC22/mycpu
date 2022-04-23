@@ -12,7 +12,7 @@
 // Work around
 double sc_time_stamp() { return 0; }
 
-static std::string test_filename = "data/gcc-8M.txt";
+static std::string test_filename = "data/gcc-10K.txt";
 
 struct instruction_entry
 {
@@ -106,6 +106,7 @@ int main(int argc, char const *argv[])
 
         sopc->pc_i = entries[i].pc;
         sopc->branch_valid_i = delay_queue_valid.front();
+        sopc->branch_conditional_i = true;
         delay_queue_valid.pop();
         sopc->branch_taken_i = delay_queue_taken.front().taken;
         sopc->branch_pc_i = delay_queue_taken.front().pc;

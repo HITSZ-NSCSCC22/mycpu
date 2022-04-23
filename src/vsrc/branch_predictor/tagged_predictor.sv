@@ -22,13 +22,13 @@ module tagged_predictor #(
     input logic [PC_WIDTH-1:0] pc_i,
 
     // Update signals
-    input logic update_valid,
-    input logic [PC_WIDTH+2:0] update_instr_info,
+    input logic [PC_WIDTH+4:0] update_info_i,
+
     // Useful counter for update policy
     output logic [PHT_USEFUL_WIDTH-1:0] update_query_useful_o,
 
-    output logic taken,
-    output logic tag_hit
+    output logic taken_o,
+    output logic tag_hit_o
 );
 
     // Reset
@@ -38,19 +38,23 @@ module tagged_predictor #(
     // Update Info
     typedef struct packed {
         logic [PC_WIDTH-1:0] pc;
-        logic taken;
-        logic inc;
-        logic useful;
+
+        // 0:            invalid, decrease, invalid, decrease, no reallocate
+        // 1:            valid, increase, valid, increase, reallocate
+        logic update_ctr;
+        logic inc_ctr;
+        logic update_useful;
+        logic inc_useful;
+        logic realloc_entry;
     } update_info_struct;
     update_info_struct update_info;
-    assign update_info = update_instr_info;
+    assign update_info = update_info_i;
 
     // PHT
     typedef struct packed {
         bit [PHT_CTR_WIDTH-1:0] ctr;
         bit [PHT_TAG_WIDTH-1:0] tag;
         bit [PHT_USEFUL_WIDTH-1:0] useful;
-
     } pht_entry;
     pht_entry PHT[2**PHT_DEPTH_EXP2];
 
@@ -74,8 +78,8 @@ module tagged_predictor #(
 
     // Tag
     // Generate another hash different from above, as described in PPM-Liked essay
-    logic [PHT_TAG_WIDTH-1:0] pc_hash_csr1;
-    logic [PHT_TAG_WIDTH-2:0] pc_hash_csr2;
+    logic [PHT_TAG_WIDTH-1:0] tag_hash_csr1;
+    logic [PHT_TAG_WIDTH-2:0] tag_hash_csr2;
     csr_hash #(
         .INPUT_LENGTH (INPUT_GHR_LENGTH + 1),
         .OUTPUT_LENGTH(PHT_TAG_WIDTH)
@@ -83,7 +87,7 @@ module tagged_predictor #(
         .clk   (clk),
         .rst   (rst),
         .data_i(global_history_i),
-        .hash_o(pc_hash_csr1)
+        .hash_o(tag_hash_csr1)
     );
     csr_hash #(
         .INPUT_LENGTH (INPUT_GHR_LENGTH + 1),
@@ -92,11 +96,11 @@ module tagged_predictor #(
         .clk   (clk),
         .rst   (rst),
         .data_i(global_history_i),
-        .hash_o(pc_hash_csr2)
+        .hash_o(tag_hash_csr2)
     );
 
     logic [PHT_TAG_WIDTH-1:0] query_tag;
-    assign query_tag = pc_i[PHT_TAG_WIDTH-1:0] ^ pc_hash_csr1 ^ {pc_hash_csr2, 1'b0};
+    assign query_tag = pc_i[PHT_TAG_WIDTH-1:0] ^ tag_hash_csr1 ^ {tag_hash_csr2, 1'b0};
 
 
 
@@ -106,8 +110,8 @@ module tagged_predictor #(
     assign query_result = PHT[query_index];
 
     // Assign Output
-    assign taken = (query_result.ctr[PHT_CTR_WIDTH-1] == 1'b1);
-    assign tag_hit = (query_tag == query_result.tag);
+    assign taken_o = (query_result.ctr[PHT_CTR_WIDTH-1] == 1'b1);
+    assign tag_hit_o = (query_tag == query_result.tag);
 
 
     // Use a buffer to hold the query_index and pc
@@ -172,41 +176,41 @@ module tagged_predictor #(
                 PHT[i].useful = 0;
             end
         end else begin
-            if (update_valid & update_match_valid) begin
-                // Update PHT entry
+            // Update CTR bits
+            if (update_info.update_ctr & update_match_valid) begin
                 case (PHT[update_index].ctr)
                     {PHT_CTR_WIDTH{1'b0}} : begin
-                        PHT[update_index].ctr <= update_info.taken ? {{PHT_CTR_WIDTH-1{1'b0}},1'b1} : {PHT_CTR_WIDTH{1'b0}};
+                        PHT[update_index].ctr <= update_info.inc_ctr ? {{PHT_CTR_WIDTH-1{1'b0}},1'b1} : {PHT_CTR_WIDTH{1'b0}};
                     end
                     {PHT_CTR_WIDTH{1'b1}} : begin
-                        PHT[update_index].ctr <= update_info.taken ? {PHT_CTR_WIDTH{1'b1}}:{{PHT_CTR_WIDTH-1{1'b1}},1'b0};
+                        PHT[update_index].ctr <= update_info.inc_ctr ? {PHT_CTR_WIDTH{1'b1}}:{{PHT_CTR_WIDTH-1{1'b1}},1'b0};
                     end
                     default: begin
-                        PHT[update_index].ctr <= update_info.taken ? PHT[update_index].ctr +1 : PHT[update_index].ctr -1;
+                        PHT[update_index].ctr <= update_info.inc_ctr ? PHT[update_index].ctr + 1 : PHT[update_index].ctr - 1;
                     end
                 endcase
+            end
 
-                // Update useful
-                if (update_info.useful) begin
-                    case (PHT[update_index].useful)
-                        {PHT_USEFUL_WIDTH{1'b1}} : begin
-                            PHT[update_index].useful <= update_info.inc ? {PHT_USEFUL_WIDTH{1'b1}} : PHT[update_index].useful -1;
-                        end
-                        {PHT_USEFUL_WIDTH{1'b0}} : begin
-                            PHT[update_index].useful <= update_info.inc ? PHT[update_index].useful +1 : {PHT_USEFUL_WIDTH{1'b0}};
-                        end
-                        default: begin
-                            PHT[update_index].useful <= update_info.inc ? PHT[update_index].useful +1 : PHT[update_index].useful -1;
-                        end
-                    endcase
-                end
+            // Update useful bits
+            if (update_info.update_useful & update_match_valid) begin
+                case (PHT[update_index].useful)
+                    {PHT_USEFUL_WIDTH{1'b1}} : begin
+                        PHT[update_index].useful <= update_info.inc_useful ? {PHT_USEFUL_WIDTH{1'b1}} : PHT[update_index].useful - 1;
+                    end
+                    {PHT_USEFUL_WIDTH{1'b0}} : begin
+                        PHT[update_index].useful <= update_info.inc_useful ? PHT[update_index].useful + 1 : {PHT_USEFUL_WIDTH{1'b0}};
+                    end
+                    default: begin
+                        PHT[update_index].useful <= update_info.inc_useful ? PHT[update_index].useful + 1 : PHT[update_index].useful - 1;
+                    end
+                endcase
+            end
 
-                if (PHT[update_index].tag != update_tag) // Miss tag
-                begin
-                    PHT[update_index].tag <= update_tag;
-                    PHT[update_index].ctr <= {1'b1, {PHT_CTR_WIDTH - 1{1'b0}}};  // Reset CTR
-                    PHT[update_index].useful <= 0;  // Reset useful counter
-                end
+            // Alocate new entry 
+            if (update_info.realloc_entry & update_match_valid & PHT[update_index].tag != update_tag) begin
+                PHT[update_index].tag <= update_tag;
+                PHT[update_index].ctr <= {1'b1, {PHT_CTR_WIDTH - 1{1'b0}}};  // Reset CTR
+                PHT[update_index].useful <= 0;  // Reset useful counter
             end
         end
     end

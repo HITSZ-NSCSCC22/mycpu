@@ -16,6 +16,7 @@ module tage_predictor #(
 
     // Update signals
     input logic branch_valid_i,
+    input logic branch_conditional_i,
     input logic branch_taken_i,
     input logic [`RegBus] branch_pc_i,
     input logic [`RegBus] branch_target_address_i,
@@ -65,6 +66,7 @@ module tage_predictor #(
 
     // Base Predictor
     logic base_taken;
+    logic base_update_ctr;
     base_predictor #(
         .TABLE_DEPTH_EXP2(12),
         .CTR_WIDTH       (2),
@@ -73,51 +75,62 @@ module tage_predictor #(
         .clk              (clk),
         .rst              (rst),
         .pc_i             (pc_i),
-        .update_valid     (tag_update_valid[0]),
+        .update_valid     (base_update_ctr),
         .update_instr_info({branch_pc_i, branch_taken_i}),
         .taken            (base_taken)
     );
 
+    localparam TAG_COMPONENT_AMOUNT = 4;
 
     // The provider id of the accepted prediction
-    logic [$clog2(TAG_COMPONENT_AMOUNT):0] pred_prediction_id;
+    logic [$clog2(TAG_COMPONENT_AMOUNT+1)-1:0] pred_prediction_id;
     // The provider id of the last hit provider
-    logic [$clog2(TAG_COMPONENT_AMOUNT):0] altpred_prediction_id;
+    logic [$clog2(TAG_COMPONENT_AMOUNT+1)-1:0] altpred_prediction_id;
     // For example, provider 2,4 hit, and provider 1,3 missed
     // then pred is 4, and altpred is 2
 
     // Tagged Predictors
-    localparam TAG_COMPONENT_AMOUNT = 4;
     // History length of each tagged predictor
-    localparam integer provider_ghr_length[TAG_COMPONENT_AMOUNT] = '{5, 10, 40, 130};
+    localparam integer provider_ghr_length[TAG_COMPONENT_AMOUNT] = '{5, 15, 44, 130};
     // Query structs
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_taken;
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_hit;
     logic query_tag_useful;
     assign query_tag_useful = (taken[pred_prediction_id] != taken[altpred_prediction_id]);
     // Update structs
-    logic [TAG_COMPONENT_AMOUNT:0] tag_update_valid;  // Including base predictor
+    logic [  TAG_COMPONENT_AMOUNT:0] update_ctr;
+    logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_ctr;
+    assign tag_update_ctr  = update_ctr[TAG_COMPONENT_AMOUNT:1];
+    assign base_update_ctr = update_ctr[0];
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_useful;
-    logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_useful_inc;
+    logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_inc_useful;
+    logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_realloc_entry;
     logic [TAGGED_PREDICTOR_USEFUL_WIDTH-1:0] tag_update_query_useful[TAG_COMPONENT_AMOUNT];
-
 
     generate
         genvar provider_id;
         for (
             provider_id = 0; provider_id < TAG_COMPONENT_AMOUNT; provider_id = provider_id + 1
         ) begin
+            // Update Info
             typedef struct packed {
-                logic [`RegWidth-1:0] pc;
-                logic taken;
-                logic inc;
-                logic useful;
+                logic [`RegBus] pc;
+
+                // 0:            decrease, invalid, decrease, invalid, no reallocate
+                // 1:            increase, valid, increase, valid, reallocate
+                logic update_ctr;
+                logic inc_ctr;
+                logic update_useful;
+                logic inc_useful;
+                logic realloc_entry;
             } update_info_struct;
             update_info_struct update_info;
             assign update_info.pc = branch_pc_i;
-            assign update_info.taken = branch_taken_i;
-            assign update_info.inc = tag_update_useful_inc[provider_id];
-            assign update_info.useful = tag_update_useful[provider_id];
+            assign update_info.update_ctr = tag_update_ctr[provider_id];
+            assign update_info.inc_ctr = branch_taken_i;
+            assign update_info.update_useful = tag_update_useful[provider_id];
+            assign update_info.inc_useful = tag_update_inc_useful[provider_id];
+            assign update_info.realloc_entry = tag_update_realloc_entry[provider_id];
 
             tagged_predictor #(
                 .INPUT_GHR_LENGTH(provider_ghr_length[provider_id]),
@@ -129,11 +142,10 @@ module tage_predictor #(
                 .rst(rst),
                 .global_history_i(GHR[provider_ghr_length[provider_id]:0]),
                 .pc_i(pc_i),
-                .update_valid(tag_update_valid[provider_id+1]),
-                .update_instr_info(update_info),
+                .update_info_i(update_info),
                 .update_query_useful_o(tag_update_query_useful[provider_id]),
-                .taken(tag_taken[provider_id]),
-                .tag_hit(tag_hit[provider_id])
+                .taken_o(tag_taken[provider_id]),
+                .tag_hit_o(tag_hit[provider_id])
             );
         end
     endgenerate
@@ -158,16 +170,18 @@ module tage_predictor #(
         pc_i, pred_prediction_id, query_tag_useful, predict_branch_taken_o
     };
     always_ff @(posedge clk) begin : shift
-        for (integer i = 1; i < 10; i++) begin
+        for (integer i = 1; i < PROVIDER_HISTORY_BUFFER_SIZE; i++) begin
+            /* verilator lint_off WIDTH */
             if (i == provider_history_matched_id + 1) begin
                 provider_history_buffer[i] <= 0;
             end else begin
                 provider_history_buffer[i] <= provider_history_buffer[i-1];
             end
+            /* verilator lint_on WIDTH */
         end
     end
 
-    // Generate provider histry entry that matched update pc siganl
+    // Generate provider histry entry that matched update pc signal
     bit [PROVIDER_HISTORY_BUFFER_SIZE-1:0] provider_history_match;
     always_comb begin : provider_history_search  // match pc with update signals
         for (integer i = 0; i < PROVIDER_HISTORY_BUFFER_SIZE; i++) begin
@@ -175,9 +189,8 @@ module tage_predictor #(
         end
     end
 
-    logic [$clog2(
-PROVIDER_HISTORY_BUFFER_SIZE
-)-1:0] provider_history_matched_id;  // The entry id of the matched pc
+    // The entry id of the matched pc
+    logic [$clog2(PROVIDER_HISTORY_BUFFER_SIZE)-1:0] provider_history_matched_id;
     fpa #(
         .LINES(PROVIDER_HISTORY_BUFFER_SIZE)
     ) u_fpa_provider_history_matched_id (
@@ -185,10 +198,11 @@ PROVIDER_HISTORY_BUFFER_SIZE
         .binary_out(provider_history_matched_id)
     );
 
+    // Get the id of the desired allocate provider
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_query_useful_match;
     always_comb begin
         for (integer i = 0; i < TAG_COMPONENT_AMOUNT; i++) begin
-            tag_update_query_useful_match[i] = tag_update_query_useful[i] == 0;
+            tag_update_query_useful_match[i] = (tag_update_query_useful[i] == 0);
         end
     end
     logic [$clog2(TAG_COMPONENT_AMOUNT+1)-1:0] tag_update_useful_zero_id;
@@ -199,58 +213,83 @@ PROVIDER_HISTORY_BUFFER_SIZE
             if (tag_update_query_useful_match[i]) begin
                 // 1/2 probability when longer history tag want to be selected
                 if (tag_update_useful_pingpong_counter[i] != 2'b00) begin
+                    /* verilator lint_off WIDTH */
                     tag_update_useful_zero_id = i + 1;
+                    /* verilator lint_on WIDTH */
                 end
             end
         end
     end
 
     // pingpong counter, is a random number array
+    bit [31:0] LSFR;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            LSFR <= 32'hffffffff;
+        end else begin
+            // LSFR pseudo random number generator
+            LSFR <= {LSFR[30:0], LSFR[29] ^ LSFR[5] ^ LSFR[3] ^ LSFR[0]};
+        end
+    end
     bit [1:0] tag_update_useful_pingpong_counter[TAG_COMPONENT_AMOUNT];
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             for (integer i = 0; i < TAG_COMPONENT_AMOUNT; i++) begin
-                tag_update_useful_pingpong_counter[i] <= 2'b11;
+                tag_update_useful_pingpong_counter[i] <= 2'b00;
             end
         end else begin
-            // LSFR pseudo random number generator
-            tag_update_useful_pingpong_counter[TAG_COMPONENT_AMOUNT-1] <= tag_update_useful_pingpong_counter[0] ^ tag_update_useful_pingpong_counter[TAG_COMPONENT_AMOUNT-1];
-            for (integer i = 0; i < TAG_COMPONENT_AMOUNT - 1; i++) begin
-                tag_update_useful_pingpong_counter[i] <= tag_update_useful_pingpong_counter[i+1];
+            tag_update_useful_pingpong_counter[0] <= LSFR[1:0];
+            for (integer i = 1; i < TAG_COMPONENT_AMOUNT; i++) begin
+                tag_update_useful_pingpong_counter[i] <= tag_update_useful_pingpong_counter[i-1];
             end
         end
     end
 
 
 
-    logic [2:0] update_valid_id;
-    assign update_valid_id = provider_history_buffer[provider_history_matched_id].pred_provider_id;
+    logic [$clog2(TAG_COMPONENT_AMOUNT+1)-1:0] update_provider_id;  // including base predictor
+    assign update_provider_id = provider_history_buffer[provider_history_matched_id].pred_provider_id;
 
     // Fill update structs
-    always_comb begin : update_policy
-        // Default
+    // update_ctr
+    always_comb begin : update_ctr_policy
+        // update_ctr, default 0
         for (integer i = 0; i < TAG_COMPONENT_AMOUNT + 1; i++) begin
-            tag_update_valid[i] = 1'b0;
-            tag_update_useful[i] = 1'b0;
-            tag_update_useful_inc[i] = 1'b0;
+            update_ctr[i] = 1'b0;
         end
+        if (branch_conditional_i) begin  // Only update on conditional branches
+            update_ctr[update_provider_id] = 1'b1;  // One hot
+        end
+    end
 
-        // Useful
-        tag_update_useful[update_valid_id-1] = provider_history_buffer[provider_history_matched_id].useful;
+    // tag_update_useful & tag_update_inc_useful & tag_update_realloc_entry
+    always_comb begin : tag_update_policy
+        // Default 0
+        for (integer i = 0; i < TAG_COMPONENT_AMOUNT; i++) begin
+            tag_update_useful[i] = 1'b0;
+            tag_update_inc_useful[i] = 1'b0;
+            tag_update_realloc_entry[i] = 1'b0;
+        end
+        if (branch_conditional_i) begin  // Only update on conditional branches
+            // If useful, update useful bits
+            tag_update_useful[update_provider_id-1] = provider_history_buffer[provider_history_matched_id].useful;
+            // Increase if correct, else decrease
+            tag_update_inc_useful[update_provider_id-1] = (branch_taken_i == provider_history_buffer[provider_history_matched_id].taken);
 
-        // Valid
-        if (branch_taken_i == provider_history_buffer[provider_history_matched_id].taken) begin
-            tag_update_valid[update_valid_id] = 1'b1;
-            tag_update_useful_inc[update_valid_id-1] = 1'b1;
-        end else begin  // Wrong prediction
-            tag_update_valid[update_valid_id] = 1'b1;
-            tag_update_useful_inc[update_valid_id-1] = 1'b0;
-
-            // Allocate entry in longer history component
-            if (tag_update_useful_zero_id > update_valid_id) begin
-                tag_update_valid[tag_update_useful_zero_id] = 1'b1;
-            end else if (update_valid_id < TAG_COMPONENT_AMOUNT) begin
-                // tag_update_valid[update_valid_id+1] = 1'b1;
+            // Allocate new entry if failed
+            if (branch_taken_i != provider_history_buffer[provider_history_matched_id].taken) begin
+                // Allocate entry in longer history component
+                if (tag_update_useful_zero_id > update_provider_id) begin  // Have found a slot to allocate
+                    tag_update_realloc_entry[tag_update_useful_zero_id-1] = 1'b1;
+                end else begin  // No slot to allocate, decrease all useful bits of longer history components
+                    /* verilator lint_off WIDTH */
+                    for (integer i = update_provider_id; i < TAG_COMPONENT_AMOUNT; i++) begin
+                        // tag_update_realloc_entry[i] = 1'b1;
+                        tag_update_useful[i] = 1'b1;
+                        tag_update_inc_useful[i] = 1'b0;
+                    end
+                    /* verilator lint_on WIDTH */
+                end
             end
         end
     end
@@ -266,7 +305,9 @@ PROVIDER_HISTORY_BUFFER_SIZE
     logic [TAG_COMPONENT_AMOUNT:0] altpred_pool;
     always_comb begin
         altpred_pool = {tag_hit, 1'b1};
-        altpred_pool[pred_prediction_id] = 1'b0;
+        if (pred_prediction_id != 0) begin
+            altpred_pool[pred_prediction_id] = 1'b0;
+        end
     end
     fpa #(
         .LINES(5)
@@ -276,7 +317,7 @@ PROVIDER_HISTORY_BUFFER_SIZE
     );
 
     // Output logic
-    logic [4:0] taken;
+    logic [TAG_COMPONENT_AMOUNT:0] taken;
     assign taken = {tag_taken, base_taken};
     assign predict_branch_taken_o = taken[pred_prediction_id];
 
