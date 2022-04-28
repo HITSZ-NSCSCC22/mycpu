@@ -47,14 +47,14 @@
 -- DO NOT MODIFY THIS FILE.
 
 -- IP VLNV: xilinx.com:ip:div_gen:5.1
--- IP Revision: 14
+-- IP Revision: 16
 
 LIBRARY ieee;
 USE ieee.std_logic_1164.ALL;
 USE ieee.numeric_std.ALL;
 
-LIBRARY div_gen_v5_1_14;
-USE div_gen_v5_1_14.div_gen_v5_1_14;
+LIBRARY div_gen_v5_1_16;
+USE div_gen_v5_1_16.div_gen_v5_1_16;
 
 ENTITY div_gen_0_1 IS
   PORT (
@@ -71,7 +71,7 @@ END div_gen_0_1;
 ARCHITECTURE div_gen_0_1_arch OF div_gen_0_1 IS
   ATTRIBUTE DowngradeIPIdentifiedWarnings : STRING;
   ATTRIBUTE DowngradeIPIdentifiedWarnings OF div_gen_0_1_arch: ARCHITECTURE IS "yes";
-  COMPONENT div_gen_v5_1_14 IS
+  COMPONENT div_gen_v5_1_16 IS
     GENERIC (
       C_XDEVICEFAMILY : STRING;
       C_HAS_ARESETN : INTEGER;
@@ -118,7 +118,7 @@ ARCHITECTURE div_gen_0_1_arch OF div_gen_0_1 IS
       m_axis_dout_tlast : OUT STD_LOGIC;
       m_axis_dout_tdata : OUT STD_LOGIC_VECTOR(63 DOWNTO 0)
     );
-  END COMPONENT div_gen_v5_1_14;
+  END COMPONENT div_gen_v5_1_16;
   ATTRIBUTE X_INTERFACE_INFO : STRING;
   ATTRIBUTE X_INTERFACE_PARAMETER : STRING;
   ATTRIBUTE X_INTERFACE_INFO OF m_axis_dout_tdata: SIGNAL IS "xilinx.com:interface:axis:1.0 M_AXIS_DOUT TDATA";
@@ -133,7 +133,7 @@ ARCHITECTURE div_gen_0_1_arch OF div_gen_0_1 IS
   ATTRIBUTE X_INTERFACE_PARAMETER OF aclk: SIGNAL IS "XIL_INTERFACENAME aclk_intf, ASSOCIATED_BUSIF S_AXIS_DIVIDEND:S_AXIS_DIVISOR:M_AXIS_DOUT, ASSOCIATED_RESET aresetn, ASSOCIATED_CLKEN aclken, FREQ_HZ 1000000, PHASE 0.000, INSERT_VIP 0";
   ATTRIBUTE X_INTERFACE_INFO OF aclk: SIGNAL IS "xilinx.com:signal:clock:1.0 aclk_intf CLK";
 BEGIN
-  U0 : div_gen_v5_1_14
+  U0 : div_gen_v5_1_16
     GENERIC MAP (
       C_XDEVICEFAMILY => "virtex7",
       C_HAS_ARESETN => 0,

@@ -2,8 +2,10 @@
 module ctrl (
     input wire clk,
     input wire rst,
+    input wire stallreq_from_if,
     input wire stallreq_from_id,
     input wire stallreq_from_ex,
+    input wire stallreq_from_mem,
 
     input wire[1:0] excepttype_i,
 
@@ -37,6 +39,12 @@ module ctrl (
                 end
             endcase
           end
+        else if(stallreq_from_mem==`Stop)
+        begin
+            flush = 1'b0;
+            new_pc = `ZeroWord;
+            stall = 7'b0111111;
+        end
         else if(stallreq_from_ex == `Stop)
           begin
             flush = 1'b0;
@@ -49,6 +57,12 @@ module ctrl (
             new_pc = `ZeroWord;
             stall = 7'b0001111;
           end
+        else if(stallreq_from_if==`Stop)
+        begin
+            flush = 1'b0;
+            new_pc = `ZeroWord;
+            stall = 7'b0000111;
+        end
         else
           begin
             flush = 1'b0;

@@ -1,10 +1,10 @@
--- Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
+-- Copyright 1986-2019 Xilinx, Inc. All Rights Reserved.
 -- --------------------------------------------------------------------------------
--- Tool Version: Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
--- Date        : Fri Apr  8 17:44:04 2022
+-- Tool Version: Vivado v.2019.2 (win64) Build 2708876 Wed Nov  6 21:40:23 MST 2019
+-- Date        : Thu Apr 28 16:24:32 2022
 -- Host        : Liangjiajun running 64-bit major release  (build 9200)
 -- Command     : write_vhdl -force -mode synth_stub
---               d:/Vivado_Code/LoongArchMyCPU/mycpu/IP/divUnsigned/divUnsigned_stub.vhdl
+--               D:/Vivado_Code/LoongArchMyCPU/mycpu/IP/divUnsigned/divUnsigned_stub.vhdl
 -- Design      : divUnsigned
 -- Purpose     : Stub declaration of top-level module interface
 -- Device      : xc7vx485tffg1157-1
@@ -31,6 +31,6 @@ attribute black_box_pad_pin : string;
 attribute syn_black_box of stub : architecture is true;
 attribute black_box_pad_pin of stub : architecture is "aclk,s_axis_divisor_tvalid,s_axis_divisor_tdata[31:0],s_axis_dividend_tvalid,s_axis_dividend_tdata[31:0],m_axis_dout_tvalid,m_axis_dout_tdata[63:0]";
 attribute x_core_info : string;
-attribute x_core_info of stub : architecture is "div_gen_v5_1_14,Vivado 2018.3";
+attribute x_core_info of stub : architecture is "div_gen_v5_1_16,Vivado 2019.2";
 begin
 end;

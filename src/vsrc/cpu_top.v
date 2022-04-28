@@ -10,23 +10,24 @@
 `include "pipeline/4_mem/mem.v"
 `include "pipeline/4_mem/mem_wb.v"
 `include "pipeline/3_execution/div.v"
+`include "../AXI/axi_defines.v"
 module cpu_top (
     input wire clk,
     input wire rst,
-    input wire[`RegBus] dram_data_i,
-    input wire[`RegBus] ram_rdata_i,
+    // input wire[`RegBus] dram_data_i,
+    // input wire[`RegBus] ram_rdata_i,
 
-    output wire[`RegBus] ram_raddr_o,
-    output wire[`RegBus] ram_wdata_o,
-    output wire[`RegBus] ram_waddr_o,
-    output wire ram_wen_o,
-    output wire ram_en_o,
+    // output wire[`RegBus] ram_raddr_o,
+    // output wire[`RegBus] ram_wdata_o,
+    // output wire[`RegBus] ram_waddr_o,
+    // output wire ram_wen_o,
+    // output wire ram_en_o,
 
-    output wire[`RegBus] dram_addr_o,
-    output wire[`RegBus] dram_data_o,
-    output wire dram_we_o,
-    output wire[3:0] dram_sel_o,
-    output wire dram_ce_o,
+    // output wire[`RegBus] dram_addr_o,
+    // output wire[`RegBus] dram_data_o,
+    // output wire dram_we_o,
+    // output wire[3:0] dram_sel_o,
+    // output wire dram_ce_o,
 
     output wire[`RegBus] debug_commit_pc,
     output wire debug_commit_valid,
@@ -37,7 +38,103 @@ module cpu_top (
     output wire[1023:0] debug_reg,
     output wire Instram_branch_flag,
     output wire [6:0]ram_flush, //both ram use
-    output wire [6:0]ram_stall //both ram use
+    output wire [6:0]ram_stall, //both ram use
+
+    //AXI interface
+    
+    //IRAM
+    //ar
+    output wire [`ID]i_arid,  //arbitration
+    output wire [`ADDR]i_araddr,
+    output wire [`Len]i_arlen,
+    output wire [`Size]i_arsize,
+    output wire [`Burst]i_arburst,
+    output wire [`Lock]i_arlock,
+    output wire [`Cache]i_arcache,
+    output wire [`Prot]i_arprot,
+    output wire i_arvalid,
+    input wire i_arready,
+
+    //r
+    input wire [`ID]i_rid,
+    input wire [`Data]i_rdata,
+    input wire [`Resp]i_rresp,
+    input wire i_rlast,//the last read data
+    input wire i_rvalid,
+    output wire i_rready,
+
+    //aw
+    output wire [`ID]i_awid,
+    output wire [`ADDR]i_awaddr,
+    output wire [`Len]i_awlen,
+    output wire [`Size]i_awsize,
+    output wire [`Burst]i_awburst,
+    output wire [`Lock]i_awlock,
+    output wire [`Cache]i_awcache,
+    output wire [`Prot]i_awprot,
+    output wire i_awvalid,
+    input wire i_awready,
+
+    //w
+    output wire [`ID]i_wid,
+    output wire [`Data]i_wdata,
+    output wire [3:0]i_wstrb,//字节选通位和sel差不多
+    output wire  i_wlast,
+    output wire i_wvalid,
+    input wire i_wready,
+
+    //b
+    input wire [`ID]i_bid,
+    input wire [`Resp]i_bresp,
+    input wire i_bvalid,
+    output wire i_bready,
+
+    //DRAM
+    //ar
+    output wire [`ID]d_arid,  //arbitration
+    output wire [`ADDR]d_araddr,
+    output wire [`Len]d_arlen,
+    output wire [`Size]d_arsize,
+    output wire [`Burst]d_arburst,
+    output wire [`Lock]d_arlock,
+    output wire [`Cache]d_arcache,
+    output wire [`Prot]d_arprot,
+    output wire d_arvalid,
+    input wire d_arready,
+
+    //r
+    input wire [`ID]d_rid,
+    input wire [`Data]d_rdata,
+    input wire [`Resp]d_rresp,
+    input wire d_rlast,//the last read data
+    input wire d_rvalid,
+    output wire d_rready,
+
+    //aw
+    output wire [`ID]d_awid,
+    output wire [`ADDR]d_awaddr,
+    output wire [`Len]d_awlen,
+    output wire [`Size]d_awsize,
+    output wire [`Burst]d_awburst,
+    output wire [`Lock]d_awlock,
+    output wire [`Cache]d_awcache,
+    output wire [`Prot]d_awprot,
+    output wire d_awvalid,
+    input wire d_awready,
+
+    //w
+    output wire [`ID]d_wid,
+    output wire [`Data]d_wdata,
+    output wire [3:0]d_wstrb,//字节选通位和sel差不多
+    output wire  d_wlast,
+    output wire d_wvalid,
+    input wire d_wready,
+
+    //b
+    input wire [`ID]d_bid,
+    input wire [`Resp]d_bresp,
+    input wire d_bvalid,
+    output wire d_bready
   );
 
   wire[`InstAddrBus] pc;
@@ -66,6 +163,75 @@ module cpu_top (
            .stall(stall[0])
          );
 
+  //AXI Master interface for fetch instruction channel
+  wire aresetn=~rst;
+  wire axi_stall=&stall;
+  wire stallreq_from_if;
+  wire [31:0]inst_data_from_axi;
+  axi_Master inst_interface(
+            .aclk(clk),
+            .aresetn(aresetn), //low is valid
+    
+    //CPU
+            .cpu_addr_i(pc),
+            .cpu_ce_i(chip_enable),
+            .cpu_data_i(0),
+            .cpu_we_i(0) ,
+            .cpu_sel_i(4'b1111), 
+            .stall_i(axi_stall),
+            .flush_i(0),
+            .cpu_data_o(inst_data_from_axi),
+            .stallreq(stallreq_from_if),
+            .id(4'b0000),//决定是读数据还是取指令
+
+    //ar
+            .s_arid(i_arid),  //arbitration
+            .s_araddr(i_araddr),
+            .s_arlen(i_arlen),
+            .s_arsize(i_arsize),
+            .s_arburst(i_arburst),
+            .s_arlock(i_arlock),
+            .s_arcache(i_arcache),
+            .s_arprot(i_arprot),
+            .s_arvalid(i_arvalid),
+            .s_arready(i_arready),
+
+    //r
+            .s_rid(i_rid),
+            .s_rdata(i_rdata),
+            .s_rresp(i_rresp),
+            .s_rlast(i_rlast),//the last read data
+            .s_rvalid(i_rvalid),
+            .s_rready(i_rready),
+
+    //aw
+            .s_awid(i_awid),
+            .s_awaddr(i_awaddr),
+            .s_awlen(i_awlen),
+            .s_awsize(i_awsize),
+            .s_awburst(i_awburst),
+            .s_awlock(i_awlock),
+            .s_awcache(i_awcache),
+            .s_awprot(i_awprot),
+            .s_awvalid(i_awvalid),
+            .s_awready(i_awready),
+
+    //w
+            .s_wid(i_wid),
+            .s_wdata(i_wdata),
+            .s_wstrb(i_wstrb),//字节选通位和sel差不多
+            .s_wlast(i_wlast),
+            .s_wvalid(i_wvalid),
+            .s_wready(i_wready),
+
+    //b
+            .s_bid(i_bid),
+            .s_bresp(i_bresp),
+            .s_bvalid(i_bvalid),
+            .s_bready(i_bready)
+
+  );
+
   wire [`InstAddrBus]pc2;
   wire if_inst_valid;
   if_buffer if_buffer_1(
@@ -82,13 +248,12 @@ module cpu_top (
 
   wire[`InstAddrBus] id_pc;
   wire[`InstBus] id_inst;
-
   //  wire if_id_instr_invalid;
   if_id u_if_id(
           .clk(clk),
           .rst(rst),
           .if_pc_i(pc2),
-          .if_inst_i(ram_rdata_i),
+          .if_inst_i(inst_data_from_axi),
           .id_pc_o(id_pc),
           .id_inst_o(id_inst),
           .if_inst_valid(if_inst_valid),
@@ -347,6 +512,13 @@ module cpu_top (
   wire[1:0] mem_excepttype_o;
   wire[`RegBus] mem_current_inst_address_o;
 
+  wire[`RegBus] dram_addr_o;
+  wire[`RegBus] dram_data_o;
+  wire dram_we_o;
+  wire[3:0] dram_sel_o;
+  wire dram_ce_o;
+  wire[`RegBus] dram_data_i;
+  
   mem u_mem(
         .rst     (rst     ),
 
@@ -384,6 +556,74 @@ module cpu_top (
         .current_inst_address_o(mem_current_inst_address_o)
 
       );
+
+    
+  wire stallreq_from_mem;
+
+  //AXI Master interface for data ram
+  axi_Master data_interface(
+        .aclk(clk),
+        .aresetn(aresetn), //low is valid
+
+    //CPU
+        .cpu_addr_i(dram_addr_o),
+        .cpu_ce_i(dram_ce_o),
+        .cpu_data_i(dram_data_o),
+        .cpu_we_i(dram_we_o) ,
+        .cpu_sel_i(dram_sel_o), 
+        .stall_i(axi_stall),
+        .flush_i(0),
+        .cpu_data_o(dram_data_i),
+        .stallreq(stallreq_from_mem),
+        .id(4'b0001),//决定是读数据还是取指令
+
+    //ar
+        .s_arid(d_arid),  //arbitration
+        .s_araddr(d_araddr),
+        .s_arlen(d_arlen),
+        .s_arsize(d_arsize),
+        .s_arburst(d_arburst),
+        .s_arlock(d_arlock),
+        .s_arcache(d_arcache),
+        .s_arprot(d_arprot),
+        .s_arvalid(d_arvalid),
+        .s_arready(d_arready),
+
+    //r
+        .s_rid(d_rid),
+        .s_rdata(d_rdata),
+        .s_rresp(d_rresp),
+        .s_rlast(d_rlast),//the last read data
+        .s_rvalid(d_rvalid),
+        .s_rready(d_rready),
+
+    //aw
+        .s_awid(d_awid),
+        .s_awaddr(d_awaddr),
+        .s_awlen(d_awlen),
+        .s_awsize(d_awsize),
+        .s_awburst(d_awburst),
+        .s_awlock(d_awlock),
+        .s_awcache(d_awcache),
+        .s_awprot(d_awprot),
+        .s_awvalid(d_awvalid),
+        .s_awready(d_awready),
+
+    //w
+        .s_wid(d_wid),
+        .s_wdata(d_wdata),
+        .s_wstrb(d_wstrb),//字节选通位和sel差不多
+        .s_wlast(d_wlast),
+        .s_wvalid(d_wvalid),
+        .s_wready(d_wready),
+
+    //b
+        .s_bid(d_bid),
+        .s_bresp(d_bresp),
+        .s_bvalid(d_bvalid),
+        .s_bready(d_bready)
+
+  );
 
 
   wire wb_wreg;
@@ -446,8 +686,10 @@ module cpu_top (
          .clk                   (clk                   ),
          .rst                   (rst                   ),
          .stall(stall),
+         .stallreq_from_if(stallreq_from_if),
          .stallreq_from_id(stallreq_from_id),
          .stallreq_from_ex(stallreq_from_ex),
+         .stallreq_from_mem(stallreq_from_mem),
          .excepttype_i(mem_excepttype_o),
          .new_pc(new_pc),
          .flush(flush)

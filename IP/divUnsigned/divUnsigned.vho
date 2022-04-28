@@ -47,7 +47,7 @@
 -- DO NOT MODIFY THIS FILE.
 
 -- IP VLNV: xilinx.com:ip:div_gen:5.1
--- IP Revision: 14
+-- IP Revision: 16
 
 -- The following code must appear in the VHDL architecture header.
 
