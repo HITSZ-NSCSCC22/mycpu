@@ -72,12 +72,12 @@ module tage_predictor #(
         .CTR_WIDTH       (2),
         .PC_WIDTH        (`RegWidth)
     ) u_base_predictor (
-        .clk              (clk),
-        .rst              (rst),
-        .pc_i             (pc_i),
-        .update_valid     (base_update_ctr),
-        .update_instr_info({branch_pc_i, branch_taken_i}),
-        .taken            (base_taken)
+        .clk          (clk),
+        .rst          (rst),
+        .pc_i         (pc_i),
+        .update_valid (base_update_ctr),
+        .update_info_i({branch_pc_i, branch_taken_i}),
+        .taken        (base_taken)
     );
 
     localparam TAG_COMPONENT_AMOUNT = 4;

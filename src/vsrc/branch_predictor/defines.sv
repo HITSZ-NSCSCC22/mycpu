@@ -1,4 +1,5 @@
-`ifndef DEFINES_V
+`ifndef DEFINES_SV
+`define DEFINES_SV
 
 // BTB parameters
 `define BTB_DEPTH 64
