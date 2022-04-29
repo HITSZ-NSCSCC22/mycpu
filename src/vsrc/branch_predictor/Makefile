@@ -1,9 +1,4 @@
 
-4:  *.sv
-	verilator -O3 --trace tage_predictor.sv --exe cbp3.cpp --cc -I../ | true # Ignore errors
-	@make -C obj_dir -f Vtage_predictor.mk 2>&1 >/dev/null
-	./obj_dir/Vtage_predictor 4
-
 cbp:  *.sv
 	verilator -O3 tage_predictor.sv --exe cbp3.cpp --cc -I../ | true # Ignore errors
 	@make -C obj_dir -f Vtage_predictor.mk 2>&1 >/dev/null

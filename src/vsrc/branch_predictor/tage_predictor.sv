@@ -8,7 +8,7 @@
 
 module tage_predictor #(
     parameter PROVIDER_HISTORY_BUFFER_SIZE  = 10,
-    parameter TAGGED_PREDICTOR_USEFUL_WIDTH = 2
+    parameter TAGGED_PREDICTOR_USEFUL_WIDTH = 3
 ) (
     input logic clk,
     input logic rst,
@@ -68,7 +68,7 @@ module tage_predictor #(
     logic base_taken;
     logic base_update_ctr;
     base_predictor #(
-        .TABLE_DEPTH_EXP2(12),
+        .TABLE_DEPTH_EXP2(14),
         .CTR_WIDTH       (2),
         .PC_WIDTH        (`RegWidth)
     ) u_base_predictor (
@@ -134,7 +134,7 @@ module tage_predictor #(
 
             tagged_predictor #(
                 .INPUT_GHR_LENGTH(provider_ghr_length[provider_id]),
-                .PHT_DEPTH_EXP2  (10),
+                .PHT_DEPTH_EXP2  (11),
                 .PHT_USEFUL_WIDTH(TAGGED_PREDICTOR_USEFUL_WIDTH),
                 .PC_WIDTH        (`RegWidth)
             ) tag_predictor (
@@ -225,10 +225,10 @@ module tage_predictor #(
     bit [31:0] LSFR;
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            LSFR <= 32'hffffffff;
+            LSFR <= 32'h00000000;
         end else begin
             // LSFR pseudo random number generator
-            LSFR <= {LSFR[30:0], LSFR[29] ^ LSFR[5] ^ LSFR[3] ^ LSFR[0]};
+            LSFR <= {LSFR[30:0], LSFR[31] + LSFR[21] + LSFR[1] + LSFR[0] + 1'b1};
         end
     end
     bit [1:0] tag_update_useful_pingpong_counter[TAG_COMPONENT_AMOUNT];
@@ -283,10 +283,11 @@ module tage_predictor #(
                     tag_update_realloc_entry[tag_update_useful_zero_id-1] = 1'b1;
                 end else begin  // No slot to allocate, decrease all useful bits of longer history components
                     /* verilator lint_off WIDTH */
-                    for (integer i = update_provider_id; i < TAG_COMPONENT_AMOUNT; i++) begin
-                        // tag_update_realloc_entry[i] = 1'b1;
-                        tag_update_useful[i] = 1'b1;
-                        tag_update_inc_useful[i] = 1'b0;
+                    for (integer i = 0; i < TAG_COMPONENT_AMOUNT; i++) begin
+                        if (i >= update_provider_id - 1) begin
+                            tag_update_useful[i] = 1'b1;
+                            tag_update_inc_useful[i] = 1'b0;
+                        end
                     end
                     /* verilator lint_on WIDTH */
                 end

@@ -9,7 +9,7 @@ module tagged_predictor #(
     parameter INPUT_GHR_LENGTH = 4,
     parameter PC_WIDTH = 32,
     parameter PHT_DEPTH_EXP2 = 10,
-    parameter PHT_TAG_WIDTH = 9,
+    parameter PHT_TAG_WIDTH = 12,
     parameter PHT_CTR_WIDTH = 3,
     parameter PHT_USEFUL_WIDTH = 2,
     parameter HASH_BUFFER_SIZE = 10

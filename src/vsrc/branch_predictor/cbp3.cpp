@@ -7,7 +7,7 @@
 #include <queue>
 #include <deque>
 
-#define BRANCH_LATENCY (3)
+#define BRANCH_LATENCY (1)
 
 // Work around
 double sc_time_stamp() { return 0; }
