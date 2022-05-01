@@ -234,15 +234,18 @@ module cpu_top (
 
   wire [`InstAddrBus]pc2;
   wire if_inst_valid;
+  wire [31:0]if_inst;
   if_buffer if_buffer_1(
               .clk(clk),
               .rst(rst),
               .pc_i(pc),
+              .inst_i(inst_data_from_axi),
+              .inst_o(if_inst),
               .branch_flag_i(branch_flag),
               .pc_valid(if_inst_valid),
               .pc_o(pc2),
               .flush(flush),
-              .stall(stall[1])
+              .stall(stall)
             );
 
 
@@ -253,7 +256,7 @@ module cpu_top (
           .clk(clk),
           .rst(rst),
           .if_pc_i(pc2),
-          .if_inst_i(inst_data_from_axi),
+          .if_inst_i(if_inst),
           .id_pc_o(id_pc),
           .id_inst_o(id_inst),
           .if_inst_valid(if_inst_valid),

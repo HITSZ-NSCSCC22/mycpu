@@ -1,6 +1,6 @@
 `include "vsrc/defines.v"
 `include "ram.v"
-
+`include "AXI/axi_defines.v"
 module SimTop(
     input clock,
     input reset,
@@ -40,23 +40,73 @@ module SimTop(
   wire Instram_branch_flag;
   wire ram_flush;
   wire [6:0]ram_stall;
+
+    //AXI interface
+    //IRAM
+    //ar
+     wire [`ID]i_arid;  //arbitration
+     wire [`ADDR]i_araddr;
+     wire [`Len]i_arlen;
+     wire [`Size]i_arsize;
+     wire [`Burst]i_arburst;
+     wire [`Lock]i_arlock;
+     wire [`Cache]i_arcache;
+     wire [`Prot]i_arprot;
+     wire i_arvalid;
+     wire i_arready;
+
+    //r
+     wire [`ID]i_rid;
+     wire [`Data]i_rdata;
+     wire [`Resp]i_rresp;
+     wire i_rlast;//the last read data
+     wire i_rvalid;
+     wire i_rready;
+
+    //aw
+     wire [`ID]i_awid;
+     wire [`ADDR]i_awaddr;
+     wire [`Len]i_awlen;
+     wire [`Size]i_awsize;
+     wire [`Burst]i_awburst;
+     wire [`Lock]i_awlock;
+     wire [`Cache]i_awcache;
+     wire [`Prot]i_awprot;
+     wire i_awvalid;
+     wire i_awready;
+
+    //w
+     wire [`ID]i_wid;
+     wire [`Data]i_wdata;
+     wire [3:0]i_wstrb;//字节选�?�位和sel差不�?
+     wire  i_wlast;
+     wire i_wvalid;
+     wire i_wready;
+
+    //b
+     wire [`ID]i_bid;
+     wire [`Resp]i_bresp;
+     wire i_bvalid;
+     wire i_bready;
+
+     assign ram_raddr=i_araddr;
   cpu_top u_cpu_top(
             .clk(clock),
             .rst(reset),
-            .dram_data_i(dram_data_o),
-            .ram_rdata_i(ram_rdata),
+            // .dram_data_i(dram_data_o),
+            // .ram_rdata_i(ram_rdata),
 
-            .ram_raddr_o(ram_raddr),
-            .ram_wdata_o(ram_wdata),
-            .ram_waddr_o(ram_waddr),
-            .ram_wen_o (ram_wen),
-            .ram_en_o (chip_enable),
+            // .ram_raddr_o(ram_raddr),
+            // .ram_wdata_o(ram_wdata),
+            // .ram_waddr_o(ram_waddr),
+            // .ram_wen_o (ram_wen),
+            // .ram_en_o (chip_enable),
 
-            .dram_addr_o(dram_addr),
-            .dram_data_o(dram_data_i),
-            .dram_we_o(dram_we),
-            .dram_sel_o(dram_sel),
-            .dram_ce_o(dram_ce),
+            // .dram_addr_o(dram_addr),
+            // .dram_data_o(dram_data_i),
+            // .dram_we_o(dram_we),
+            // .dram_sel_o(dram_sel),
+            // .dram_ce_o(dram_ce),
 
             .debug_commit_pc(debug_commit_pc        ),
             .debug_commit_valid(debug_commit_valid     ),
@@ -67,7 +117,101 @@ module SimTop(
             .debug_reg(debug_reg   ),
             .Instram_branch_flag(Instram_branch_flag),
             .ram_flush(ram_flush),
-            .ram_stall(ram_stall)
+            .ram_stall(ram_stall),
+
+    //IRAM
+    //ar
+    .i_arid(i_arid),  //arbitration
+    .i_araddr(i_araddr),
+    .i_arlen(i_arlen),
+    .i_arsize(i_arsize),
+    .i_arburst(i_arburst),
+    .i_arlock(i_arlock),
+    .i_arcache(i_arcache),
+    .i_arprot(i_arprot),
+    .i_arvalid(i_arvalid),
+    .i_arready(i_arready),
+
+    //r
+    .i_rid(i_rid),
+    .i_rdata(i_rdata),
+    .i_rresp(i_rresp),
+    .i_rlast(i_rlast),//the last read data
+    .i_rvalid(i_rvalid),
+    .i_rready(i_rready),
+
+    //aw
+    .i_awid(i_awid),
+    .i_awaddr(i_awaddr),
+    .i_awlen(i_awlen),
+    .i_awsize(i_awsize),
+    .i_awburst(i_awburst),
+    .i_awlock(i_awlock),
+    .i_awcache(i_awcache),
+    .i_awprot(i_awprot),
+    .i_awvalid(i_awvalid),
+    .i_awready(i_awready),
+
+    //w
+    .i_wid(i_wid),
+    .i_wdata(i_wdata),
+    .i_wstrb(i_wstrb),//字节选�?�位和sel差不�?
+    .i_wlast(i_wlast),
+    .i_wvalid(i_wvalid),
+    .i_wready(i_wready),
+
+    // //b
+    .i_bid(i_bid),
+      .i_bresp(i_bresp),
+     .i_bvalid(i_bvalid),
+     .i_bready(i_bready)
+
+    // //DRAM
+    // //ar
+    // output wire [`ID]d_arid,  //arbitration
+    // output wire [`ADDR]d_araddr,
+    // output wire [`Len]d_arlen,
+    // output wire [`Size]d_arsize,
+    // output wire [`Burst]d_arburst,
+    // output wire [`Lock]d_arlock,
+    // output wire [`Cache]d_arcache,
+    // output wire [`Prot]d_arprot,
+    // output wire d_arvalid,
+    // input wire d_arready,
+
+    // //r
+    // input wire [`ID]d_rid,
+    // input wire [`Data]d_rdata,
+    // input wire [`Resp]d_rresp,
+    // input wire d_rlast,//the last read data
+    // input wire d_rvalid,
+    // output wire d_rready,
+
+    // //aw
+    // output wire [`ID]d_awid,
+    // output wire [`ADDR]d_awaddr,
+    // output wire [`Len]d_awlen,
+    // output wire [`Size]d_awsize,
+    // output wire [`Burst]d_awburst,
+    // output wire [`Lock]d_awlock,
+    // output wire [`Cache]d_awcache,
+    // output wire [`Prot]d_awprot,
+    // output wire d_awvalid,
+    // input wire d_awready,
+
+    // //w
+    // output wire [`ID]d_wid,
+    // output wire [`Data]d_wdata,
+    // output wire [3:0]d_wstrb,//字节选�?�位和sel差不�?
+    // output wire  d_wlast,
+    // output wire d_wvalid,
+    // input wire d_wready,
+
+    // //b
+    // input wire [`ID]d_bid,
+    // input wire [`Resp]d_bresp,
+    // input wire d_bvalid,
+    // output wire d_bready
           );
 
 `ifdef DUMP_WAVEFORM
@@ -80,34 +224,75 @@ module SimTop(
 
 `endif
 
-`ifndef DIFFTEST
+// `ifndef DIFFTEST
 
-  ram u_ram(
-        .clock (clock ),
-        .reset (reset ),
-        .ce    (chip_enable),
-        .raddr (ram_raddr ),
-        .rdata (ram_rdata ),
-        .waddr (ram_waddr ),
-        .wdata (ram_wdata ),
-        .wen   (ram_wen   ),
-        .branch_flag_i(Instram_branch_flag),
-        .flush(ram_flush),
-        .stall(ram_stall)
-      );
-`endif
+//   ram u_ram(
+//         .clock (clock ),
+//         .reset (reset ),
+//         .ce    (chip_enable),
+//         .raddr (ram_raddr ),
+//         .rdata (ram_rdata ),
+//         .waddr (ram_waddr ),
+//         .wdata (ram_wdata ),
+//         .wen   (ram_wen   ),
+//         .branch_flag_i(Instram_branch_flag),
+//         .flush(ram_flush),
+//         .stall(ram_stall)
+//       );
+// `endif
 
 
-  data_ram u_data_ram(
-             .clk(clock),
-             .ce(dram_ce),
-             .we(dram_we),
-             .addr(dram_addr),
-             .sel(dram_sel),
-             .data_i(dram_data_i),
-             .data_o(dram_data_o)
-           );
+  // data_ram u_data_ram(
+  //            .clk(clock),
+  //            .ce(dram_ce),
+  //            .we(dram_we),
+  //            .addr(dram_addr),
+  //            .sel(dram_sel),
+  //            .data_i(dram_data_i),
+  //            .data_o(dram_data_o)
+  //          );
 
+  wire aresetn;
+  assign aresetn=~reset;
+  inst_bram u_inst_bram(
+    .s_aclk         (clock         ),
+    .s_aresetn      (aresetn      ),
+
+    //ar
+    .s_axi_arid     (i_arid     ),
+    .s_axi_araddr   (i_araddr-32'h1c000000  ),
+    .s_axi_arlen    (i_arlen    ),
+    .s_axi_arsize   (i_arsize   ),
+    .s_axi_arburst  (i_arburst  ),
+    .s_axi_arvalid  (i_arvalid  ),
+    .s_axi_arready  (i_arready  ),
+    //r
+    .s_axi_rid      (i_rid      ),
+    .s_axi_rdata    (i_rdata    ),
+    .s_axi_rresp    (i_rresp    ),
+    .s_axi_rlast    (i_rlast    ),
+    .s_axi_rvalid   (i_rvalid   ),
+    .s_axi_rready   (i_rready   ),
+    //aw
+    .s_axi_awid     (i_awid     ),
+    .s_axi_awaddr   (i_awaddr   ),
+    .s_axi_awlen    (i_awlen    ),
+    .s_axi_awsize   (i_awsize   ),
+    .s_axi_awburst  (i_awburst  ),
+    .s_axi_awvalid  (i_awvalid  ),
+    .s_axi_awready  (i_awready  ),
+    //w
+    .s_axi_wdata    (i_wdata    ),
+    .s_axi_wstrb    (i_wstrb    ),
+    .s_axi_wlast    (i_wlast    ),
+    .s_axi_wvalid   (i_wvalid   ),
+    .s_axi_wready   (i_wready   ),
+    //b
+    .s_axi_bid      (i_bid      ),
+    .s_axi_bresp    (i_bresp    ),
+    .s_axi_bvalid   (i_bvalid   ),
+    .s_axi_bready   (i_bready   )
+  );
 
 `ifdef DIFFTEST
 

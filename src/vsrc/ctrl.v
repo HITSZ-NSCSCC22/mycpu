@@ -61,7 +61,7 @@ module ctrl (
         begin
             flush = 1'b0;
             new_pc = `ZeroWord;
-            stall = 7'b0000111;
+            stall = 7'b0000011;//axi等待信号
         end
         else
           begin
