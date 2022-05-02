@@ -1215,9 +1215,9 @@ module cpu_top (
     wire [13:0] wb_csr_addr_1;
     wire [`RegBus] wb_csr_data_1;
 
-    assign debug_commit_wreg_1 = wb_wreg_1;
-    assign debug_commit_reg_waddr_1 = wb_reg_waddr_1;
-    assign debug_commit_reg_wdata_1 = wb_reg_wdata_1;
+    assign debug0_wb_rf_wen   = wb_wreg_1;
+    assign debug0_wb_rf_wnum  = wb_reg_waddr_1;
+    assign debug0_wb_rf_wdata = wb_reg_wdata_1;
 
 
     wire wb_excp_o_1;
@@ -1374,19 +1374,18 @@ module cpu_top (
         .waddr_2(wb_reg_waddr_2),
         .wdata_2(wb_reg_wdata_2),
 
-        .re1_1    (reg1_read_1),
-        .raddr1_1 (reg1_addr_1),
-        .rdata1_1 (reg1_data_1),
-        .re2_1    (reg2_read_1),
-        .raddr2_1 (reg2_addr_1),
-        .rdata2_1 (reg2_data_1),
-        .re1_2    (reg1_read_2),
-        .raddr1_2 (reg1_addr_2),
-        .rdata1_2 (reg1_data_2),
-        .re2_2    (reg2_read_2),
-        .raddr2_2 (reg2_addr_2),
-        .rdata2_2 (reg2_data_2),
-        .debug_reg(debug_reg)
+        .re1_1   (reg1_read_1),
+        .raddr1_1(reg1_addr_1),
+        .rdata1_1(reg1_data_1),
+        .re2_1   (reg2_read_1),
+        .raddr2_1(reg2_addr_1),
+        .rdata2_1(reg2_data_1),
+        .re1_2   (reg1_read_2),
+        .raddr1_2(reg1_addr_2),
+        .rdata1_2(reg1_data_2),
+        .re2_2   (reg2_read_2),
+        .raddr2_2(reg2_addr_2),
+        .rdata2_2(reg2_data_2)
     );
 
     ctrl u_ctrl (
@@ -1543,6 +1542,98 @@ module cpu_top (
         .csr_da            (csr_da),
         .csr_pg            (csr_pg)
     );
+
+    // Difftest DPI-C
+`ifdef SIMU  // SIMU is defined in chiplab run_func/Makefile
+    DifftestInstrCommit difftest_instr_commit_0 (  // TODO: not finished yet, blank signal is needed
+        .clock         (aclk),
+        .coreid        (0),                          // Only one core, so always 0
+        .index         (0),                          // Commit channel index
+        .valid         (debug_commit_valid_1),
+        .pc            (debug_commit_pc_1),
+        .instr         (debug_commit_instr_1),
+        .skip          (0),                          // Not sure meaning, but keep 0 for now
+        .is_TLBFILL    (),
+        .TLBFILL_index (),
+        .is_CNTinst    (),
+        .timer_64_value(),
+        .wen           (debug0_wb_rf_wen),
+        .wdest         ({3'b0, debug0_wb_rf_wnum}),
+        .wdata         (debug0_wb_rf_wdata),
+        .csr_rstat     (),
+        .csr_data      ()
+    );
+
+    DifftestCSRRegState DifftestCSRRegState (
+        .clock    (aclk),
+        .coreid   (0),                       // Only one core, so always 0
+        .crmd     (u_cs_reg.csr_crmd),
+        .prmd     (u_cs_reg.csr_prmd),
+        .euen     (0),                       // TODO: Not sure meaning
+        .ecfg     (u_cs_reg.csr_ectl),       // ectl
+        .estat    (u_cs_reg.csr_estat),
+        .era      (u_cs_reg.csr_era),
+        .badv     (u_cs_reg.csr_badv),
+        .eentry   (u_cs_reg.csr_eentry),
+        .tlbrentry(u_cs_reg.csr_tlbrentry),
+        .tlbidx   (u_cs_reg.csr_tlbidx),
+        .tlbehi   (u_cs_reg.csr_tlbehi),
+        .tlbelo0  (u_cs_reg.csr_tlbelo0),
+        .tlbelo1  (u_cs_reg.csr_tlbelo1),
+        .asid     (u_cs_reg.csr_asid),
+        .pgdl     (u_cs_reg.csr_pgdl),
+        .pgdh     (u_cs_reg.csr_pgdh),
+        .save0    (u_cs_reg.csr_save0),
+        .save1    (u_cs_reg.csr_save1),
+        .save2    (u_cs_reg.csr_save2),
+        .save3    (u_cs_reg.csr_save3),
+        .tid      (u_cs_reg.csr_tid),
+        .tcfg     (u_cs_reg.csr_tcfg),
+        .tval     (u_cs_reg.csr_tval),
+        .ticlr    (u_cs_reg.csr_ticlr),
+        .llbctl   (u_cs_reg.csr_llbctl),
+        .dmw0     (u_cs_reg.csr_dmw0),
+        .dmw1     (u_cs_reg.csr_dmw1)
+    );
+
+
+    DifftestGRegState difftest_gpr_state (
+        .clock (aclk),
+        .coreid(0),
+        .gpr_0 (0),
+        .gpr_1 (u_regfile.regs[1]),
+        .gpr_2 (u_regfile.regs[2]),
+        .gpr_3 (u_regfile.regs[3]),
+        .gpr_4 (u_regfile.regs[4]),
+        .gpr_5 (u_regfile.regs[5]),
+        .gpr_6 (u_regfile.regs[6]),
+        .gpr_7 (u_regfile.regs[7]),
+        .gpr_8 (u_regfile.regs[8]),
+        .gpr_9 (u_regfile.regs[9]),
+        .gpr_10(u_regfile.regs[10]),
+        .gpr_11(u_regfile.regs[11]),
+        .gpr_12(u_regfile.regs[12]),
+        .gpr_13(u_regfile.regs[13]),
+        .gpr_14(u_regfile.regs[14]),
+        .gpr_15(u_regfile.regs[15]),
+        .gpr_16(u_regfile.regs[16]),
+        .gpr_17(u_regfile.regs[17]),
+        .gpr_18(u_regfile.regs[18]),
+        .gpr_19(u_regfile.regs[19]),
+        .gpr_20(u_regfile.regs[20]),
+        .gpr_21(u_regfile.regs[21]),
+        .gpr_22(u_regfile.regs[22]),
+        .gpr_23(u_regfile.regs[23]),
+        .gpr_24(u_regfile.regs[24]),
+        .gpr_25(u_regfile.regs[25]),
+        .gpr_26(u_regfile.regs[26]),
+        .gpr_27(u_regfile.regs[27]),
+        .gpr_28(u_regfile.regs[28]),
+        .gpr_29(u_regfile.regs[29]),
+        .gpr_30(u_regfile.regs[30]),
+        .gpr_31(u_regfile.regs[31])
+    );
+`endif
 
 
 endmodule
