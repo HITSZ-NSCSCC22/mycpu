@@ -5,6 +5,7 @@
 `include "cs_reg.v"
 `include "tlb.v"
 `include "tlb_entry.v"
+`include "AXI/axi_master.v"
 `include "pipeline/1_fetch/if_buffer.v"
 `include "pipeline/1_fetch/if_id.v"
 `include "pipeline/2_decode/id.v"
@@ -15,66 +16,137 @@
 `include "pipeline/4_mem/mem_wb.v"
 
 module cpu_top (
-    input wire clk,
-    input wire rst,
+    input wire aclk,
+    input wire aresetn,
 
-    input wire [`RegBus] dram_data_i_1,
-    input wire [`RegBus] dram_data_i_2,
-    input wire [`RegBus] ram_rdata_i_1,
-    input wire [`RegBus] ram_rdata_i_2,
+    input wire [7:0] intrpt,  // External interrupt
 
-    output wire [`RegBus] ram_raddr_o_1,
-    output wire [`RegBus] ram_raddr_o_2,
-    output wire [`RegBus] ram_wdata_o,
-    output wire [`RegBus] ram_waddr_o,
-    output wire ram_wen_o,
-    output wire ram_en_o,
-
-    output wire [`RegBus] dram_addr_o_1,
-    output wire [`RegBus] dram_data_o_1,
-    output wire dram_we_o_1,
-    output wire [3:0] dram_sel_o_1,
-    output wire dram_ce_o_1,
-    output wire [`InstAddrBus] dram_pc_o_1,
-
-    output wire [`RegBus] dram_addr_o_2,
-    output wire [`RegBus] dram_data_o_2,
-    output wire dram_we_o_2,
-    output wire [3:0] dram_sel_o_2,
-    output wire dram_ce_o_2,
-    output wire [`InstAddrBus] dram_pc_o_2,
-
-    output wire [`RegBus] debug_commit_pc_1,
-    output wire debug_commit_valid_1,
-    output wire [`InstBus] debug_commit_instr_1,
-    output wire debug_commit_wreg_1,
-    output wire [`RegAddrBus] debug_commit_reg_waddr_1,
-    output wire [`RegBus] debug_commit_reg_wdata_1,
-    output wire [`RegBus] debug_commit_pc_2,
-    output wire debug_commit_valid_2,
-    output wire [`InstBus] debug_commit_instr_2,
-    output wire debug_commit_wreg_2,
-    output wire [`RegAddrBus] debug_commit_reg_waddr_2,
-    output wire [`RegBus] debug_commit_reg_wdata_2,
-    output wire [1023:0] debug_reg,
-    output wire [831:0] csr_diff,
-    output wire Instram_branch_flag
+    // AXI interface 
+    // read reqest
+    output [ 3:0] arid,
+    output [31:0] araddr,
+    output [ 7:0] arlen,
+    output [ 2:0] arsize,
+    output [ 1:0] arburst,
+    output [ 1:0] arlock,
+    output [ 3:0] arcache,
+    output [ 2:0] arprot,
+    output        arvalid,
+    input         arready,
+    // read back
+    input  [ 3:0] rid,
+    input  [31:0] rdata,
+    input  [ 1:0] rresp,
+    input         rlast,
+    input         rvalid,
+    output        rready,
+    // write request
+    output [ 3:0] awid,
+    output [31:0] awaddr,
+    output [ 7:0] awlen,
+    output [ 2:0] awsize,
+    output [ 1:0] awburst,
+    output [ 1:0] awlock,
+    output [ 3:0] awcache,
+    output [ 2:0] awprot,
+    output        awvalid,
+    input         awready,
+    // write data
+    output [ 3:0] wid,
+    output [31:0] wdata,
+    output [ 3:0] wstrb,
+    output        wlast,
+    output        wvalid,
+    input         wready,
+    //write back
+    input  [ 3:0] bid,
+    input  [ 1:0] bresp,
+    input         bvalid,
+    output        bready,
+    //debug info
+    output [31:0] debug0_wb_pc,
+    output [ 3:0] debug0_wb_rf_wen,
+    output [ 4:0] debug0_wb_rf_wnum,
+    output [31:0] debug0_wb_rf_wdata
 );
+
+    // Clock signal
+    wire clk;
+    assign clk = aclk;
+    // Reset signal
+    wire rst_n;
+    wire rst;
+    assign rst_n = aresetn;
+    assign rst   = ~rst_n;
+
+    // Global enable signal
+    wire chip_enable;
+
+    wire branch_flag_1;
+    wire branch_flag_2;
+    wire Instram_branch_flag;
+    assign Instram_branch_flag = branch_flag_1 | branch_flag_2;
+
+    axi_master u_axi_master (
+        .aclk   (aclk),
+        .aresetn(aresetn),
+
+        .cpu_addr_i(pc_buffer_1),
+        .cpu_ce_i(chip_enable),
+        .cpu_data_i(0),
+        .cpu_we_i(1'b0),
+        .cpu_sel_i(4'b1111),
+        .stall_i(Instram_branch_flag),
+        .flush_i(Instram_branch_flag),
+        .cpu_data_o(),
+        .stallreq(stallreq_from_id_1),
+        .id(4'b0000),  // Read Instruction only, TODO: move this from AXI to cache
+        .s_arid(arid),
+        .s_araddr(araddr),
+        .s_arlen(arlen),
+        .s_arsize(arsize),
+        .s_arburst(arburst),
+        .s_arlock(arlock),
+        .s_arcache(arcache),
+        .s_arprot(arprot),
+        .s_arvalid(arvalid),
+        .s_arready(arready),
+        .s_rid(rid),
+        .s_rdata(rdata),
+        .s_rresp(rresp),
+        .s_rlast(rlast),
+        .s_rvalid(rvalid),
+        .s_rready(rready),
+        .s_awid(awid),
+        .s_awaddr(awaddr),
+        .s_awlen(awlen),
+        .s_awsize(awsize),
+        .s_awburst(awburst),
+        .s_awlock(awlock),
+        .s_awcache(awcache),
+        .s_awprot(awprot),
+        .s_awvalid(awvalid),
+        .s_awready(awready),
+        .s_wid(wid),
+        .s_wdata(wdata),
+        .s_wstrb(wstrb),
+        .s_wlast(wlast),
+        .s_wvalid(wvalid),
+        .s_wready(wready),
+        .s_bid(bid),
+        .s_bresp(bresp),
+        .s_bvalid(bvalid),
+        .s_bready(bready)
+    );
+
 
     wire [`InstAddrBus] pc_1;
     wire [`InstAddrBus] pc_2;
-    wire chip_enable;
 
     wire [`InstAddrBus] pc_buffer_1;
     wire [`InstAddrBus] pc_buffer_2;
 
-    assign ram_en_o = chip_enable;
-    assign ram_raddr_o_1 = pc_buffer_1;
-    assign ram_raddr_o_2 = pc_buffer_2;
 
-    wire branch_flag_1;
-    wire branch_flag_2;
-    assign Instram_branch_flag = branch_flag_1 | branch_flag_2;
     wire [`RegBus] branch_target_address_1;
     wire [`RegBus] branch_target_address_2;
     wire [`RegBus] link_addr;
