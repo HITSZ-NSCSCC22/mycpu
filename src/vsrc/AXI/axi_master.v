@@ -255,6 +255,7 @@ module axi_master (
                     else stall_req_w = 1;
                 end
                 default: begin
+                    stall_req_w = 0;
                 end
             endcase
         end
