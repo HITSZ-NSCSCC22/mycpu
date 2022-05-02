@@ -1549,7 +1549,7 @@ module cpu_top (
         .clock         (aclk),
         .coreid        (0),                          // Only one core, so always 0
         .index         (0),                          // Commit channel index
-        .valid         (debug_commit_valid_1),
+        .valid         (~debug_commit_valid_1),      // TODO: flip valid definition in CPU
         .pc            (debug_commit_pc_1),
         .instr         (debug_commit_instr_1),
         .skip          (0),                          // Not sure meaning, but keep 0 for now
