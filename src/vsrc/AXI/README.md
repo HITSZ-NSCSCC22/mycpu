@@ -2,14 +2,9 @@
 
 ## 目录结构
 ```
-   AXI
-        AXI_Master/    主机接口文件夹
-            axi_Master          axi主机接口，接入cpu_top
-            axi_MasterThree     失败版本，不用管
-        
-        AXI_Slave/       空文件夹
-    
-        axi_defines.v   定义了宏的文件
+   AXI/                         # 本目录
+        axi_Master              # axi主机接口，接入cpu_top
+        axi_defines.v           # 定义了宏的文件
 ```
 
 ## 接口说明
