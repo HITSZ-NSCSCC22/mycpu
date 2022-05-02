@@ -3,7 +3,7 @@
 ## 目录结构
 ```
    AXI/                         # 本目录
-        axi_Master              # axi主机接口，接入cpu_top
+        axi_master              # axi主机接口，接入cpu_top
         axi_defines.v           # 定义了宏的文件
 ```
 
