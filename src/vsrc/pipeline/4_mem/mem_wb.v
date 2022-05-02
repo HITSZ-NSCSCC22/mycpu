@@ -141,7 +141,7 @@ module mem_wb (
         begin
           debug_commit_pc <= `ZeroWord;
           debug_commit_instr <= `ZeroWord;
-          debug_commit_valid <= `InstInvalid;
+          debug_commit_valid <= ~`InstInvalid;
         end
       else
         begin

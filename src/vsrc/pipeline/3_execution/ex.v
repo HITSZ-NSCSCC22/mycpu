@@ -132,10 +132,10 @@ module ex (
   wire[`RegBus] reg1_i_mux;
   wire[`RegBus] result_compare;
 
-  assign reg2_i_mux = (aluop_i == `EXE_SLT_OP) ? (~reg2_i)+1 : reg2_i;
-  assign reg1_i_mux = (aluop_i == `EXE_SLT_OP) ? (~reg1_i)+1 : reg1_i;
+  assign reg2_i_mux = (aluop_i == `EXE_SLT_OP) ? {~reg2_i[`RegWidth-1], reg2_i[`RegWidth-2:0]} : reg2_i; // shifted encoding when signed comparison
+  assign reg1_i_mux = (aluop_i == `EXE_SLT_OP) ? {~reg1_i[`RegWidth-1], reg1_i[`RegWidth-2:0]} : reg1_i;
   assign result_compare = reg1_i + reg2_i_mux;
-  assign reg1_lt_reg2 = (reg1_i < reg2_i);
+  assign reg1_lt_reg2 = (reg1_i_mux < reg2_i_mux);
 
   //乘法模块
 
