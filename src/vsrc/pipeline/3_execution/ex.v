@@ -1,4 +1,4 @@
-`include "defines.v"
+`include "../../defines.v"
 
 module ex (
     input wire rst,
@@ -15,6 +15,11 @@ module ex (
     input wire[`RegBus] link_addr_i,
     input wire[1:0] excepttype_i,
     input wire[`RegBus] current_inst_address_i,
+    input wire ex_csr_we_i,
+    input wire [13:0]ex_csr_addr_i,
+    input wire [`RegBus]ex_csr_data_i,
+
+    input wire[18:0] csr_vppn, 
 
     output reg[`RegAddrBus] wd_o,
     output reg wreg_o,
@@ -26,8 +31,16 @@ module ex (
     output wire[`RegBus] reg2_o,
     output wire[1:0] excepttype_o,
     output wire[`RegBus] current_inst_address_o,
+    output wire ex_csr_we_o,
+    output wire [13:0]ex_csr_addr_o,
+    output wire [`RegBus]ex_csr_data_o,
 
-    output wire stallreq
+    output wire stallreq,
+
+    input wire excp_i,
+    input wire [8:0] excp_num_i,
+    output wire excp_o,
+    output wire [9:0] excp_num_o
   );
 
   reg[`RegBus] logicout;
@@ -41,6 +54,13 @@ module ex (
 
   assign excepttype_o = excepttype_i;
   assign current_inst_address_o = current_inst_address_i;
+
+  assign ex_csr_we_o = ex_csr_we_i;
+  assign ex_csr_addr_o = ex_csr_addr_i;
+  assign ex_csr_data_o = ex_csr_data_i;
+
+  assign excp_o  = excp_i || 1'b0;
+  assign excp_num_o = {1'b0, excp_num_i};
 
   always @(*)
     begin

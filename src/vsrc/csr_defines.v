@@ -76,8 +76,8 @@
 `define EENTRY  14'hc
 `define TLBIDX 14'h10
 `define TLBEHI 14'h11
-`define TLBELO014'h12
-`define TLBELO114'h13
+`define TLBELO0 14'h12
+`define TLBELO1 14'h13
 `define ASID   14'h18
 `define PGDL   14'h19
 `define PGDH   14'h1a
@@ -94,7 +94,36 @@
 `define TICLR  14'h44
 `define LLBCTL 14'h60
 `define TLBRENTRY  14'h88
+`define TLBRBADV 14'h89
+`define TLBRERA 14'h8a
+`define TLBRSAVE  14'h8bb
+`define TLBRLO0 14'h8c
+`define TLBRLO1 14'h8d
+`define TLBREHI 14'h8e
+`define TLBRPRMD 14'h8f
 `define DMW0   14'h180
 `define DMW1   14'h181
+`define DMW2   14'h182
+`define DMW3   14'h183
 `define BRK  14'h100
 `define DISABLE_CACHE  14'h101
+
+//error code
+`define ECODE_INT  6'h0
+`define ECODE_PIL  6'h1
+`define ECODE_PIS  6'h2
+`define ECODE_PIF  6'h3
+`define ECODE_PME  6'h4
+`define ECODE_PPI  6'h7
+`define ECODE_ADEF 6'h8
+`define ECODE_ADEM 6'h8
+`define ECODE_ALE  6'h9
+`define ECODE_SYS  6'hb
+`define ECODE_BRK  6'hc
+`define ECODE_INE  6'hd
+`define ECODE_IPE  6'he
+`define ECODE_FPD  6'hf
+`define ECODE_TLBR 6'h3f
+
+`define ESUBCODE_ADEF  9'h0
+`define ESUBCODE_ADEM  9'h1

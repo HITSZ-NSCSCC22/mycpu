@@ -1,10 +1,14 @@
-`include "defines.v"
+`timescale 1ns/1ns
+
+`include "../../defines.v"
 module id(
     input wire rst,
 
     // <- IF
     input wire[`InstAddrBus] pc_i,
     input wire[`InstBus] inst_i,
+    input wire excp_i,
+    input wire [3:0]excp_num_i,
 
     // <- Regfile
     input wire[`RegBus] reg1_data_i,
@@ -51,16 +55,32 @@ module id(
     output reg inst_valid,
     output reg[`InstAddrBus] inst_pc,
     output wire[`RegBus] inst_o,
-    output wire[1:0] excepttype_o,
     output wire[`RegBus] current_inst_address_o,
+    output reg csr_we,
+    output reg [13:0] csr_addr_o,
+    output reg [`RegBus]csr_data_o,
+    output wire [1:0] excepttype_o,
+
+    output wire excp_o,
+    output wire[8:0] excp_num_o,
+
+    // <- CSR
+    input wire has_int,
+    input wire [`RegBus] csr_data_i,
+    input wire [1:0] csr_plv,
+
+    // -> CSR
+    output reg [13:0]csr_read_addr_o,
 
     // -> PC
     output reg branch_flag_o,
     output reg[`RegBus] branch_target_address_o,
     output reg[`RegBus] link_addr_o,
+    output reg[`InstAddrBus] idle_pc,
 
     // ->Ctrl
-    output wire stallreq
+    output wire stallreq,
+    output reg idle_stallreq
   );
 
   wire[5:0] opcode_6 = inst_i[31:26];
@@ -99,6 +119,8 @@ module id(
   wire pre_inst_is_load;
 
 
+  reg res_from_csr;
+
  assign pre_inst_is_load = (((ex_aluop_i_1 == `EXE_LD_B_OP) ||
                              (ex_aluop_i_1 == `EXE_LD_H_OP) ||
                              (ex_aluop_i_1 == `EXE_LD_W_OP) ||
@@ -116,11 +138,19 @@ module id(
                              (ex_aluop_i_2 == `EXE_ST_H_OP) ||
                              (ex_aluop_i_2 == `EXE_ST_W_OP)) && (pc_i == pc_i_other + 4)) ? 1'b1 : 1'b0;
 
-  reg excepttype_is_syscall;
-  reg excepttype_is_break;
+  reg inst_syscall;
+  reg inst_break;
+  reg kernel_inst;
 
-  assign excepttype_o = {excepttype_is_syscall,excepttype_is_break};
+  assign excepttype_o = {inst_syscall,inst_break};
   assign current_inst_address_o = pc_i;
+
+
+  assign excp_ine = ~inst_valid;
+  assign excp_ipe = kernel_inst && (csr_plv == 2'b11);
+
+  assign excp_o     = excp_ipe | inst_syscall | inst_break | excp_i | excp_ine | has_int;
+  assign excp_num_o = {excp_ipe, excp_ine, inst_break, inst_syscall, excp_num_i, has_int};
 
 
   always @(*)
@@ -165,8 +195,9 @@ module id(
           branch_flag_o = `NotBranch;
           branch_target_address_o = `ZeroWord;
           link_addr_o = `ZeroWord;
-          excepttype_is_break = `False_v;
-          excepttype_is_syscall = `False_v;
+          inst_break = `False_v;
+          inst_syscall = `False_v;
+          idle_stallreq = 1'b0;
         end
       else
         begin
@@ -183,7 +214,7 @@ module id(
           branch_flag_o = `NotBranch;
           branch_target_address_o = `ZeroWord;
           link_addr_o = `ZeroWord;
-
+          idle_stallreq = 1'b0;
           case (opcode_1)
             `EXE_JIRL:
               begin
@@ -465,11 +496,14 @@ module id(
                       `EXE_CSRRD:begin
                         wreg_o      = `WriteEnable;
                         aluop_o     = `EXE_CSRRD_OP;
-                        reg1_read_o = 1'b0;
+                        reg1_read_o = 1'b1;
                         reg2_read_o = 1'b0;
                         imm         = {18'b0,imm_14};
+                        csr_addr_o = imm_14;
                         reg_waddr_o = op1;
                         inst_valid  = `InstValid;
+                        res_from_csr = 1'b1;
+                        kernel_inst = 1'b1;
                       end
                       `EXE_CSRWR:begin
                         wreg_o      = `WriteEnable;
@@ -477,9 +511,13 @@ module id(
                         reg1_read_o = 1'b1;
                         reg2_read_o = 1'b0;
                         imm         = {18'b0,imm_14};
+                        csr_addr_o = imm_14;
+                        csr_data_o = reg1_data_i;
                         reg1_addr_o = op1;
                         reg_waddr_o = op1;
                         inst_valid  = `InstValid;
+                        res_from_csr = 1'b1;
+                        kernel_inst = 1'b1;
                       end 
                       default:begin
                         wreg_o      = `WriteEnable;
@@ -487,8 +525,12 @@ module id(
                         reg1_read_o = 1'b0;
                         reg2_read_o = 1'b0;
                         imm         = {18'b0,imm_14};
+                        csr_addr_o = imm_14;
+                        csr_data_o = reg1_data_i;
                         reg_waddr_o = op1;
                         inst_valid  = `InstValid;
+                        res_from_csr = 1'b1;
+                        kernel_inst = 1'b1;
                       end
                     endcase
                   end 
@@ -502,6 +544,7 @@ module id(
                             reg1_read_o = 1'b0;
                             reg2_read_o = 1'b0;
                             inst_valid  = `InstValid;
+                            kernel_inst = 1'b1;
                           end 
                           `EXE_TLBRD:begin
                             wreg_o      = `WriteDisable;
@@ -509,6 +552,7 @@ module id(
                             reg1_read_o = 1'b0;
                             reg2_read_o = 1'b0;
                             inst_valid  = `InstValid;
+                            kernel_inst = 1'b1;
                           end
                           `EXE_TLBSRCH:begin
                             wreg_o      = `WriteDisable;
@@ -516,6 +560,7 @@ module id(
                             reg1_read_o = 1'b0;
                             reg2_read_o = 1'b0;
                             inst_valid  = `InstValid;
+                            kernel_inst = 1'b1;
                           end
                           `EXE_TLBWR:begin
                             wreg_o      = `WriteDisable;
@@ -523,6 +568,7 @@ module id(
                             reg1_read_o = 1'b0;
                             reg2_read_o = 1'b0;
                             inst_valid  = `InstValid;
+                            kernel_inst = 1'b1;
                           end
                           `EXE_ERTN:begin
                             wreg_o      = `WriteDisable;
@@ -530,6 +576,7 @@ module id(
                             reg1_read_o = 1'b0;
                             reg2_read_o = 1'b0;
                             inst_valid  = `InstValid;
+                            kernel_inst = 1'b1;
                           end
                           default:begin
                           end
@@ -542,7 +589,10 @@ module id(
                             aluop_o     = `EXE_IDLE_OP;
                             reg1_read_o = 1'b0;
                             reg2_read_o = 1'b0;
+                            idle_stallreq = 1;
+                            idle_pc = pc_i + 4'h4;
                             inst_valid  = `InstValid;
+                            kernel_inst = 1'b1;
                           end 
                           `EXE_INVTLB:begin
                             wreg_o      = `WriteDisable;
@@ -550,6 +600,7 @@ module id(
                             reg1_read_o = 1'b0;
                             reg2_read_o = 1'b0;
                             inst_valid  = `InstValid;
+                            kernel_inst = 1'b1;
                           end
                           default: begin
                           end
@@ -831,7 +882,7 @@ module id(
                             reg1_read_o = 1'b0;
                             reg2_read_o = 1'b0;
                             inst_valid  = `InstValid;
-                            excepttype_is_break = `True_v;
+                            inst_break = `True_v;
                           end
                         `EXE_SYSCALL:
                           begin
@@ -841,7 +892,7 @@ module id(
                             reg1_read_o = 1'b0;
                             reg2_read_o = 1'b0;
                             inst_valid  = `InstValid;
-                            excepttype_is_syscall = `True_v;
+                            inst_syscall = `True_v;
                           end
                         default:
                           begin
@@ -906,6 +957,8 @@ module id(
     begin
       if (rst == `RstEnable)
         reg1_o = `ZeroWord;
+      else if(opcode_2 == `EXE_CSR_RELATED)
+        reg1_o = csr_data_i;
       else if ((reg1_read_o == 1'b1) && (reg1_addr_o == 0))
         reg1_o = `ZeroWord;
       else if((reg1_read_o == 1'b1) && (ex_wreg_i_2 == 1'b1) && (ex_waddr_i_2 == reg1_addr_o))
@@ -927,6 +980,8 @@ module id(
   always @ (*)
     begin
       if (rst == `RstEnable)
+        reg2_o = `ZeroWord;
+      else if(opcode_2 == `EXE_CSR_RELATED)
         reg2_o = `ZeroWord;
       else if ((reg2_read_o == 1'b1) && (reg2_addr_o == 0))
         reg2_o = `ZeroWord;

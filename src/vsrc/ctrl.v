@@ -7,8 +7,11 @@ module ctrl (
     input wire stallreq_from_id_2,
     input wire stallreq_from_ex_2,
 
+    input wire idle_stallreq,
+    input wire has_int_stallreq,
     input wire[1:0] excepttype_i_1,
     input wire[1:0] excepttype_i_2,
+
 
     output reg[6:0]stall1,
     output reg[6:0]stall2,
@@ -63,7 +66,9 @@ module ctrl (
     begin
       if (!rst_n)
           stall1 = 7'b0000000;
-      else if(stallreq_from_ex_1 == `Stop)
+      else if(idle_stallreq)
+          stall1 = 7'b1111111;
+      else if(stallreq_from_ex_1 == `Stop || has_int_stallreq == `Stop)
           stall1 = 7'b0011111;
       else if(stallreq_from_id_1 == `Stop)
           stall1 = 7'b0011111;
@@ -75,7 +80,9 @@ module ctrl (
     begin
       if (!rst_n)
           stall2 = 7'b0000000;
-      else if(stallreq_from_ex_2 == `Stop)
+      else if(idle_stallreq)
+          stall2 = 7'b1111111;
+      else if(stallreq_from_ex_2 == `Stop || has_int_stallreq == `Stop)
           stall2 = 7'b0011111;
       else if(stallreq_from_id_2 == `Stop)
           stall2 = 7'b0011111;

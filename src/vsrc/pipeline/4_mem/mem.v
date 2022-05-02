@@ -1,4 +1,7 @@
-`include "defines.v"
+`timescale 1ns/1ns
+
+`include "../../defines.v"
+`include "../../csr_defines.v"
 
 module mem (
     input wire rst,
@@ -20,10 +23,41 @@ module mem (
     input wire[1:0] excepttype_i,
     input wire[`RegBus] current_inst_address_i,
 
+    input wire mem_csr_we_i,
+    input wire[13:0] mem_csr_addr_i,
+    input wire[`RegBus] mem_csr_data_i,
+
+    input wire excp_i,
+    input wire [9:0] excp_num_i,
+
+    //from csr 
+    input wire csr_pg,
+    input wire csr_da,
+    input wire [31:0]csr_dmw0,
+    input wire [31:0]csr_dmw1,
+    input wire [1:0]csr_plv,
+    input wire [1:0]csr_datf,
+    input wire disable_cache,   
+
+    //to addr trans 
+    output wire data_addr_trans_en,   
+    output wire dmw0_en,
+    output wire dmw1_en,
+    output wire cacop_op_mode_di,   
+
+    //tlb 
+    input wire data_tlb_found,
+    input wire [4:0]data_tlb_index,
+    input wire data_tlb_v,
+    input wire data_tlb_d,
+    input wire [1:0] data_tlb_mat,
+    input wire [1:0] data_tlb_plv,
+
     output reg[`InstAddrBus] inst_pc_o,
     output reg[`RegAddrBus] wd_o,
     output reg wreg_o,
     output reg[`RegBus] wdata_o,
+    output reg[`AluOpBus] aluop_o,
 
     output reg[`RegBus] mem_addr_o,
     output wire mem_we_o,
@@ -35,16 +69,63 @@ module mem (
     output reg LLbit_value_o,
 
     output wire[1:0] excepttype_o,
-    output wire[`RegBus] current_inst_address_o
+    output wire[`RegBus] current_inst_address_o,
+
+    output wire mem_csr_we_o,
+    output wire[13:0] mem_csr_addr_o,
+    output wire[`RegBus] mem_csr_data_o,
+
+    output wire excp_o,
+    output wire[15:0] excp_num_o
   );
 
   reg mem_we;
   reg LLbit;
+  wire access_mem;
+  wire mem_store_op;
+  wire mem_load_op;
+  wire excp_adem;
+  wire pg_mode;
+  wire da_mode;
+  wire excp_tlbr;
+  wire excp_pil;
+  wire excp_pis;
+  wire excp_pme;
+  wire excp_ppi;
+
+  assign access_mem = mem_load_op || mem_store_op;
+
+  assign mem_load_op = aluop_i == `EXE_LD_B_OP || aluop_i == `EXE_LD_BU_OP || aluop_i == `EXE_LD_H_OP || aluop_i == `EXE_LD_HU_OP ||
+                       aluop_i == `EXE_LD_W_OP || aluop_i == `EXE_LL_OP;
+                    
+  assign mem_store_op = aluop_i == `EXE_ST_B_OP || aluop_i == `EXE_ST_H_OP || aluop_i == `EXE_ST_W_OP || aluop_i == `EXE_SC_OP;
 
   assign mem_we_o = mem_we & (~(|excepttype_i));
 
   assign excepttype_o = excepttype_i;
   assign current_inst_address_o = current_inst_address_i;
+
+  assign mem_csr_we_o = mem_csr_we_i;
+  assign mem_csr_addr_o = mem_csr_we_o;
+  assign mem_csr_data_o = mem_csr_data_i;
+
+  //addr dmw trans
+  assign dmw0_en = ((csr_dmw0[`PLV0] && csr_plv == 2'd0) || (csr_dmw0[`PLV3] && csr_plv == 2'd3)) && (wdata_i[31:29] == csr_dmw0[`VSEG]);
+  assign dmw1_en = ((csr_dmw1[`PLV0] && csr_plv == 2'd0) || (csr_dmw1[`PLV3] && csr_plv == 2'd3)) && (wdata_i[31:29] == csr_dmw1[`VSEG]);
+
+  assign pg_mode = !csr_da && csr_pg;
+  assign da_mode =  csr_da && !csr_pg;
+
+  assign data_addr_trans_en = pg_mode && !dmw0_en && !dmw1_en && !cacop_op_mode_di;
+
+  assign excp_tlbr = access_mem  && !data_tlb_found && data_addr_trans_en;
+  assign excp_pil  = mem_load_op  && !data_tlb_v && data_addr_trans_en;  //cache will generate pil exception??
+  assign excp_pis  = mem_store_op && !data_tlb_v && data_addr_trans_en;
+  assign excp_ppi  = access_mem && data_tlb_v && (csr_plv > data_tlb_plv) && data_addr_trans_en;
+  assign excp_pme  = mem_store_op && data_tlb_v && (csr_plv <= data_tlb_plv) && !data_tlb_d && data_addr_trans_en;
+
+  assign excp_o = excp_tlbr || excp_pil || excp_pis || excp_ppi || excp_pme || excp_adem || excp_i;
+  assign excp_num_o = {excp_pil, excp_pis, excp_ppi, excp_pme, excp_tlbr, excp_adem, excp_num_i};
 
   always @(*)
     begin
