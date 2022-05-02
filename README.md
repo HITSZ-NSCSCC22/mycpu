@@ -29,6 +29,7 @@ testbench.cpp       用于Verilator仿真，如果使用Vivado仿真，无需关
 - [差分测试](doc/difftest.md)
 - [AXI控制器](src/vsrc/AXI/README.md)
 - [分支预测器](src/vsrc/BPU/README.md)
+- [Chiplab对接](doc/chiplab.md)
 
 ## 开发流程
 
