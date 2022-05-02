@@ -12,6 +12,8 @@ src/                CPU Verilog 源代码
 
     vsrc/           CPU 核心部分源码
         pipeline/   流水线部分
+        AXI/        AXI 控制器
+        BPU/        分支预测部件
         ...         其他模块
 
 Makefile            用于自动化测试和Verilator仿真，无需关心
@@ -25,6 +27,8 @@ testbench.cpp       用于Verilator仿真，如果使用Vivado仿真，无需关
 
 - [译码器设计](doc/instr_decode.md)
 - [差分测试](doc/difftest.md)
+- [AXI控制器](src/vsrc/AXI/README.md)
+- [分支预测器](src/vsrc/BPU/README.md)
 
 ## 开发流程
 
