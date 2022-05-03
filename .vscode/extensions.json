@@ -5,7 +5,8 @@
 	"recommendations": [
 		"bmpenuelas.systemverilog-formatter-vscode",
 		"Gruntfuggly.todo-tree",
-		"mshr-h.veriloghdl"
+		"mshr-h.veriloghdl",
+		"mhutchie.git-graph"
 	],
 	// List of extensions recommended by VS Code that should not be recommended for users of this workspace.
 	"unwantedRecommendations": []
