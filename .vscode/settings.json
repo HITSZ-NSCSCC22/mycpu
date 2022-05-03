@@ -1,0 +1,20 @@
+{
+    "verilog.linting.linter": "verilator",
+    "verilog.linting.iverilog.arguments": "",
+    "verilog.logging.enabled": true,
+    "verilog.linting.verilator.arguments": "-Isrc -Isrc/vsrc -Isrc/vsrc/pipeline/1_fetch",
+    "todo-tree.filtering.includeGlobs": [
+        "**/*.sv",
+        "**/*.v"
+    ],
+    "todo-tree.regex.regex": "((\\s|^)($TAGS):)",
+    "todo-tree.regex.enableMultiLine": false,
+    "todo-tree.regex.regexCaseSensitive": true,
+    "todo-tree.general.debug": false,
+    "todo-tree.general.enableFileWatcher": true,
+    "todo-tree.filtering.includeHiddenFiles": true,
+    "todo-tree.filtering.includedWorkspaces": [
+        "**/*"
+    ],
+    "todo-tree.filtering.useBuiltInExcludes": "file and search excludes"
+}

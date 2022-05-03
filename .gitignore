@@ -10,7 +10,9 @@
 vivado*
 
 # VSCode configuration files
-.vscode/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
 
 # Verilator output files
 obj_dir/
