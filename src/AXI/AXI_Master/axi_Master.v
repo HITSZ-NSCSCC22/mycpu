@@ -3,17 +3,41 @@ module axi_Master (
     input wire aclk,
     input wire aresetn, //low is valid
 
-    //CPU
-    input wire [`ADDR]cpu_addr_i,
-    input wire cpu_ce_i,
-    input wire [`Data]cpu_data_i,
-    input wire cpu_we_i ,
-    input wire [3:0]cpu_sel_i, 
-    input wire stall_i,
-    input wire flush_i,
-    output reg [`Data]cpu_data_o,
-    output wire stallreq,
-    input wire [3:0]id,//决定是读数据还是取指令
+    // //CPU
+    // input wire [`ADDR]cpu_addr_i,
+    // input wire cpu_ce_i,
+    // input wire [`Data]cpu_data_i,
+    // input wire cpu_we_i ,
+    // input wire [3:0]cpu_sel_i, 
+    // input wire stall_i,
+    // input wire flush_i,
+    // output reg [`Data]cpu_data_o,
+    // output wire stallreq,
+    // input wire [3:0]id,//决定是读数据还是取指令
+
+    //inst
+    input wire [`ADDR]inst_cpu_addr_i,
+    input wire inst_cpu_ce_i,
+    input wire [`Data]inst_cpu_data_i,
+    input wire inst_cpu_we_i ,
+    input wire [3:0]inst_cpu_sel_i, 
+    input wire inst_stall_i,
+    input wire inst_flush_i,
+    output reg [`Data]inst_cpu_data_o,
+    output wire inst_stallreq,
+    input wire [3:0]inst_id,//决定是读数据还是取指令
+
+        //inst
+    input wire [`ADDR]data_cpu_addr_i,
+    input wire data_cpu_ce_i,
+    input wire [`Data]data_cpu_data_i,
+    input wire data_cpu_we_i ,
+    input wire [3:0]data_cpu_sel_i, 
+    input wire data_stall_i,
+    input wire data_flush_i,
+    output reg [`Data]data_cpu_data_o,
+    output wire data_stallreq,
+    input wire [3:0]data_id,//决定是读数据还是取指令
     
     //Master
 
@@ -76,52 +100,60 @@ module axi_Master (
     output reg s_bready
 
 );  
-    reg stall_req_r;
+    //read instruction stall
+    reg inst_stall_req_r;
+    assign inst_stallreq=inst_stall_req_r;
+    reg [31:0]inst_buffer;
+
+    //read and write data stall
     reg stall_req_w;
-
-    assign stallreq=stall_req_r||stall_req_w;
+    reg data_stall_req_r;
     reg [31:0]data_buffer;
+    assign data_stallreq=data_stall_req_r||stall_req_w;
     
+    reg [3:0]inst_r_state;
+    reg [3:0]data_r_state;
 
 
-    reg [3:0]r_state;
-
+/**
+**read state machine for fetch instruction 
+**/
     //改变输出
     always @(*)
     begin
         if(!aresetn)begin
-            stall_req_r=0;
-            cpu_data_o=0;
+            inst_stall_req_r=0;
+            inst_cpu_data_o=0;
         end 
         else
         begin
-            case(r_state)
+            case(inst_r_state)
                 `R_FREE:begin
-                            if(cpu_ce_i&&cpu_we_i==0)
+                            if(inst_cpu_ce_i&&inst_cpu_we_i==0)
                             begin
-                                stall_req_r=1;
-                                cpu_data_o=0;
+                                inst_stall_req_r=1;
+                                inst_cpu_data_o=0;
                             end
                             else
                             begin
-                                stall_req_r=0;
-                                cpu_data_o=0;
+                                inst_stall_req_r=0;
+                                inst_cpu_data_o=0;
                             end
                         end
                 `R_ADDR:begin
-                    stall_req_r=1;
-                    cpu_data_o=0;
+                    inst_stall_req_r=1;
+                    inst_cpu_data_o=0;
                     end
                 `R_DATA:begin
                             if(s_rvalid&&s_rlast)
                             begin
-                               stall_req_r=0;
-                               cpu_data_o=s_rdata;
+                               inst_stall_req_r=0;
+                               inst_cpu_data_o=s_rdata;
                             end
                             else
                             begin
-                                stall_req_r=1;
-                                cpu_data_o=0;
+                                inst_stall_req_r=1;
+                                inst_cpu_data_o=0;
                             end       
                         end
                 default:begin
@@ -136,7 +168,176 @@ module axi_Master (
     begin
         if(!aresetn)
         begin
-            r_state<=`R_FREE;
+            inst_r_state<=`R_FREE;
+            s_arid<=0;
+            s_araddr<=0;
+            s_arsize<=0;
+            inst_buffer<=0;
+            s_rready<=0;
+
+            s_arvalid<=0;
+        end
+        else
+        begin
+            case(inst_r_state)
+
+                `R_FREE:begin
+
+                    if((inst_cpu_ce_i&&(inst_cpu_we_i==0))&&(!(data_cpu_ce_i&&(data_cpu_we_i==0))))//fetch inst but don't fetch data
+                    begin
+                        inst_r_state<=`R_ADDR;
+                        s_arid<=0;
+                        s_araddr<=inst_cpu_addr_i;
+                        s_arsize<=0;
+                        inst_buffer<=0;
+                        s_rready<=0;
+
+                        s_arvalid<=1;
+                        
+                    end
+                    else if((inst_cpu_ce_i&&(inst_cpu_we_i==0))&&(data_cpu_ce_i&&(data_cpu_we_i==0)))//fetch inst and fetch data
+                    begin
+                        //wait for fetch data request run into R_DATA state
+                    end
+                    else
+                    begin
+                        inst_r_state<=inst_r_state;
+                        s_arid<=0;
+                        s_araddr<=0;
+                        s_arsize<=0;
+                        inst_buffer<=0;
+                        s_rready<=0;
+
+                        s_arvalid<=0;
+                    end
+                end
+
+                /** AR **/
+                `R_ADDR:begin
+
+                    if(s_arready&&s_arvalid)
+                    begin
+                        inst_r_state<=`R_DATA;
+                        s_arid<=inst_id;
+                        s_araddr<=inst_cpu_addr_i;
+                        s_arsize<=3'b010;
+                        inst_buffer<=0;
+                        s_rready<=1;
+
+                        s_arvalid<=0;
+                    end
+                    else
+                    begin
+                        inst_r_state<=inst_r_state;
+                        s_arid<=s_arid;
+                        s_araddr<=s_araddr;
+                        s_arsize<=s_arsize;
+                        inst_buffer<=0;
+                        s_rready<=s_rready;
+
+                        s_arvalid<=s_arvalid;
+
+                    end
+
+                
+                end
+
+                /** R **/
+                `R_DATA:begin
+                    if(s_rvalid&&s_rlast)
+                    begin
+                        inst_r_state<=`R_FREE;
+                        inst_buffer<=s_rdata;
+                        s_rready<=0;
+                    end
+                    else
+                    begin
+                        inst_r_state<=inst_r_state;
+                        inst_buffer<=0;
+                        s_rready<=s_rready;
+                    end
+
+                    // //set s_rready
+                    // if(~s_rready)
+                    // begin
+                    //     s_rready<=1;
+                    // end
+                    // else if(s_rready&&s_rvalid)
+                    // begin
+                    //     s_rready<=0;
+                        
+                    // end
+                    // else
+                    // begin
+                    //     s_rready<=s_rready;
+                    // end
+                end
+
+                default:
+                begin
+                    
+                end
+
+            endcase
+        end
+    end
+
+
+/**
+**read state machine for fetch data
+**/
+
+    //改变输出
+    always @(*)
+    begin
+        if(!aresetn)begin
+            data_stall_req_r=0;
+            data_cpu_data_o=0;
+        end 
+        else
+        begin
+            case(data_r_state)
+                `R_FREE:begin
+                            if(data_cpu_ce_i&&data_cpu_we_i==0)
+                            begin
+                                data_stall_req_r=1;
+                                data_cpu_data_o=0;
+                            end
+                            else
+                            begin
+                                data_stall_req_r=0;
+                                data_cpu_data_o=0;
+                            end
+                        end
+                `R_ADDR:begin
+                    data_stall_req_r=1;
+                    data_cpu_data_o=0;
+                    end
+                `R_DATA:begin
+                            if(s_rvalid&&s_rlast)
+                            begin
+                               data_stall_req_r=0;
+                               data_cpu_data_o=s_rdata;
+                            end
+                            else
+                            begin
+                                data_stall_req_r=1;
+                                data_cpu_data_o=0;
+                            end       
+                        end
+                default:begin
+                        end
+            endcase
+        end
+    end
+
+    //read
+    //state machine
+    always @(posedge aclk)
+    begin
+        if(!aresetn)
+        begin
+            data_r_state<=`R_FREE;
             s_arid<=0;
             s_araddr<=0;
             s_arsize<=0;
@@ -147,15 +348,15 @@ module axi_Master (
         end
         else
         begin
-            case(r_state)
+            case(data_r_state)
 
                 `R_FREE:begin
 
-                    if(cpu_ce_i&&(cpu_we_i==0))
+                    if(data_cpu_ce_i&&(data_cpu_we_i==0))
                     begin
-                        r_state<=`R_ADDR;
+                        data_r_state<=`R_ADDR;
                         s_arid<=0;
-                        s_araddr<=cpu_addr_i;
+                        s_araddr<=data_cpu_addr_i;
                         s_arsize<=0;
                         data_buffer<=0;
                         s_rready<=0;
@@ -166,7 +367,7 @@ module axi_Master (
                     end
                     else
                     begin
-                        r_state<=r_state;
+                        data_r_state<=data_r_state;
                         s_arid<=0;
                         s_araddr<=0;
                         s_arsize<=0;
@@ -182,9 +383,9 @@ module axi_Master (
 
                     if(s_arready&&s_arvalid)
                     begin
-                        r_state<=`R_DATA;
-                        s_arid<=id;
-                        s_araddr<=cpu_addr_i;
+                        data_r_state<=`R_DATA;
+                        s_arid<=data_id;
+                        s_araddr<=data_cpu_addr_i;
                         s_arsize<=3'b010;
                         data_buffer<=0;
                         s_rready<=1;
@@ -193,7 +394,7 @@ module axi_Master (
                     end
                     else
                     begin
-                        r_state<=r_state;
+                        data_r_state<=data_r_state;
                         s_arid<=s_arid;
                         s_araddr<=s_araddr;
                         s_arsize<=s_arsize;
@@ -209,19 +410,15 @@ module axi_Master (
 
                 /** R **/
                 `R_DATA:begin
-                    // if(!aresetn)
-                    // begin
-                        
-                    // end
                     if(s_rvalid&&s_rlast)
                     begin
-                        r_state<=`R_FREE;
+                        data_r_state<=`R_FREE;
                         data_buffer<=s_rdata;
                         s_rready<=0;
                     end
                     else
                     begin
-                        r_state<=r_state;
+                        data_r_state<=data_r_state;
                         data_buffer<=0;
                         s_rready<=s_rready;
                     end
@@ -251,6 +448,7 @@ module axi_Master (
         end
     end
 
+
     //set default
     //ar
     assign s_arlen=0;
@@ -270,7 +468,7 @@ module axi_Master (
         begin
             case(w_state)
                 `W_FREE:begin
-                    if(cpu_ce_i&&(cpu_we_i))    stall_req_w=1;
+                    if(data_cpu_ce_i&&(data_cpu_we_i))    stall_req_w=1;
                     else stall_req_w=0;
                 end
                 `W_ADDR,`W_DATA:stall_req_w=1;
@@ -304,10 +502,10 @@ module axi_Master (
 
                 `W_FREE:begin
 
-                    if(cpu_ce_i&&(cpu_we_i))
+                    if(data_cpu_ce_i&&(data_cpu_we_i))
                     begin
                         w_state<=`W_ADDR;
-                        s_awaddr<=0;
+                        s_awaddr<=data_cpu_addr_i;
                         s_awsize<=0;
 
                         s_awvalid<=1;
@@ -333,12 +531,13 @@ module axi_Master (
                     if(s_awvalid&&s_awready)
                     begin
                         w_state<=`W_DATA;
-                        s_awaddr<=cpu_addr_i;
+                        s_awaddr<=data_cpu_addr_i;
                         s_awsize<=3'b010;
 
                         s_awvalid<=0;
                         s_wvalid<=1;
                         s_bready<=1;
+                        s_wdata<=data_cpu_data_i;
                     end
                     else
                     begin
@@ -349,6 +548,7 @@ module axi_Master (
                         s_awvalid<=s_awvalid;
                         s_wvalid<=s_wvalid;
                         s_bready<=s_bready;
+                        s_wdata<=0;
                     end
                 end
                 /** W **/
@@ -357,7 +557,7 @@ module axi_Master (
                     if(s_wvalid&&s_wready)
                     begin
                         w_state<=`W_RESP;
-                        s_wdata<=cpu_data_i;
+                        s_wdata<=data_cpu_data_i;
                     end
                     else
                     begin
@@ -413,7 +613,7 @@ module axi_Master (
     assign s_awcache=0;
     assign s_awprot=0;
     assign s_wid=0;
-    assign s_wstrb={4{cpu_we_i}}&cpu_sel_i;
+    assign s_wstrb={4{data_cpu_we_i}}&data_cpu_sel_i;
     assign s_wlast=1;
 
     
