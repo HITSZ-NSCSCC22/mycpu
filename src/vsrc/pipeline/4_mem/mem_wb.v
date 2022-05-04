@@ -131,11 +131,11 @@ module mem_wb (
             wb_csr_data <= `ZeroWord;
             debug_commit_instr <= `ZeroWord;
             debug_commit_pc <= `ZeroWord;
-            debug_commit_valid <= `InstInvalid;
+            debug_commit_valid <= ~`InstInvalid;
         end else if (stall == `Stop) begin
             debug_commit_pc <= `ZeroWord;
             debug_commit_instr <= `ZeroWord;
-            debug_commit_valid <= ~`InstInvalid;
+            debug_commit_valid <= `InstInvalid;
         end else begin
             wb_wd    <= mem_wd;
             wb_wreg  <= mem_wreg;
@@ -148,7 +148,7 @@ module mem_wb (
             wb_csr_data <= mem_csr_data;
             debug_commit_pc <= mem_inst_pc;
             // debug_commit_pc <= debug_commit_pc_0;
-            debug_commit_valid <= ~mem_inst_valid;
+            debug_commit_valid <= mem_inst_valid;
             // debug_commit_valid_1 <= debug_commit_valid_0;
             // debug_commit_valid <= ~debug_commit_valid_1;
             debug_commit_instr <= mem_instr;

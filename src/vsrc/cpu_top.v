@@ -117,7 +117,7 @@ module cpu_top (
         .aresetn(aresetn),
 
         .cpu_addr_i(axi_addr),
-        .cpu_ce_i(chip_enable),
+        .cpu_ce_i(axi_addr != 0),
         .cpu_data_i(0),
         .cpu_we_i(1'b0),
         .cpu_sel_i(4'b1111),
@@ -1589,7 +1589,7 @@ module cpu_top (
         .csr_data      ()
     );
 
-    DifftestCSRRegState DifftestCSRRegState (
+    DifftestCSRRegState difftest_csr_state (
         .clock    (aclk),
         .coreid   (0),                       // Only one core, so always 0
         .crmd     (u_cs_reg.csr_crmd),
