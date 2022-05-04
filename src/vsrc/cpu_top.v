@@ -87,19 +87,44 @@ module cpu_top (
     wire Instram_branch_flag;
     assign Instram_branch_flag = branch_flag_1 | branch_flag_2;
 
+    wire axi_busy;
+    wire [`RegBus] axi_data;
+    wire [`RegBus] axi_addr;
+
+    dummy_icache #(
+        .ADDR_WIDTH(`RegWidth),
+        .DATA_WIDTH(`RegWidth)
+    ) u_dummy_icache (
+        .clk       (clk),
+        .rst       (rst),
+        .raddr_1_i (pc_buffer_1),
+        .raddr_2_i (pc_buffer_2),
+        .stallreq_o(stallreq_from_id_1),
+        .rvalid_1_o(),
+        .rvalid_2_o(),
+        .raddr_1_o (),
+        .raddr_2_o (),
+        .rdata_1_o (),
+        .rdata_2_o (),
+        .axi_addr_o(axi_addr),
+        .axi_data_i(axi_data),
+        .axi_busy_i(axi_busy)
+    );
+
+
     axi_master u_axi_master (
         .aclk   (aclk),
         .aresetn(aresetn),
 
-        .cpu_addr_i(pc_buffer_1),
+        .cpu_addr_i(axi_addr),
         .cpu_ce_i(chip_enable),
         .cpu_data_i(0),
         .cpu_we_i(1'b0),
         .cpu_sel_i(4'b1111),
         .stall_i(Instram_branch_flag),
         .flush_i(Instram_branch_flag),
-        .cpu_data_o(),
-        .stallreq(stallreq_from_id_1),
+        .cpu_data_o(axi_data),
+        .stallreq(axi_busy),
         .id(4'b0000),  // Read Instruction only, TODO: move this from AXI to cache
         .s_arid(arid),
         .s_araddr(araddr),
