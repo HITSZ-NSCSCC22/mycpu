@@ -1,4 +1,5 @@
 `include "defines.v"
+`include "instr_info.sv"
 `include "pc_reg.v"
 `include "regfile.v"
 `include "csr_defines.v"
@@ -6,6 +7,8 @@
 `include "tlb.v"
 `include "tlb_entry.v"
 `include "AXI/axi_master.v"
+`include "frontend/frontend.sv"
+`include "instr_buffer.sv"
 `include "pipeline/1_fetch/if_buffer.v"
 `include "pipeline/1_fetch/if_id.v"
 `include "pipeline/2_decode/id.v"
@@ -73,6 +76,7 @@ module cpu_top (
     // Clock signal
     wire clk;
     assign clk = aclk;
+
     // Reset signal
     wire rst_n;
     wire rst;
@@ -90,27 +94,6 @@ module cpu_top (
     wire axi_busy;
     wire [`RegBus] axi_data;
     wire [`RegBus] axi_addr;
-
-    dummy_icache #(
-        .ADDR_WIDTH(`RegWidth),
-        .DATA_WIDTH(`RegWidth)
-    ) u_dummy_icache (
-        .clk       (clk),
-        .rst       (rst),
-        .raddr_1_i (pc_buffer_1),
-        .raddr_2_i (pc_buffer_2),
-        .stallreq_o(),
-        .rvalid_1_o(),
-        .rvalid_2_o(),
-        .raddr_1_o (),
-        .raddr_2_o (),
-        .rdata_1_o (),
-        .rdata_2_o (),
-        .axi_addr_o(axi_addr),
-        .axi_data_i(axi_data),
-        .axi_busy_i(axi_busy)
-    );
-
 
     axi_master u_axi_master (
         .aclk   (aclk),
@@ -164,12 +147,85 @@ module cpu_top (
         .s_bready(bready)
     );
 
+    // FETCH_WIDTH is 2
+    localparam FETCH_WIDTH = 2;
+    // Frontend -> ICache
+    logic [`InstAddrBus] frontend_icache_addr[FETCH_WIDTH];
 
-    wire [`InstAddrBus] pc_1;
-    wire [`InstAddrBus] pc_2;
+    // ICache -> Frontend
+    logic icache_frontend_stallreq;
+    logic icache_frontend_valid[FETCH_WIDTH];
+    logic [`InstAddrBus] icache_frontend_addr[FETCH_WIDTH];
+    logic [`RegBus] icache_frontend_data[FETCH_WIDTH];
 
-    wire [`InstAddrBus] pc_buffer_1;
-    wire [`InstAddrBus] pc_buffer_2;
+
+    dummy_icache #(
+        .ADDR_WIDTH(`RegWidth),
+        .DATA_WIDTH(`RegWidth)
+    ) u_dummy_icache (
+        .clk(clk),
+        .rst(rst),
+
+        // <-> Frontend
+        .raddr_1_i (frontend_icache_addr[0]),
+        .raddr_2_i (frontend_icache_addr[1]),
+        .stallreq_o(icache_frontend_stallreq),
+        .rvalid_1_o(icache_frontend_valid[0]),
+        .rvalid_2_o(icache_frontend_valid[1]),
+        .raddr_1_o (icache_frontend_addr[0]),
+        .raddr_2_o (icache_frontend_addr[1]),
+        .rdata_1_o (icache_frontend_data[0]),
+        .rdata_2_o (icache_frontend_data[1]),
+
+        // <-> AXI Controller
+        .axi_addr_o(axi_addr),
+        .axi_data_i(axi_data),
+        .axi_busy_i(axi_busy)
+    );
+
+    // Frontend <-> Instruction Buffer
+    logic ib_frontend_stallreq;
+    instr_buffer_info_t frontend_ib_instr_info[FETCH_WIDTH];
+
+    frontend u_frontend (
+        .clk(clk),
+        .rst(rst),
+
+        // <-> ICache
+        .icache_read_addr_o (frontend_icache_addr),
+        .icache_stallreq_i  (icache_frontend_stallreq),
+        .icache_read_valid_i(icache_frontend_valid),
+        .icache_read_addr_i (icache_frontend_addr),
+        .icache_read_data_i (icache_frontend_data),
+
+        // <-> Backend
+        .branch_update_info_i(),
+        .backend_next_pc_i   (),
+        .backend_flush_i     (),
+
+        // <-> Instruction Buffer
+        .instr_buffer_stallreq_i(ib_frontend_stallreq),
+        .instr_buffer_o         (frontend_ib_instr_info)
+    );
+
+    instr_buffer #(
+        .IF_WIDTH(FETCH_WIDTH),
+        .ID_WIDTH(2)             // TODO: remove magic number
+    ) u_instr_buffer (
+        .clk(clk),
+        .rst(rst),
+
+        // <-> Frontend
+        .frontend_instr_i   (frontend_ib_instr_info),
+        .frontend_stallreq_o(ib_frontend_stallreq),
+
+        // <-> Backend
+        .backend_accept_i(2'b0),  // FIXME: currently not accepting any instructions
+        .backend_flush_i (),
+        .backend_instr_o ()
+    );
+
+
 
 
     wire [`RegBus] branch_target_address_1;
@@ -294,51 +350,6 @@ module cpu_top (
 
     wire disable_cache;
 
-    pc_reg u_pc_reg (
-        .clk(clk),
-        .rst(rst),
-        .pc_1(pc_1),
-        .pc_2(pc_2),
-        .ce(chip_enable),
-        .branch_flag_i_1(branch_flag_1),
-        .branch_target_address_1(branch_target_address_1),
-        .branch_flag_i_2(branch_flag_2),
-        .branch_target_address_2(branch_target_address_2),
-        .flush(flush),
-        .new_pc(new_pc),
-        .stall1(stall1[0]),
-        .stall2(stall2[0]),
-        .excp_flush(excp_flush),
-        .ertn_flush(ertn_flush),
-        .excp_tlbrefill(excp_tlbrefill),
-        .idle_flush(idle_flush),
-        .idle_pc(idle_pc),
-
-        .excp_o(pc_excp_o),
-        .excp_num_o(pc_excp_num_o),
-
-        .csr_pg(csr_pg),
-        .csr_da(csr_da),
-        .csr_dmw0(csr_dmw0),
-        .csr_dmw1(csr_dmw1),
-        .csr_plv(csr_plv),
-        .csr_datf(csr_datf),
-        .disable_cache(disable_cache),
-        .csr_eentry(csr_eentry),
-        .csr_era(csr_era),
-        .csr_tlbrentry(csr_tlbrentry),
-
-        .inst_tlb_found(inst_tlb_found),
-        .inst_tlb_v(inst_tlb_v),
-        .inst_tlb_d(inst_tlb_d),
-        .inst_tlb_mat(inst_tlb_mat),
-        .inst_tlb_plv(inst_tlb_plv),
-
-        .inst_addr(inst_vaddr),
-        .inst_addr_trans_en(inst_addr_trans_en),
-        .dmw0_en(inst_dmw0_en),
-        .dmw1_en(inst_dmw1_en)
-    );
 
     wire if_inst_valid_1;
     wire if_inst_valid_2;
@@ -347,39 +358,6 @@ module cpu_top (
     wire if_excp_i_2;
     wire [3:0] if_excp_num_i_2;
 
-    if_buffer if_buffer_1 (
-        .clk(clk),
-        .rst(rst),
-        .pc_i(pc_1),
-        .branch_flag_i(branch_flag_1 | branch_flag_2),
-        .pc_valid(if_inst_valid_1),
-        .pc_o(pc_buffer_1),
-        .flush(flush),
-        .stall(stall1[1]),
-        .excp_i(pc_excp_o),
-        .excp_num_i(pc_excp_num_o),
-        .excp_o(if_excp_i_1),
-        .excp_num_o(if_excp_num_i_1),
-        .excp_flush(excp_flush),
-        .ertn_flush(ertn_flush)
-    );
-
-    if_buffer if_buffer_2 (
-        .clk(clk),
-        .rst(rst),
-        .pc_i(pc_2),
-        .branch_flag_i(branch_flag),
-        .pc_valid(if_inst_valid_2),
-        .pc_o(pc_buffer_2),
-        .flush(flush),
-        .stall(stall2[1]),
-        .excp_i(pc_excp_o),
-        .excp_num_i(pc_excp_num_o),
-        .excp_o(if_excp_i_2),
-        .excp_num_o(if_excp_num_i_2),
-        .excp_flush(excp_flush),
-        .ertn_flush(ertn_flush)
-    );
 
 
     wire [`InstAddrBus] id_pc_1;
@@ -392,40 +370,6 @@ module cpu_top (
     wire if_excp_o_2;
     wire [3:0] if_excp_num_o_2;
 
-    //  wire if_id_instr_invalid;
-    if_id u_if_id_1 (
-        .clk(clk),
-        .rst(rst),
-        .if_pc_i(pc_buffer_1),
-        .if_inst_i(ram_rdata_i_1),
-        .id_pc_o(id_pc_1),
-        .id_inst_o(id_inst_1),
-        .if_inst_valid(if_inst_valid_1),
-        .branch_flag_i(branch_flag),
-        .flush(flush),
-        .stall(stall1[2]),
-        .excp_i(if_excp_i_1),
-        .excp_num_i(if_excp_num_i_1),
-        .excp_o(if_excp_o_1),
-        .excp_num_o(if_excp_num_o_1)
-    );
-
-    if_id u_if_id_2 (
-        .clk(clk),
-        .rst(rst),
-        .if_pc_i(pc_buffer_2),
-        .if_inst_i(ram_rdata_i_2),
-        .id_pc_o(id_pc_2),
-        .id_inst_o(id_inst_2),
-        .if_inst_valid(if_inst_valid_2),
-        .branch_flag_i(branch_flag),
-        .flush(flush),
-        .stall(stall2[2]),
-        .excp_i(if_excp_i_2),
-        .excp_num_i(if_excp_num_i_2),
-        .excp_o(if_excp_o_2),
-        .excp_num_o(if_excp_num_o_2)
-    );
 
     wire [`AluOpBus] id_aluop_1;
     wire [`AluSelBus] id_alusel_1;

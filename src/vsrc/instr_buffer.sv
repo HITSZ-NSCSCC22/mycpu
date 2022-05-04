@@ -25,9 +25,10 @@ module instr_buffer #(
 
     instr_buffer_info_t buffer_queue[BUFFER_SIZE];
     instr_buffer_info_t next_buffer_queue[BUFFER_SIZE];
-    logic [$clog2(BUFFER_SIZE)-1:0] read_ptr, write_ptr;
+    logic [$clog2(BUFFER_SIZE)-1:0] read_ptr, write_ptr, write_ptr_plus_2;
 
-    assign frontend_stallreq_o = (write_ptr + 2 >= read_ptr);
+    assign write_ptr_plus_2 = write_ptr + 2;
+    assign frontend_stallreq_o = (write_ptr_plus_2 == read_ptr);
 
     logic [$clog2(ID_WIDTH):0] backend_accept_num;  // popcnt of backend_accept_i
     always_comb begin
