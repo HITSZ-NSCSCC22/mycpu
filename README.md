@@ -14,6 +14,7 @@ src/                CPU Verilog 源代码
         pipeline/   流水线部分
         AXI/        AXI 控制器
         BPU/        分支预测部件
+        frontend/   流水线前端，负责取指并塞入Instruction Buffer
         ...         其他模块
 
 Makefile            用于自动化测试和Verilator仿真，无需关心
@@ -30,6 +31,8 @@ testbench.cpp       用于Verilator仿真，如果使用Vivado仿真，无需关
 - [AXI控制器](src/vsrc/AXI/README.md)
 - [分支预测器](src/vsrc/BPU/README.md)
 - [Chiplab对接](doc/chiplab.md)
+- [Instruction Buffer设计](doc/instr_buffer.md)
+- [每日一个 Verilog 小技巧](doc/verilog_tips.md)
 
 ## 开发流程
 
