@@ -23,22 +23,16 @@ module instr_buffer #(
     logic rst_n;
     assign rst_n = ~rst;
 
-    instr_buffer_info_t buffer_queue[BUFFER_SIZE];
-    instr_buffer_info_t next_buffer_queue[BUFFER_SIZE];
+    instr_buffer_info_t buffer_queue[BUFFER_SIZE], next_buffer_queue[BUFFER_SIZE];
+
     logic [$clog2(BUFFER_SIZE)-1:0] read_ptr, write_ptr, write_ptr_plus_2;
 
+    // Workaround, verilator seems to extend {write_ptr + 2} to more bits
+    // we want a loopback counter, so declare a fixed width to get around
     assign write_ptr_plus_2 = write_ptr + 2;
     assign frontend_stallreq_o = (write_ptr_plus_2 == read_ptr);
 
-    logic [$clog2(ID_WIDTH):0] backend_accept_num;  // popcnt of backend_accept_i
-    always_comb begin
-        backend_accept_num = 0;
-        foreach (backend_accept_i[idx]) begin
-            backend_accept_num += backend_accept_i[idx];
-        end
-    end
-
-
+    // State transition
     always_ff @(posedge clk or negedge rst_n) begin : buffer_queue_ff
         if ((!rst_n) || backend_flush_i) begin
             for (integer i = 0; i < BUFFER_SIZE; i++) begin
@@ -46,26 +40,29 @@ module instr_buffer #(
             end
         end else begin
             for (integer i = 0; i < BUFFER_SIZE; i++) begin
-                // Select next buffer_queue
                 buffer_queue[i] <= next_buffer_queue[i];
             end
         end
     end
 
-    logic [IF_WIDTH-1:0] if_valid;
+    // Popcnt of backend_accept_i
+    logic [$clog2(ID_WIDTH):0] backend_accept_num;
     always_comb begin
-        for (integer i = 0; i < IF_WIDTH; i++) begin
-            if_valid[i] = frontend_instr_i[i].valid;
+        backend_accept_num = 0;
+        foreach (backend_accept_i[idx]) begin
+            backend_accept_num += backend_accept_i[idx];
         end
     end
-    logic [$clog2(IF_WIDTH):0] frontend_accept_num;  // popcnt of backend_accept_i
+    // Popcnt of frontend_instr_i.[i].valid
+    logic [$clog2(IF_WIDTH):0] frontend_accept_num;
     always_comb begin
         frontend_accept_num = 0;
-        foreach (if_valid[idx]) begin
-            frontend_accept_num += if_valid[idx];
+        foreach (frontend_instr_i[idx]) begin
+            frontend_accept_num += frontend_instr_i[idx].valid;
         end
     end
 
+    // Update ptrs
     always_ff @(posedge clk or negedge rst_n) begin : ptr_ff
         if (!rst_n) begin
             read_ptr  <= 0;
@@ -99,6 +96,7 @@ module instr_buffer #(
         end
     end
 
+    // Connect backend_instr_o directly to buffer_queue
     // FIXME: may introduce large latency
     always_comb begin : backend_instr_o_comb
         for (integer i = 0; i < ID_WIDTH; i++) begin
