@@ -34,6 +34,10 @@ testbench.cpp       用于Verilator仿真，如果使用Vivado仿真，无需关
 - [Instruction Buffer设计](doc/instr_buffer.md)
 - [每日一个 Verilog 小技巧](doc/verilog_tips.md)
 
+## 代码规范
+
+[代码规范](doc/coding_conventions.md)
+
 ## 开发流程
 
 ### Clone项目
