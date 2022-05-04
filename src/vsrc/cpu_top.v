@@ -22,7 +22,7 @@ module cpu_top (
     input wire [7:0] intrpt,  // External interrupt
 
     // AXI interface 
-    // read reqest
+    // read request
     output [ 3:0] arid,
     output [31:0] araddr,
     output [ 7:0] arlen,
@@ -58,12 +58,12 @@ module cpu_top (
     output        wlast,
     output        wvalid,
     input         wready,
-    //write back
+    // write back
     input  [ 3:0] bid,
     input  [ 1:0] bresp,
     input         bvalid,
     output        bready,
-    //debug info
+    // debug info
     output [31:0] debug0_wb_pc,
     output [ 3:0] debug0_wb_rf_wen,
     output [ 4:0] debug0_wb_rf_wnum,
@@ -117,7 +117,7 @@ module cpu_top (
         .aresetn(aresetn),
 
         .cpu_addr_i(axi_addr),
-        .cpu_ce_i(axi_addr != 0),
+        .cpu_ce_i(axi_addr != 0),  // FIXME: ce should not be used as valid?
         .cpu_data_i(0),
         .cpu_we_i(1'b0),
         .cpu_sel_i(4'b1111),
