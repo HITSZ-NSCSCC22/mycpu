@@ -104,41 +104,40 @@ module dummy_icache #(
     assign stallreq_o = ~(state == ACCEPT_ADDR);
 
     always_ff @(posedge clk or negedge rst_n) begin : axi_ff
-        if (!rst_n) begin
-            axi_addr_o <= 0;
-        end else begin
-            case (state)
-                ACCEPT_ADDR: begin
-                    if (raddr_1_i != 0) axi_addr_o <= raddr_1_i;
-                end
-                IN_TRANSACTION_1: begin
-                    if (raddrs[1] != 0) axi_addr_o <= raddrs[1];
-                end
-                IN_TRANSACTION_2: begin
-                    axi_addr_o <= 0;
-                end
-            endcase
-        end
+        axi_addr_o <= 0;
+        case (state)
+            ACCEPT_ADDR: begin
+                if (raddr_1_i != 0 && axi_busy_i == 0) axi_addr_o <= raddr_1_i;
+            end
+            IN_TRANSACTION_1: begin
+                if (raddrs[1] != 0 && axi_busy_i == 0) axi_addr_o <= raddrs[1];
+            end
+            IN_TRANSACTION_2: begin
+                axi_addr_o <= 0;
+            end
+        endcase
     end
 
     // Output logic
-    always_comb begin : output_comb
-        rvalid_1_o = 0;
-        rvalid_2_o = 0;
-        raddr_1_o  = 0;
-        raddr_2_o  = 0;
-        rdata_1_o  = 0;
-        rdata_2_o  = 0;
+    always_ff @(posedge clk or negedge rst_n) begin : output_ff
+        rvalid_1_o <= 0;
+        rvalid_2_o <= 0;
+        raddr_1_o  <= 0;
+        raddr_2_o  <= 0;
+        rdata_1_o  <= 0;
+        rdata_2_o  <= 0;
         case (state)
             ACCEPT_ADDR: begin
             end
             IN_TRANSACTION_1: begin
-                rvalid_1_o = ~axi_busy_i;
-                rdata_1_o  = axi_busy_i ? 0 : axi_data_i;
+                rvalid_1_o <= ~axi_busy_i;
+                raddr_1_o  <= axi_busy_i ? 0 : raddrs[0];
+                rdata_1_o  <= axi_busy_i ? 0 : axi_data_i;
             end
             IN_TRANSACTION_2: begin
-                rvalid_2_o = ~axi_busy_i;
-                rdata_2_o  = axi_busy_i ? 0 : axi_data_i;
+                rvalid_2_o <= ~axi_busy_i;
+                raddr_2_o  <= axi_busy_i ? 0 : raddrs[1];
+                rdata_2_o  <= axi_busy_i ? 0 : axi_data_i;
             end
         endcase
     end

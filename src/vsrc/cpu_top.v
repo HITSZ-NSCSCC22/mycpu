@@ -99,7 +99,7 @@ module cpu_top (
         .rst       (rst),
         .raddr_1_i (pc_buffer_1),
         .raddr_2_i (pc_buffer_2),
-        .stallreq_o(stallreq_from_id_1),
+        .stallreq_o(),
         .rvalid_1_o(),
         .rvalid_2_o(),
         .raddr_1_o (),
