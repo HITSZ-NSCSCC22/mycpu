@@ -27,7 +27,7 @@ module axi_Master (
     output wire inst_stallreq,
     input wire [3:0]inst_id,//决定是读数据还是取指令
 
-        //inst
+    //data
     input wire [`ADDR]data_cpu_addr_i,
     input wire data_cpu_ce_i,
     input wire [`Data]data_cpu_data_i,
@@ -114,6 +114,9 @@ module axi_Master (
     reg [3:0]inst_r_state;
     reg [3:0]data_r_state;
 
+    //fetch instruction before fetch data
+    reg is_fetching_inst;
+    reg is_fetch_inst_OK;
 
 /**
 **read state machine for fetch instruction 
@@ -124,6 +127,7 @@ module axi_Master (
         if(!aresetn)begin
             inst_stall_req_r=0;
             inst_cpu_data_o=0;
+            is_fetching_inst=0;
         end 
         else
         begin
@@ -133,29 +137,39 @@ module axi_Master (
                             begin
                                 inst_stall_req_r=1;
                                 inst_cpu_data_o=0;
+                                is_fetching_inst=1;
                             end
                             else
                             begin
                                 inst_stall_req_r=0;
                                 inst_cpu_data_o=0;
+                                is_fetching_inst=0;
                             end
                         end
                 `R_ADDR:begin
                     inst_stall_req_r=1;
                     inst_cpu_data_o=0;
+                    is_fetching_inst=1;
                     end
                 `R_DATA:begin
                             if(s_rvalid&&s_rlast)
                             begin
                                inst_stall_req_r=0;
                                inst_cpu_data_o=s_rdata;
+                               is_fetching_inst=0;
                             end
                             else
                             begin
                                 inst_stall_req_r=1;
                                 inst_cpu_data_o=0;
+                                is_fetching_inst=1;
                             end       
                         end
+                `STALL:begin
+                            inst_stall_req_r=0;
+                            inst_cpu_data_o=inst_buffer;
+                            is_fetching_inst=0;
+                       end
                 default:begin
                         end
             endcase
@@ -198,6 +212,28 @@ module axi_Master (
                     else if((inst_cpu_ce_i&&(inst_cpu_we_i==0))&&(data_cpu_ce_i&&(data_cpu_we_i==0)))//fetch inst and fetch data
                     begin
                         //wait for fetch data request run into R_DATA state
+                        if(data_r_state==`R_DATA)
+                        begin
+                        inst_r_state<=`R_ADDR;
+                        s_arid<=0;
+                        s_araddr<=inst_cpu_addr_i;
+                        s_arsize<=0;
+                        inst_buffer<=0;
+                        s_rready<=0;
+
+                        s_arvalid<=1;
+                        end
+                        else
+                        begin
+                        inst_r_state<=`R_FREE;
+                        s_arid<=0;
+                        s_araddr<=0;
+                        s_arsize<=0;
+                        inst_buffer<=0;
+                        s_rready<=0;
+
+                        s_arvalid<=0;
+                        end
                     end
                     else
                     begin
@@ -217,6 +253,34 @@ module axi_Master (
 
                     if(s_arready&&s_arvalid)
                     begin
+                        //wait for fetch data request run into R_FREE state
+                        if(data_cpu_ce_i&&data_cpu_we_i==0)
+                        begin
+                            if(data_r_state==`R_FREE)
+                            begin
+                                inst_r_state<=`R_DATA;
+                                s_arid<=inst_id;
+                                s_araddr<=inst_cpu_addr_i;
+                                s_arsize<=3'b010;
+                                inst_buffer<=0;
+                                s_rready<=1;
+
+                                s_arvalid<=0;
+                            end
+                            else
+                            begin
+                                inst_r_state<=inst_r_state;
+                                s_arid<=s_arid;
+                                s_araddr<=s_araddr;
+                                s_arsize<=s_arsize;
+                                inst_buffer<=0;
+                                s_rready<=s_rready;
+
+                                s_arvalid<=s_arvalid;
+                            end
+                        end
+                        else
+                        begin
                         inst_r_state<=`R_DATA;
                         s_arid<=inst_id;
                         s_araddr<=inst_cpu_addr_i;
@@ -225,6 +289,8 @@ module axi_Master (
                         s_rready<=1;
 
                         s_arvalid<=0;
+                        end
+
                     end
                     else
                     begin
@@ -246,15 +312,37 @@ module axi_Master (
                 `R_DATA:begin
                     if(s_rvalid&&s_rlast)
                     begin
-                        inst_r_state<=`R_FREE;
-                        inst_buffer<=s_rdata;
-                        s_rready<=0;
+                        if(!(data_cpu_ce_i&&(data_cpu_we_i==0)))
+                        begin
+                            inst_r_state<=`R_FREE;
+                            inst_buffer<=s_rdata;
+                            s_rready<=0;
+
+                            s_arid<=0;
+                            s_araddr<=0;
+                            s_arsize<=0;
+                        end
+                        else
+                        begin
+                            inst_r_state<=`STALL;
+                            inst_buffer<=s_rdata;
+                            s_rready<=0;
+
+                            s_arid<=0;
+                            s_araddr<=0;
+                            s_arsize<=0;
+                        end
+
                     end
                     else
                     begin
                         inst_r_state<=inst_r_state;
                         inst_buffer<=0;
                         s_rready<=s_rready;
+
+                        s_arid<=s_arid;
+                        s_araddr<=s_araddr;
+                        s_arsize<=s_arsize;
                     end
 
                     // //set s_rready
@@ -271,6 +359,13 @@ module axi_Master (
                     // begin
                     //     s_rready<=s_rready;
                     // end
+                end
+
+                /**STALL**/
+                `STALL:
+                begin
+                    if(data_stall_req_r==0) inst_r_state<=`R_FREE;
+                    else inst_r_state<=inst_r_state;
                 end
 
                 default:
@@ -352,7 +447,7 @@ module axi_Master (
 
                 `R_FREE:begin
 
-                    if(data_cpu_ce_i&&(data_cpu_we_i==0))
+                    if(data_cpu_ce_i&&(data_cpu_we_i==0)&&(is_fetching_inst==0))
                     begin
                         data_r_state<=`R_ADDR;
                         s_arid<=0;
@@ -362,8 +457,6 @@ module axi_Master (
                         s_rready<=0;
 
                         s_arvalid<=1;
-
-                        
                     end
                     else
                     begin
