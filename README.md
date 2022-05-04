@@ -4,22 +4,26 @@
 ## 目录结构
 
 ```
-src/                CPU Verilog 源代码
-    SimTop.v        顶层Soc，用于连接核心和其他模块
-    SimTop_tb.v     Vivado仿真testbench
-    ram.v           用于在仿真时读取inst_rom.data
-    inst_rom.data   存放内存初始内容
+src/                    CPU Verilog 源代码
+    SimTop.v            顶层Soc，用于连接核心和其他模块
+    SimTop_tb.v         Vivado仿真testbench
+    ram.v               用于在仿真时读取inst_rom.data
+    inst_rom.data       存放内存初始内容
 
-    vsrc/           CPU 核心部分源码
-        pipeline/   流水线部分
-        AXI/        AXI 控制器
-        BPU/        分支预测部件
-        frontend/   流水线前端，负责取指并塞入Instruction Buffer
-        ...         其他模块
+    vsrc/               CPU 核心部分源码
+        pipeline/       流水线部分
+        AXI/            AXI 控制器
+        BPU/            分支预测部件
+        frontend/       流水线前端，负责取指并塞入Instruction Buffer
 
-Makefile            用于自动化测试和Verilator仿真，无需关心
-README.md           本文件
-testbench.cpp       用于Verilator仿真，如果使用Vivado仿真，无需关心    
+        cpu_top.sv      CPU 内核顶层模块，目前含有ICache，Frontend，IB和流水线各级
+                        同时是chiplab测试的入口，仅有AXI端口和外部中断端口
+
+        ...             其他模块
+
+Makefile                用于自动化测试和Verilator仿真，无需关心
+README.md               本文件
+testbench.cpp           用于Verilator仿真，如果使用Vivado仿真，无需关心    
 
 
 ```
