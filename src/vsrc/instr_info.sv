@@ -9,9 +9,10 @@ typedef struct packed {
     bit [`InstBus] instr;
 
     // BPU info
-    bit [2:0]  bpu_useful_bits;
-    bit [2:0]  bpu_ctr_bits;
-    bit [2:0]  bpu_provider_id;
+    bit bpu_predicted_taken;
+    bit [2:0] bpu_useful_bits;
+    bit [2:0] bpu_ctr_bits;
+    bit [2:0] bpu_provider_id;
     bit [13:0] bpu_provider_query_index;
 } instr_buffer_info_t;
 
