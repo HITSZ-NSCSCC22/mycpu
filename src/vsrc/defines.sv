@@ -57,9 +57,9 @@
 `define EXE_SPECIAL 6'b000001
 `define EXE_CSR_RELATED 6'b00????
 `define EXE_OTHER 6'b100100
-`define EXE_CSRRD 8'b00000100
-`define EXE_CSRWR 8'b00000100
-`define EXE_CSRXCHG 8'b00000100
+`define EXE_CSRRD 5'b00000
+`define EXE_CSRWR 5'b00001
+`define EXE_CSRXCHG 5'b00011
 `define EXE_TLB_RELATED 5'b10000
 `define EXE_IDLE 17'b00000110010010001
 `define EXE_INVTLB 17'b00000110010010011
@@ -201,3 +201,13 @@
 
 // SRAM latency
 `define CacheLatency 0
+
+typedef struct packed {
+    logic we;
+    logic [`RegAddrBus] addr;
+    logic [`RegBus] data;
+} reg_write_signal;
+//tlb-compare-part
+//typedef struct packed {
+    
+//} tlb_com_part;

@@ -1,7 +1,7 @@
 // Instruction info define
 `ifndef INSTR_INFO_SV
 `define INSTR_INFO_SV
-`include "defines.v"
+`include "defines.sv"
 
 typedef struct packed {
     bit valid;

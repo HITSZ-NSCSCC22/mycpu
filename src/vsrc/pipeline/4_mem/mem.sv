@@ -1,7 +1,7 @@
 `timescale 1ns / 1ns
 
-`include "defines.v"
-`include "csr_defines.v"
+`include "defines.sv"
+`include "csr_defines.sv"
 
 module mem (
     input wire rst,
@@ -23,9 +23,7 @@ module mem (
     input wire [1:0] excepttype_i,
     input wire [`RegBus] current_inst_address_i,
 
-    input wire mem_csr_we_i,
-    input wire [13:0] mem_csr_addr_i,
-    input wire [`RegBus] mem_csr_data_i,
+    input csr_write_signal csr_signal_i,
 
     input wire excp_i,
     input wire [9:0] excp_num_i,
@@ -71,9 +69,7 @@ module mem (
     output wire [1:0] excepttype_o,
     output wire [`RegBus] current_inst_address_o,
 
-    output wire mem_csr_we_o,
-    output wire [13:0] mem_csr_addr_o,
-    output wire [`RegBus] mem_csr_data_o,
+    output csr_write_signal csr_signal_o,
 
     output wire excp_o,
     output wire [15:0] excp_num_o
@@ -105,9 +101,7 @@ module mem (
     assign excepttype_o = excepttype_i;
     assign current_inst_address_o = current_inst_address_i;
 
-    assign mem_csr_we_o = mem_csr_we_i;
-    assign mem_csr_addr_o = mem_csr_we_o;
-    assign mem_csr_data_o = mem_csr_data_i;
+    assign csr_signal_o = csr_signal_i;
 
     //addr dmw trans
     assign dmw0_en = ((csr_dmw0[`PLV0] && csr_plv == 2'd0) || (csr_dmw0[`PLV3] && csr_plv == 2'd3)) && (wdata_i[31:29] == csr_dmw0[`VSEG]);

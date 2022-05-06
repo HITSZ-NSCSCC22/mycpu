@@ -1,4 +1,4 @@
-`include "AXI/axi_defines.v"
+`include "AXI/axi_defines.sv"
 module axi_master (
     input wire aclk,
     input wire aresetn, //low is valid

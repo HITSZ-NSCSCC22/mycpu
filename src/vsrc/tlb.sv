@@ -1,121 +1,122 @@
-`include "defines.v"
-`include "csr_defines.v"
+`include "defines.sv"
+`include "csr_defines.sv"
 
 module tlb #(
     parameter TLBNUM = 32
+
 )
 (
-    input wire                  clk                  ,
-    input wire  [ 9:0]          asid                 ,
+    input logic                  clk                  ,
+    input logic  [ 9:0]          asid                 ,
     //trans mode
-    input wire                  inst_addr_trans_en   ,
-    input wire                  data_addr_trans_en   ,
+    input logic                  inst_addr_trans_en   ,
+    input logic                  data_addr_trans_en   ,
     //inst addr trans
-    input wire                  inst_fetch           ,
-    input wire  [31:0]          inst_vaddr           ,
-    input wire                  inst_dmw0_en         ,
-    input wire                  inst_dmw1_en         ,
-    output wire [ 7:0]          inst_index           ,
-    output wire [19:0]          inst_tag             ,
-    output wire [ 3:0]          inst_offset          ,
-    output wire                 inst_tlb_found       ,
-    output wire                 inst_tlb_v           ,
-    output wire                 inst_tlb_d           ,
-    output wire [ 1:0]          inst_tlb_mat         ,
-    output wire [ 1:0]          inst_tlb_plv         ,
+    input logic                  inst_fetch           ,
+    input logic  [31:0]          inst_vaddr           ,
+    input logic                  inst_dmw0_en         ,
+    input logic                  inst_dmw1_en         ,
+    output logic [ 7:0]          inst_index           ,
+    output logic [19:0]          inst_tag             ,
+    output logic [ 3:0]          inst_offset          ,
+    output logic                 inst_tlb_found       ,
+    output logic                 inst_tlb_v           ,
+    output logic                 inst_tlb_d           ,
+    output logic [ 1:0]          inst_tlb_mat         ,
+    output logic [ 1:0]          inst_tlb_plv         ,
     //data addr trans
-    input wire                  data_fetch           ,
-    input wire  [31:0]          data_vaddr           ,
-    input wire                  data_dmw0_en         ,
-    input wire                  data_dmw1_en         ,
-    input wire                  cacop_op_mode_di     ,
-    output wire [ 7:0]          data_index           ,
-    output wire [19:0]          data_tag             ,
-    output wire [ 3:0]          data_offset          ,
-    output wire                 data_tlb_found       ,
-    output wire [ 4:0]          data_tlb_index       ,
-    output wire                 data_tlb_v           ,
-    output wire                 data_tlb_d           ,
-    output wire [ 1:0]          data_tlb_mat         ,
-    output wire [ 1:0]          data_tlb_plv         ,
+    input logic                  data_fetch           ,
+    input logic  [31:0]          data_vaddr           ,
+    input logic                  data_dmw0_en         ,
+    input logic                  data_dmw1_en         ,
+    input logic                  cacop_op_mode_di     ,
+    output logic [ 7:0]          data_index           ,
+    output logic [19:0]          data_tag             ,
+    output logic [ 3:0]          data_offset          ,
+    output logic                 data_tlb_found       ,
+    output logic [ 4:0]          data_tlb_index       ,
+    output logic                 data_tlb_v           ,
+    output logic                 data_tlb_d           ,
+    output logic [ 1:0]          data_tlb_mat         ,
+    output logic [ 1:0]          data_tlb_plv         ,
     //tlbwi tlbwr tlb write
-    input wire                  tlbfill_en           ,
-    input wire                  tlbwr_en             ,
-    input wire  [ 4:0]          rand_index           ,
-    input wire  [31:0]          tlbehi_in            ,
-    input wire  [31:0]          tlbelo0_in           ,
-    input wire  [31:0]          tlbelo1_in           ,
-    input wire  [31:0]          tlbidx_in            , 
-    input wire  [ 5:0]          ecode_in             ,
+    input logic                  tlbfill_en           ,
+    input logic                  tlbwr_en             ,
+    input logic  [ 4:0]          rand_index           ,
+    input logic  [31:0]          tlbehi_in            ,
+    input logic  [31:0]          tlbelo0_in           ,
+    input logic  [31:0]          tlbelo1_in           ,
+    input logic  [31:0]          tlbidx_in            , 
+    input logic  [ 5:0]          ecode_in             ,
     //tlbr tlb read
-    output wire [31:0]          tlbehi_out           ,
-    output wire [31:0]          tlbelo0_out          ,
-    output wire [31:0]          tlbelo1_out          ,
-    output wire [31:0]          tlbidx_out           ,
-    output wire [ 9:0]          asid_out             ,
+    output logic [31:0]          tlbehi_out           ,
+    output logic [31:0]          tlbelo0_out          ,
+    output logic [31:0]          tlbelo1_out          ,
+    output logic [31:0]          tlbidx_out           ,
+    output logic [ 9:0]          asid_out             ,
     //invtlb 
-    input wire                  invtlb_en            ,
-    input wire  [ 9:0]          invtlb_asid          ,
-    input wire  [18:0]          invtlb_vpn           ,
-    input wire  [ 4:0]          invtlb_op            ,
+    input logic                  invtlb_en            ,
+    input logic  [ 9:0]          invtlb_asid          ,
+    input logic  [18:0]          invtlb_vpn           ,
+    input logic  [ 4:0]          invtlb_op            ,
     //from csr
-    input wire  [31:0]          csr_dmw0             ,
-    input wire  [31:0]          csr_dmw1             ,
-    input wire                  csr_da               ,
-    input wire                  csr_pg               
+    input logic  [31:0]          csr_dmw0             ,
+    input logic  [31:0]          csr_dmw1             ,
+    input logic                  csr_da               ,
+    input logic                  csr_pg               
 );
 
-wire [18:0] s0_vppn     ;
-wire        s0_odd_page ;
-wire [ 5:0] s0_ps       ;
-wire [19:0] s0_ppn      ;
+logic [18:0] s0_vppn     ;
+logic        s0_odd_page ;
+logic [ 5:0] s0_ps       ;
+logic [19:0] s0_ppn      ;
 
-wire [18:0] s1_vppn     ;
-wire        s1_odd_page ;
-wire [ 5:0] s1_ps       ;
-wire [19:0] s1_ppn      ;
+logic [18:0] s1_vppn     ;
+logic        s1_odd_page ;
+logic [ 5:0] s1_ps       ;
+logic [19:0] s1_ppn      ;
 
-wire        we          ;
-wire [ 4:0] w_index     ;
-wire [18:0] w_vppn      ;
-wire        w_g         ;
-wire [ 5:0] w_ps        ;
-wire        w_e         ;
-wire        w_v0        ;
-wire        w_d0        ;
-wire [ 1:0] w_mat0      ;
-wire [ 1:0] w_plv0      ;
-wire [19:0] w_ppn0      ;
-wire        w_v1        ;
-wire        w_d1        ;
-wire [ 1:0] w_mat1      ;
-wire [ 1:0] w_plv1      ;
-wire [19:0] w_ppn1      ;
+logic        we          ;
+logic [ 4:0] w_index     ;
+logic [18:0] w_vppn      ;
+logic        w_g         ;
+logic [ 5:0] w_ps        ;
+logic        w_e         ;
+logic        w_v0        ;
+logic        w_d0        ;
+logic [ 1:0] w_mat0      ;
+logic [ 1:0] w_plv0      ;
+logic [19:0] w_ppn0      ;
+logic        w_v1        ;
+logic        w_d1        ;
+logic [ 1:0] w_mat1      ;
+logic [ 1:0] w_plv1      ;
+logic [19:0] w_ppn1      ;
 
-wire [ 4:0] r_index     ;
-wire [18:0] r_vppn      ;
-wire [ 9:0] r_asid      ;
-wire        r_g         ;
-wire [ 5:0] r_ps        ;
-wire        r_e         ;
-wire        r_v0        ;
-wire        r_d0        ; 
-wire [ 1:0] r_mat0      ;
-wire [ 1:0] r_plv0      ;
-wire [19:0] r_ppn0      ;
-wire        r_v1        ;
-wire        r_d1        ;
-wire [ 1:0] r_mat1      ;
-wire [ 1:0] r_plv1      ;
-wire [19:0] r_ppn1      ;
+logic [ 4:0] r_index     ;
+logic [18:0] r_vppn      ;
+logic [ 9:0] r_asid      ;
+logic        r_g         ;
+logic [ 5:0] r_ps        ;
+logic        r_e         ;
+logic        r_v0        ;
+logic        r_d0        ; 
+logic [ 1:0] r_mat0      ;
+logic [ 1:0] r_plv0      ;
+logic [19:0] r_ppn0      ;
+logic        r_v1        ;
+logic        r_d1        ;
+logic [ 1:0] r_mat1      ;
+logic [ 1:0] r_plv1      ;
+logic [19:0] r_ppn1      ;
 
-reg  [31:0] inst_vaddr_buffer  ;
-reg  [31:0] data_vaddr_buffer  ;
-wire [31:0] inst_paddr;
-wire [31:0] data_paddr;
+logic  [31:0] inst_vaddr_buffer  ;
+logic  [31:0] data_vaddr_buffer  ;
+logic [31:0] inst_paddr;
+logic [31:0] data_paddr;
 
-wire        pg_mode;
-wire        da_mode;
+logic        pg_mode;
+logic        da_mode;
 
 always @(posedge clk) begin
     inst_vaddr_buffer <= inst_vaddr;
