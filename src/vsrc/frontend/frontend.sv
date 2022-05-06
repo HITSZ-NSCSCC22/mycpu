@@ -89,15 +89,21 @@ module frontend #(
     end
 
     always_ff @(posedge clk or negedge rst_n) begin : instr_buffer_o_ff
-        // Keep 0 for most of the time
-        for (integer i = 0; i < FETCH_WIDTH; i++) begin
-            instr_buffer_o[i] <= 0;
-        end
-        if (icache_resp_ready && !instr_buffer_stallreq_i) begin
+        if (!rst_n) begin
             for (integer i = 0; i < FETCH_WIDTH; i++) begin
-                instr_buffer_o[i].valid <= 1;
-                instr_buffer_o[i].pc <= icache_resp_buffer[i].pc;
-                instr_buffer_o[i].instr <= icache_resp_buffer[i].instr;
+                instr_buffer_o[i] <= 0;
+            end
+        end else begin
+            // Keep 0 for most of the time
+            for (integer i = 0; i < FETCH_WIDTH; i++) begin
+                instr_buffer_o[i] <= 0;
+            end
+            if (icache_resp_ready && !instr_buffer_stallreq_i) begin
+                for (integer i = 0; i < FETCH_WIDTH; i++) begin
+                    instr_buffer_o[i].valid <= 1;
+                    instr_buffer_o[i].pc <= icache_resp_buffer[i].pc;
+                    instr_buffer_o[i].instr <= icache_resp_buffer[i].instr;
+                end
             end
         end
     end
