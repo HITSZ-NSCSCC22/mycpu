@@ -136,7 +136,8 @@ module axi_Master (
                             begin
                                 inst_stall_req_r=1;
                                 inst_cpu_data_o=0;
-                                is_fetching_inst=1;
+                                //is_fetching_inst=1;
+                                is_fetching_inst=0;
                             end
                             else
                             begin
@@ -529,9 +530,9 @@ module axi_Master (
                         data_buffer<=s_rdata;
                         data_s_rready<=0;
 
-                        inst_s_arid<=0;
-                        inst_s_araddr<=0;
-                        inst_s_arsize<=0;
+                        data_s_arid<=0;
+                        data_s_araddr<=0;
+                        data_s_arsize<=0;
                     end
                     else
                     begin
@@ -539,9 +540,9 @@ module axi_Master (
                         data_buffer<=0;
                         data_s_rready<=data_s_rready;
 
-                        inst_s_arid<=0;
-                        inst_s_araddr<=0;
-                        inst_s_arsize<=0;
+                        data_s_arid<=0;
+                        data_s_araddr<=0;
+                        data_s_arsize<=0;
                     end
 
                     // //set s_rready
@@ -764,10 +765,10 @@ module axi_Master (
 
     
     //set axi signal
-    assign s_arid=inst_s_arid||data_s_arid;
-    assign s_araddr=inst_s_araddr||data_s_araddr;
-    assign s_arsize=inst_s_arsize||data_s_arsize;
-    assign s_arvalid=inst_s_arvalid||data_s_arvalid;
-    assign s_rready=inst_s_rready||data_s_rready;
+    assign s_arid=inst_s_arid|data_s_arid;
+    assign s_araddr=inst_s_araddr|data_s_araddr;
+    assign s_arsize=inst_s_arsize|data_s_arsize;
+    assign s_arvalid=inst_s_arvalid|data_s_arvalid;
+    assign s_rready=inst_s_rready|data_s_rready;
 
 endmodule

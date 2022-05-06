@@ -18,18 +18,30 @@
     input wire aclk,
     input wire aresetn, //low is valid
 
-    来自cpu和输出到cpu的信号，其中只有cpu_data_o和stallreq是输出的。
-    //CPU
-    input wire [`ADDR]cpu_addr_i,
-    input wire cpu_ce_i,
-    input wire [`Data]cpu_data_i,
-    input wire cpu_we_i ,
-    input wire [3:0]cpu_sel_i, 
-    input wire stall_i,
-    input wire flush_i,
-    output reg [`Data]cpu_data_o,//指令
-    output wire stallreq,//暂停信号
-    input wire [3:0]id,//决定是读数据还是取指令
+    来自cpu和输出到cpu的信号，其中只有inst_cpu_data_o,data_cpu_data_o和inst_stallreq,data_stallreq是输出的。
+    //icache/IF
+    input wire [`ADDR]inst_cpu_addr_i,
+    input wire inst_cpu_ce_i,
+    input wire [`Data]inst_cpu_data_i,
+    input wire inst_cpu_we_i ,
+    input wire [3:0]inst_cpu_sel_i, 
+    input wire inst_stall_i,
+    input wire inst_flush_i,
+    output reg [`Data]inst_cpu_data_o,
+    output wire inst_stallreq,
+    input wire [3:0]inst_id,//决定是读数据还是取指令,默认4’b0000
+
+    //dcache/MEM
+    input wire [`ADDR]data_cpu_addr_i,
+    input wire data_cpu_ce_i,
+    input wire [`Data]data_cpu_data_i,
+    input wire data_cpu_we_i ,
+    input wire [3:0]data_cpu_sel_i, 
+    input wire data_stall_i,
+    input wire data_flush_i,
+    output reg [`Data]data_cpu_data_o,
+    output wire data_stallreq,
+    input wire [3:0]data_id,//决定是读数据还是取指令,默认4'b0001
     
 
     AXI标准信号接口，输出到从机或从从机输入，无需关心内部逻辑，照着接线就好，s是前缀。
@@ -84,30 +96,46 @@
 
 ## 使用说明
 1. 把axi_Master主机接口放到cpuTop中实例化     
-   * 仅验证读功能的axi接口，取值id接口`4’b0000`,取数id接口`4'b0001`
+   * 实现仲裁的axi接口(不支持同种请求的连续发送和突发传输，支持同时送取指和取数)，取值id接口`4’b0000`,取数id接口`4'b0001`
+   * 支持写操作，读指令和读数据。若同时发出取指和取数，会并行执行(指同时发送两种请求，若先取指后取数或先取数后取指都无法并行)
+   * 如果连续发送两次读请求，则会等待第一个读请求结束在处理第二个读请求
+   * 先写后读，写请求结束后才会处理读请求
    ```      
-          //AXI Master interface for fetch instruction channel
+         
             wire aresetn=~rst;
-            wire axi_stall=&stall;
             wire stallreq_from_if;
+            wire stallreq_from_mem;
             wire [31:0]inst_data_from_axi;
+            wire [31:0]mem_data_from_axi;
+            wire [31:0]data;//写入的数据
 
             //接口实例化
             axi_Master inst_interface(
             .aclk(clk),
             .aresetn(aresetn), //low is valid
-    
-    //CPU
-            .cpu_addr_i(pc),
-            .cpu_ce_i(chip_enable),
-            .cpu_data_i(0),
-            .cpu_we_i(0) ,
-            .cpu_sel_i(4'b1111), 
-            .stall_i(axi_stall),
-            .flush_i(0),
-            .cpu_data_o(inst_data_from_axi),
-            .stallreq(stallreq_from_if),
-            .id(4'b0000),//决定是读数据还是取指令
+    //icache/IF
+            .inst_cpu_addr_i(inst_pc),
+            .inst_cpu_ce_i(inst_chip_enable),
+            .inst_cpu_data_i(0),
+            .inst_cpu_we_i(0) ,
+            .inst_cpu_sel_i(4'b1111), 
+            .inst_stall_i(0),
+            .inst_flush_i(0),
+            .inst_cpu_data_o(inst_data_from_axi),
+            .inst_stallreq(stallreq_from_if),
+            .inst_id(4'b0000),//决定是读数据还是取指令
+     
+     //dacache/MEM
+            .data_cpu_addr_i(data_pc),
+            .data_cpu_ce_i(data_chip_enable),
+            .data_cpu_data_i(data),
+            .data_cpu_we_i(data_we) ,
+            .data_cpu_sel_i(4'b1111), 
+            .data_stall_i(0),
+            .data_flush_i(0),
+            .data_cpu_data_o(mem_data_from_axi),
+            .data_stallreq(stallreq_from_mem),
+            .data_id(4'b0001),//决定是读数据还是取指令
 
     //ar
             .s_arid(i_arid),  //arbitration
@@ -144,7 +172,7 @@
     //w
             .s_wid(i_wid),
             .s_wdata(i_wdata),
-            .s_wstrb(i_wstrb),//字节选通位和sel差不多
+            .s_wstrb(i_wstrb),//字节选通位和sel差不多，写32字节用4'b1111
             .s_wlast(i_wlast),
             .s_wvalid(i_wvalid),
             .s_wready(i_wready),
@@ -159,6 +187,6 @@
    ```   
 
 
-2. inst_data_from_axi为从ram中取到的数据，建议直接放到if_buffer中，以实现pc和inst的对齐。stallreq_if为暂停请求，连接到CTRL中。ctrl和if_buffer的暂停逻辑重写。详情看具体的文件。
-* [ctrl文件](../vsrc/ctrl.v)
-* [if_buffer](../vsrc/if_buffer.v)
+2. inst_data_from_axi，mem_data_from为从ram中取到的数据  
+
+3. xxx_cpu_sel_i为字节选通使能，用来实现store类型。
