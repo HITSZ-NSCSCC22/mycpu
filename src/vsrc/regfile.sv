@@ -27,11 +27,12 @@ module regfile (
     output reg [`RegBus] rdata2_2
 );
 
+    // Used in difftest, should named regs
     reg [`RegBus] regs[0:`RegNum-1];
 
     always @(posedge clk) begin
         if (rst == `RstEnable) begin
-            for (integer i = 0; i < 32; i = i + 1) begin
+            for (integer i = 0; i < `RegNum; i = i + 1) begin
                 regs[i] <= 0;
             end
         end else begin  //同时写入一个位置，将后面的写入

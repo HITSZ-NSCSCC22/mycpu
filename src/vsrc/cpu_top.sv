@@ -1465,12 +1465,18 @@ module cpu_top (
 
     // Difftest DPI-C
 `ifdef SIMU  // SIMU is defined in chiplab run_func/Makefile
+    logic [`RegBus] debug_commit_pc_1_delay_1;
+    log debug_commit_valid_1_delay_1;
+    always_ff @( posedge clk) begin : 
+        debug_commit_pc_1_delay_1 <= debug_commit_valid_1;
+        debug_commit_pc_1_delay_1 <= debug_commit_pc_1;
+    end
     DifftestInstrCommit difftest_instr_commit_0 (  // TODO: not finished yet, blank signal is needed
         .clock         (aclk),
-        .coreid        (0),                          // Only one core, so always 0
-        .index         (0),                          // Commit channel index
-        .valid         (debug_commit_valid_1),       // 1 means valid
-        .pc            (debug_commit_pc_1),
+        .coreid        (0),                                  // Only one core, so always 0
+        .index         (0),                                  // Commit channel index
+        .valid         (debug_commit_valid_1_delay_1),   // 1 means valid
+        .pc            (debug_commit_pc_1_delay_1),
         .instr         (debug_commit_instr_1),
         .skip          (0),                          // Not sure meaning, but keep 0 for now
         .is_TLBFILL    (),
@@ -1516,7 +1522,8 @@ module cpu_top (
         .dmw1     (u_cs_reg.csr_dmw1)
     );
 
-
+    // Assume regilfe instance name is u_regfile
+    // and architectural register are under regs[] array
     DifftestGRegState difftest_gpr_state (
         .clock (aclk),
         .coreid(0),
