@@ -1162,6 +1162,8 @@ module cpu_top (
     logic excp_tlbrefill_1;
     logic [18:0] excp_tlb_vppn_1;
 
+    logic [`InstAddrBus] debug_commit_pc_1;
+
     mem_wb mem_wb_1 (
         .clk  (clk),
         .rst  (rst),

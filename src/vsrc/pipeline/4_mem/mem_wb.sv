@@ -54,10 +54,6 @@ module mem_wb (
     output wire [18:0] excp_tlb_vppn
 );
 
-    reg debug_commit_valid_0;
-    reg debug_commit_valid_1;
-    reg [`InstBus] debug_commit_pc_0;
-
     reg wb_valid;
 
     assign csr_era = mem_inst_pc;
@@ -137,10 +133,7 @@ module mem_wb (
             wb_LLbit_value <= mem_LLbit_value;
             wb_csr_signal_o <= mem_csr_signal_o;
             debug_commit_pc <= mem_inst_pc;
-            // debug_commit_pc <= debug_commit_pc_0;
             debug_commit_valid <= mem_inst_valid;
-            // debug_commit_valid_1 <= debug_commit_valid_0;
-            // debug_commit_valid <= ~debug_commit_valid_1;
             debug_commit_instr <= mem_instr;
         end
     end
