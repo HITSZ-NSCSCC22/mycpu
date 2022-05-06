@@ -90,7 +90,7 @@ module instr_buffer #(
         // Frontend overide
         for (integer i = 0; i < IF_WIDTH; i++) begin
             // Reset entry
-            if (i < backend_accept_num) begin
+            if (i < frontend_accept_num) begin
                 next_buffer_queue[write_ptr+i] = frontend_instr_i[i];
             end
         end

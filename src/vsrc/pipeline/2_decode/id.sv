@@ -78,27 +78,29 @@ module id (
 
     // ->Ctrl
     output logic stallreq,
-    output reg  idle_stallreq
+    output reg   idle_stallreq
 );
 
-    logic [`InstAddrBus] pc_i = instr_buffer_i.valid ? instr_buffer_i.pc : `ZeroWord;
-    logic [`InstBus] inst_i = instr_buffer_i.valid ?  instr_buffer_i.instr : `ZeroWord;
+    logic [`InstAddrBus] pc_i;
+    assign pc_i = instr_buffer_i.valid ? instr_buffer_i.pc : `ZeroWord;
+    logic [`InstBus] inst_i;
+    assign inst_i = instr_buffer_i.valid ? instr_buffer_i.instr : `ZeroWord;
 
 
-    logic [5:0] opcode_6 = inst_i[31:26];
-    logic [6:0] opcode_7 = inst_i[31:25];
-    logic [7:0] opcode_8 = inst_i[31:24];
-    logic [9:0] opcode_10 = inst_i[31:22];
+    logic [ 5:0] opcode_6 = inst_i[31:26];
+    logic [ 6:0] opcode_7 = inst_i[31:25];
+    logic [ 7:0] opcode_8 = inst_i[31:24];
+    logic [ 9:0] opcode_10 = inst_i[31:22];
     logic [13:0] opcode_14 = inst_i[31:18];
     logic [16:0] opcode_17 = inst_i[31:15];
     logic [21:0] opcode_22 = inst_i[31:10];
-    logic [4:0] imm_5 = inst_i[14:10];
-    logic [9:0] imm_10 = inst_i[9:0];
+    logic [ 4:0] imm_5 = inst_i[14:10];
+    logic [ 9:0] imm_10 = inst_i[9:0];
     logic [13:0] imm_14 = inst_i[23:10];
     logic [15:0] imm_16 = inst_i[25:10];
     logic [11:0] imm_12 = inst_i[21:10];
     logic [19:0] imm_20 = inst_i[24:5];
-    logic [4:0] op1;
+    logic [ 4:0] op1;
     assign op1 = inst_i[4:0];
     logic [4:0] op2 = inst_i[9:5];
     logic [4:0] op3 = inst_i[14:10];
@@ -146,12 +148,12 @@ module id (
     reg inst_break;
     reg kernel_inst;
 
-    
+
 
     assign current_inst_address_o = pc_i;
 
 
-    assign excp_ine = ~inst_valid;
+    assign excp_ine = (inst_valid == `InstInvalid) && instr_buffer_i.valid;
     assign excp_ipe = kernel_inst && (csr_plv == 2'b11);
 
     assign excp_o = excp_ipe | inst_syscall | inst_break | excp_i | excp_ine | has_int;
@@ -458,47 +460,47 @@ module id (
                         `EXE_CSR_RELATED: begin
                             case (op2)
                                 `EXE_CSRRD: begin
-                                    wreg_o       = `WriteEnable;
-                                    aluop_o      = `EXE_CSRRD_OP;
-                                    reg1_read_o  = 1'b1;
-                                    reg2_read_o  = 1'b0;
-                                    imm          = {18'b0, imm_14};
-                                    csr_signal_o.we = 1'b1;
+                                    wreg_o            = `WriteEnable;
+                                    aluop_o           = `EXE_CSRRD_OP;
+                                    reg1_read_o       = 1'b1;
+                                    reg2_read_o       = 1'b0;
+                                    imm               = {18'b0, imm_14};
+                                    csr_signal_o.we   = 1'b1;
                                     csr_signal_o.addr = imm_14;
                                     csr_signal_o.data = `ZeroWord;
-                                    reg_waddr_o  = op1;
-                                    inst_valid   = `InstValid;
-                                    res_from_csr = 1'b1;
-                                    kernel_inst  = 1'b1;
+                                    reg_waddr_o       = op1;
+                                    inst_valid        = `InstValid;
+                                    res_from_csr      = 1'b1;
+                                    kernel_inst       = 1'b1;
                                 end
                                 `EXE_CSRWR: begin
-                                    wreg_o       = `WriteEnable;
-                                    aluop_o      = `EXE_CSRWR_OP;
-                                    reg1_read_o  = 1'b1;
-                                    reg2_read_o  = 1'b0;
-                                    imm          = {18'b0, imm_14};
-                                    csr_signal_o.we = 1'b1;
+                                    wreg_o            = `WriteEnable;
+                                    aluop_o           = `EXE_CSRWR_OP;
+                                    reg1_read_o       = 1'b1;
+                                    reg2_read_o       = 1'b0;
+                                    imm               = {18'b0, imm_14};
+                                    csr_signal_o.we   = 1'b1;
                                     csr_signal_o.addr = imm_14;
                                     csr_signal_o.data = reg1_data_i;
-                                    reg1_addr_o  = op1;
-                                    reg_waddr_o  = op1;
-                                    inst_valid   = `InstValid;
-                                    res_from_csr = 1'b1;
-                                    kernel_inst  = 1'b1;
+                                    reg1_addr_o       = op1;
+                                    reg_waddr_o       = op1;
+                                    inst_valid        = `InstValid;
+                                    res_from_csr      = 1'b1;
+                                    kernel_inst       = 1'b1;
                                 end
                                 default: begin
-                                    wreg_o       = `WriteEnable;
-                                    aluop_o      = `EXE_CSRXCHG_OP;
-                                    reg1_read_o  = 1'b0;
-                                    reg2_read_o  = 1'b0;
-                                    imm          = {18'b0, imm_14};
-                                    csr_signal_o.we = 1'b1;
+                                    wreg_o            = `WriteEnable;
+                                    aluop_o           = `EXE_CSRXCHG_OP;
+                                    reg1_read_o       = 1'b0;
+                                    reg2_read_o       = 1'b0;
+                                    imm               = {18'b0, imm_14};
+                                    csr_signal_o.we   = 1'b1;
                                     csr_signal_o.addr = imm_14;
                                     csr_signal_o.data = reg1_data_i;
-                                    reg_waddr_o  = op1;
-                                    inst_valid   = `InstValid;
-                                    res_from_csr = 1'b1;
-                                    kernel_inst  = 1'b1;
+                                    reg_waddr_o       = op1;
+                                    inst_valid        = `InstValid;
+                                    res_from_csr      = 1'b1;
+                                    kernel_inst       = 1'b1;
                                 end
                             endcase
                         end
