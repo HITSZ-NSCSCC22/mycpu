@@ -1,4 +1,5 @@
-`include "defines.v"
+`include "defines.sv"
+`include "csr_defines.sv"
 module id_ex (
     input wire clk,
     input wire rst,
@@ -19,9 +20,7 @@ module id_ex (
     input wire flush,
     input wire [1:0] id_excepttype,
     input wire [`RegBus] id_current_inst_address,
-    input wire id_csr_we,
-    input wire [13:0] id_csr_addr,
-    input wire [`RegBus] id_csr_data,
+    input csr_write_signal id_csr_signal_o,
 
     output reg [`AluOpBus] ex_aluop,
     output reg [`AluSelBus] ex_alusel,
@@ -35,9 +34,7 @@ module id_ex (
     output reg [`RegBus] ex_inst,
     output reg [1:0] ex_excepttype,
     output reg [`RegBus] ex_current_inst_address,
-    output reg ex_csr_we,
-    output reg [13:0] ex_csr_addr,
-    output reg [`RegBus] ex_csr_data,
+    output csr_write_signal ex_csr_signal_i,
 
     input wire [ `RegAddrBus] reg1_addr_i,
     input wire [ `RegAddrBus] reg2_addr_i,
@@ -79,9 +76,7 @@ module id_ex (
             ex_inst                 <= `ZeroWord;
             ex_excepttype           <= 2'b00;
             ex_current_inst_address <= `ZeroWord;
-            ex_csr_we               <= 1'b0;
-            ex_csr_addr             <= 14'b0;
-            ex_csr_data             <= `ZeroWord;
+            ex_csr_signal_i         <= 47'b0;
             excp_o                  <= 1'b0;
             excp_num_o              <= 9'b0;
         end else if (flush == 1'b1 || excp_flush == 1'b1 || ertn_flush == 1'b1) begin
@@ -97,9 +92,7 @@ module id_ex (
             ex_inst                 <= `ZeroWord;
             ex_excepttype           <= 2'b00;
             ex_current_inst_address <= `ZeroWord;
-            ex_csr_we               <= 1'b0;
-            ex_csr_addr             <= 14'b0;
-            ex_csr_data             <= `ZeroWord;
+            ex_csr_signal_i         <= 47'b0;
             excp_o                  <= 1'b0;
             excp_num_o              <= 9'b0;
         end else
@@ -118,9 +111,7 @@ module id_ex (
             ex_inst                 <= id_inst;
             ex_excepttype           <= id_excepttype;
             ex_current_inst_address <= id_current_inst_address;
-            ex_csr_we               <= id_csr_we;
-            ex_csr_addr             <= id_csr_addr;
-            ex_csr_data             <= id_csr_data;
+            ex_csr_signal_i         <= id_csr_signal_o;
             excp_o                  <= excp_i;
             excp_num_o              <= excp_num_i;
         end

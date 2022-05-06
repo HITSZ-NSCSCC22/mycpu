@@ -1,5 +1,5 @@
-`include "defines.v"
-`include "csr_defines.v"
+`include "defines.sv"
+`include "csr_defines.sv"
 module pc_reg (
     input wire clk,
     input wire rst,

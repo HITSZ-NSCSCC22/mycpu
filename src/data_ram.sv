@@ -1,4 +1,4 @@
-`include "vsrc/defines.v"
+`include "vsrc/defines.sv"
 
 module data_ram(
     input wire clk,

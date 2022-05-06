@@ -1,5 +1,5 @@
-`include "csr_defines.v"
-`include "defines.v"
+`include "csr_defines.sv"
+`include "defines.sv"
 
 module mem_wb (
     input wire clk,
@@ -21,17 +21,13 @@ module mem_wb (
 
     input wire [15:0] excp_num,
 
-    input wire mem_csr_we,
-    input wire [13:0] mem_csr_addr,
-    input wire [`RegBus] mem_csr_data,
+    input csr_write_signal mem_csr_signal_o,
 
     output reg [`RegAddrBus] wb_wd,
     output reg wb_wreg,
     output reg [`RegBus] wb_wdata,
 
-    output reg wb_csr_we,
-    output reg [13:0] wb_csr_addr,
-    output reg [`RegBus] wb_csr_data,
+    output csr_write_signal wb_csr_signal_o,
 
     output reg [`InstAddrBus] debug_commit_pc,
     output reg debug_commit_valid,
@@ -66,7 +62,7 @@ module mem_wb (
 
     assign csr_era = mem_inst_pc;
     assign excp_flush = excp_i;
-    assign ertn_flush = mem_instr == `EXE_ERTN_OP;
+    assign ertn_flush = mem_aluop == `EXE_ERTN_OP;
 
 
     assign csr_ecode = excp_num[0] ? `ECODE_INT : excp_num[1] ? `ECODE_ADEF : excp_num[2] ? `ECODE_TLBR : excp_num[3] ? `ECODE_PIF : 
@@ -113,22 +109,18 @@ module mem_wb (
             wb_valid <= 1'b0;
             wb_LLbit_we <= 1'b0;
             wb_LLbit_value <= 1'b0;
-            wb_csr_we <= 1'b0;
-            wb_csr_addr <= 14'b0;
-            wb_csr_data <= `ZeroWord;
+            wb_csr_signal_o <= 47'b0;
             debug_commit_instr <= `ZeroWord;
             debug_commit_pc <= `ZeroWord;
             debug_commit_valid <= `InstInvalid;
-        end else if (flush == 1'b1 || excp_i == 1'b1 || mem_instr == `EXE_ERTN_OP) begin
+        end else if (flush == 1'b1 || excp_i == 1'b1 || mem_aluop == `EXE_ERTN_OP) begin
             wb_wd    <= `NOPRegAddr;
             wb_wreg  <= `WriteDisable;
             wb_wdata <= `ZeroWord;
             wb_valid <= 1'b0;
             wb_LLbit_we <= 1'b0;
             wb_LLbit_value <= 1'b0;
-            wb_csr_we <= 1'b0;
-            wb_csr_addr <= 14'b0;
-            wb_csr_data <= `ZeroWord;
+            wb_csr_signal_o <= 47'b0;
             debug_commit_instr <= `ZeroWord;
             debug_commit_pc <= `ZeroWord;
             debug_commit_valid <= ~`InstInvalid;
@@ -143,9 +135,7 @@ module mem_wb (
             wb_valid <= 1'b1;
             wb_LLbit_we <= mem_LLbit_we;
             wb_LLbit_value <= mem_LLbit_value;
-            wb_csr_we <= mem_csr_we;
-            wb_csr_addr <= mem_csr_addr;
-            wb_csr_data <= mem_csr_data;
+            wb_csr_signal_o <= mem_csr_signal_o;
             debug_commit_pc <= mem_inst_pc;
             // debug_commit_pc <= debug_commit_pc_0;
             debug_commit_valid <= mem_inst_valid;

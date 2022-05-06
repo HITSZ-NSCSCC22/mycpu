@@ -1,43 +1,44 @@
 `timescale 1ns / 1ns
 
-`include "defines.v"
+`include "defines.sv"
+`include "instr_info.sv"
+`include "csr_defines.sv"
 module id (
-    input wire rst,
+    input logic rst,
 
     // <- IF
-    input wire [`InstAddrBus] pc_i,
-    input wire [`InstBus] inst_i,
-    input wire excp_i,
-    input wire [3:0] excp_num_i,
+    input instr_buffer_info_t instr_buffer_i,
+    input logic excp_i,
+    input logic [3:0] excp_num_i,
 
     // <- Regfile
-    input wire [`RegBus] reg1_data_i,
-    input wire [`RegBus] reg2_data_i,
+    input logic [`RegBus] reg1_data_i,
+    input logic [`RegBus] reg2_data_i,
 
-    input wire [`InstAddrBus] pc_i_other,
+    input instr_buffer_info_t instr_buffer_i_other,
 
     // <- EXE
-    input wire ex_wreg_i_1,
-    input wire [`RegAddrBus] ex_waddr_i_1,
-    input wire [`RegBus] ex_wdata_i_1,
-    input wire [`AluOpBus] ex_aluop_i_1,
+    input logic ex_wreg_i_1,
+    input logic [`RegAddrBus] ex_waddr_i_1,
+    input logic [`RegBus] ex_wdata_i_1,
+    input logic [`AluOpBus] ex_aluop_i_1,
 
 
     // <- ANOTHER_EXE
-    input wire ex_wreg_i_2,
-    input wire [`RegAddrBus] ex_waddr_i_2,
-    input wire [`RegBus] ex_wdata_i_2,
-    input wire [`AluOpBus] ex_aluop_i_2,
+    input logic ex_wreg_i_2,
+    input logic [`RegAddrBus] ex_waddr_i_2,
+    input logic [`RegBus] ex_wdata_i_2,
+    input logic [`AluOpBus] ex_aluop_i_2,
 
     // <- Mem
-    input wire mem_wreg_i_1,
-    input wire [`RegAddrBus] mem_waddr_i_1,
-    input wire [`RegBus] mem_wdata_i_1,
+    input logic mem_wreg_i_1,
+    input logic [`RegAddrBus] mem_waddr_i_1,
+    input logic [`RegBus] mem_wdata_i_1,
 
     // <- ANOTHER_Mem
-    input wire mem_wreg_i_2,
-    input wire [`RegAddrBus] mem_waddr_i_2,
-    input wire [`RegBus] mem_wdata_i_2,
+    input logic mem_wreg_i_2,
+    input logic [`RegAddrBus] mem_waddr_i_2,
+    input logic [`RegBus] mem_wdata_i_2,
 
     // -> Regfile
     output reg reg1_read_o,
@@ -54,20 +55,17 @@ module id (
     output reg wreg_o,
     output reg inst_valid,
     output reg [`InstAddrBus] inst_pc,
-    output wire [`RegBus] inst_o,
-    output wire [`RegBus] current_inst_address_o,
+    output logic [`RegBus] inst_o,
+    output logic [`RegBus] current_inst_address_o,
     output reg csr_we,
-    output reg [13:0] csr_addr_o,
-    output reg [`RegBus] csr_data_o,
-    output wire [1:0] excepttype_o,
-
-    output wire excp_o,
-    output wire [8:0] excp_num_o,
+    output csr_write_signal csr_signal_o,
+    output logic excp_o,
+    output logic [8:0] excp_num_o,
 
     // <- CSR
-    input wire has_int,
-    input wire [`RegBus] csr_data_i,
-    input wire [1:0] csr_plv,
+    input logic has_int,
+    input logic [`RegBus] csr_data_i,
+    input logic [1:0] csr_plv,
 
     // -> CSR
     output reg [13:0] csr_read_addr_o,
@@ -79,35 +77,39 @@ module id (
     output reg [`InstAddrBus] idle_pc,
 
     // ->Ctrl
-    output wire stallreq,
+    output logic stallreq,
     output reg  idle_stallreq
 );
 
-    wire [5:0] opcode_6 = inst_i[31:26];
-    wire [6:0] opcode_7 = inst_i[31:25];
-    wire [7:0] opcode_8 = inst_i[31:24];
-    wire [9:0] opcode_10 = inst_i[31:22];
-    wire [13:0] opcode_14 = inst_i[31:18];
-    wire [16:0] opcode_17 = inst_i[31:15];
-    wire [21:0] opcode_22 = inst_i[31:10];
-    wire [4:0] imm_5 = inst_i[14:10];
-    wire [9:0] imm_10 = inst_i[9:0];
-    wire [13:0] imm_14 = inst_i[23:10];
-    wire [15:0] imm_16 = inst_i[25:10];
-    wire [11:0] imm_12 = inst_i[21:10];
-    wire [19:0] imm_20 = inst_i[24:5];
-    wire [4:0] op1;
+    logic [`InstAddrBus] pc_i = instr_buffer_i.valid ? instr_buffer_i.pc : `ZeroWord;
+    logic [`InstBus] inst_i = instr_buffer_i.valid ?  instr_buffer_i.instr : `ZeroWord;
+
+
+    logic [5:0] opcode_6 = inst_i[31:26];
+    logic [6:0] opcode_7 = inst_i[31:25];
+    logic [7:0] opcode_8 = inst_i[31:24];
+    logic [9:0] opcode_10 = inst_i[31:22];
+    logic [13:0] opcode_14 = inst_i[31:18];
+    logic [16:0] opcode_17 = inst_i[31:15];
+    logic [21:0] opcode_22 = inst_i[31:10];
+    logic [4:0] imm_5 = inst_i[14:10];
+    logic [9:0] imm_10 = inst_i[9:0];
+    logic [13:0] imm_14 = inst_i[23:10];
+    logic [15:0] imm_16 = inst_i[25:10];
+    logic [11:0] imm_12 = inst_i[21:10];
+    logic [19:0] imm_20 = inst_i[24:5];
+    logic [4:0] op1;
     assign op1 = inst_i[4:0];
-    wire [4:0] op2 = inst_i[9:5];
-    wire [4:0] op3 = inst_i[14:10];
-    wire [4:0] op4 = inst_i[19:15];
+    logic [4:0] op2 = inst_i[9:5];
+    logic [4:0] op3 = inst_i[14:10];
+    logic [4:0] op4 = inst_i[19:15];
 
-    wire [5:0] opcode_1 = inst_i[31:26];
-    wire [5:0] opcode_2 = inst_i[25:20];
-    wire [4:0] opcode_3 = inst_i[19:15];
-    wire [4:0] opcode_4 = inst_i[14:10];
+    logic [5:0] opcode_1 = inst_i[31:26];
+    logic [5:0] opcode_2 = inst_i[25:20];
+    logic [4:0] opcode_3 = inst_i[19:15];
+    logic [4:0] opcode_4 = inst_i[14:10];
 
-    wire [`RegBus] pc_plus_4;
+    logic [`RegBus] pc_plus_4;
 
     assign pc_plus_4 = pc_i + 4;
     assign inst_o = inst_i;
@@ -116,10 +118,12 @@ module id (
 
     reg stallreq_for_reg1_loadrelate;
     reg stallreq_for_reg2_loadrelate;
-    wire pre_inst_is_load;
+    logic pre_inst_is_load;
 
 
-    reg res_from_csr;
+    logic res_from_csr;
+    logic excp_ine;
+    logic excp_ipe;
 
     assign pre_inst_is_load = (((ex_aluop_i_1 == `EXE_LD_B_OP) ||
                              (ex_aluop_i_1 == `EXE_LD_H_OP) ||
@@ -136,13 +140,14 @@ module id (
                              (ex_aluop_i_2 == `EXE_LD_HU_OP) ||
                              (ex_aluop_i_2 == `EXE_ST_B_OP) ||
                              (ex_aluop_i_2 == `EXE_ST_H_OP) ||
-                             (ex_aluop_i_2 == `EXE_ST_W_OP)) && (pc_i == pc_i_other + 4)) ? 1'b1 : 1'b0;
+                             (ex_aluop_i_2 == `EXE_ST_W_OP)) && (pc_i == instr_buffer_i_other.pc + 4)) ? 1'b1 : 1'b0;
 
     reg inst_syscall;
     reg inst_break;
     reg kernel_inst;
 
-    assign excepttype_o = {inst_syscall, inst_break};
+    
+
     assign current_inst_address_o = pc_i;
 
 
@@ -458,7 +463,9 @@ module id (
                                     reg1_read_o  = 1'b1;
                                     reg2_read_o  = 1'b0;
                                     imm          = {18'b0, imm_14};
-                                    csr_addr_o   = imm_14;
+                                    csr_signal_o.we = 1'b1;
+                                    csr_signal_o.addr = imm_14;
+                                    csr_signal_o.data = `ZeroWord;
                                     reg_waddr_o  = op1;
                                     inst_valid   = `InstValid;
                                     res_from_csr = 1'b1;
@@ -470,8 +477,9 @@ module id (
                                     reg1_read_o  = 1'b1;
                                     reg2_read_o  = 1'b0;
                                     imm          = {18'b0, imm_14};
-                                    csr_addr_o   = imm_14;
-                                    csr_data_o   = reg1_data_i;
+                                    csr_signal_o.we = 1'b1;
+                                    csr_signal_o.addr = imm_14;
+                                    csr_signal_o.data = reg1_data_i;
                                     reg1_addr_o  = op1;
                                     reg_waddr_o  = op1;
                                     inst_valid   = `InstValid;
@@ -484,8 +492,9 @@ module id (
                                     reg1_read_o  = 1'b0;
                                     reg2_read_o  = 1'b0;
                                     imm          = {18'b0, imm_14};
-                                    csr_addr_o   = imm_14;
-                                    csr_data_o   = reg1_data_i;
+                                    csr_signal_o.we = 1'b1;
+                                    csr_signal_o.addr = imm_14;
+                                    csr_signal_o.data = reg1_data_i;
                                     reg_waddr_o  = op1;
                                     inst_valid   = `InstValid;
                                     res_from_csr = 1'b1;
@@ -549,7 +558,7 @@ module id (
                                             reg1_read_o   = 1'b0;
                                             reg2_read_o   = 1'b0;
                                             idle_stallreq = 1;
-                                            idle_pc       = pc_i + 4'h4;
+                                            idle_pc       = pc_i + 32'h4;
                                             inst_valid    = `InstValid;
                                             kernel_inst   = 1'b1;
                                         end

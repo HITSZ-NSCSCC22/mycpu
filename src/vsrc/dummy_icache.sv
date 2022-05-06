@@ -1,4 +1,4 @@
-`include "defines.v"
+`include "defines.sv"
 
 /* dummy_icache
 * hold output until AXI returns value

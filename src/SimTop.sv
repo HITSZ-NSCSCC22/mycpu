@@ -1,7 +1,7 @@
 `timescale 1ns / 1ns
 
-`include "vsrc/defines.v"
-`include "ram.v"
+`include "vsrc/defines.sv"
+`include "ram.sv"
 
 module SimTop (
     input clock,

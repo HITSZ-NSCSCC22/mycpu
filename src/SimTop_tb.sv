@@ -1,4 +1,4 @@
-`include "vsrc/defines.v"
+`include "vsrc/defines.sv"
 `timescale 1ns/1ps
 
 module SimTop_tb();

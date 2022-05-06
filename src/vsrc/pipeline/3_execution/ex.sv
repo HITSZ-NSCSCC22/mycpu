@@ -1,46 +1,41 @@
-`include "defines.v"
+`include "defines.sv"
+`include "csr_defines.sv"
 
 module ex (
-    input wire rst,
+    input logic rst,
 
-    input wire [`AluOpBus] aluop_i,
-    input wire [`AluSelBus] alusel_i,
-    input wire [`RegBus] reg1_i,
-    input wire [`RegBus] reg2_i,
-    input wire [`RegAddrBus] wd_i,
-    input wire wreg_i,
-    input wire inst_valid_i,
-    input wire [`InstAddrBus] inst_pc_i,
-    input wire [`RegBus] inst_i,
-    input wire [`RegBus] link_addr_i,
-    input wire [1:0] excepttype_i,
-    input wire [`RegBus] current_inst_address_i,
-    input wire ex_csr_we_i,
-    input wire [13:0] ex_csr_addr_i,
-    input wire [`RegBus] ex_csr_data_i,
+    input logic [`AluOpBus] aluop_i,
+    input logic [`AluSelBus] alusel_i,
+    input logic [`RegBus] reg1_i,
+    input logic [`RegBus] reg2_i,
+    input logic [`RegAddrBus] wd_i,
+    input logic wreg_i,
+    input logic inst_valid_i,
+    input logic [`InstAddrBus] inst_pc_i,
+    input logic [`RegBus] inst_i,
+    input logic [`RegBus] link_addr_i,
+    input logic [1:0] excepttype_i,
+    input logic [`RegBus] current_inst_address_i,
+    input csr_write_signal csr_signal_i,
 
-    input wire [18:0] csr_vppn,
+    input logic [18:0] csr_vppn,
 
-    output reg [`RegAddrBus] wd_o,
-    output reg wreg_o,
-    output reg [`RegBus] wdata_o,
+    output reg_write_signal write_signal_o,
     output reg inst_valid_o,
     output reg [`InstAddrBus] inst_pc_o,
-    output wire [`AluOpBus] aluop_o,
-    output wire [`RegBus] mem_addr_o,
-    output wire [`RegBus] reg2_o,
-    output wire [1:0] excepttype_o,
-    output wire [`RegBus] current_inst_address_o,
-    output wire ex_csr_we_o,
-    output wire [13:0] ex_csr_addr_o,
-    output wire [`RegBus] ex_csr_data_o,
+    output logic [`AluOpBus] aluop_o,
+    output logic [`RegBus] mem_addr_o,
+    output logic [`RegBus] reg2_o,
+    output logic [1:0] excepttype_o,
+    output logic [`RegBus] current_inst_address_o,
+    output csr_write_signal csr_signal_o,
 
-    output wire stallreq,
+    output logic stallreq,
 
-    input wire excp_i,
-    input wire [8:0] excp_num_i,
-    output wire excp_o,
-    output wire [9:0] excp_num_o
+    input logic excp_i,
+    input logic [8:0] excp_num_i,
+    output logic excp_o,
+    output logic [9:0] excp_num_o
 );
 
     reg [`RegBus] logicout;
@@ -55,9 +50,11 @@ module ex (
     assign excepttype_o = excepttype_i;
     assign current_inst_address_o = current_inst_address_i;
 
-    assign ex_csr_we_o = ex_csr_we_i;
-    assign ex_csr_addr_o = ex_csr_addr_i;
-    assign ex_csr_data_o = ex_csr_data_i;
+
+    //写入csr的数据，对csrxchg指令进行掩码处理
+    assign csr_signal_o.we = csr_signal_i.we;
+    assign csr_signal_o.addr = csr_signal_i.addr;
+    assign csr_signal_o.data = (aluop_i ==`EXE_CSRXCHG_OP) ?((reg1_i & reg2_i) | (~reg1_i & csr_signal_i.data)) : csr_signal_i.data;
 
     assign excp_o = excp_i || 1'b0;
     assign excp_num_o = {1'b0, excp_num_i};
@@ -110,10 +107,10 @@ module ex (
     end
 
     //比较模块
-    wire reg1_lt_reg2;
-    wire [`RegBus] reg2_i_mux;
-    wire [`RegBus] reg1_i_mux;
-    wire [`RegBus] result_compare;
+    logic reg1_lt_reg2;
+    logic [`RegBus] reg2_i_mux;
+    logic [`RegBus] reg1_i_mux;
+    logic [`RegBus] result_compare;
 
     assign reg2_i_mux = (aluop_i == `EXE_SLT_OP) ? {~reg2_i[`RegWidth-1], reg2_i[`RegWidth-2:0]} : reg2_i; // shifted encoding when signed comparison
     assign reg1_i_mux = (aluop_i == `EXE_SLT_OP) ? {~reg1_i[`RegWidth-1], reg1_i[`RegWidth-2:0]} : reg1_i;
@@ -122,9 +119,9 @@ module ex (
 
     //乘法模块
 
-    wire [`RegBus] opdata1_mul;
-    wire [`RegBus] opdata2_mul;
-    wire [`DoubleRegBus] hilo_temp;
+    logic [`RegBus] opdata1_mul;
+    logic [`RegBus] opdata2_mul;
+    logic [`DoubleRegBus] hilo_temp;
     reg [`DoubleRegBus] mulres;
 
     assign opdata1_mul = (((aluop_i == `EXE_MUL_OP) || (aluop_i == `EXE_MULH_OP))
@@ -186,26 +183,26 @@ module ex (
     end
 
     always @(*) begin
-        wd_o   = wd_i;
-        wreg_o = wreg_i;
+        write_signal_o.addr   = wd_i;
+        write_signal_o.we = wreg_i;
         case (alusel_i)
             `EXE_RES_LOGIC: begin
-                wdata_o = logicout;
+                write_signal_o.data = logicout;
             end
             `EXE_RES_SHIFT: begin
-                wdata_o = shiftout;
+                write_signal_o.data = shiftout;
             end
             `EXE_RES_MOVE: begin
-                wdata_o = moveout;
+                write_signal_o.data = moveout;
             end
             `EXE_RES_ARITH: begin
-                wdata_o = arithout;
+                write_signal_o.data = arithout;
             end
             `EXE_RES_JUMP: begin
-                wdata_o = link_addr_i;
+                write_signal_o.data = link_addr_i;
             end
             default: begin
-                wdata_o = `ZeroWord;
+                write_signal_o.data = `ZeroWord;
             end
         endcase
     end

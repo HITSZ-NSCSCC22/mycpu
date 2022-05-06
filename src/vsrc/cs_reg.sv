@@ -1,17 +1,13 @@
 `timescale 1ns/1ns
 
-`include "defines.v"
-`include "csr_defines.v"
+`include "defines.sv"
+`include "csr_defines.sv"
 module cs_reg (
     input wire clk,
     input wire rst,
 
-    input wire we_1,
-    input wire[13:0] waddr_1,
-    input wire[`RegBus] wdata_1,
-    input wire we_2,
-    input wire[13:0] waddr_2,
-    input wire[`RegBus] wdata_2,
+    input csr_write_signal write_signal_1,
+    input csr_write_signal write_signal_2,
 
 
     input wire excp_flush,
@@ -123,15 +119,15 @@ always @(*) begin
         waddr = 14'b0;
         wdata = `ZeroWord;
     end
-    else if(we_1 == 1'b1)begin
-        we = we_1;
-        waddr = waddr_1;
-        wdata = wdata_1;
+    else if(write_signal_1.we == 1'b1)begin
+        we = write_signal_1.we;
+        waddr = write_signal_1.addr;
+        wdata = write_signal_1.data;
     end
-    else if(we_2 == 1'b1)begin
-        we = we_2;
-        waddr = waddr_2;
-        wdata = wdata_2;
+    else if(write_signal_2.we == 1'b1)begin
+        we = write_signal_2.we;
+        waddr = write_signal_2.addr;
+        wdata = write_signal_2.data;
     end
     else begin
         we = 1'b0;

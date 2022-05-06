@@ -1,4 +1,4 @@
-`include "vsrc/defines.v"
+`include "vsrc/defines.sv"
 
 module ram (
     input clock,
