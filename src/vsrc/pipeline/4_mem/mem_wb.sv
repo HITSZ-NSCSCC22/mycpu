@@ -81,7 +81,7 @@ module mem_wb (
                     excp_num[8] ? 9'b0 :excp_num[9] ? 9'b0 : excp_num[10] ? `ESUBCODE_ADEM : excp_num[11] ? 9'b0 :
                     excp_num[12] ? 9'b0 :excp_num[13] ? 9'b0 : excp_num[14] ? 9'b0 :excp_num[15] ? 9'b0 : 9'b0 ;
 
-    assign csr_esubcode = excp_num[0] ? 1'b0 : excp_num[1] ? 1'b0 : excp_num[2] ? wb_valid : excp_num[3] ? 1'b0 : 
+    assign excp_tlbrefill = excp_num[0] ? 1'b0 : excp_num[1] ? 1'b0 : excp_num[2] ? wb_valid : excp_num[3] ? 1'b0 : 
                     excp_num[4] ? 1'b0 : excp_num[5] ? 1'b0 :excp_num[6] ? 1'b0 : excp_num[7] ? 1'b0 :
                     excp_num[8] ? 1'b0 :excp_num[9] ? 1'b0 : excp_num[10] ? 1'b0 : excp_num[11] ? wb_valid :
                     excp_num[12] ? 1'b0 :excp_num[13] ? 1'b0 : excp_num[14] ? 1'b0 :excp_num[15] ? 1'b0 : 1'b0 ;
@@ -94,7 +94,7 @@ module mem_wb (
     assign excp_tlb_vppn = excp_num[0] ? 19'b0 : excp_num[1] ? 19'b0 : excp_num[2] ? mem_inst_pc[31:13] : excp_num[3] ? mem_inst_pc[31:13] : 
                    excp_num[4] ? mem_inst_pc[31:13] : excp_num[5] ? 19'b0 :excp_num[6] ? 19'b0 : excp_num[7] ? 19'b0 :
                     excp_num[8] ? 19'b0 :excp_num[9] ? 19'b0 : excp_num[10] ? 19'b0 : excp_num[11] ? wb_wdata[31:13] :
-                    excp_num[12] ? wb_wdata[31:13] :excp_num[13] ? wb_wdata[31:13] : excp_num[14] ? wb_wdata[31:13] :excp_num[15] ? wb_wdata[31:13] : 1'b0 ;
+                    excp_num[12] ? wb_wdata[31:13] :excp_num[13] ? wb_wdata[31:13] : excp_num[14] ? wb_wdata[31:13] :excp_num[15] ? wb_wdata[31:13] : 19'b0 ;
 
 
     always @(posedge clk) begin

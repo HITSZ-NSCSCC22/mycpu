@@ -20,7 +20,9 @@ module ex (
 
     input logic [18:0] csr_vppn,
 
-    output reg_write_signal write_signal_o,
+    output logic wreg_o,
+    output logic [`RegAddrBus] wd_o,
+    output logic [`RegBus] wdata_o,
     output reg inst_valid_o,
     output reg [`InstAddrBus] inst_pc_o,
     output logic [`AluOpBus] aluop_o,
@@ -183,26 +185,26 @@ module ex (
     end
 
     always @(*) begin
-        write_signal_o.addr   = wd_i;
-        write_signal_o.we = wreg_i;
+        wd_o   = wd_i;
+        wreg_o = wreg_i;
         case (alusel_i)
             `EXE_RES_LOGIC: begin
-                write_signal_o.data = logicout;
+                wdata_o = logicout;
             end
             `EXE_RES_SHIFT: begin
-                write_signal_o.data = shiftout;
+                wdata_o = shiftout;
             end
             `EXE_RES_MOVE: begin
-                write_signal_o.data = moveout;
+                wdata_o = moveout;
             end
             `EXE_RES_ARITH: begin
-                write_signal_o.data = arithout;
+                wdata_o = arithout;
             end
             `EXE_RES_JUMP: begin
-                write_signal_o.data = link_addr_i;
+                wdata_o = link_addr_i;
             end
             default: begin
-                write_signal_o.data = `ZeroWord;
+                wdata_o = `ZeroWord;
             end
         endcase
     end

@@ -765,7 +765,9 @@ module cpu_top (
         .current_inst_address_i(ex_current_inst_address_i_1),
         .csr_signal_i(ex_csr_signal_i_1),
 
-        .write_signal_o(),
+        .wreg_o(ex_wreg_o_1),
+        .wd_o(ex_reg_waddr_o_1),
+        .wdata_o(ex_reg_wdata_1),
         .inst_valid_o(ex_inst_valid_o_1),
         .inst_pc_o(ex_inst_pc_o_1),
         .aluop_o(ex_aluop_o_1),
@@ -811,7 +813,9 @@ module cpu_top (
         .current_inst_address_i(ex_current_inst_address_i_2),
         .csr_signal_i(ex_csr_signal_i_2),
 
-        .write_signal_o(),
+        .wreg_o(ex_wreg_o_2),
+        .wd_o(ex_reg_waddr_o_2),
+        .wdata_o(ex_reg_wdata_2),
         .inst_valid_o(ex_inst_valid_o_2),
         .inst_pc_o(ex_inst_pc_o_2),
         .aluop_o(ex_aluop_o_2),
