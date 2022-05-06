@@ -88,6 +88,7 @@ module axi_Master (
     output reg s_bready
 
 );  
+    reg write_wait_enable;
     //read instruction stall
     reg inst_stall_req_r;
     assign inst_stallreq=inst_stall_req_r;
@@ -194,56 +195,70 @@ module axi_Master (
             case(inst_r_state)
 
                 `R_FREE:begin
-
-                    if((inst_cpu_ce_i&&(inst_cpu_we_i==0))&&(!(data_cpu_ce_i&&(data_cpu_we_i==0))))//fetch inst but don't fetch data
+                    if(write_wait_enable==0)
                     begin
-                        inst_r_state<=`R_ADDR;
-                        inst_s_arid<=inst_id;
-                        inst_s_araddr<=inst_cpu_addr_i;
-                        inst_s_arsize<=3'b010;
-                        inst_buffer<=0;
-                        inst_s_rready<=0;
-
-                        inst_s_arvalid<=1;
-                        
-                    end
-                    else if((inst_cpu_ce_i&&(inst_cpu_we_i==0))&&(data_cpu_ce_i&&(data_cpu_we_i==0)))//fetch inst and fetch data
-                    begin
-                        //wait for fetch data request run into R_DATA state
-                        if(data_r_state==`R_DATA)
+                        if((inst_cpu_ce_i&&(inst_cpu_we_i==0))&&(!(data_cpu_ce_i&&(data_cpu_we_i==0))))//fetch inst but don't fetch data
                         begin
-                        inst_r_state<=`R_ADDR;
-                        inst_s_arid<=inst_id;
-                        inst_s_araddr<=inst_cpu_addr_i;
-                        inst_s_arsize<=3'b010;
-                        inst_buffer<=0;
-                        inst_s_rready<=0;
+                            inst_r_state<=`R_ADDR;
+                            inst_s_arid<=inst_id;
+                            inst_s_araddr<=inst_cpu_addr_i;
+                            inst_s_arsize<=3'b010;
+                            inst_buffer<=0;
+                            inst_s_rready<=0;
 
-                        inst_s_arvalid<=1;
+                            inst_s_arvalid<=1;
+                        
+                        end
+                        else if((inst_cpu_ce_i&&(inst_cpu_we_i==0))&&(data_cpu_ce_i&&(data_cpu_we_i==0)))//fetch inst and fetch data
+                        begin
+                        //wait for fetch data request run into R_DATA state
+                            if(data_r_state==`R_DATA)
+                            begin
+                                inst_r_state<=`R_ADDR;
+                                inst_s_arid<=inst_id;
+                                inst_s_araddr<=inst_cpu_addr_i;
+                                inst_s_arsize<=3'b010;
+                                inst_buffer<=0;
+                                inst_s_rready<=0;
+
+                                inst_s_arvalid<=1;
+                            end
+                            else
+                            begin
+                                inst_r_state<=`R_FREE;
+                                inst_s_arid<=0;
+                                inst_s_araddr<=0;
+                                inst_s_arsize<=0;
+                                inst_buffer<=0;
+                                inst_s_rready<=0;
+
+                                inst_s_arvalid<=0;
+                            end
                         end
                         else
                         begin
-                        inst_r_state<=`R_FREE;
-                        inst_s_arid<=0;
-                        inst_s_araddr<=0;
-                        inst_s_arsize<=0;
-                        inst_buffer<=0;
-                        inst_s_rready<=0;
+                            inst_r_state<=inst_r_state;
+                            inst_s_arid<=0;
+                            inst_s_araddr<=0;
+                            inst_s_arsize<=0;
+                            inst_buffer<=0;
+                            inst_s_rready<=0;
 
-                        inst_s_arvalid<=0;
+                            inst_s_arvalid<=0;
                         end
                     end
                     else
                     begin
-                        inst_r_state<=inst_r_state;
-                        inst_s_arid<=0;
-                        inst_s_araddr<=0;
-                        inst_s_arsize<=0;
-                        inst_buffer<=0;
-                        inst_s_rready<=0;
+                            inst_r_state<=`R_FREE;
+                            inst_s_arid<=0;
+                            inst_s_araddr<=0;
+                            inst_s_arsize<=0;
+                            inst_buffer<=0;
+                            inst_s_rready<=0;
 
-                        inst_s_arvalid<=0;
+                            inst_s_arvalid<=0;
                     end
+                    
                 end
 
                 /** AR **/
@@ -569,18 +584,43 @@ module axi_Master (
     reg [3:0]w_state;
     //改变输出
     always @(*) begin
-        if(!aresetn)    stall_req_w=0;
+        if(!aresetn)   
+        begin
+            stall_req_w=0;
+            write_wait_enable=0;
+        end
+         
         else
         begin
             case(w_state)
                 `W_FREE:begin
-                    if(data_cpu_ce_i&&(data_cpu_we_i))    stall_req_w=1;
-                    else stall_req_w=0;
+                    if(data_cpu_ce_i&&(data_cpu_we_i))    
+                    begin
+                        stall_req_w=1;
+                        write_wait_enable=1;
+                    end
+                    else 
+                    begin
+                        stall_req_w=0;
+                        write_wait_enable=0;
+                    end
                 end
-                `W_ADDR,`W_DATA:stall_req_w=1;
+                `W_ADDR,`W_DATA:
+                begin
+                    stall_req_w=1;
+                    write_wait_enable=1;
+                end
                 `W_RESP:begin
-                            if(s_bvalid&&s_bready)  stall_req_w=0;
-                            else stall_req_w=1;
+                            if(s_bvalid&&s_bready)  
+                            begin
+                                stall_req_w=0;
+                                write_wait_enable=0;
+                            end
+                            else 
+                            begin
+                                stall_req_w=1;
+                                write_wait_enable=1;
+                            end
                         end
                 default:
                 begin
