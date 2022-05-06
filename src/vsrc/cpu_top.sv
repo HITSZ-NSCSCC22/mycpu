@@ -224,11 +224,9 @@ module cpu_top (
         .frontend_stallreq_o(ib_frontend_stallreq),
 
         // <-> Backend
-        .backend_accept_i({
-            id_inst_valid_2, id_inst_valid_1
-        }),  // FIXME: currently not accepting any instructions
-        .backend_flush_i(backend_flush),
-        .backend_instr_o(backend_ib_instr_info)
+        .backend_accept_i({id_inst_valid_2, id_inst_valid_1}),  // 1 means valid 
+        .backend_flush_i (backend_flush),
+        .backend_instr_o (backend_ib_instr_info)
     );
 
 
@@ -1465,7 +1463,7 @@ module cpu_top (
         .clock         (aclk),
         .coreid        (0),                          // Only one core, so always 0
         .index         (0),                          // Commit channel index
-        .valid         (~debug_commit_valid_1),      // TODO: flip valid definition in CPU
+        .valid         (debug_commit_valid_1),       // 1 means valid
         .pc            (debug_commit_pc_1),
         .instr         (debug_commit_instr_1),
         .skip          (0),                          // Not sure meaning, but keep 0 for now

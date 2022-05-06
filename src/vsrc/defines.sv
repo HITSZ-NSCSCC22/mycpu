@@ -11,8 +11,8 @@
 `define ReadDisable 1'b0
 `define AluOpBus 7:0
 `define AluSelBus 2:0
-`define InstValid 1'b0
-`define InstInvalid 1'b1
+`define InstValid 1'b1
+`define InstInvalid 1'b0
 `define Stop 1'b1
 `define NoStop 1'b0
 `define Branch 1'b1

@@ -123,7 +123,7 @@ module mem_wb (
             wb_csr_signal_o <= 47'b0;
             debug_commit_instr <= `ZeroWord;
             debug_commit_pc <= `ZeroWord;
-            debug_commit_valid <= ~`InstInvalid;
+            debug_commit_valid <= `InstInvalid;
         end else if (stall == `Stop) begin
             debug_commit_pc <= `ZeroWord;
             debug_commit_instr <= `ZeroWord;
