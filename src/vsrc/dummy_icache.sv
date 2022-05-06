@@ -11,6 +11,7 @@ module dummy_icache #(
     input logic rst,
 
     // <-> IF
+    input logic frontend_flush_i,
     // All signals are 1 cycle valid
     // all 0 means invalid
     input logic [ADDR_WIDTH-1:0] raddr_1_i,
@@ -104,42 +105,54 @@ module dummy_icache #(
     assign stallreq_o = ~(state == ACCEPT_ADDR);
 
     always_ff @(posedge clk or negedge rst_n) begin : axi_ff
-        axi_addr_o <= 0;
-        case (state)
-            ACCEPT_ADDR: begin
-                if (raddr_1_i != 0 && axi_busy_i == 0) axi_addr_o <= raddr_1_i;
-            end
-            IN_TRANSACTION_1: begin
-                if (raddrs[1] != 0 && axi_busy_i == 0) axi_addr_o <= raddrs[1];
-            end
-            IN_TRANSACTION_2: begin
-                axi_addr_o <= 0;
-            end
-        endcase
+        if (!rst_n) begin
+            axi_addr_o <= 0;
+        end else begin
+            axi_addr_o <= 0;
+            case (state)
+                ACCEPT_ADDR: begin
+                    if (raddr_1_i != 0 && axi_busy_i == 0) axi_addr_o <= raddr_1_i;
+                end
+                IN_TRANSACTION_1: begin
+                    if (raddrs[1] != 0 && axi_busy_i == 0) axi_addr_o <= raddrs[1];
+                end
+                IN_TRANSACTION_2: begin
+                    axi_addr_o <= 0;
+                end
+            endcase
+        end
     end
 
     // Output logic
     always_ff @(posedge clk or negedge rst_n) begin : output_ff
-        rvalid_1_o <= 0;
-        rvalid_2_o <= 0;
-        raddr_1_o  <= 0;
-        raddr_2_o  <= 0;
-        rdata_1_o  <= 0;
-        rdata_2_o  <= 0;
-        case (state)
-            ACCEPT_ADDR: begin
-            end
-            IN_TRANSACTION_1: begin
-                rvalid_1_o <= ~axi_busy_i;
-                raddr_1_o  <= axi_busy_i ? 0 : raddrs[0];
-                rdata_1_o  <= axi_busy_i ? 0 : axi_data_i;
-            end
-            IN_TRANSACTION_2: begin
-                rvalid_2_o <= ~axi_busy_i;
-                raddr_2_o  <= axi_busy_i ? 0 : raddrs[1];
-                rdata_2_o  <= axi_busy_i ? 0 : axi_data_i;
-            end
-        endcase
+        if (!rst_n) begin
+            rvalid_1_o <= 0;
+            rvalid_2_o <= 0;
+            raddr_1_o  <= 0;
+            raddr_2_o  <= 0;
+            rdata_1_o  <= 0;
+            rdata_2_o  <= 0;
+        end else begin
+            rvalid_1_o <= 0;
+            rvalid_2_o <= 0;
+            raddr_1_o  <= 0;
+            raddr_2_o  <= 0;
+            rdata_1_o  <= 0;
+            rdata_2_o  <= 0;
+            case (state)
+                ACCEPT_ADDR: begin
+                end
+                IN_TRANSACTION_1: begin
+                    rvalid_1_o <= ~axi_busy_i;
+                    raddr_1_o  <= axi_busy_i ? 0 : raddrs[0];
+                    rdata_1_o  <= axi_busy_i ? 0 : axi_data_i;
+                end
+                IN_TRANSACTION_2: begin
+                    rvalid_2_o <= ~axi_busy_i;
+                    raddr_2_o  <= axi_busy_i ? 0 : raddrs[1];
+                    rdata_2_o  <= axi_busy_i ? 0 : axi_data_i;
+                end
+            endcase
+        end
     end
-
 endmodule
