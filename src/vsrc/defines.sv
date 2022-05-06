@@ -1,3 +1,6 @@
+`ifndef DEFINES_SV
+`define DEFINES_SV
+
 // Global define
 `define RstEnable 1'b1
 `define RstDisable 1'b0
@@ -74,7 +77,7 @@
 `define EXE_SLTUI 6'b1001??
 `define EXE_ADDI_W 6'b1010??
 `define EXE_ANDI 6'b1101??
-`define EXE_ORI  6'b1110??
+`define EXE_ORI 6'b1110??
 `define EXE_XORI 6'b1111??
 `define EXE_LONG_ARITH 6'b000001
 `define EXE_DIV_ARITH 6'b000010
@@ -83,18 +86,18 @@
 `define EXE_SUB_W 5'b00010
 `define EXE_SLT 5'b00100
 `define EXE_SLTU 5'b00101
-`define EXE_NOR  5'b01000
-`define EXE_AND  5'b01001
-`define EXE_OR   5'b01010
-`define EXE_XOR  5'b01011
-`define EXE_SLL_W  5'b01110
-`define EXE_SRL_W  5'b01111
-`define EXE_SRA_W  5'b10000
-`define EXE_MUL_W  5'b11000
-`define EXE_MULH_W  5'b11001
-`define EXE_MULH_WU  5'b11010
+`define EXE_NOR 5'b01000
+`define EXE_AND 5'b01001
+`define EXE_OR 5'b01010
+`define EXE_XOR 5'b01011
+`define EXE_SLL_W 5'b01110
+`define EXE_SRL_W 5'b01111
+`define EXE_SRA_W 5'b10000
+`define EXE_MUL_W 5'b11000
+`define EXE_MULH_W 5'b11001
+`define EXE_MULH_WU 5'b11010
 
-`define EXE_DIV_W  5'b00000 // EXE_DIV_ARITH
+`define EXE_DIV_W 5'b00000 // EXE_DIV_ARITH
 `define EXE_MOD_W 5'b00001
 `define EXE_DIV_WU 5'b00010
 `define EXE_MOD_WU 5'b00011
@@ -114,43 +117,43 @@
 
 
 // AluOp
-`define EXE_NOP_OP   8'b00000000
-`define EXE_OR_OP    8'b00000001
-`define EXE_AND_OP   8'b00000010
-`define EXE_XOR_OP   8'b00000011
-`define EXE_NOR_OP   8'b00000100
-`define EXE_LUI_OP   8'b00000101
-`define EXE_SLL_OP   8'b00000101
-`define EXE_SRL_OP   8'b00000110
-`define EXE_SRA_OP   8'b00000111
-`define EXE_ADD_OP   8'b00001000
-`define EXE_SUB_OP   8'b00001001
-`define EXE_MUL_OP   8'b00001010
-`define EXE_MULH_OP  8'b00001011
+`define EXE_NOP_OP 8'b00000000
+`define EXE_OR_OP 8'b00000001
+`define EXE_AND_OP 8'b00000010
+`define EXE_XOR_OP 8'b00000011
+`define EXE_NOR_OP 8'b00000100
+`define EXE_LUI_OP 8'b00000101
+`define EXE_SLL_OP 8'b00000101
+`define EXE_SRL_OP 8'b00000110
+`define EXE_SRA_OP 8'b00000111
+`define EXE_ADD_OP 8'b00001000
+`define EXE_SUB_OP 8'b00001001
+`define EXE_MUL_OP 8'b00001010
+`define EXE_MULH_OP 8'b00001011
 `define EXE_MULHU_OP 8'b00001100
-`define EXE_DIV_OP   8'b00001101
-`define EXE_MOD_OP   8'b00001110
-`define EXE_SLT_OP   8'b00001111
-`define EXE_SLTU_OP  8'b00010000
-`define EXE_B_OP     8'b00010001
-`define EXE_BL_OP    8'b00010010
-`define EXE_BEQ_OP   8'b00010011
-`define EXE_BNE_OP   8'b00010100
-`define EXE_BLT_OP   8'b00010101
-`define EXE_BGE_OP   8'b00010110
-`define EXE_BLTU_OP  8'b00010111
-`define EXE_BGEU_OP  8'b00011000
-`define EXE_JIRL_OP  8'b00011001
-`define EXE_LD_B_OP  8'b00011010
-`define EXE_LD_H_OP  8'b00011011
-`define EXE_LD_W_OP  8'b00011100
-`define EXE_ST_B_OP  8'b00011101
-`define EXE_ST_H_OP  8'b00011110
-`define EXE_ST_W_OP  8'b00011111
+`define EXE_DIV_OP 8'b00001101
+`define EXE_MOD_OP 8'b00001110
+`define EXE_SLT_OP 8'b00001111
+`define EXE_SLTU_OP 8'b00010000
+`define EXE_B_OP 8'b00010001
+`define EXE_BL_OP 8'b00010010
+`define EXE_BEQ_OP 8'b00010011
+`define EXE_BNE_OP 8'b00010100
+`define EXE_BLT_OP 8'b00010101
+`define EXE_BGE_OP 8'b00010110
+`define EXE_BLTU_OP 8'b00010111
+`define EXE_BGEU_OP 8'b00011000
+`define EXE_JIRL_OP 8'b00011001
+`define EXE_LD_B_OP 8'b00011010
+`define EXE_LD_H_OP 8'b00011011
+`define EXE_LD_W_OP 8'b00011100
+`define EXE_ST_B_OP 8'b00011101
+`define EXE_ST_H_OP 8'b00011110
+`define EXE_ST_W_OP 8'b00011111
 `define EXE_LD_BU_OP 8'b00100000
 `define EXE_LD_HU_OP 8'b00100001
-`define EXE_LL_OP    8'b00100010
-`define EXE_SC_OP    8'b00100011
+`define EXE_LL_OP 8'b00100010
+`define EXE_SC_OP 8'b00100011
 `define EXE_PCADD_OP 8'b00100100
 `define EXE_SYSCALL_OP 8'b00100101
 `define EXE_BREAK_OP 8'b00100110
@@ -161,8 +164,8 @@
 `define EXE_TLBRD_OP 8'b00101011
 `define EXE_TLBWR_OP 8'b00101100
 `define EXE_TLBSRCH_OP 8'b00101101
-`define EXE_ERTN_OP  8'b00101110
-`define EXE_IDLE_OP  8'b00101111
+`define EXE_ERTN_OP 8'b00101110
+`define EXE_IDLE_OP 8'b00101111
 `define EXE_INVTLB_OP 8'b00110000
 
 
@@ -170,9 +173,9 @@
 `define EXE_RES_NOP 3'b000
 `define EXE_RES_LOGIC 3'b001
 `define EXE_RES_SHIFT 3'b010
-`define EXE_RES_MOVE  3'b011
+`define EXE_RES_MOVE 3'b011
 `define EXE_RES_ARITH 3'b100
-`define EXE_RES_JUMP  3'b101
+`define EXE_RES_JUMP 3'b101
 `define EXE_RES_LOAD_STORE 3'b110
 
 
@@ -209,5 +212,7 @@ typedef struct packed {
 } reg_write_signal;
 //tlb-compare-part
 //typedef struct packed {
-    
+
 //} tlb_com_part;
+
+`endif

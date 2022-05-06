@@ -224,7 +224,9 @@ module cpu_top (
         .frontend_stallreq_o(ib_frontend_stallreq),
 
         // <-> Backend
-        .backend_accept_i(2'b0),  // FIXME: currently not accepting any instructions
+        .backend_accept_i({
+            id_inst_valid_2, id_inst_valid_1
+        }),  // FIXME: currently not accepting any instructions
         .backend_flush_i(backend_flush),
         .backend_instr_o(backend_ib_instr_info)
     );
