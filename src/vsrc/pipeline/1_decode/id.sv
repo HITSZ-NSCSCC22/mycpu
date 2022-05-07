@@ -5,8 +5,13 @@
 
 `include "pipeline/1_decode/decoder_2R.sv"
 `include "pipeline/1_decode/decoder_3R.sv"
+`include "pipeline/1_decode/decoder_2RI8.sv"
 `include "pipeline/1_decode/decoder_2RI12.sv"
 `include "pipeline/1_decode/decoder_2RI16.sv"
+`include "pipeline/1_decode/decoder_1RI20.sv"
+`include "pipeline/1_decode/decoder_2RI14.sv"
+`include "pipeline/1_decode/decoder_CSR.sv"
+`include "pipeline/1_decode/decoder_I26.sv"
 
 
 // ID stage
@@ -29,11 +34,6 @@ module id #(
 
     input logic excp_i,
     input logic [3:0] excp_num_i,
-
-    // <-> Regfile
-    output logic [1:0] regfile_reg_read_valid_o,  // Read valid for 2 regs
-    output logic [`RegNumLog2*2-1:0] regfile_reg_read_addr_o,  // Read addr, {reg2, reg1}
-    input logic [`RegBus][1:0] regfile_reg_read_data_i,  // Read result
 
     // <- EXE
     // Data forwarding
@@ -101,7 +101,7 @@ module id #(
         .instr_break          (instr_break),
         .instr_syscall        (instr_syscall)
     );
-    decoder_2RI8 U_decoder_2RI8(
+    decoder_2RI8 U_decoder_2RI8 (
         .instr_info_i         (instr_buffer_i),
         .decode_result_valid_o(sub_decoder_valid[2]),
         .reg_read_valid_o     (sub_decoder_reg_read_valid[2]),
@@ -135,7 +135,7 @@ module id #(
         .alusel_o             (sub_decoder_alusel[4])
     );
 
-    decoder_1RI20 U_decoder_1RI20(
+    decoder_1RI20 U_decoder_1RI20 (
         .instr_info_i         (instr_buffer_i),
         .decode_result_valid_o(sub_decoder_valid[5]),
         .reg_read_valid_o     (sub_decoder_reg_read_valid[5]),
@@ -146,7 +146,7 @@ module id #(
         .aluop_o              (sub_decoder_aluop[5]),
         .alusel_o             (sub_decoder_alusel[5])
     );
-    decoder_2RI14 U_decoder_2RI14(
+    decoder_2RI14 U_decoder_2RI14 (
         .instr_info_i         (instr_buffer_i),
         .decode_result_valid_o(sub_decoder_valid[6]),
         .reg_read_valid_o     (sub_decoder_reg_read_valid[6]),
@@ -157,7 +157,7 @@ module id #(
         .aluop_o              (sub_decoder_aluop[6]),
         .alusel_o             (sub_decoder_alusel[6])
     );
-    decoder_I26 U_decoder_I26(
+    decoder_I26 U_decoder_I26 (
         .instr_info_i         (instr_buffer_i),
         .decode_result_valid_o(sub_decoder_valid[7]),
         .imm_o                (sub_decoder_imm[7]),
@@ -166,7 +166,7 @@ module id #(
         .aluop_o              (sub_decoder_aluop[7]),
         .alusel_o             (sub_decoder_alusel[7])
     );
-    decoder_CSR u_decoder_CSR(
+    decoder_CSR u_decoder_CSR (
         .instr_info_i         (instr_buffer_i),
         .decode_result_valid_o(sub_decoder_valid[8]),
         .reg_read_valid_o     (sub_decoder_reg_read_valid[8]),
@@ -176,12 +176,12 @@ module id #(
         .reg_write_addr_o     (sub_decoder_reg_write_addr[8]),
         .aluop_o              (sub_decoder_aluop[8])
     );
-    // FIXME: I16 and Special not implemented
-
     // Sub-decoder END
 
     // Generate imm, using OR
     logic [`RegBus] imm;
+    assign dispatch_o.use_imm = imm != 0;  // HACK: works for now
+    assign dispatch_o.imm = imm;
     always_comb begin
         imm = 0;
         for (integer i = 0; i < SUB_DECODER_NUM; i++) begin
@@ -211,11 +211,11 @@ module id #(
     end
     // Generate output to Regfile
     always_comb begin
-        regfile_reg_read_valid_o = 0;
-        regfile_reg_read_addr_o  = 0;
+        dispatch_o.reg_read_valid = 0;
+        dispatch_o.reg_read_addr  = 0;
         for (integer i = 0; i < SUB_DECODER_NUM; i++) begin
-            regfile_reg_read_valid_o = regfile_reg_read_valid_o | sub_decoder_reg_read_valid[i];
-            regfile_reg_read_addr_o  = regfile_reg_read_addr_o | sub_decoder_reg_read_addr[i];
+            dispatch_o.reg_read_valid = dispatch_o.reg_read_valid | sub_decoder_reg_read_valid[i];
+            dispatch_o.reg_read_addr  = dispatch_o.reg_read_addr | sub_decoder_reg_read_addr[i];
         end
     end
 

@@ -1,22 +1,15 @@
 `include "defines.sv"
 `include "csr_defines.sv"
+`include "pipeline_defines.sv"
 
 module ex (
     input logic rst,
 
-    input logic [`AluOpBus] aluop_i,
-    input logic [`AluSelBus] alusel_i,
-    input logic [`RegBus] reg1_i,
-    input logic [`RegBus] reg2_i,
-    input logic [`RegAddrBus] wd_i,
-    input logic wreg_i,
-    input logic inst_valid_i,
-    input logic [`InstAddrBus] inst_pc_i,
-    input logic [`RegBus] inst_i,
-    input logic [`RegBus] link_addr_i,
     input logic [1:0] excepttype_i,
-    input logic [`RegBus] current_inst_address_i,
-    input csr_write_signal csr_signal_i,
+
+    // <- Dispatch
+    // Information from dispatch
+    input dispatch_ex_struct dispatch_i,
 
     input logic [18:0] csr_vppn,
 
@@ -29,7 +22,6 @@ module ex (
     output logic [`RegBus] mem_addr_o,
     output logic [`RegBus] reg2_o,
     output logic [1:0] excepttype_o,
-    output logic [`RegBus] current_inst_address_o,
     output csr_write_signal csr_signal_o,
 
     output logic stallreq,
@@ -45,14 +37,35 @@ module ex (
     reg [`RegBus] moveout;
     reg [`RegBus] arithout;
 
+    // Assign input
+    logic [`AluOpBus] aluop_i;
+    logic [`AluSelBus] alusel_i;
+    assign aluop_i  = dispatch_i.aluop;
+    assign alusel_i = dispatch_i.alusel;
+
+    logic [`RegBus] reg1_i, reg2_i;
+    assign reg1_i = dispatch_i.oprand1;
+    assign reg2_i = dispatch_i.oprand2;
+
+    logic [`RegBus] inst_i, inst_pc_i;
+    assign inst_i = dispatch_i.instr_info.instr;
+    assign inst_pc_i = dispatch_i.instr_info.pc;
+    logic inst_valid_i;
+    assign inst_valid_i = dispatch_i.instr_valid;
+
+    logic wreg_i;
+    logic [`RegAddrBus] wd_i;
+    assign wd_i = dispatch_i.reg_write_addr;
+    assign wreg_i = dispatch_i.reg_write_valid;
+
     assign aluop_o = aluop_i;
     assign mem_addr_o = reg1_i + {{20{inst_i[21]}}, inst_i[21:10]};
     assign reg2_o = reg2_i;
 
     assign excepttype_o = excepttype_i;
-    assign current_inst_address_o = current_inst_address_i;
 
-
+    csr_write_signal csr_signal_i;
+    assign csr_signal_i = dispatch_i.csr_signal;
     //写入csr的数据，对csrxchg指令进行掩码处理
     assign csr_signal_o.we = csr_signal_i.we;
     assign csr_signal_o.addr = csr_signal_i.addr;
@@ -201,7 +214,7 @@ module ex (
                 wdata_o = arithout;
             end
             `EXE_RES_JUMP: begin
-                wdata_o = link_addr_i;
+                wdata_o = 0;  // FIXME: add link addr
             end
             default: begin
                 wdata_o = `ZeroWord;

@@ -14,6 +14,7 @@
 `include "pipeline_defines.sv"
 `include "pipeline/1_decode/id.sv"
 `include "pipeline/1_decode/id_dispatch.sv"
+`include "pipeline/2_dispatch/dispatch.sv"
 `include "pipeline/3_execution/ex.sv"
 `include "pipeline/3_execution/ex_mem.sv"
 `include "pipeline/4_mem/mem.sv"
@@ -234,17 +235,16 @@ module cpu_top (
     );
 
     // ID <-> Regfile
-    logic [1:0] id_regfile_reg_read_valid[2];
-    logic [`RegNumLog2*2-1:0] id_regfile_reg_read_addr[2];
-    logic [1:0][1:0][`RegBus] regfile_id_reg_read_data;
+    logic [1:0][1:0] dispatch_regfile_reg_read_valid;
+    logic [1:0][1:0][`RegAddrBus] dispatch_regfile_reg_read_addr;
+    logic [1:0][1:0][`RegBus] regfile_dispatch_reg_read_data;
 
     // ID -> ID_DISPATCH
     id_dispatch_struct [1:0] id_id_dispatch;
 
     // ID Stage
     generate
-        genvar i;
-        for (i = 0; i < 2; i++) begin : id
+        for (genvar i = 0; i < 2; i++) begin : id
             id #(
                 .EXE_STAGE_WIDTH(2),  // Obviously 2 for now
                 .MEM_STAGE_WIDTH(2)
@@ -253,11 +253,6 @@ module cpu_top (
                 // FIXME: excp info, currently unused
                 .excp_i        (),
                 .excp_num_i    (),
-
-                // <-> Regfile
-                .regfile_reg_read_valid_o(id_regfile_reg_read_valid[i]),
-                .regfile_reg_read_addr_o (id_regfile_reg_read_addr[i]),
-                .regfile_reg_read_data_i (regfile_id_reg_read_data[i]),
 
                 // Data forwarding network, unused for now
                 // TODO: add data forwarding network
@@ -286,18 +281,38 @@ module cpu_top (
     endgenerate
 
     // ID_DISPATCH -> EXE
-    id_dispatch_struct [1:0] id_dispatch_exe;
+    id_dispatch_struct [1:0] id_dispatch_dispatch;
 
-
-    // ID_DISPATCH
+    // ID -- DISPATCH, Sequential
     id_dispatch u_id_dispatch (
         .clk       (clk),
         .rst       (rst),
         .stall     (),
         .flush     (),
         .id_i      (id_id_dispatch),
-        .dispatch_o(id_dispatch_exe)
+        .dispatch_o(id_dispatch_dispatch)
     );
+
+    // Dispatch -> EXE
+    dispatch_ex_struct [1:0] dispatch_exe;
+
+    // Dispatch Stage, Sequential logic
+    dispatch #(
+        .DECODE_WIDTH(2)
+    ) u_dispatch (
+        .clk (clk),
+        .rst (rst),
+        .id_i(id_dispatch_dispatch),
+
+        // <-> Regfile
+        .regfile_reg_read_valid_o(dispatch_regfile_reg_read_valid),
+        .regfile_reg_read_addr_o (dispatch_regfile_reg_read_addr),
+        .regfile_reg_read_data_i (regfile_dispatch_reg_read_data),
+
+        // -> EXE
+        .exe_o(dispatch_exe)
+    );
+
 
 
 
@@ -423,135 +438,44 @@ module cpu_top (
                      (excp_flush && excp_tlbrefill) ? csr_tlbrentry :
                      ertn_flush ? csr_era : `ZeroWord;
 
-    logic if_inst_valid_1;
-    logic if_inst_valid_2;
-    logic if_excp_i_1;
-    logic [3:0] if_excp_num_i_1;
-    logic if_excp_i_2;
-    logic [3:0] if_excp_num_i_2;
-
-
-
-    logic [`InstAddrBus] id_pc_1;
-    logic [`InstBus] id_inst_1;
-    logic [`InstAddrBus] id_pc_2;
-    logic [`InstBus] id_inst_2;
-
-    logic if_excp_o_1;
-    logic [3:0] if_excp_num_o_1;
-    logic if_excp_o_2;
-    logic [3:0] if_excp_num_o_2;
-
-
-    logic [`AluOpBus] id_aluop_1;
-    logic [`AluSelBus] id_alusel_1;
-    logic [`RegBus] id_reg1_1;
-    logic [`RegBus] id_reg2_1;
-    logic [`RegAddrBus] id_reg_waddr_1;
-    logic id_wreg_1;
-    logic id_inst_valid_1;
-    logic [`InstAddrBus] id_inst_pc_1;
-    logic [`RegBus] id_inst_o_1;
-
-    logic reg1_read_1;
-    logic reg2_read_1;
-    logic [`RegAddrBus] reg1_addr_1;
-    logic [`RegAddrBus] reg2_addr_1;
-    logic [`RegBus] reg1_data_1;
-    logic [`RegBus] reg2_data_1;
-
-    logic ex_wreg_o_1;
-    logic [`RegAddrBus] ex_reg_waddr_o_1;
-    logic [`RegBus] ex_reg_wdata_1;
-    logic [`AluOpBus] ex_aluop_o_1;
-
-    logic mem_wreg_o_1;
-    logic [`RegAddrBus] mem_reg_waddr_o_1;
-    logic [`RegBus] mem_reg_wdata_o_1;
-
-    logic stallreq_from_id_1;
-    logic stallreq_from_ex_1;
-
-    logic [1:0] id_excepttype_o_1;
-    logic [`RegBus] id_current_inst_address_o_1;
-
-    logic ex_wreg_o_2;
-    logic [`RegAddrBus] ex_reg_waddr_o_2;
-    logic [`RegBus] ex_reg_wdata_2;
-    logic [`AluOpBus] ex_aluop_o_2;
-
-    logic mem_wreg_o_2;
-    logic [`RegAddrBus] mem_reg_waddr_o_2;
-    logic [`RegBus] mem_reg_wdata_o_2;
-
-    logic [`RegAddrBus] reg1_addr_2;
-    logic [`RegAddrBus] reg2_addr_2;
-
-    logic [`RegBus] link_addr_1;
-    logic [`RegBus] link_addr_2;
-
-    logic [`RegAddrBus] id_reg_waddr_2;
-
-    logic stallreq_to_next_1;
-    logic stallreq_to_next_2;
-
-    logic id_excp_o_1;
-    logic [8:0] id_excp_num_o_1;
-    logic id_excp_o_2;
-    logic [8:0] id_excp_num_o_2;
 
     csr_write_signal id_csr_signal_o_1;
     csr_write_signal id_csr_signal_o_2;
 
-
-
-    logic ex_inst_valid_o_1;
-    logic [`InstAddrBus] ex_inst_pc_o_1;
-    logic [`RegBus] ex_addr_o_1;
-    logic [`RegBus] ex_reg2_o_1;
-    logic [1:0] ex_excepttype_o_1;
-    logic [`RegBus] ex_current_inst_address_o_1;
     csr_write_signal ex_csr_signal_o_1;
     csr_write_signal ex_csr_signal_o_2;
 
 
+    // EXE Stage
+    generate
+        for (genvar i = 0; i < 2; i++) begin : ex
+            ex u_ex (
+                .rst(rst),
 
-    ex u_ex_1 (
-        .rst(rst),
+                .dispatch_i(dispatch_exe[i]),
+                .excepttype_i(),
+                .csr_vppn(),
 
-        .aluop_i(ex_aluop_1),
-        .alusel_i(ex_alusel_1),
-        .reg1_i(ex_reg1_1),
-        .reg2_i(ex_reg2_1),
-        .wd_i(ex_reg_waddr_i_1),
-        .wreg_i(ex_wreg_i_1),
-        .inst_valid_i(ex_inst_valid_i_1),
-        .inst_pc_i(ex_inst_pc_i_1),
-        .inst_i(ex_inst_i_1),
-        .link_addr_i(ex_link_address_1),
-        .excepttype_i(ex_excepttype_i_1),
-        .current_inst_address_i(ex_current_inst_address_i_1),
-        .csr_signal_i(ex_csr_signal_i_1),
+                .wreg_o(),
+                .wd_o(),
+                .wdata_o(),
+                .inst_valid_o(),
+                .inst_pc_o(),
+                .aluop_o(),
+                .mem_addr_o(),
+                .reg2_o(),
+                .excepttype_o(),
+                .csr_signal_o(),
 
-        .wreg_o(ex_wreg_o_1),
-        .wd_o(ex_reg_waddr_o_1),
-        .wdata_o(ex_reg_wdata_1),
-        .inst_valid_o(ex_inst_valid_o_1),
-        .inst_pc_o(ex_inst_pc_o_1),
-        .aluop_o(ex_aluop_o_1),
-        .mem_addr_o(ex_addr_o_1),
-        .reg2_o(ex_reg2_o_1),
-        .excepttype_o(ex_excepttype_o_1),
-        .current_inst_address_o(ex_current_inst_address_o_1),
-        .csr_signal_o(ex_csr_signal_o_1),
+                .stallreq(),
 
-        .stallreq(stallreq_from_ex_1),
-
-        .excp_i(ex_excp_i_1),
-        .excp_num_i(ex_excp_num_i_1),
-        .excp_o(ex_excp_o_1),
-        .excp_num_o(ex_excp_num_o_1)
-    );
+                .excp_i(),
+                .excp_num_i(),
+                .excp_o(),
+                .excp_num_o()
+            );
+        end
+    endgenerate
 
     logic ex_inst_valid_o_2;
     logic [`InstAddrBus] ex_inst_pc_o_2;
@@ -563,43 +487,6 @@ module cpu_top (
     logic [13:0] ex_csr_addr_o_2;
     logic [31:0] ex_csr_data_o_2;
 
-
-    ex u_ex_2 (
-        .rst(rst),
-
-        .aluop_i(ex_aluop_2),
-        .alusel_i(ex_alusel_2),
-        .reg1_i(ex_reg1_2),
-        .reg2_i(ex_reg2_2),
-        .wd_i(ex_reg_waddr_i_2),
-        .wreg_i(ex_wreg_i_2),
-        .inst_valid_i(ex_inst_valid_i_2),
-        .inst_pc_i(ex_inst_pc_i_2),
-        .inst_i(ex_inst_i_2),
-        .link_addr_i(ex_link_address_2),
-        .excepttype_i(ex_excepttype_i_2),
-        .current_inst_address_i(ex_current_inst_address_i_2),
-        .csr_signal_i(ex_csr_signal_i_2),
-
-        .wreg_o(ex_wreg_o_2),
-        .wd_o(ex_reg_waddr_o_2),
-        .wdata_o(ex_reg_wdata_2),
-        .inst_valid_o(ex_inst_valid_o_2),
-        .inst_pc_o(ex_inst_pc_o_2),
-        .aluop_o(ex_aluop_o_2),
-        .mem_addr_o(ex_addr_o_2),
-        .reg2_o(ex_reg2_o_2),
-        .excepttype_o(ex_excepttype_o_2),
-        .current_inst_address_o(ex_current_inst_address_o_2),
-        .csr_signal_o(ex_csr_signal_o_2),
-
-        .stallreq(stallreq_from_ex_2),
-
-        .excp_i(ex_excp_i_2),
-        .excp_num_i(ex_excp_num_i_2),
-        .excp_o(ex_excp_o_2),
-        .excp_num_o(ex_excp_num_o_2)
-    );
 
 
     logic mem_wreg_i_1;
@@ -623,103 +510,6 @@ module cpu_top (
     logic mem_excp_i_2;
     logic [9:0] mem_excp_num_i_2;
 
-    ex_mem u_ex_mem_1 (
-        .clk  (clk),
-        .rst  (rst),
-        .stall(stall1[4]),
-
-        .ex_wd                  (ex_reg_waddr_o_1),
-        .ex_wreg                (ex_wreg_o_1),
-        .ex_wdata               (ex_reg_wdata_1),
-        .ex_inst_pc             (ex_inst_pc_o_1),
-        .ex_inst_valid          (ex_inst_valid_o_1),
-        .ex_aluop               (ex_aluop_o_1),
-        .ex_mem_addr            (ex_addr_o_1),
-        .ex_reg2                (ex_reg2_o_1),
-        .flush                  (flush),
-        .ex_excepttype          (ex_excepttype_o_1),
-        .ex_current_inst_address(ex_current_inst_address_o_1),
-        .ex_csr_signal_o        (ex_csr_signal_o_1),
-
-        .mem_wd                  (mem_reg_waddr_i_1),
-        .mem_wreg                (mem_wreg_i_1),
-        .mem_wdata               (mem_reg_wdata_i_1),
-        .mem_inst_valid          (mem_inst_valid_1),
-        .mem_inst_pc             (mem_inst_pc_1),
-        .mem_aluop               (mem_aluop_i_1),
-        .mem_mem_addr            (mem_addr_i_1),
-        .mem_reg2                (mem_reg2_i_1),
-        .mem_excepttype          (mem_excepttype_i_1),
-        .mem_current_inst_address(mem_current_inst_address_i_1),
-        .mem_csr_signal_i        (mem_csr_signal_i_1),
-
-        .excp_i(ex_excp_o_1),
-        .excp_num_i(ex_excp_num_o_1),
-        .excp_o(mem_excp_i_1),
-        .excp_num_o(mem_excp_num_i_1),
-
-        .excp_flush(excp_flush),
-        .ertn_flush(ertn_flush)
-
-    );
-
-
-    logic mem_wreg_i_2;
-    logic [`RegAddrBus] mem_reg_waddr_i_2;
-    logic [`RegBus] mem_reg_wdata_i_2;
-
-    logic mem_inst_valid_2;
-    logic [`InstAddrBus] mem_inst_pc_2;
-
-    logic [`AluOpBus] mem_aluop_i_2;
-    logic [`RegBus] mem_addr_i_2;
-    logic [`RegBus] mem_reg2_i_2;
-    logic [1:0] mem_excepttype_i_2;
-    logic [`RegBus] mem_current_inst_address_i_2;
-    logic mem_csr_we_i_2;
-    logic [13:0] mem_csr_addr_i_2;
-    logic [31:0] mem_csr_data_i_2;
-
-
-    ex_mem u_ex_mem_2 (
-        .clk  (clk),
-        .rst  (rst),
-        .stall(stall2[4]),
-
-        .ex_wd                  (ex_reg_waddr_o_2),
-        .ex_wreg                (ex_wreg_o_2),
-        .ex_wdata               (ex_reg_wdata_2),
-        .ex_inst_pc             (ex_inst_pc_o_2),
-        .ex_inst_valid          (ex_inst_valid_o_2),
-        .ex_aluop               (ex_aluop_o_2),
-        .ex_mem_addr            (ex_addr_o_2),
-        .ex_reg2                (ex_reg2_o_2),
-        .flush                  (flush),
-        .ex_excepttype          (ex_excepttype_o_2),
-        .ex_current_inst_address(ex_current_inst_address_o_2),
-        .ex_csr_signal_o        (ex_csr_signal_o_2),
-
-        .mem_wd                  (mem_reg_waddr_i_2),
-        .mem_wreg                (mem_wreg_i_2),
-        .mem_wdata               (mem_reg_wdata_i_2),
-        .mem_inst_valid          (mem_inst_valid_2),
-        .mem_inst_pc             (mem_inst_pc_2),
-        .mem_aluop               (mem_aluop_i_2),
-        .mem_mem_addr            (mem_addr_i_2),
-        .mem_reg2                (mem_reg2_i_2),
-        .mem_excepttype          (mem_excepttype_i_2),
-        .mem_current_inst_address(mem_current_inst_address_i_2),
-        .mem_csr_signal_i        (mem_csr_signal_i_2),
-
-        .excp_i(ex_excp_o_2),
-        .excp_num_i(ex_excp_num_o_2),
-        .excp_o(mem_excp_i_2),
-        .excp_num_o(mem_excp_num_i_2),
-
-        .excp_flush(excp_flush),
-        .ertn_flush(ertn_flush)
-
-    );
 
     logic LLbit_o_1;
     logic wb_LLbit_we_i_1;
@@ -1069,9 +859,9 @@ module cpu_top (
         .wdata_2(wb_reg_wdata_2),
 
         // Read signals
-        .read_valid_i({id_regfile_reg_read_valid[1], id_regfile_reg_read_valid[0]}),
-        .read_addr_i ({id_regfile_reg_read_addr[1], id_regfile_reg_read_addr[0]}),
-        .read_data_o (regfile_id_reg_read_data)
+        .read_valid_i(dispatch_regfile_reg_read_valid),
+        .read_addr_i (dispatch_regfile_reg_read_addr),
+        .read_data_o (regfile_dispatch_reg_read_data)
     );
 
 
@@ -1156,8 +946,7 @@ module cpu_top (
         .tlbelo0_in(tlbr_tlbelo0),
         .tlbelo1_in(tlbr_tlbelo1),
         .tlbidx_in(tlbr_tlbidx),
-        .asid_in(tlbr_asid),
-        .csr_diff(csr_diff)
+        .asid_in(tlbr_asid)
     );
 
 
