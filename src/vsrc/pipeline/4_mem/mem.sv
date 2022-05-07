@@ -116,7 +116,14 @@ module mem (
         end else begin
             LLbit_we_o = 1'b0;
             LLbit_value_o = 1'b0;
-            signal_o.instr_info.valid = 1'b1;
+            // FIXME: information should be passed to next stage
+            // currently not carefully designed
+            signal_o.instr_info = signal_i.instr_info;
+            signal_o.wreg = signal_i.wreg;
+            signal_o.waddr = signal_i.waddr;
+            signal_o.wdata = signal_i.wdata;
+            signal_o.aluop = signal_i.aluop;
+            signal_o.csr_signal = signal_i.csr_signal;
             case (signal_i.aluop)
                 `EXE_LD_B_OP: begin
                     signal_axi_o.addr = signal_i.mem_addr;
