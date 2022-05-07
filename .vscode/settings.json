@@ -2,7 +2,7 @@
     "verilog.linting.linter": "verilator",
     "verilog.linting.iverilog.arguments": "",
     "verilog.logging.enabled": true,
-    "verilog.linting.verilator.arguments": "-Isrc -Isrc/vsrc -Isrc/vsrc/pipeline/1_fetch",
+    "verilog.linting.verilator.arguments": "-Isrc -Isrc/vsrc -Isrc/vsrc/pipeline/1_fetch -Wall",
     "todo-tree.filtering.includeGlobs": [
         "**/*.sv",
         "**/*.v"
