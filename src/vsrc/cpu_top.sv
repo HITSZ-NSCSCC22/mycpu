@@ -96,7 +96,7 @@ module cpu_top (
     // MEM <-> AXI Controller
     // TODO: replace with DCache
     logic data_axi_we;
-    logic [`InstAddrBus] data_axi_addr;
+    logic [`DataAddrBus] data_axi_addr;
     logic [`RegBus] data_axi_data;
     logic data_axi_busy;
 
@@ -112,6 +112,12 @@ module cpu_top (
     assign data_axi_we   = data_axi_we_1 | data_axi_we_2;
     assign data_axi_addr = data_axi_we_1 ? data_axi_addr_1 : data_axi_we_2 ? data_axi_addr_2 : 0;
     assign data_axi_data = data_axi_we_1 ? data_axi_data_1 : data_axi_we_2 ? data_axi_data_2 : 0;
+
+    mem_axi_struct mem_axi_signal[2];
+
+    assign data_axi_we = mem_axi_signal[0].we | mem_axi_signal[1].we;
+    assign data_axi_addr = mem_axi_signal[0].we ? mem_axi_signal[1].addr : mem_axi_signal[1].we ? mem_axi_signal[1].addr : 32'b0;
+    assign data_axi_data = mem_axi_signal[0].we ? mem_axi_signal[1].data : mem_axi_signal[1].we ? mem_axi_signal[1].data : 32'b0;
 
     axi_master u_axi_master (
         .aclk   (aclk),
