@@ -30,19 +30,27 @@
 // Instruction Encode
 
 
-`define EXE_LU12I_W 6'b000101 // 7'b0001010
-`define EXE_PCADDU12I 6'b000111 // 7'b0001110
+// 2RI16-type
+`define EXE_JIRL 6'b010011
+`define EXE_BEQ 6'b010110
+`define EXE_BNE 6'b010111
+`define EXE_BLT 6'b011000
+`define EXE_BGE 6'b011001
+`define EXE_BLTU 6'b011010
+`define EXE_BGEU 6'b011011
+`define EXE_LU12I_W 7'b0001010
+`define EXE_PCADDU12I 7'b0001110
 
 `define EXE_B 6'b010100
 `define EXE_BL 6'b010101
 
 // 6-12 bit opcode, decoded in opcode_2
 `define EXE_ATOMIC_MEM 6'b001000
-`define EXE_LL_W 6'b00????
-`define EXE_SC_W 6'b01????
+`define EXE_LL_W 8'b00100000
+`define EXE_SC_W 8'b00100001
 
 
-`define EXE_SPECIAL 6'b000001
+`define EXE_SPECIAL 8'b00000100
 `define EXE_CSR_RELATED 6'b00????
 `define EXE_OTHER 6'b100100
 `define EXE_CSRRD 5'b00000
@@ -113,9 +121,9 @@
 
 
 
-`define EXE_SLLI_W 5'b00??? // EXE_SHIFT_ARITH
-`define EXE_SRLI_W 5'b01???
-`define EXE_SRAI_W 5'b10???
+`define EXE_SLLI_W 14'b00000000010000 // EXE_SHIFT_ARITH
+`define EXE_SRLI_W 14'b00000000010001
+`define EXE_SRAI_W 14'b00000000010010
 
 
 `define EXE_NOP 22'b0

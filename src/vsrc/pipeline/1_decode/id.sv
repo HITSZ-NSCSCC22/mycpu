@@ -72,7 +72,7 @@ module id #(
     logic instr_break, instr_syscall, kernel_instr;
 
     // Sub-decoder section
-    localparam SUB_DECODER_NUM = 7;
+    localparam SUB_DECODER_NUM = 9;
     logic sub_decoder_valid[SUB_DECODER_NUM];
     logic [`AluOpBus] sub_decoder_aluop[SUB_DECODER_NUM];
     logic [`AluSelBus] sub_decoder_alusel[SUB_DECODER_NUM];
@@ -101,7 +101,17 @@ module id #(
         .instr_break          (instr_break),
         .instr_syscall        (instr_syscall)
     );
-    // FIXME: 2RI8 not implemented
+    decoder_2RI8 U_decoder_2RI8(
+        .instr_info_i         (instr_buffer_i),
+        .decode_result_valid_o(sub_decoder_valid[2]),
+        .reg_read_valid_o     (sub_decoder_reg_read_valid[2]),
+        .reg_read_addr_o      (sub_decoder_reg_read_addr[2]),
+        .imm_o                (sub_decoder_imm[2]),
+        .reg_write_valid_o    (sub_decoder_reg_write_valid[2]),
+        .reg_write_addr_o     (sub_decoder_reg_write_addr[2]),
+        .aluop_o              (sub_decoder_aluop[2]),
+        .alusel_o             (sub_decoder_alusel[2])
+    );
     decoder_2RI12 u_decoder_2RI12 (
         .instr_info_i         (instr_buffer_i),
         .decode_result_valid_o(sub_decoder_valid[3]),
@@ -123,6 +133,48 @@ module id #(
         .reg_write_addr_o     (sub_decoder_reg_write_addr[4]),
         .aluop_o              (sub_decoder_aluop[4]),
         .alusel_o             (sub_decoder_alusel[4])
+    );
+
+    decoder_1RI20 U_decoder_1RI20(
+        .instr_info_i         (instr_buffer_i),
+        .decode_result_valid_o(sub_decoder_valid[5]),
+        .reg_read_valid_o     (sub_decoder_reg_read_valid[5]),
+        .reg_read_addr_o      (sub_decoder_reg_read_addr[5]),
+        .imm_o                (sub_decoder_imm[5]),
+        .reg_write_valid_o    (sub_decoder_reg_write_valid[5]),
+        .reg_write_addr_o     (sub_decoder_reg_write_addr[5]),
+        .aluop_o              (sub_decoder_aluop[5]),
+        .alusel_o             (sub_decoder_alusel[5])
+    );
+    decoder_2RI14 U_decoder_2RI14(
+        .instr_info_i         (instr_buffer_i),
+        .decode_result_valid_o(sub_decoder_valid[6]),
+        .reg_read_valid_o     (sub_decoder_reg_read_valid[6]),
+        .reg_read_addr_o      (sub_decoder_reg_read_addr[6]),
+        .imm_o                (sub_decoder_imm[6]),
+        .reg_write_valid_o    (sub_decoder_reg_write_valid[6]),
+        .reg_write_addr_o     (sub_decoder_reg_write_addr[6]),
+        .aluop_o              (sub_decoder_aluop[6]),
+        .alusel_o             (sub_decoder_alusel[6])
+    );
+    decoder_I26 U_decoder_I26(
+        .instr_info_i         (instr_buffer_i),
+        .decode_result_valid_o(sub_decoder_valid[7]),
+        .imm_o                (sub_decoder_imm[7]),
+        .reg_write_valid_o    (sub_decoder_reg_write_valid[7]),
+        .reg_write_addr_o     (sub_decoder_reg_write_addr[7]),
+        .aluop_o              (sub_decoder_aluop[7]),
+        .alusel_o             (sub_decoder_alusel[7])
+    );
+    decoder_CSR u_decoder_CSR(
+        .instr_info_i         (instr_buffer_i),
+        .decode_result_valid_o(sub_decoder_valid[8]),
+        .reg_read_valid_o     (sub_decoder_reg_read_valid[8]),
+        .reg_read_addr_o      (sub_decoder_reg_read_addr[8]),
+        .imm_o                (sub_decoder_imm[8]),
+        .reg_write_valid_o    (sub_decoder_reg_write_valid[8]),
+        .reg_write_addr_o     (sub_decoder_reg_write_addr[8]),
+        .aluop_o              (sub_decoder_aluop[8])
     );
     // FIXME: I16 and Special not implemented
 
