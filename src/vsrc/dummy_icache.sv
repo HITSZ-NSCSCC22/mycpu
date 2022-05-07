@@ -11,7 +11,6 @@ module dummy_icache #(
     input logic rst,
 
     // <-> IF
-    input logic frontend_flush_i,
     // All signals are 1 cycle valid
     // all 0 means invalid
     input logic [ADDR_WIDTH-1:0] raddr_1_i,

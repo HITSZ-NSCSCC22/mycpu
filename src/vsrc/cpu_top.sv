@@ -88,17 +88,14 @@ module cpu_top (
     // Global enable signal
     logic chip_enable;
 
-    logic branch_flag_1;
-    logic branch_flag_2;
-    logic Instram_branch_flag;
-    assign Instram_branch_flag = branch_flag_1 | branch_flag_2;
-
+    // ICache <-> AXI Controller
     logic axi_busy;
     logic [`RegBus] axi_data;
     logic [`RegBus] axi_addr;
 
+    // MEM <-> AXI Controller
+    // TODO: replace with DCache
     logic data_axi_we;
-    logic data_axi_ce;
     logic [`InstAddrBus] data_axi_addr;
     logic [`RegBus] data_axi_data;
     logic data_axi_busy;
@@ -111,6 +108,7 @@ module cpu_top (
     logic [`InstAddrBus] data_axi_addr_2;
     logic [`RegBus] data_axi_data_2;
 
+    // 1 is prioritizes
     assign data_axi_we   = data_axi_we_1 | data_axi_we_2;
     assign data_axi_addr = data_axi_we_1 ? data_axi_addr_1 : data_axi_we_2 ? data_axi_addr_2 : 0;
     assign data_axi_data = data_axi_we_1 ? data_axi_data_1 : data_axi_we_2 ? data_axi_data_2 : 0;
@@ -119,17 +117,19 @@ module cpu_top (
         .aclk   (aclk),
         .aresetn(aresetn),
 
+        // <-> ICache
         .inst_cpu_addr_i(axi_addr),
         .inst_cpu_ce_i(axi_addr != 0),  // FIXME: ce should not be used as valid?
         .inst_cpu_data_i(0),
         .inst_cpu_we_i(1'b0),
         .inst_cpu_sel_i(4'b1111),
-        .inst_stall_i(Instram_branch_flag),
-        .inst_flush_i(Instram_branch_flag),
+        .inst_stall_i(),  // FIXME: stall & flush
+        .inst_flush_i(),
         .inst_cpu_data_o(axi_data),
         .inst_stallreq(axi_busy),
         .inst_id(4'b0000),  // Read Instruction only, TODO: move this from AXI to cache
 
+        // <-> MEM Stage
         .data_cpu_addr_i(data_axi_addr),
         .data_cpu_ce_i(data_axi_addr != 0),  // FIXME: ce should not be used as valid?
         .data_cpu_data_i(0),
@@ -141,6 +141,7 @@ module cpu_top (
         .data_stallreq(data_axi_busy),
         .data_id(4'b0000),
 
+        // External AXI signals
         .s_arid(arid),
         .s_araddr(araddr),
         .s_arlen(arlen),
@@ -220,29 +221,31 @@ module cpu_top (
     instr_buffer_info_t frontend_ib_instr_info[FETCH_WIDTH];
     logic [`RegBus] next_pc;
 
+    // Frontend <-> Backend 
+    logic backend_flush;
+
     // All frontend structures
     frontend u_frontend (
         .clk(clk),
         .rst(rst),
 
         // <-> ICache
-        .icache_read_addr_o (frontend_icache_addr),
-        .icache_stallreq_i  (icache_frontend_stallreq),
-        .icache_read_valid_i(icache_frontend_valid),
-        .icache_read_addr_i (icache_frontend_addr),
-        .icache_read_data_i (icache_frontend_data),
+        .icache_read_addr_o(frontend_icache_addr),  // -> ICache
+        .icache_stallreq_i(icache_frontend_stallreq),  // <- ICache, I$ cannot accept more addr requests
+        .icache_read_valid_i(icache_frontend_valid),  // <- ICache
+        .icache_read_addr_i(icache_frontend_addr),  // <- ICache
+        .icache_read_data_i(icache_frontend_data),  // <- ICache
 
         // <-> Backend
-        .branch_update_info_i(),
-        .backend_next_pc_i   (next_pc),
-        .backend_flush_i     (backend_flush),
+        .branch_update_info_i(),              // branch update signals, <- EXE Stage
+        .backend_next_pc_i   (next_pc),       // backend PC, <- pc_gen
+        .backend_flush_i     (backend_flush), // backend flush, usually come with next_pc
 
         // <-> Instruction Buffer
-        .instr_buffer_stallreq_i(ib_frontend_stallreq),
-        .instr_buffer_o         (frontend_ib_instr_info)
+        .instr_buffer_stallreq_i(ib_frontend_stallreq),   // instruction buffer is full
+        .instr_buffer_o         (frontend_ib_instr_info)  // -> IB
     );
 
-    logic backend_flush;
     instr_buffer_info_t ib_backend_instr_info[2];  // IB -> ID
 
     // Instruction Buffer
@@ -259,9 +262,9 @@ module cpu_top (
         .frontend_stallreq_o(ib_frontend_stallreq),
 
         // <-> Backend
-        .backend_accept_i(2'b11),  // 1 means valid 
-        .backend_flush_i(backend_flush),
-        .backend_instr_o(ib_backend_instr_info)
+        .backend_accept_i(2'b11),  // TODO: connect to dispatch
+        .backend_flush_i(backend_flush),  // Assure output is reset the next cycle
+        .backend_instr_o(ib_backend_instr_info)  // -> ID
     );
 
     // ID <-> Regfile
@@ -459,6 +462,7 @@ module cpu_top (
     logic [`RegBus] id_csr_data_i_2;
 
     logic disable_cache;
+    logic branch_flag_1, branch_flag_2;
 
     assign backend_flush = excp_flush | ertn_flush | branch_flag_1 | branch_flag_2;
 
@@ -889,6 +893,7 @@ module cpu_top (
         .wdata_2(wb_reg_wdata_2),
 
         // Read signals
+        // Registers are read in dispatch stage
         .read_valid_i(dispatch_regfile_reg_read_valid),
         .read_addr_i (dispatch_regfile_reg_read_addr),
         .read_data_o (regfile_dispatch_reg_read_data)
