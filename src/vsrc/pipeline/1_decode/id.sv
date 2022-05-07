@@ -1,11 +1,12 @@
 `include "defines.sv"
 `include "instr_info.sv"
 `include "csr_defines.sv"
+`include "pipeline_defines.sv"
 
-`include "pipeline/2_decode/decoder_2R.sv"
-`include "pipeline/2_decode/decoder_3R.sv"
-`include "pipeline/2_decode/decoder_2RI12.sv"
-`include "pipeline/2_decode/decoder_2RI16.sv"
+`include "pipeline/1_decode/decoder_2R.sv"
+`include "pipeline/1_decode/decoder_3R.sv"
+`include "pipeline/1_decode/decoder_2RI12.sv"
+`include "pipeline/1_decode/decoder_2RI16.sv"
 
 
 // ID stage
@@ -17,7 +18,8 @@
 // What ID NOT DO:
 // 1. Determine whether a instruction dispatch in EXE or not
 // 2. Calculate anything, such as branch target
-//
+// TODO: move regfile read to dispatch stage
+// 
 module id #(
     parameter EXE_STAGE_WIDTH = 2,
     parameter MEM_STAGE_WIDTH = 2
@@ -47,16 +49,8 @@ module id #(
     input logic [`RegBus] mem_write_reg_data_i[MEM_STAGE_WIDTH],
 
 
-    // -> EXE
-    output reg [`AluOpBus] ex_aluop_o,
-    output reg [`AluSelBus] ex_alusel_o,
-    output reg [`RegBus] ex_op1_o,
-    output reg [`RegBus] ex_op2_o,
-    output reg ex_reg_write_valid_o,
-    output reg [`RegAddrBus] ex_reg_write_addr_o,
-    output instr_buffer_info_t ex_instr_info_o,  // Instruction info passed to EXE
-    output reg ex_csr_we_o,
-    output csr_write_signal ex_csr_signal_o,
+    // -> Dispatch
+    output id_dispatch_struct dispatch_o,
 
     output logic broadcast_excp_o,
     output logic [8:0] broadcast_excp_num_o,
@@ -152,15 +146,15 @@ module id #(
     end
     // Generate output to EXE
     always_comb begin
-        ex_aluop_o = 0;
-        ex_alusel_o = 0;
-        ex_reg_write_valid_o = 0;
-        ex_reg_write_addr_o = 0;
+        dispatch_o.aluop = 0;
+        dispatch_o.alusel = 0;
+        dispatch_o.reg_write_valid = 0;
+        dispatch_o.reg_write_addr = 0;
         for (integer i = 0; i < SUB_DECODER_NUM; i++) begin
-            ex_aluop_o = ex_aluop_o | sub_decoder_aluop[i];
-            ex_alusel_o = ex_alusel_o | sub_decoder_alusel[i];
-            ex_reg_write_valid_o = ex_reg_write_valid_o | sub_decoder_reg_write_valid[i];
-            ex_reg_write_addr_o = ex_reg_write_addr_o | sub_decoder_reg_write_addr[i];
+            dispatch_o.aluop = dispatch_o.aluop | sub_decoder_aluop[i];
+            dispatch_o.alusel = dispatch_o.alusel | sub_decoder_alusel[i];
+            dispatch_o.reg_write_valid = dispatch_o.reg_write_valid | sub_decoder_reg_write_valid[i];
+            dispatch_o.reg_write_addr = dispatch_o.reg_write_addr | sub_decoder_reg_write_addr[i];
         end
     end
     // Generate output to Regfile
@@ -175,9 +169,9 @@ module id #(
 
 
     // Generate output
-    assign ex_instr_info_o.valid = instr_valid;
-    assign ex_instr_info_o.pc = pc_i;
-    assign ex_instr_info_o.instr = inst_i;
+    assign dispatch_o.instr_info.valid = instr_valid;
+    assign dispatch_o.instr_info.pc = pc_i;
+    assign dispatch_o.instr_info.instr = inst_i;
 
 
     // TODO: add explanation

@@ -11,8 +11,9 @@
 `include "dummy_icache.sv"
 `include "LLbit_reg.sv"
 `include "ctrl.sv"
-`include "pipeline/2_decode/id.sv"
-`include "pipeline/2_decode/id_ex.sv"
+`include "pipeline_defines.sv"
+`include "pipeline/1_decode/id.sv"
+`include "pipeline/1_decode/id_dispatch.sv"
 `include "pipeline/3_execution/ex.sv"
 `include "pipeline/3_execution/ex_mem.sv"
 `include "pipeline/4_mem/mem.sv"
@@ -188,6 +189,7 @@ module cpu_top (
     instr_buffer_info_t frontend_ib_instr_info[FETCH_WIDTH];
     logic [`RegBus] next_pc;
 
+    // All frontend structures
     frontend u_frontend (
         .clk(clk),
         .rst(rst),
@@ -212,6 +214,8 @@ module cpu_top (
     logic backend_flush;
     instr_buffer_info_t ib_backend_instr_info[2];  // IB -> ID
 
+    // Instruction Buffer
+    // FIFO buffer
     instr_buffer #(
         .IF_WIDTH(FETCH_WIDTH),
         .ID_WIDTH(2)             // TODO: remove magic number
@@ -234,6 +238,10 @@ module cpu_top (
     logic [`RegNumLog2*2-1:0] id_regfile_reg_read_addr[2];
     logic [1:0][1:0][`RegBus] regfile_id_reg_read_data;
 
+    // ID -> ID_DISPATCH
+    id_dispatch_struct [1:0] id_id_dispatch;
+
+    // ID Stage
     generate
         genvar i;
         for (i = 0; i < 2; i++) begin : id
@@ -261,16 +269,8 @@ module cpu_top (
                 .mem_write_reg_addr_i (),
                 .mem_write_reg_data_i (),
 
-                // -> EXE
-                .ex_aluop_o          (),
-                .ex_alusel_o         (),
-                .ex_op1_o            (),
-                .ex_op2_o            (),
-                .ex_reg_write_valid_o(),
-                .ex_reg_write_addr_o (),
-                .ex_instr_info_o     (),
-                .ex_csr_we_o         (),
-                .ex_csr_signal_o     (),
+                // -> Dispatch
+                .dispatch_o(id_id_dispatch[i]),
 
                 // Exception broadcast
                 .broadcast_excp_o    (),
@@ -284,6 +284,21 @@ module cpu_top (
             );
         end
     endgenerate
+
+    // ID_DISPATCH -> EXE
+    id_dispatch_struct [1:0] id_dispatch_exe;
+
+
+    // ID_DISPATCH
+    id_dispatch u_id_dispatch (
+        .clk       (clk),
+        .rst       (rst),
+        .stall     (),
+        .flush     (),
+        .id_i      (id_id_dispatch),
+        .dispatch_o(id_dispatch_exe)
+    );
+
 
 
 
@@ -488,133 +503,6 @@ module cpu_top (
     csr_write_signal id_csr_signal_o_1;
     csr_write_signal id_csr_signal_o_2;
 
-
-    id_ex id_ex_1 (
-        .clk  (clk),
-        .rst  (rst),
-        .stall(stall1[3]),
-
-        .id_aluop(id_aluop_1),
-        .id_alusel(id_alusel_1),
-        .id_reg1(id_reg1_1),
-        .id_reg2(id_reg2_1),
-        .id_wd(id_reg_waddr_1),
-        .id_wreg(id_wreg_1),
-        .id_inst_pc(id_inst_pc_1),
-        .id_inst_valid(id_inst_valid_1),
-        .id_link_address(link_addr_1),
-        .id_inst(id_inst_o_1),
-        .flush(flush),
-        .id_excepttype(id_excepttype_o_1),
-        .id_current_inst_address(id_current_inst_address_o_1),
-        .id_csr_signal_o(id_csr_signal_o_1),
-
-        .ex_aluop(ex_aluop_1),
-        .ex_alusel(ex_alusel_1),
-        .ex_reg1(ex_reg1_1),
-        .ex_reg2(ex_reg2_1),
-        .ex_wd(ex_reg_waddr_i_1),
-        .ex_wreg(ex_wreg_i_1),
-        .ex_inst_pc(ex_inst_pc_i_1),
-        .ex_inst_valid(ex_inst_valid_i_1),
-        .ex_link_address(ex_link_address_1),
-        .ex_inst(ex_inst_i_1),
-        .ex_excepttype(ex_excepttype_i_1),
-        .ex_current_inst_address(ex_current_inst_address_i_1),
-        .ex_csr_signal_i(ex_csr_signal_i_1),
-
-        .reg1_addr_i(reg1_addr_1),
-        .reg2_addr_i(reg2_addr_1),
-        .pc_i_other(id_inst_pc_2),
-        .reg1_addr_i_other(reg1_addr_2),
-        .reg2_addr_i_other(reg2_addr_2),
-        .waddr_i_other(id_reg_waddr_2),
-
-        .stallreq_from_id(stallreq_to_next_1),
-        .stallreq(stallreq_from_id_1),
-
-        .excp_i(id_excp_o_1),
-        .excp_num_i(id_excp_num_o_1),
-        .excp_o(ex_excp_i_1),
-        .excp_num_o(ex_excp_num_i_1),
-
-        .excp_flush(excp_flush),
-        .ertn_flush(ertn_flush)
-    );
-
-    logic [`AluOpBus] ex_aluop_2;
-    logic [`AluSelBus] ex_alusel_2;
-    logic [`RegBus] ex_reg1_2;
-    logic [`RegBus] ex_reg2_2;
-    logic [`RegAddrBus] ex_reg_waddr_i_2;
-    logic ex_wreg_i_2;
-    logic ex_inst_valid_i_2;
-    logic [`InstAddrBus] ex_inst_pc_i_2;
-    logic [`RegBus] ex_link_address_2;
-    logic [`RegBus] ex_inst_i_2;
-    logic [1:0] ex_excepttype_i_2;
-    logic [`RegBus] ex_current_inst_address_i_2;
-    logic ex_csr_we_i_2;
-    logic [13:0] ex_csr_addr_i_2;
-    logic [31:0] ex_csr_data_i_2;
-
-    logic ex_excp_i_2;
-    logic [9:0] ex_excp_num_o_1;
-    logic ex_excp_o_2;
-    logic [9:0] ex_excp_num_o_2;
-
-    id_ex id_ex_2 (
-        .clk  (clk),
-        .rst  (rst),
-        .stall(stall2[3]),
-
-        .id_aluop(id_aluop_2),
-        .id_alusel(id_alusel_2),
-        .id_reg1(id_reg1_2),
-        .id_reg2(id_reg2_2),
-        .id_wd(id_reg_waddr_2),
-        .id_wreg(id_wreg_2),
-        .id_inst_pc(id_inst_pc_2),
-        .id_inst_valid(id_inst_valid_2),
-        .id_link_address(link_addr_2),
-        .id_inst(id_inst_o_2),
-        .flush(flush),
-        .id_excepttype(id_excepttype_o_2),
-        .id_current_inst_address(id_current_inst_address_o_2),
-        .id_csr_signal_o(id_csr_signal_o_2),
-
-        .ex_aluop(ex_aluop_2),
-        .ex_alusel(ex_alusel_2),
-        .ex_reg1(ex_reg1_2),
-        .ex_reg2(ex_reg2_2),
-        .ex_wd(ex_reg_waddr_i_2),
-        .ex_wreg(ex_wreg_i_2),
-        .ex_inst_pc(ex_inst_pc_i_2),
-        .ex_inst_valid(ex_inst_valid_i_2),
-        .ex_link_address(ex_link_address_2),
-        .ex_inst(ex_inst_i_2),
-        .ex_excepttype(ex_excepttype_i_2),
-        .ex_current_inst_address(ex_current_inst_address_i_2),
-        .ex_csr_signal_i(ex_csr_signal_i_2),
-
-        .reg1_addr_i(reg1_addr_2),
-        .reg2_addr_i(reg2_addr_2),
-        .pc_i_other(id_inst_pc_1),
-        .reg1_addr_i_other(reg1_addr_1),
-        .reg2_addr_i_other(reg2_addr_2),
-        .waddr_i_other(id_reg_waddr_1),
-
-        .stallreq_from_id(stallreq_to_next_2),
-        .stallreq(stallreq_from_id_2),
-
-        .excp_i(id_excp_o_2),
-        .excp_num_i(id_excp_num_o_2),
-        .excp_o(ex_excp_i_2),
-        .excp_num_o(ex_excp_num_i_2),
-
-        .excp_flush(excp_flush),
-        .ertn_flush(ertn_flush)
-    );
 
 
     logic ex_inst_valid_o_1;
