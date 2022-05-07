@@ -96,20 +96,57 @@ module cpu_top (
     logic [`RegBus] axi_data;
     logic [`RegBus] axi_addr;
 
+    logic data_axi_we;
+    logic data_axi_ce;
+    logic [3:0] data_axi_sel;
+    logic [`RegAddrBus] data_axi_addr;
+    logic [`RegBus] data_axi_data;
+    logic data_axi_busy;
+
+    logic data_axi_we_1;
+    logic data_axi_ce_1;
+    logic [3:0] data_axi_sel_1;
+    logic [`RegAddrBus] data_axi_addr_1;
+    logic [`RegBus] data_axi_data_1;
+
+    logic data_axi_we_2;
+    logic data_axi_ce_2;
+    logic [3:0] data_axi_sel_2;
+    logic [`RegAddrBus] data_axi_addr_2;
+    logic [`RegBus] data_axi_data_2;
+
+    assign data_axi_we = data_axi_we_1 | data_axi_we_2;
+    assign data_axi_ce = data_axi_ce_1 | data_axi_ce_2;
+    assign data_axi_sel = data_axi_we_1 ? data_axi_sel_1 : data_axi_we_2 ? data_axi_sel_2 : 4'b0;
+    assign data_axi_addr = data_axi_we_1 ? data_axi_addr_1 : data_axi_we_2 ? data_axi_addr_2 : 5'b0;
+    assign data_axi_data = data_axi_we_1 ? data_axi_data_1 : data_axi_we_2 ? data_axi_data_2 : 32'b0;
+
     axi_master u_axi_master (
         .aclk   (aclk),
         .aresetn(aresetn),
 
-        .cpu_addr_i(axi_addr),
-        .cpu_ce_i(axi_addr != 0),  // FIXME: ce should not be used as valid?
-        .cpu_data_i(0),
-        .cpu_we_i(1'b0),
-        .cpu_sel_i(4'b1111),
-        .stall_i(Instram_branch_flag),
-        .flush_i(Instram_branch_flag),
-        .cpu_data_o(axi_data),
-        .stallreq(axi_busy),
-        .id(4'b0000),  // Read Instruction only, TODO: move this from AXI to cache
+        .inst_cpu_addr_i(axi_addr),
+        .inst_cpu_ce_i(axi_addr != 0),  // FIXME: ce should not be used as valid?
+        .inst_cpu_data_i(0),
+        .inst_cpu_we_i(1'b0),
+        .inst_cpu_sel_i(4'b1111),
+        .inst_stall_i(Instram_branch_flag),
+        .inst_flush_i(Instram_branch_flag),
+        .inst_cpu_data_o(axi_data),
+        .inst_stallreq(axi_busy),
+        .inst_id(4'b0000),  // Read Instruction only, TODO: move this from AXI to cache
+
+        .data_cpu_addr_i(data_axi_addr),
+        .data_cpu_ce_i(data_axi_addr != 0),  // FIXME: ce should not be used as valid?
+        .data_cpu_data_i(0),
+        .data_cpu_we_i(1'b0),
+        .data_cpu_sel_i(4'b1111),
+        .data_stall_i(),
+        .data_flush_i(),
+        .data_cpu_data_o(data_axi_data),
+        .data_stallreq(data_axi_busy),
+        .data_id(4'b0000),
+
         .s_arid(arid),
         .s_araddr(araddr),
         .s_arlen(arlen),
@@ -779,11 +816,11 @@ module cpu_top (
         .wdata_o  (mem_reg_wdata_o_1),
         .aluop_o  (mem_aluop_i_1),
 
-        .mem_addr_o(dram_addr_o_1),
-        .mem_we_o  (dram_we_o_1),
-        .mem_sel_o (dram_sel_o_1),
-        .mem_data_o(dram_data_o_1),
-        .mem_ce_o  (dram_ce_o_1),
+        .mem_addr_o(data_axi_addr_1),
+        .mem_we_o  (data_axi_we_1),
+        .mem_sel_o (data_axi_sel_1),
+        .mem_data_o(data_axi_data_1),
+        .mem_ce_o  (data_axi_ce_1),
 
         .LLbit_we_o(mem_LLbit_we_o_1),
         .LLbit_value_o(mem_LLbit_value_o_1),
@@ -861,11 +898,11 @@ module cpu_top (
         .wdata_o  (mem_reg_wdata_o_2),
         .aluop_o  (mem_aluop_o_2),
 
-        .mem_addr_o(dram_addr_o_2),
-        .mem_we_o  (dram_we_o_2),
-        .mem_sel_o (dram_sel_o_2),
-        .mem_data_o(dram_data_o_2),
-        .mem_ce_o  (dram_ce_o_2),
+        .mem_addr_o(data_axi_addr_2),
+        .mem_we_o  (data_axi_we_2),
+        .mem_sel_o (data_axi_sel_2),
+        .mem_data_o(data_axi_data_2),
+        .mem_ce_o  (data_axi_ce_2),
 
         .LLbit_we_o(mem_LLbit_we_o_2),
         .LLbit_value_o(mem_LLbit_value_o_2),
