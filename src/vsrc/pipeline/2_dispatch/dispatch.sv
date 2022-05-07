@@ -29,7 +29,6 @@ module dispatch #(
 
                 // Pass through to EXE 
                 // TODO: add dispatch logic
-                exe_o[i].instr_valid <= id_i[i].instr_valid;
                 exe_o[i].instr_info <= id_i[i].instr_info;
                 exe_o[i].aluop <= id_i[i].aluop;
                 exe_o[i].alusel <= id_i[i].alusel;
