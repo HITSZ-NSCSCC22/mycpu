@@ -16,8 +16,8 @@ module regfile #(
 
     // Read signals, all packed
     input logic [READ_PORTS-1:0] read_valid_i,
-    input logic [`RegNumLog2*READ_PORTS - 1:0] read_addr_i,
-    output logic [`RegWidth*READ_PORTS - 1:0] read_data_o
+    input logic [READ_PORTS-1:0][`RegAddrBus] read_addr_i,
+    output logic [READ_PORTS-1:0][`RegBus] read_data_o
 );
 
     // Used in difftest, should named regs, IMPORTANT!!

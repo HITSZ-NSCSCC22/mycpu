@@ -99,28 +99,21 @@ module cpu_top (
 
     logic data_axi_we;
     logic data_axi_ce;
-    logic [3:0] data_axi_sel;
-    logic [`RegAddrBus] data_axi_addr;
+    logic [`InstAddrBus] data_axi_addr;
     logic [`RegBus] data_axi_data;
     logic data_axi_busy;
 
     logic data_axi_we_1;
-    logic data_axi_ce_1;
-    logic [3:0] data_axi_sel_1;
-    logic [`RegAddrBus] data_axi_addr_1;
+    logic [`InstAddrBus] data_axi_addr_1;
     logic [`RegBus] data_axi_data_1;
 
     logic data_axi_we_2;
-    logic data_axi_ce_2;
-    logic [3:0] data_axi_sel_2;
-    logic [`RegAddrBus] data_axi_addr_2;
+    logic [`InstAddrBus] data_axi_addr_2;
     logic [`RegBus] data_axi_data_2;
 
-    assign data_axi_we = data_axi_we_1 | data_axi_we_2;
-    assign data_axi_ce = data_axi_ce_1 | data_axi_ce_2;
-    assign data_axi_sel = data_axi_we_1 ? data_axi_sel_1 : data_axi_we_2 ? data_axi_sel_2 : 4'b0;
-    assign data_axi_addr = data_axi_we_1 ? data_axi_addr_1 : data_axi_we_2 ? data_axi_addr_2 : 5'b0;
-    assign data_axi_data = data_axi_we_1 ? data_axi_data_1 : data_axi_we_2 ? data_axi_data_2 : 32'b0;
+    assign data_axi_we   = data_axi_we_1 | data_axi_we_2;
+    assign data_axi_addr = data_axi_we_1 ? data_axi_addr_1 : data_axi_we_2 ? data_axi_addr_2 : 0;
+    assign data_axi_data = data_axi_we_1 ? data_axi_data_1 : data_axi_we_2 ? data_axi_data_2 : 0;
 
     axi_master u_axi_master (
         .aclk   (aclk),
@@ -140,7 +133,7 @@ module cpu_top (
         .data_cpu_addr_i(data_axi_addr),
         .data_cpu_ce_i(data_axi_addr != 0),  // FIXME: ce should not be used as valid?
         .data_cpu_data_i(0),
-        .data_cpu_we_i(1'b0),
+        .data_cpu_we_i(1'b0),  // FIXME: Write enable
         .data_cpu_sel_i(4'b1111),
         .data_stall_i(),
         .data_flush_i(),

@@ -162,6 +162,9 @@ module axi_master (
                     is_fetching_inst = 0;
                 end
                 default: begin
+                    inst_stall_req_r = 0;
+                    inst_cpu_data_o  = 0;
+                    is_fetching_inst = 0;
                 end
             endcase
         end
@@ -552,6 +555,8 @@ module axi_master (
                     end
                 end
                 default: begin
+                    stall_req_w = 0;
+                    write_wait_enable = 0;
                 end
             endcase
         end
