@@ -35,13 +35,13 @@ module decoder_2RI12 #(
     // ALU info
     output logic [ ALU_OP_WIDTH-1:0] aluop_o,
     output logic [ALU_SEL_WIDTH-1:0] alusel_o
-
+    
 );
 
     logic [DATA_WIDTH-1:0] instr;
     assign instr = instr_info_i.instr;
 
-    // 3 Registers
+    // 2 Registers
     logic [4:0] rd, rj;
     assign rd = instr[4:0];
     assign rj = instr[9:5];

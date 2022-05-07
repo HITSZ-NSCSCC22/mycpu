@@ -219,72 +219,6 @@ module id (
             link_addr_o             = `ZeroWord;
             idle_stallreq           = 1'b0;
             case (opcode_1)
-                `EXE_B: begin
-                    wreg_o                  = `WriteDisable;
-                    aluop_o                 = `EXE_B_OP;
-                    alusel_o                = `EXE_RES_JUMP;
-                    reg1_read_o             = 1'b0;
-                    reg2_read_o             = 1'b0;
-                    branch_flag_o           = `Branch;
-                    branch_target_address_o = pc_i + {{4{imm_10[9]}}, imm_10, imm_16, 2'b0};
-                    inst_valid              = `InstValid;
-                end
-                `EXE_BL: begin
-                    wreg_o                  = `WriteEnable;
-                    aluop_o                 = `EXE_BL_OP;
-                    alusel_o                = `EXE_RES_JUMP;
-                    reg1_read_o             = 1'b0;
-                    reg2_read_o             = 1'b0;
-                    branch_flag_o           = `Branch;
-                    link_addr_o             = pc_plus_4;
-                    branch_target_address_o = pc_i + {{4{imm_10[9]}}, imm_10, imm_16, 2'b0};
-                    reg_waddr_o             = 5'b1;
-                    inst_valid              = `InstValid;
-                end
-                `EXE_LU12I_W: begin
-                    wreg_o      = `WriteEnable;
-                    aluop_o     = `EXE_LUI_OP;
-                    alusel_o    = `EXE_RES_MOVE;
-                    reg1_read_o = 1'b0;
-                    reg2_read_o = 1'b0;
-                    imm         = {imm_20, 12'b0};
-                    reg_waddr_o = op1;
-                    inst_valid  = `InstValid;
-                end
-                `EXE_PCADDU12I: begin
-                    wreg_o      = `WriteEnable;
-                    aluop_o     = `EXE_PCADD_OP;
-                    alusel_o    = `EXE_RES_MOVE;
-                    reg1_read_o = 1'b0;
-                    reg2_read_o = 1'b0;
-                    imm         = {imm_20, 12'b0};
-                    reg_waddr_o = op1;
-                    inst_valid  = `InstValid;
-                end
-                `EXE_ATOMIC_MEM: begin
-                    casez (opcode_2)
-                        `EXE_LL_W: begin
-                            wreg_o      = `WriteEnable;
-                            aluop_o     = `EXE_LL_OP;
-                            alusel_o    = `EXE_RES_LOAD_STORE;
-                            reg1_read_o = 1'b1;
-                            reg2_read_o = 1'b0;
-                            reg_waddr_o = op1;
-                            inst_valid  = `InstValid;
-                        end
-                        `EXE_SC_W: begin
-                            wreg_o      = `WriteEnable;
-                            aluop_o     = `EXE_SC_OP;
-                            alusel_o    = `EXE_RES_LOAD_STORE;
-                            reg1_read_o = 1'b1;
-                            reg2_read_o = 1'b1;
-                            reg2_addr_o = op1;
-                            inst_valid  = `InstValid;
-                        end
-                        default: begin
-                        end
-                    endcase
-                end
 
                 `EXE_SPECIAL: begin
                     case (opcode_2)
@@ -338,51 +272,6 @@ module id (
                     endcase
                 end
 
-                `EXE_ARITHMETIC: begin
-                    casez (opcode_2)
-
-
-                        `EXE_SHIFT_ARITH: begin
-                            casez (opcode_3)
-                                `EXE_SLLI_W: begin
-                                    wreg_o      = `WriteEnable;
-                                    aluop_o     = `EXE_SLL_OP;
-                                    alusel_o    = `EXE_RES_SHIFT;
-                                    reg1_read_o = 1'b1;
-                                    reg2_read_o = 1'b0;
-                                    imm         = {27'b0, imm_5};
-                                    reg_waddr_o = op1;
-                                    inst_valid  = `InstValid;
-                                end
-                                `EXE_SRLI_W: begin
-                                    wreg_o      = `WriteEnable;
-                                    aluop_o     = `EXE_SRL_OP;
-                                    alusel_o    = `EXE_RES_SHIFT;
-                                    reg1_read_o = 1'b1;
-                                    reg2_read_o = 1'b0;
-                                    imm         = {27'b0, imm_5};
-                                    reg_waddr_o = op1;
-                                    inst_valid  = `InstValid;
-                                end
-                                `EXE_SRAI_W: begin
-                                    wreg_o      = `WriteEnable;
-                                    aluop_o     = `EXE_SRA_OP;
-                                    alusel_o    = `EXE_RES_SHIFT;
-                                    reg1_read_o = 1'b1;
-                                    reg2_read_o = 1'b0;
-                                    imm         = {27'b0, imm_5};
-                                    reg_waddr_o = op1;
-                                    inst_valid  = `InstValid;
-                                end
-                                default: begin
-                                end
-                            endcase
-                        end
-                        default: begin
-
-                        end
-                    endcase
-                end
                 default: begin
                 end
             endcase

@@ -47,7 +47,7 @@ module decoder_2RI16 #(
     assign rd = instr[4:0];
     assign rj = instr[9:5];
 
-    // imm12
+    // imm16
     logic [15:0] imm_16;
     assign imm_16 = instr[25:10];
 
