@@ -683,6 +683,11 @@ module cpu_top (
     logic wb_excp_tlbrefill[2];
     wb_reg wb_reg_signal[2];
 
+    // Difftest Related
+    logic [1:0] debug_commit_valid;
+    logic [1:0][`InstBus] debug_commit_instr;
+    logic [1:0][`InstAddrBus] debug_commit_pc;
+
     generate
         for (genvar i = 0; i < 2; i++) begin : mem_wb
             mem_wb u_mem_wb (
@@ -703,9 +708,9 @@ module cpu_top (
 
                 .wb_csr_signal_o(),
 
-                .debug_commit_pc(),
-                .debug_commit_valid(),
-                .debug_commit_instr(),
+                .debug_commit_pc(debug_commit_pc[i]),
+                .debug_commit_valid(debug_commit_valid[i]),
+                .debug_commit_instr(debug_commit_instr[i]),
 
                 .wb_LLbit_we(),
                 .wb_LLbit_value(),
@@ -909,8 +914,8 @@ module cpu_top (
     logic [`RegBus] debug_commit_pc_1_delay_1;
     logic debug_commit_valid_1_delay_1;
     always_ff @(posedge clk) begin
-        debug_commit_valid_1_delay_1 <= debug_commit_valid_1;
-        debug_commit_pc_1_delay_1 <= debug_commit_pc_1;
+        debug_commit_valid_1_delay_1 <= debug_commit_valid[0];
+        debug_commit_pc_1_delay_1 <= debug_commit_pc[0];
     end
     DifftestInstrCommit difftest_instr_commit_0 (  // TODO: not finished yet, blank signal is needed
         .clock         (aclk),
@@ -918,7 +923,7 @@ module cpu_top (
         .index         (0),                             // Commit channel index
         .valid         (debug_commit_valid_1_delay_1),  // 1 means valid
         .pc            (debug_commit_pc_1_delay_1),
-        .instr         (debug_commit_instr_1),
+        .instr         (debug_commit_instr[0]),
         .skip          (0),                             // Not sure meaning, but keep 0 for now
         .is_TLBFILL    (),
         .TLBFILL_index (),

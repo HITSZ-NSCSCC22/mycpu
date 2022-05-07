@@ -57,7 +57,7 @@ module mem (
     output logic [15:0] excp_num_o
 );
 
-    reg  LLbit;
+    reg   LLbit;
     logic access_mem;
     logic mem_store_op;
     logic mem_load_op;
@@ -112,11 +112,11 @@ module mem (
             signal_axi_o = 0;
             LLbit_we_o = 1'b0;
             LLbit_value_o = 1'b0;
-            signal_o.inst_pc = `ZeroWord;
+            signal_o.instr_info.pc = `ZeroWord;
         end else begin
             LLbit_we_o = 1'b0;
             LLbit_value_o = 1'b0;
-            signal_o.instr_valid = 1'b1;
+            signal_o.instr_info.valid = 1'b1;
             case (signal_i.aluop)
                 `EXE_LD_B_OP: begin
                     signal_axi_o.addr = signal_i.mem_addr;
@@ -219,7 +219,12 @@ module mem (
                     signal_axi_o.addr = signal_i.mem_addr;
                     signal_o.wreg = `WriteEnable;
                     signal_axi_o.ce = `ChipEnable;
-                    signal_axi_o.data = {signal_i.reg2[7:0], signal_i.reg2[7:0], signal_i.reg2[7:0], signal_i.reg2[7:0]};
+                    signal_axi_o.data = {
+                        signal_i.reg2[7:0],
+                        signal_i.reg2[7:0],
+                        signal_i.reg2[7:0],
+                        signal_i.reg2[7:0]
+                    };
                     case (signal_i.mem_addr[1:0])
                         2'b00: begin
                             signal_axi_o.sel = 4'b1000;
