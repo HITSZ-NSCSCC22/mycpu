@@ -210,7 +210,7 @@ module cpu_top (
     );
 
     logic backend_flush;
-    instr_buffer_info_t backend_ib_instr_info[2];
+    instr_buffer_info_t ib_backend_instr_info[2];  // IB -> ID
 
     instr_buffer #(
         .IF_WIDTH(FETCH_WIDTH),
@@ -224,11 +224,66 @@ module cpu_top (
         .frontend_stallreq_o(ib_frontend_stallreq),
 
         // <-> Backend
-        .backend_accept_i({id_inst_valid_2, id_inst_valid_1}),  // 1 means valid 
-        .backend_flush_i (backend_flush),
-        .backend_instr_o (backend_ib_instr_info)
+        .backend_accept_i(2'b11),  // 1 means valid 
+        .backend_flush_i(backend_flush),
+        .backend_instr_o(ib_backend_instr_info)
     );
 
+    // ID <-> Regfile
+    logic [1:0] id_regfile_reg_read_valid[2];
+    logic [`RegNumLog2*2-1:0] id_regfile_reg_read_addr[2];
+    logic [1:0][1:0][`RegBus] regfile_id_reg_read_data;
+
+    generate
+        genvar i;
+        for (i = 0; i < 2; i++) begin : id
+            id #(
+                .EXE_STAGE_WIDTH(2),  // Obviously 2 for now
+                .MEM_STAGE_WIDTH(2)
+            ) u_id (
+                .instr_buffer_i(ib_backend_instr_info[i]),
+                // FIXME: excp info, currently unused
+                .excp_i        (),
+                .excp_num_i    (),
+
+                // <-> Regfile
+                .regfile_reg_read_valid_o(id_regfile_reg_read_valid[i]),
+                .regfile_reg_read_addr_o (id_regfile_reg_read_addr[i]),
+                .regfile_reg_read_data_i (regfile_id_reg_read_data[i]),
+
+                // Data forwarding network, unused for now
+                // TODO: add data forwarding network
+                .ex_write_reg_valid_i (),
+                .ex_write_reg_addr_i  (),
+                .ex_write_reg_data_i  (),
+                .ex_aluop_i           (),
+                .mem_write_reg_valid_i(),
+                .mem_write_reg_addr_i (),
+                .mem_write_reg_data_i (),
+
+                // -> EXE
+                .ex_aluop_o          (),
+                .ex_alusel_o         (),
+                .ex_op1_o            (),
+                .ex_op2_o            (),
+                .ex_reg_write_valid_o(),
+                .ex_reg_write_addr_o (),
+                .ex_instr_info_o     (),
+                .ex_csr_we_o         (),
+                .ex_csr_signal_o     (),
+
+                // Exception broadcast
+                .broadcast_excp_o    (),
+                .broadcast_excp_num_o(),
+
+                // <-> CSR Registers
+                .has_int        (),
+                .csr_data_i     (),
+                .csr_plv        (),
+                .csr_read_addr_o()
+            );
+        end
+    endgenerate
 
 
 
@@ -433,181 +488,6 @@ module cpu_top (
     csr_write_signal id_csr_signal_o_1;
     csr_write_signal id_csr_signal_o_2;
 
-
-    id u_id_1 (
-        .rst(rst),
-        .instr_buffer_i(backend_ib_instr_info[0]),
-
-        .instr_buffer_i_other(backend_ib_instr_info[1]),
-
-        .reg1_data_i(reg1_data_1),
-        .reg2_data_i(reg2_data_1),
-
-        .ex_wreg_i_1 (ex_wreg_o_1),
-        .ex_waddr_i_1(ex_reg_waddr_o_1),
-        .ex_wdata_i_1(ex_reg_wdata_1),
-        .ex_aluop_i_1(ex_aluop_o_1),
-
-        .ex_wreg_i_2 (ex_wreg_o_2),
-        .ex_waddr_i_2(ex_reg_waddr_o_2),
-        .ex_wdata_i_2(ex_reg_wdata_2),
-        .ex_aluop_i_2(ex_aluop_o_2),
-
-        .mem_wreg_i_1 (mem_wreg_o_1),
-        .mem_waddr_i_1(mem_reg_waddr_o_1),
-        .mem_wdata_i_1(mem_reg_wdata_o_1),
-
-        .mem_wreg_i_2 (mem_wreg_o_2),
-        .mem_waddr_i_2(mem_reg_waddr_o_2),
-        .mem_wdata_i_2(mem_reg_wdata_o_2),
-
-        .reg1_read_o(reg1_read_1),
-        .reg2_read_o(reg2_read_1),
-
-        .reg1_addr_o(reg1_addr_1),
-        .reg2_addr_o(reg2_addr_1),
-
-        .aluop_o     (id_aluop_1),
-        .alusel_o    (id_alusel_1),
-        .reg1_o      (id_reg1_1),
-        .reg2_o      (id_reg2_1),
-        .reg_waddr_o (id_reg_waddr_1),
-        .wreg_o      (id_wreg_1),
-        .inst_valid  (id_inst_valid_1),
-        .inst_pc     (id_inst_pc_1),
-        .inst_o      (id_inst_o_1),
-        .csr_signal_o(id_csr_signal_o_1),
-
-        .csr_read_addr_o(id_csr_read_addr_o_1),
-        .csr_data_i(id_csr_data_1),
-        .has_int(has_int),
-        .csr_plv(csr_plv),
-
-        .excp_i(if_excp_o_1),
-        .excp_num_i(if_excp_num_o_1),
-        .excp_o(id_excp_o_1),
-        .excp_num_o(id_excp_num_o_1),
-
-        .branch_flag_o(branch_flag_1),
-        .branch_target_address_o(branch_target_address_1),
-        .link_addr_o(link_addr_1),
-
-        .stallreq(stallreq_to_next_1),
-        .idle_stallreq(),
-
-        .current_inst_address_o(id_current_inst_address_o_1)
-    );
-
-    logic [`AluOpBus] id_aluop_2;
-    logic [`AluSelBus] id_alusel_2;
-    logic [`RegBus] id_reg1_2;
-    logic [`RegBus] id_reg2_2;
-
-    logic id_wreg_2;
-    logic id_inst_valid_2;
-    logic [`InstAddrBus] id_inst_pc_2;
-    logic [`RegBus] id_inst_o_2;
-
-    logic reg1_read_2;
-    logic reg2_read_2;
-    logic [`RegBus] reg1_data_2;
-    logic [`RegBus] reg2_data_2;
-
-
-
-    logic stallreq_from_id_2;
-    logic stallreq_from_ex_2;
-
-    logic [1:0] id_excepttype_o_2;
-    logic [`RegBus] id_current_inst_address_o_2;
-
-
-
-    id u_id_2 (
-        .rst(rst),
-        .instr_buffer_i(backend_ib_instr_info[1]),
-
-        .instr_buffer_i_other(backend_ib_instr_info[0]),
-
-        .reg1_data_i(reg1_data_2),
-        .reg2_data_i(reg2_data_2),
-
-        .ex_wreg_i_1 (ex_wreg_o_2),
-        .ex_waddr_i_1(ex_reg_waddr_o_2),
-        .ex_wdata_i_1(ex_reg_wdata_2),
-        .ex_aluop_i_1(ex_aluop_o_2),
-
-        .ex_wreg_i_2 (ex_wreg_o_1),
-        .ex_waddr_i_2(ex_reg_waddr_o_1),
-        .ex_wdata_i_2(ex_reg_wdata_1),
-        .ex_aluop_i_2(ex_aluop_o_1),
-
-        .mem_wreg_i_1 (mem_wreg_o_2),
-        .mem_waddr_i_1(mem_reg_waddr_o_2),
-        .mem_wdata_i_1(mem_reg_wdata_o_2),
-
-        .mem_wreg_i_2 (mem_wreg_o_1),
-        .mem_waddr_i_2(mem_reg_waddr_o_1),
-        .mem_wdata_i_2(mem_reg_wdata_o_1),
-
-        .reg1_read_o(reg1_read_2),
-        .reg2_read_o(reg2_read_2),
-
-        .reg1_addr_o(reg1_addr_2),
-        .reg2_addr_o(reg2_addr_2),
-
-        .aluop_o    (id_aluop_2),
-        .alusel_o   (id_alusel_2),
-        .reg1_o     (id_reg1_2),
-        .reg2_o     (id_reg2_2),
-        .reg_waddr_o(id_reg_waddr_2),
-        .wreg_o     (id_wreg_2),
-        .inst_valid (id_inst_valid_2),
-        .inst_pc    (id_inst_pc_2),
-        .inst_o     (id_inst_o_2),
-
-        .csr_signal_o(id_csr_signal_o_2),
-        .csr_data_i  (id_csr_data_2),
-
-        .csr_read_addr_o(id_csr_read_addr_o_2),
-        .has_int(has_int),
-        .csr_plv(csr_plv),
-
-        .excp_i(if_excp_o_2),
-        .excp_num_i(if_excp_num_o_2),
-        .excp_o(id_excp_o_2),
-        .excp_num_o(id_excp_num_o_2),
-
-        .branch_flag_o(branch_flag_2),
-        .branch_target_address_o(branch_target_address_2),
-        .link_addr_o(link_addr_2),
-
-        .stallreq(stallreq_to_next_2),
-        .idle_stallreq(),
-
-        .current_inst_address_o(id_current_inst_address_o_2)
-
-    );
-
-    logic [`AluOpBus] ex_aluop_1;
-    logic [`AluSelBus] ex_alusel_1;
-    logic [`RegBus] ex_reg1_1;
-    logic [`RegBus] ex_reg2_1;
-    logic [`RegAddrBus] ex_reg_waddr_i_1;
-    logic ex_wreg_i_1;
-    logic ex_inst_valid_i_1;
-    logic [`InstAddrBus] ex_inst_pc_i_1;
-    logic [`RegBus] ex_link_address_1;
-    logic [`RegBus] ex_inst_i_1;
-    logic [1:0] ex_excepttype_i_1;
-    logic [`RegBus] ex_current_inst_address_i_1;
-    csr_write_signal ex_csr_signal_i_1;
-    csr_write_signal ex_csr_signal_i_2;
-
-    logic ex_excp_i_1;
-    logic [8:0] ex_excp_num_i_1;
-    logic ex_excp_o_1;
-    logic [8:0] ex_excp_num_i_2;
 
     id_ex id_ex_1 (
         .clk  (clk),
@@ -1285,7 +1165,9 @@ module cpu_top (
         .excp_tlb_vppn(excp_tlb_vppn_2)
     );
 
-    regfile u_regfile (
+    regfile #(
+        .READ_PORTS(4)  // 2 for each ID, 2 ID in total, TODO: remove magic number
+    ) u_regfile (
         .clk(clk),
         .rst(rst),
 
@@ -1298,19 +1180,12 @@ module cpu_top (
         .waddr_2(wb_reg_waddr_2),
         .wdata_2(wb_reg_wdata_2),
 
-        .re1_1   (reg1_read_1),
-        .raddr1_1(reg1_addr_1),
-        .rdata1_1(reg1_data_1),
-        .re2_1   (reg2_read_1),
-        .raddr2_1(reg2_addr_1),
-        .rdata2_1(reg2_data_1),
-        .re1_2   (reg1_read_2),
-        .raddr1_2(reg1_addr_2),
-        .rdata1_2(reg1_data_2),
-        .re2_2   (reg2_read_2),
-        .raddr2_2(reg2_addr_2),
-        .rdata2_2(reg2_data_2)
+        // Read signals
+        .read_valid_i({id_regfile_reg_read_valid[1], id_regfile_reg_read_valid[0]}),
+        .read_addr_i ({id_regfile_reg_read_addr[1], id_regfile_reg_read_addr[0]}),
+        .read_data_o (regfile_id_reg_read_data)
     );
+
 
     ctrl u_ctrl (
         .clk(clk),
@@ -1466,19 +1341,19 @@ module cpu_top (
     // Difftest DPI-C
 `ifdef SIMU  // SIMU is defined in chiplab run_func/Makefile
     logic [`RegBus] debug_commit_pc_1_delay_1;
-    log debug_commit_valid_1_delay_1;
-    always_ff @( posedge clk) begin : 
-        debug_commit_pc_1_delay_1 <= debug_commit_valid_1;
+    logic debug_commit_valid_1_delay_1;
+    always_ff @(posedge clk) begin
+        debug_commit_valid_1_delay_1 <= debug_commit_valid_1;
         debug_commit_pc_1_delay_1 <= debug_commit_pc_1;
     end
     DifftestInstrCommit difftest_instr_commit_0 (  // TODO: not finished yet, blank signal is needed
         .clock         (aclk),
-        .coreid        (0),                                  // Only one core, so always 0
-        .index         (0),                                  // Commit channel index
-        .valid         (debug_commit_valid_1_delay_1),   // 1 means valid
+        .coreid        (0),                             // Only one core, so always 0
+        .index         (0),                             // Commit channel index
+        .valid         (debug_commit_valid_1_delay_1),  // 1 means valid
         .pc            (debug_commit_pc_1_delay_1),
         .instr         (debug_commit_instr_1),
-        .skip          (0),                          // Not sure meaning, but keep 0 for now
+        .skip          (0),                             // Not sure meaning, but keep 0 for now
         .is_TLBFILL    (),
         .TLBFILL_index (),
         .is_CNTinst    (),

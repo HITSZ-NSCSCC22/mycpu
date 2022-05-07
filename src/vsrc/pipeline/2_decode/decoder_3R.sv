@@ -147,9 +147,15 @@ module decoder_3R #(
                 aluop_o  = `EXE_INVTLB_OP;
                 alusel_o = `EXE_RES_NOP;
             end
-            default: begin
+            default: begin  // Means no match in the current decoder
                 decode_result_valid_o = 0;
                 aluop_o = 0;
+                reg_write_valid_o = 0;
+                reg_write_addr_o = 0;
+                reg_read_valid_o = 0;
+                reg_read_addr_o = 0;
+                instr_break = 0;
+                instr_syscall = 0;
             end
         endcase
     end

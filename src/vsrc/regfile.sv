@@ -1,5 +1,7 @@
 `include "defines.sv"
-module regfile (
+module regfile #(
+    parameter READ_PORTS = 4
+) (
     input wire clk,
     input wire rst,
 
@@ -12,24 +14,16 @@ module regfile (
     input wire [`RegAddrBus] waddr_2,
     input wire [`RegBus] wdata_2,
 
-    input wire re1_1,
-    input wire [`RegAddrBus] raddr1_1,
-    output reg [`RegBus] rdata1_1,
-    input wire re1_2,
-    input wire [`RegAddrBus] raddr1_2,
-    output reg [`RegBus] rdata1_2,
-
-    input wire re2_1,
-    input wire [`RegAddrBus] raddr2_1,
-    output reg [`RegBus] rdata2_1,
-    input wire re2_2,
-    input wire [`RegAddrBus] raddr2_2,
-    output reg [`RegBus] rdata2_2
+    // Read signals, all packed
+    input logic [READ_PORTS-1:0] read_valid_i,
+    input logic [`RegNumLog2*READ_PORTS - 1:0] read_addr_i,
+    output logic [`RegWidth*READ_PORTS - 1:0] read_data_o
 );
 
-    // Used in difftest, should named regs
+    // Used in difftest, should named regs, IMPORTANT!!
     reg [`RegBus] regs[0:`RegNum-1];
 
+    // Write Logic
     always @(posedge clk) begin
         if (rst == `RstEnable) begin
             for (integer i = 0; i < `RegNum; i = i + 1) begin
@@ -48,48 +42,15 @@ module regfile (
         end
     end
 
-    always @(*) begin
-        if (rst == `RstEnable) rdata1_1 = `ZeroWord;
-        else if (raddr1_1 == `RegNumLog2'h0) rdata1_1 = `ZeroWord;
-        else if ((raddr1_1 == waddr_1) && (we_1 == `WriteEnable) && (re1_1 == `ReadEnable))
-            rdata1_1 = wdata_1;
-        else if ((raddr1_1 == waddr_2) && (we_2 == `WriteEnable) && (re1_1 == `ReadEnable))
-            rdata1_1 = wdata_2;
-        else if (re1_1 == `ReadEnable) rdata1_1 = regs[raddr1_1];
-        else rdata1_1 = `ZeroWord;
-    end
-
-    always @(*) begin
-        if (rst == `RstEnable) rdata1_2 = `ZeroWord;
-        else if (raddr1_2 == `RegNumLog2'h0) rdata1_2 = `ZeroWord;
-        else if ((raddr1_2 == waddr_1) && (we_1 == `WriteEnable) && (re1_2 == `ReadEnable))
-            rdata1_2 = wdata_1;
-        else if ((raddr1_2 == waddr_2) && (we_2 == `WriteEnable) && (re1_2 == `ReadEnable))
-            rdata1_2 = wdata_2;
-        else if (re1_2 == `ReadEnable) rdata1_2 = regs[raddr1_2];
-        else rdata1_2 = `ZeroWord;
-    end
-
-    always @(*) begin
-        if (rst == `RstEnable) rdata2_1 = `ZeroWord;
-        else if (raddr2_1 == `RegNumLog2'h0) rdata2_1 = `ZeroWord;
-        else if ((raddr2_1 == waddr_1) && (we_1 == `WriteEnable) && (re2_1 == `ReadEnable))
-            rdata2_1 = wdata_1;
-        else if ((raddr2_1 == waddr_2) && (we_2 == `WriteEnable) && (re2_1 == `ReadEnable))
-            rdata2_1 = wdata_2;
-        else if (re2_1 == `ReadEnable) rdata2_1 = regs[raddr2_1];
-        else rdata2_1 = `ZeroWord;
-    end
-
-    always @(*) begin
-        if (rst == `RstEnable) rdata2_2 = `ZeroWord;
-        else if (raddr2_2 == `RegNumLog2'h0) rdata2_2 = `ZeroWord;
-        else if ((raddr2_2 == waddr_1) && (we_1 == `WriteEnable) && (re2_2 == `ReadEnable))
-            rdata2_2 = wdata_1;
-        else if ((raddr2_2 == waddr_2) && (we_2 == `WriteEnable) && (re2_2 == `ReadEnable))
-            rdata2_2 = wdata_2;
-        else if (re2_1 == `ReadEnable) rdata2_2 = regs[raddr2_2];
-        else rdata2_2 = `ZeroWord;
+    // Read Logic
+    always_comb begin : read_comb
+        for (integer i = 0; i < READ_PORTS; i++) begin
+            if (rst == `RstEnable) read_data_o[i] = `ZeroWord;  // Reset to zero
+            else if (read_addr_i[i] == 0) read_data_o[i] = `ZeroWord;  // r0 is always zero
+            // TODO: add shortcut from write to read
+            else if (read_valid_i[i]) read_data_o[i] = regs[read_addr_i[i]];  // Read reg when valid
+            else read_data_o[i] = `ZeroWord;  // Else zero
+        end
     end
 
 endmodule

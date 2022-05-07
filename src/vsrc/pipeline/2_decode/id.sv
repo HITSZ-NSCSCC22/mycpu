@@ -2,6 +2,11 @@
 `include "instr_info.sv"
 `include "csr_defines.sv"
 
+`include "pipeline/2_decode/decoder_2R.sv"
+`include "pipeline/2_decode/decoder_3R.sv"
+`include "pipeline/2_decode/decoder_2RI12.sv"
+`include "pipeline/2_decode/decoder_2RI16.sv"
+
 
 // ID stage
 // Should be totally cominational circuit
@@ -26,7 +31,7 @@ module id #(
     // <-> Regfile
     output logic [1:0] regfile_reg_read_valid_o,  // Read valid for 2 regs
     output logic [`RegNumLog2*2-1:0] regfile_reg_read_addr_o,  // Read addr, {reg2, reg1}
-    input logic [`RegBus] regfile_reg_read_data_o,  // Read result
+    input logic [`RegBus][1:0] regfile_reg_read_data_i,  // Read result
 
     // <- EXE
     // Data forwarding

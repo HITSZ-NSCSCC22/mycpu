@@ -94,6 +94,10 @@ module decoder_2RI16 #(
             end
             default: begin
                 decode_result_valid_o = 0;
+                reg_write_valid_o = 0;
+                reg_write_addr_o = 0;
+                reg_read_valid_o = 0;
+                reg_read_addr_o = 0;
                 aluop_o = 0;
                 alusel_o = 0;
                 imm_o = 0;
