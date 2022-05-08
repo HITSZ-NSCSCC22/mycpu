@@ -71,6 +71,7 @@ typedef struct packed {
 
 typedef struct packed {
     logic we;
+    logic [`InstAddrBus] pc;
     logic [`RegAddrBus] waddr;
     logic [`RegBus] wdata;
 } wb_reg;

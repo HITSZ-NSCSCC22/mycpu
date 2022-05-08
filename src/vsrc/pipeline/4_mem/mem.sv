@@ -18,9 +18,6 @@ module mem (
     input logic wb_LLbit_we_i,
     input logic wb_LLbit_value_i,
 
-    input logic [`RegBus] current_inst_address_i,
-
-
     input logic excp_i,
     input logic [9:0] excp_num_i,
 
@@ -47,11 +44,8 @@ module mem (
     input logic [1:0] data_tlb_mat,
     input logic [1:0] data_tlb_plv,
 
-
     output reg LLbit_we_o,
     output reg LLbit_value_o,
-
-    output logic [`RegBus] current_inst_address_o,
 
     output logic excp_o,
     output logic [15:0] excp_num_o
@@ -76,8 +70,6 @@ module mem (
                        signal_i.aluop == `EXE_LD_W_OP || signal_i.aluop == `EXE_LL_OP;
 
     assign mem_store_op = signal_i.aluop == `EXE_ST_B_OP || signal_i.aluop == `EXE_ST_H_OP || signal_i.aluop == `EXE_ST_W_OP || signal_i.aluop == `EXE_SC_OP;
-
-    assign current_inst_address_o = current_inst_address_i;
 
 
     //addr dmw trans
