@@ -73,6 +73,13 @@ module cpu_top (
     output [ 3:0] debug0_wb_rf_wen,
     output [ 4:0] debug0_wb_rf_wnum,
     output [31:0] debug0_wb_rf_wdata
+    `ifdef CPU_2CMT
+    ,
+    output [31:0] debug1_wb_pc,
+    output [ 3:0] debug1_wb_rf_wen,
+    output [ 4:0] debug1_wb_rf_wnum,
+    output [31:0] debug1_wb_rf_wdata
+    `endif
 );
 
     // Clock signal
@@ -580,17 +587,12 @@ module cpu_top (
 
     endgenerate
 
-    assign debug0_wb_rf_wen   = wb_reg_signal[0].we;
-    assign debug0_wb_rf_wnum  = wb_reg_signal[0].waddr;
-    assign debug0_wb_rf_wdata = wb_reg_signal[0].wdata;
 
     logic [18:0] wb_excp_tlb_vppn[2];
 
-    logic [`InstAddrBus] debug_commit_pc_1;
-
     logic wb_excp_tlbrefill[2];
     wb_reg wb_reg_signal[2];
-    
+
     logic wb_LLbit_we_i[2];
     logic wb_LLbit_value_i[2];
     logic [46:0] wb_csr_signal[2];
@@ -625,7 +627,7 @@ module cpu_top (
                 .wb_LLbit_we(wb_LLbit_we_i[i]),
                 .wb_LLbit_value(wb_LLbit_value_i[i]),
 
-                .excp_i(mem_excp_o[i]),
+                .excp_i  (mem_excp_o[i]),
                 .excp_num(mem_excp_num_o[i]),
 
                 //to csr
@@ -820,22 +822,31 @@ module cpu_top (
         .csr_pg            (csr_pg)
     );
 
-    // Difftest DPI-C
-`ifdef SIMU  // SIMU is defined in chiplab run_func/Makefile
-    logic [`RegBus] debug_commit_pc_1_delay_1;
-    logic debug_commit_valid_1_delay_1;
+    // Difftest Delay signals
+    logic [1:0] debug_commit_valid_delay1;
+    logic [1:0][`InstBus] debug_commit_instr_delay1;
+    logic [1:0][`InstAddrBus] debug_commit_pc_delay1;
     always_ff @(posedge clk) begin
-        debug_commit_valid_1_delay_1 <= debug_commit_valid[0];
-        debug_commit_pc_1_delay_1 <= debug_commit_pc[0];
+        debug_commit_instr_delay1 <= debug_commit_instr;
+        debug_commit_pc_delay1 <= debug_commit_pc;
+        debug_commit_valid_delay1 <= debug_commit_valid;
     end
-    DifftestInstrCommit difftest_instr_commit_0 (  // TODO: not finished yet, blank signal is needed
+    assign debug0_wb_pc = debug_commit_pc[0];
+    assign debug0_wb_rf_wen = 1;
+    assign debug0_wb_rf_wdata = 0;
+    assign debug0_wb_rf_wnum = 0;
+    assign debug1_wb_pc = debug_commit_pc[1];
+    assign debug1_wb_rf_wen = 1;
+    // difftest dpi-c
+`ifdef SIMU  // simu is defined in chiplab run_func/makefile
+    DifftestInstrCommit difftest_instr_commit_0 (  // todo: not finished yet, blank signal is needed
         .clock         (aclk),
-        .coreid        (0),                             // Only one core, so always 0
-        .index         (0),                             // Commit channel index
-        .valid         (debug_commit_valid_1_delay_1),  // 1 means valid
-        .pc            (debug_commit_pc_1_delay_1),
-        .instr         (debug_commit_instr[0]),
-        .skip          (0),                             // Not sure meaning, but keep 0 for now
+        .coreid        (0),                             // only one core, so always 0
+        .index         (0),                             // commit channel index
+        .valid         (debug_commit_valid_delay1[0]),  // 1 means valid
+        .pc            (debug_commit_pc_delay1[0]),
+        .instr         (debug_commit_instr_delay1[0]),
+        .skip          (0),                             // not sure meaning, but keep 0 for now
         .is_TLBFILL    (),
         .TLBFILL_index (),
         .is_CNTinst    (),
@@ -843,6 +854,24 @@ module cpu_top (
         .wen           (debug0_wb_rf_wen),
         .wdest         ({3'b0, debug0_wb_rf_wnum}),
         .wdata         (debug0_wb_rf_wdata),
+        .csr_rstat     (),
+        .csr_data      ()
+    );
+    DifftestInstrCommit difftest_instr_commit_1 (  // todo: not finished yet, blank signal is needed
+        .clock         (aclk),
+        .coreid        (0),                             // only one core, so always 0
+        .index         (1),                             // commit channel index
+        .valid         (debug_commit_valid_delay1[1]),  // 1 means valid
+        .pc            (debug_commit_pc_delay1[1]),
+        .instr         (debug_commit_instr_delay1[1]),
+        .skip          (0),                             // not sure meaning, but keep 0 for now
+        .is_TLBFILL    (),
+        .TLBFILL_index (),
+        .is_CNTinst    (),
+        .timer_64_value(),
+        .wen           (debug1_wb_rf_wen),
+        .wdest         ({3'b0, debug1_wb_rf_wnum}),
+        .wdata         (debug1_wb_rf_wdata),
         .csr_rstat     (),
         .csr_data      ()
     );
@@ -879,7 +908,7 @@ module cpu_top (
         .dmw1     (u_cs_reg.csr_dmw1)
     );
 
-    // Assume regilfe instance name is u_regfile
+    // Assume regfile instance name is u_regfile
     // and architectural register are under regs[] array
     DifftestGRegState difftest_gpr_state (
         .clock (aclk),
