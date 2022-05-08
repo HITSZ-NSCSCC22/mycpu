@@ -12,8 +12,6 @@ module mem_wb (
 
     input wire flush,
 
-    input wire [15:0] excp_num,
-
 
     output wb_reg wb_reg_o,
 
@@ -27,9 +25,7 @@ module mem_wb (
     output reg wb_LLbit_value,
 
     input wire excp_i,
-    input wire [15:0] excp_num_i,
-    output reg excp_o,
-    output reg [15:0] excp_num_o,
+    input wire [15:0] excp_num,
 
     //to csr
     output wire [31:0] csr_era,
@@ -92,6 +88,7 @@ module mem_wb (
             wb_reg_o.waddr    <= `NOPRegAddr;
             wb_reg_o.we  <= `WriteDisable;
             wb_reg_o.wdata <= `ZeroWord;
+            wb_reg_o.pc <= `ZeroWord;
             wb_valid <= 1'b0;
             wb_LLbit_we <= 1'b0;
             wb_LLbit_value <= 1'b0;
@@ -103,6 +100,7 @@ module mem_wb (
             wb_reg_o.waddr    <= `NOPRegAddr;
             wb_reg_o.we  <= `WriteDisable;
             wb_reg_o.wdata <= `ZeroWord;
+            wb_reg_o.pc <= `ZeroWord;
             wb_valid <= 1'b0;
             wb_LLbit_we <= 1'b0;
             wb_LLbit_value <= 1'b0;
@@ -118,6 +116,7 @@ module mem_wb (
             wb_reg_o.waddr    <= mem_signal_o.waddr;
             wb_reg_o.we  <= mem_signal_o.wreg;
             wb_reg_o.wdata <= mem_signal_o.wdata;
+            wb_reg_o.pc <= mem_signal_o.instr_info.pc;
             wb_valid <= 1'b1;
             wb_LLbit_we <= mem_LLbit_we;
             wb_LLbit_value <= mem_LLbit_value;

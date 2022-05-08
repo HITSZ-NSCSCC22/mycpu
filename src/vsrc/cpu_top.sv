@@ -98,20 +98,9 @@ module cpu_top (
     logic data_axi_we;
     logic [`DataAddrBus] data_axi_addr;
     logic [`RegBus] data_axi_data;
+    logic [`RegBus] axi_mem_data;
     logic data_axi_busy;
 
-    logic data_axi_we_1;
-    logic [`InstAddrBus] data_axi_addr_1;
-    logic [`RegBus] data_axi_data_1;
-
-    logic data_axi_we_2;
-    logic [`InstAddrBus] data_axi_addr_2;
-    logic [`RegBus] data_axi_data_2;
-
-    // 1 is prioritizes
-    assign data_axi_we   = data_axi_we_1 | data_axi_we_2;
-    assign data_axi_addr = data_axi_we_1 ? data_axi_addr_1 : data_axi_we_2 ? data_axi_addr_2 : 0;
-    assign data_axi_data = data_axi_we_1 ? data_axi_data_1 : data_axi_we_2 ? data_axi_data_2 : 0;
 
     mem_axi_struct mem_axi_signal[2];
 
@@ -138,12 +127,12 @@ module cpu_top (
         // <-> MEM Stage
         .data_cpu_addr_i(data_axi_addr),
         .data_cpu_ce_i(data_axi_addr != 0),  // FIXME: ce should not be used as valid?
-        .data_cpu_data_i(0),
+        .data_cpu_data_i(data_axi_data),
         .data_cpu_we_i(1'b0),  // FIXME: Write enable
         .data_cpu_sel_i(4'b1111),
         .data_stall_i(),
         .data_flush_i(),
-        .data_cpu_data_o(data_axi_data),
+        .data_cpu_data_o(axi_mem_data),
         .data_stallreq(data_axi_busy),
         .data_id(4'b0000),
 
@@ -353,9 +342,6 @@ module cpu_top (
     );
 
 
-
-
-
     logic [`RegBus] branch_target_address_1;
     logic [`RegBus] branch_target_address_2;
     logic [`RegBus] link_addr;
@@ -504,11 +490,6 @@ module cpu_top (
         end
     endgenerate
 
-    logic ex_inst_valid_o_2;
-    logic [`InstAddrBus] ex_inst_pc_o_2;
-    logic [`RegBus] ex_addr_o_2;
-    logic [`RegBus] ex_reg2_o_2;
-    logic [1:0] ex_excepttype_o_2;
     logic [`RegBus] ex_current_inst_address_o_2;
     logic ex_csr_we_o_2;
     logic [13:0] ex_csr_addr_o_2;
@@ -523,10 +504,6 @@ module cpu_top (
     logic mem_inst_valid_1;
     logic [`InstAddrBus] mem_inst_pc_1;
 
-    logic [`AluOpBus] mem_aluop_i_1;
-    logic [`RegBus] mem_addr_i_1;
-    logic [`RegBus] mem_reg2_i_1;
-    logic [1:0] mem_excepttype_i_1;
     logic [`RegBus] mem_current_inst_address_i_1;
 
 
@@ -537,24 +514,13 @@ module cpu_top (
 
 
     logic LLbit_o_1;
-    logic wb_LLbit_we_i_1;
-    logic wb_LLbit_value_i_1;
-    logic mem_LLbit_we_o_1;
-    logic mem_LLbit_value_o_1;
-    logic [1:0] mem_excepttype_o_1;
-    logic [1:0] mem_excepttype_o_2;
     logic [`RegBus] mem_current_inst_address_o_1;
-    logic [`InstAddrBus] wb_inst_pc_1;
-    csr_write_signal mem_csr_signal_o_1;
-    csr_write_signal mem_csr_signal_o_2;
 
     logic mem_excp_o_1;
     logic [15:0] mem_excp_num_o_1;
     logic mem_excp_o_2;
     logic [15:0] mem_excp_num_o_2;
 
-    logic [`AluOpBus] mem_aluop_o_1;
-    logic [`AluOpBus] mem_aluop_o_2;
 
     logic data_addr_trans_en_1;
     logic data_dmw0_en_1;
@@ -594,20 +560,20 @@ module cpu_top (
     mem_wb_struct mem_signal_o[2];
 
     logic LLbit_o_2;
-    logic wb_LLbit_we_i_2;
-    logic wb_LLbit_value_i_2;
-    logic mem_LLbit_we_o_2;
-    logic mem_LLbit_value_o_2;
     logic [`RegBus] mem_current_inst_address_o_2;
     logic [`InstAddrBus] wb_inst_pc_2;
     logic mem_csr_we_o_2;
     logic [13:0] mem_csr_addr_o_2;
     logic [31:0] mem_csr_data_o_2;
 
+    logic LLbit_o;
+    logic mem_wb_LLbit_we[2];
+    logic mem_wb_LLbit_value[2];
+
     generate
         for (genvar i = 0; i < 2; i++) begin : mem
             mem u_mem (
-                .rst(),
+                .rst(rst),
 
                 .signal_i(mem_signal_i[i]),
 
@@ -615,13 +581,17 @@ module cpu_top (
 
                 .signal_axi_o(mem_axi_signal[i]),
 
-                .mem_data_i(),
+                .mem_data_i(axi_mem_data),
 
-                .LLbit_i(),
-                .wb_LLbit_we_i(),
-                .wb_LLbit_value_i(),
+                .LLbit_i(LLbit_o),
+                .wb_LLbit_we_i(wb_LLbit_we_i[i]),
+                .wb_LLbit_value_i(wb_LLbit_value_i[i]),
+                .LLbit_we_o(mem_wb_LLbit_we[i]),
+                .LLbit_value_o(mem_wb_LLbit_value[i]),
 
                 .current_inst_address_i(),
+
+                .current_inst_address_o(),
 
                 .excp_i(mem_excp_i_2),
                 .excp_num_i(mem_excp_num_i_2),
@@ -682,6 +652,9 @@ module cpu_top (
 
     logic wb_excp_tlbrefill[2];
     wb_reg wb_reg_signal[2];
+    
+    logic wb_LLbit_we_i[2];
+    logic wb_LLbit_value_i[2];
 
     generate
         for (genvar i = 0; i < 2; i++) begin : mem_wb
@@ -692,12 +665,10 @@ module cpu_top (
 
                 .mem_signal_o(mem_signal_o[i]),
 
-                .mem_LLbit_we(),
-                .mem_LLbit_value(),
+                .mem_LLbit_we(mem_wb_LLbit_we[i]),
+                .mem_LLbit_value(mem_wb_LLbit_value[i]),
 
-                .flush(),
-
-                .excp_num(),
+                .flush(flush),
 
                 .wb_reg_o(wb_reg_signal[i]),
 
@@ -707,13 +678,11 @@ module cpu_top (
                 .debug_commit_valid(),
                 .debug_commit_instr(),
 
-                .wb_LLbit_we(),
-                .wb_LLbit_value(),
+                .wb_LLbit_we(wb_LLbit_we_i[i]),
+                .wb_LLbit_value(wb_LLbit_value_i[i]),
 
                 .excp_i(),
-                .excp_num_i(),
-                .excp_o(),
-                .excp_num_o(),
+                .excp_num(),
 
                 //to csr
                 .csr_era(wb_csr_era[i]),
@@ -738,11 +707,11 @@ module cpu_top (
         .rst(rst),
 
         .we_1   (wb_reg_signal[0].we),
-        .pc_i_1 (),
+        .pc_i_1 (wb_reg_signal[0].pc),
         .waddr_1(wb_reg_signal[0].waddr),
         .wdata_1(wb_reg_signal[0].wdata),
         .we_2   (wb_reg_signal[1].we),
-        .pc_i_2 (),
+        .pc_i_2 (wb_reg_signal[1].pc),
         .waddr_2(wb_reg_signal[1].waddr),
         .wdata_2(wb_reg_signal[1].wdata),
 
@@ -774,9 +743,9 @@ module cpu_top (
         .clk(clk),
         .rst(rst),
         .flush(1'b0),
-        .LLbit_i_1(wb_LLbit_value_i_1),
-        .LLbit_i_2(wb_LLbit_value_i_2),
-        .we(wb_LLbit_we_i),
+        .LLbit_i_1(wb_LLbit_value_i[0]),
+        .LLbit_i_2(wb_LLbit_value_i[1]),
+        .we(wb_LLbit_we_i[0] | wb_LLbit_we_i[1]),
         .LLbit_o(LLbit_o)
     );
 
@@ -844,7 +813,7 @@ module cpu_top (
     assign data_dmw1_en = data_dmw1_en_1 | data_dmw1_en_2;
 
     tlb u_tlb (
-        .clk               (),
+        .clk               (clk),
         .asid              (csr_asid),
         //trans mode 
         .inst_addr_trans_en(inst_addr_trans_en),
