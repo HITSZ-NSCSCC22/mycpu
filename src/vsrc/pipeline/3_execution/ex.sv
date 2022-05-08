@@ -13,6 +13,9 @@ module ex (
 
     output logic stallreq,
 
+    output logic branch_flag,
+    output logic [`RegBus]branch_target_address,
+
     input logic excp_i,
     input logic [8:0] excp_num_i,
     output logic excp_o,
@@ -161,7 +164,51 @@ module ex (
         end
     end
 
-
+    always @(*) begin
+        if(rst == `RstEnable)begin
+            branch_flag = 1'b0;
+            branch_target_address = `ZeroWord;
+        end else begin
+            case(aluop_i)
+                `EXE_B_OP,`EXE_BL_OP,`EXE_JIRL_OP:begin 
+                    branch_flag = 1'b1;
+                    branch_target_address = inst_pc_i + reg2_i;
+                end
+                `EXE_BEQ_OP:begin
+                    if(reg1_i == reg2_i)
+                        branch_flag = 1'b1;
+                        branch_target_address = inst_pc_i + inst_i;
+                end
+                `EXE_BNE_OP:begin
+                    if(reg1_i != reg2_i)
+                        branch_flag = 1'b1;
+                        branch_target_address = inst_pc_i + {{14{inst_i[25]}}, inst_i[25:10], 2'b0};
+                end
+                `EXE_BLT_OP:begin
+                    if(reg1_i < reg2_i)
+                        branch_flag = 1'b1;
+                        branch_target_address = inst_pc_i + {{14{inst_i[25]}}, inst_i[25:10], 2'b0};
+                end
+                `EXE_BGE_OP:begin
+                    if(reg1_i >= reg2_i)
+                        branch_target_address = inst_pc_i + {{14{inst_i[25]}}, inst_i[25:10], 2'b0};
+                end
+                `EXE_BLTU_OP:begin
+                    if(reg1_i < reg2_i)
+                        branch_flag = 1'b1;
+                        branch_target_address = inst_pc_i + {{14{inst_i[25]}}, inst_i[25:10], 2'b0};
+                end
+                `EXE_BGEU_OP:begin
+                    if(reg1_i >= reg2_i)
+                        branch_flag = 1'b1;
+                        branch_target_address = inst_pc_i + {{14{inst_i[25]}}, inst_i[25:10], 2'b0};
+                end
+                default:begin
+                    
+                end
+            endcase
+        end
+    end
 
     always @(*) begin
         if (rst == `RstEnable) begin

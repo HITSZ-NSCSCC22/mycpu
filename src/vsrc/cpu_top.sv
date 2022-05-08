@@ -349,8 +349,7 @@ module cpu_top (
     );
 
 
-    logic [`RegBus] branch_target_address_1;
-    logic [`RegBus] branch_target_address_2;
+    logic [`RegBus] branch_target_address[2];
     logic [`RegBus] link_addr;
     logic flush;
     logic [`RegBus] new_pc;
@@ -452,12 +451,12 @@ module cpu_top (
 
 
     logic disable_cache;
-    logic branch_flag_1, branch_flag_2;
+    logic branch_flag[2];
 
-    assign backend_flush = excp_flush | ertn_flush | branch_flag_1 | branch_flag_2;
+    assign backend_flush = excp_flush | ertn_flush | branch_flag[0] | branch_flag[1];
 
-    assign next_pc = branch_flag_1 ? branch_target_address_1 : 
-                     branch_flag_2 ? branch_target_address_2 :
+    assign next_pc = branch_flag[0] ? branch_target_address[0] : 
+                     branch_flag[1] ? branch_target_address[1] :
                      (excp_flush && !excp_tlbrefill) ? csr_eentry :
                      (excp_flush && excp_tlbrefill) ? csr_tlbrentry :
                      ertn_flush ? csr_era : `ZeroWord;
@@ -480,6 +479,9 @@ module cpu_top (
                 .ex_o(ex_signal_o[i]),
 
                 .stallreq(),
+
+                .branch_flag(branch_flag[i]),
+                .branch_target_address(branch_target_address[i]),
 
                 .excp_i(ex_excp_i[i]),
                 .excp_num_i(ex_excp_num_i[i]),
