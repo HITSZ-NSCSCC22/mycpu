@@ -301,9 +301,9 @@ module cpu_top (
 
                 // <-> CSR Registers
                 .has_int        (),
-                .csr_data_i     (),
+                .csr_data_i     (id_csr_data[i]),
                 .csr_plv        (),
-                .csr_read_addr_o()
+                .csr_read_addr_o(id_csr_read_addr_o[i])
             );
         end
     endgenerate
@@ -435,16 +435,6 @@ module cpu_top (
     logic [1:0] csr_datm;
     logic [1:0] csr_plv;
 
-    logic [13:0] id_csr_addr_1;
-    logic [31:0] id_csr_data_1;
-    logic [13:0] id_csr_addr_2;
-    logic [31:0] id_csr_data_2;
-    logic [13:0] id_csr_read_addr_o_1;
-    logic [13:0] id_csr_read_addr_o_2;
-
-    logic pc_excp_o;
-    logic [3:0] pc_excp_num_o;
-
     logic idle_flush;
     logic [`InstAddrBus] idle_pc;
     logic wb_excp_flush[2];
@@ -467,6 +457,8 @@ module cpu_top (
 
 
     ex_mem_struct ex_signal_o[2];
+    logic ex_excp_i[2];
+    logic [8:0] ex_excp_num_i[2];
 
 
     // EXE Stage
@@ -482,45 +474,22 @@ module cpu_top (
 
                 .stallreq(),
 
-                .excp_i(),
-                .excp_num_i(),
-                .excp_o(),
-                .excp_num_o()
+                .excp_i(ex_excp_i[i]),
+                .excp_num_i(ex_excp_num_i[i]),
+                .excp_o(ex_excp_o[i]),
+                .excp_num_o(ex_excp_num_o[i])
             );
         end
     endgenerate
 
-    logic [`RegBus] ex_current_inst_address_o_2;
-    logic ex_csr_we_o_2;
-    logic [13:0] ex_csr_addr_o_2;
-    logic [31:0] ex_csr_data_o_2;
+    logic ex_excp_o[2];
+    logic [9:0] ex_excp_num_o[2];
 
 
-
-    logic mem_wreg_i_1;
-    logic [`RegAddrBus] mem_reg_waddr_i_1;
-    logic [`RegBus] mem_reg_wdata_i_1;
-
-    logic mem_inst_valid_1;
-    logic [`InstAddrBus] mem_inst_pc_1;
-
-    logic [`RegBus] mem_current_inst_address_i_1;
-
-
-    logic mem_excp_i_1;
-    logic [9:0] mem_excp_num_i_1;
-    logic mem_excp_i_2;
-    logic [9:0] mem_excp_num_i_2;
-
-
-    logic LLbit_o_1;
-    logic [`RegBus] mem_current_inst_address_o_1;
-
-    logic mem_excp_o_1;
-    logic [15:0] mem_excp_num_o_1;
-    logic mem_excp_o_2;
-    logic [15:0] mem_excp_num_o_2;
-
+    logic mem_excp_i[2];
+    logic [9:0] mem_excp_num_i[2];
+    logic mem_excp_o[2];
+    logic [15:0] mem_excp_num_o[2];
 
     logic data_addr_trans_en_1;
     logic data_dmw0_en_1;
@@ -546,25 +515,18 @@ module cpu_top (
 
                 .flush(flush),
                 .ex_current_inst_address(),
-                .excp_i(),
-                .excp_num_i(),
+                .excp_i(ex_excp_o[i]),
+                .excp_num_i(ex_excp_num_o[i]),
 
                 .mem_current_inst_address(),
-                .excp_o(),
-                .excp_num_o()
+                .excp_o(mem_excp_i[i]),
+                .excp_num_o(mem_excp_num_i[i])
             );
         end
 
     endgenerate
 
     mem_wb_struct mem_signal_o[2];
-
-    logic LLbit_o_2;
-    logic [`RegBus] mem_current_inst_address_o_2;
-    logic [`InstAddrBus] wb_inst_pc_2;
-    logic mem_csr_we_o_2;
-    logic [13:0] mem_csr_addr_o_2;
-    logic [31:0] mem_csr_data_o_2;
 
     logic LLbit_o;
     logic mem_wb_LLbit_we[2];
@@ -589,14 +551,10 @@ module cpu_top (
                 .LLbit_we_o(mem_wb_LLbit_we[i]),
                 .LLbit_value_o(mem_wb_LLbit_value[i]),
 
-                .current_inst_address_i(),
-
-                .current_inst_address_o(),
-
-                .excp_i(mem_excp_i_2),
-                .excp_num_i(mem_excp_num_i_2),
-                .excp_o(mem_excp_o_2),
-                .excp_num_o(mem_excp_num_o_2),
+                .excp_i(mem_excp_i[i]),
+                .excp_num_i(mem_excp_num_i[i]),
+                .excp_o(mem_excp_o[i]),
+                .excp_num_o(mem_excp_num_o[i]),
 
                 .csr_pg(csr_pg),
                 .csr_da(csr_da),
@@ -622,39 +580,20 @@ module cpu_top (
 
     endgenerate
 
-    logic wb_csr_we_1;
-    logic [13:0] wb_csr_addr_1;
-    logic [`RegBus] wb_csr_data_1;
-
-
     assign debug0_wb_rf_wen   = wb_reg_signal[0].we;
     assign debug0_wb_rf_wnum  = wb_reg_signal[0].waddr;
     assign debug0_wb_rf_wdata = wb_reg_signal[0].wdata;
 
-
-    logic wb_excp_o_1;
-    logic [15:0] wb_excp_num_o_1;
-    logic wb_excp_o_2;
-    logic [15:0] wb_excp_num_o_2;
-
-    csr_write_signal wb_csr_signal_o_1;
-    csr_write_signal wb_csr_signal_o_2;
-
-
     logic [18:0] wb_excp_tlb_vppn[2];
 
     logic [`InstAddrBus] debug_commit_pc_1;
-
-
-    logic wb_csr_we_2;
-    logic [13:0] wb_csr_addr_2;
-    logic [`RegBus] wb_csr_data_2;
 
     logic wb_excp_tlbrefill[2];
     wb_reg wb_reg_signal[2];
     
     logic wb_LLbit_we_i[2];
     logic wb_LLbit_value_i[2];
+    logic [46:0] wb_csr_signal[2];
 
     generate
         for (genvar i = 0; i < 2; i++) begin : mem_wb
@@ -672,7 +611,7 @@ module cpu_top (
 
                 .wb_reg_o(wb_reg_signal[i]),
 
-                .wb_csr_signal_o(),
+                .wb_csr_signal_o(wb_csr_signal[i]),
 
                 .debug_commit_pc(),
                 .debug_commit_valid(),
@@ -681,8 +620,8 @@ module cpu_top (
                 .wb_LLbit_we(wb_LLbit_we_i[i]),
                 .wb_LLbit_value(wb_LLbit_value_i[i]),
 
-                .excp_i(),
-                .excp_num(),
+                .excp_i(mem_excp_o[i]),
+                .excp_num(mem_excp_num_o[i]),
 
                 //to csr
                 .csr_era(wb_csr_era[i]),
@@ -761,17 +700,20 @@ module cpu_top (
     assign excp_tlbrefill = wb_excp_tlbrefill[0] | wb_excp_tlbrefill[1];
     assign excp_tlb_vppn = wb_excp_tlb_vppn[0] | wb_excp_tlb_vppn[1];
 
+    logic [13:0] id_csr_read_addr_o[2];
+    logic [`RegBus] id_csr_data[2];
+
     cs_reg u_cs_reg (
         .clk(clk),
         .rst(rst),
         .excp_flush(excp_flush),
         .ertn_flush(ertn_flush),
-        .write_signal_1(wb_csr_signal_o_1),
-        .write_signal_2(wb_csr_signal_o_2),
-        .raddr_1(id_csr_read_addr_o_1),
-        .raddr_2(id_csr_read_addr_o_2),
-        .rdata_1(id_csr_data_1),
-        .rdata_2(id_csr_data_2),
+        .write_signal_1(wb_csr_signal[0]),
+        .write_signal_2(wb_csr_signal[1]),
+        .raddr_1(id_csr_read_addr_o[0]),
+        .raddr_2(id_csr_read_addr_o[1]),
+        .rdata_1(id_csr_data[0]),
+        .rdata_2(id_csr_data[1]),
         .era_i(csr_era_i),
         .esubcode_i(csr_esubcode_i),
         .va_error_i(va_error_i),
