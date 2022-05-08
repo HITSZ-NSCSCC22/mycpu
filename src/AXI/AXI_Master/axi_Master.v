@@ -26,6 +26,7 @@ module axi_Master (
     output reg [`Data]inst_cpu_data_o,
     output wire inst_stallreq,
     input wire [3:0]inst_id,//决定是读数据还是取指令
+    input wire [3:0]icache_rd_type_i,//icahce read type
 
     //data
     input wire [`ADDR]data_cpu_addr_i,
@@ -38,6 +39,9 @@ module axi_Master (
     output reg [`Data]data_cpu_data_o,
     output wire data_stallreq,
     input wire [3:0]data_id,//决定是读数据还是取指令
+    input wire [3:0]dcache_rd_type_i,// dacache read type
+    input wire [3:0]dcache_wr_type_i,//decache write type
+    input wire [`BurstData]dcache_wr_data,//data from dcache
     
     //Slave
 
@@ -64,7 +68,7 @@ module axi_Master (
     //aw
     output wire [`ID]s_awid,
     output reg [`ADDR]s_awaddr,
-    output wire [`Len]s_awlen,
+    output wire  [`Len]s_awlen,
     output reg [`Size]s_awsize,
     output wire [`Burst]s_awburst,
     output wire [`Lock]s_awlock,
@@ -112,9 +116,13 @@ module axi_Master (
      reg [`ADDR]inst_s_araddr;
      reg [`Size]inst_s_arsize;
      reg inst_s_arvalid;
-
+     reg [`Len]inst_s_arlen;
     //r
      reg inst_s_rready;
+
+    //decide arlen by rd_type
+    wire [`Len]inst_real_s_arlen;
+    assign inst_real_s_arlen=(icache_rd_type_i==3'b100)?8'b11:8'b0;
 
 
 /**
@@ -161,7 +169,7 @@ module axi_Master (
                             else
                             begin
                                 inst_stall_req_r=1;
-                                inst_cpu_data_o=0;
+                                inst_cpu_data_o=s_rdata;
                                 is_fetching_inst=1;
                             end       
                         end
@@ -187,6 +195,7 @@ module axi_Master (
             inst_s_araddr<=0;
             inst_s_arsize<=0;
             inst_buffer<=0;
+            inst_s_arlen<=0;
             inst_s_rready<=0;
 
             inst_s_arvalid<=0;
@@ -205,6 +214,7 @@ module axi_Master (
                             inst_s_araddr<=inst_cpu_addr_i;
                             inst_s_arsize<=3'b010;
                             inst_buffer<=0;
+                            inst_s_arlen<=inst_real_s_arlen;
                             inst_s_rready<=0;
 
                             inst_s_arvalid<=1;
@@ -220,6 +230,7 @@ module axi_Master (
                                 inst_s_araddr<=inst_cpu_addr_i;
                                 inst_s_arsize<=3'b010;
                                 inst_buffer<=0;
+                                inst_s_arlen<=inst_real_s_arlen;
                                 inst_s_rready<=0;
 
                                 inst_s_arvalid<=1;
@@ -231,6 +242,7 @@ module axi_Master (
                                 inst_s_araddr<=0;
                                 inst_s_arsize<=0;
                                 inst_buffer<=0;
+                                inst_s_arlen<=0;
                                 inst_s_rready<=0;
 
                                 inst_s_arvalid<=0;
@@ -243,6 +255,7 @@ module axi_Master (
                             inst_s_araddr<=0;
                             inst_s_arsize<=0;
                             inst_buffer<=0;
+                            inst_s_arlen<=0;
                             inst_s_rready<=0;
 
                             inst_s_arvalid<=0;
@@ -255,6 +268,7 @@ module axi_Master (
                             inst_s_araddr<=0;
                             inst_s_arsize<=0;
                             inst_buffer<=0;
+                            inst_s_arlen<=0;
                             inst_s_rready<=0;
 
                             inst_s_arvalid<=0;
@@ -277,6 +291,7 @@ module axi_Master (
                                 inst_s_araddr<=0;
                                 inst_s_arsize<=0;
                                 inst_buffer<=0;
+                                inst_s_arlen<=0;
                                 inst_s_rready<=1;
 
                                 inst_s_arvalid<=0;
@@ -288,6 +303,7 @@ module axi_Master (
                                 inst_s_araddr<=inst_s_araddr;
                                 inst_s_arsize<=inst_s_arsize;
                                 inst_buffer<=0;
+                                inst_s_arlen<=0;
                                 inst_s_rready<=inst_s_rready;
 
                                 inst_s_arvalid<=inst_s_arvalid;
@@ -300,6 +316,7 @@ module axi_Master (
                         inst_s_araddr<=0;
                         inst_s_arsize<=0;
                         inst_buffer<=0;
+                        inst_s_arlen<=0;
                         inst_s_rready<=1;
 
                         inst_s_arvalid<=0;
@@ -312,6 +329,7 @@ module axi_Master (
                         inst_s_arid<=inst_s_arid;
                         inst_s_araddr<=inst_s_araddr;
                         inst_s_arsize<=inst_s_arsize;
+                        inst_s_arlen<=inst_s_arlen;
                         inst_buffer<=0;
                         inst_s_rready<=inst_s_rready;
 
@@ -335,6 +353,7 @@ module axi_Master (
                             inst_s_arid<=0;
                             inst_s_araddr<=0;
                             inst_s_arsize<=0;
+                            inst_s_arlen<=0;
                         end
                         else
                         begin
@@ -345,6 +364,7 @@ module axi_Master (
                             inst_s_arid<=0;
                             inst_s_araddr<=0;
                             inst_s_arsize<=0;
+                            inst_s_arlen<=0;
                         end
 
                     end
@@ -357,6 +377,7 @@ module axi_Master (
                         inst_s_arid<=inst_s_arid;
                         inst_s_araddr<=inst_s_araddr;
                         inst_s_arsize<=inst_s_arsize;
+                        inst_s_arlen<=0;
                     end
 
                     // //set s_rready
@@ -396,9 +417,13 @@ module axi_Master (
      reg [`ADDR]data_s_araddr;
      reg [`Size]data_s_arsize;
      reg data_s_arvalid;
-
+     reg [`Len]data_s_arlen;
     //r
      reg data_s_rready;
+
+    //decide arlen by rd_type
+    wire [`Len]data_real_s_arlen;
+    assign data_real_s_arlen=(dcache_rd_type_i==3'b100)?8'b11:8'b0;
 /**
 **read state machine for fetch data
 **/
@@ -435,6 +460,11 @@ module axi_Master (
                                data_stall_req_r=0;
                                data_cpu_data_o=s_rdata;
                             end
+                            else if(s_rvalid&&s_rready)
+                            begin
+                                data_stall_req_r=1;
+                                data_cpu_data_o=s_rdata;
+                            end
                             else
                             begin
                                 data_stall_req_r=1;
@@ -458,6 +488,7 @@ module axi_Master (
             data_s_araddr<=0;
             data_s_arsize<=0;
             data_buffer<=0;
+            data_s_arlen<=0;
             data_s_rready<=0;
 
             data_s_arvalid<=0;
@@ -475,6 +506,7 @@ module axi_Master (
                         data_s_araddr<=data_cpu_addr_i;
                         data_s_arsize<=3'b010;
                         data_buffer<=0;
+                        data_s_arlen<=data_real_s_arlen;
                         data_s_rready<=0;
 
                         data_s_arvalid<=1;
@@ -486,6 +518,7 @@ module axi_Master (
                         data_s_araddr<=0;
                         data_s_arsize<=0;
                         data_buffer<=0;
+                        data_s_arlen<=0;
                         data_s_rready<=0;
 
                         data_s_arvalid<=0;
@@ -502,6 +535,7 @@ module axi_Master (
                         data_s_araddr<=0;
                         data_s_arsize<=0;
                         data_buffer<=0;
+                        data_s_arlen<=0;
                         data_s_rready<=1;
 
                         data_s_arvalid<=0;
@@ -513,6 +547,7 @@ module axi_Master (
                         data_s_araddr<=data_s_araddr;
                         data_s_arsize<=data_s_arsize;
                         data_buffer<=0;
+                        data_s_arlen<=data_s_arlen;
                         data_s_rready<=data_s_rready;
 
                         data_s_arvalid<=data_s_arvalid;
@@ -533,6 +568,7 @@ module axi_Master (
                         data_s_arid<=0;
                         data_s_araddr<=0;
                         data_s_arsize<=0;
+                        data_s_arlen<=0;
                     end
                     else
                     begin
@@ -543,6 +579,7 @@ module axi_Master (
                         data_s_arid<=0;
                         data_s_araddr<=0;
                         data_s_arsize<=0;
+                        data_s_arlen<=0;
                     end
 
                     // //set s_rready
@@ -573,7 +610,7 @@ module axi_Master (
 
     //set default
     //ar
-    assign s_arlen=0;
+    assign s_arlen=data_s_arlen|inst_s_arlen;
     assign s_arburst=`INCR;
     assign s_arlock=0;
     assign s_arcache=4'b0000;
@@ -581,8 +618,27 @@ module axi_Master (
 
 
     //write
+    reg [`BurstData]write_buffer;
+
+
+
+
+
     //state machine
     reg [3:0]w_state;
+    
+    //counter 
+    reg [31:0]cnt;
+    always @(posedge aclk ) begin
+        if(!aresetn) cnt<=0;
+        else if(w_state==`W_DATA)
+        begin
+            if(s_wvalid&&s_wready) cnt<=cnt+1;
+            else cnt<=cnt;
+        end
+        else    cnt<=0;
+    end
+
     //改变输出
     always @(*) begin
         if(!aresetn)   
@@ -642,6 +698,7 @@ module axi_Master (
             s_wdata<=0;
             s_wvalid<=0;
             s_bready<=0;
+            write_buffer<=0;
         end
         else
         begin
@@ -659,6 +716,7 @@ module axi_Master (
                         s_wdata<=0;
                         s_wvalid<=0;
                         s_bready<=0;
+                        write_buffer<=dcache_wr_data;
                     end
                     else
                     begin
@@ -670,6 +728,7 @@ module axi_Master (
                         s_wdata<=0;
                         s_wvalid<=0;
                         s_bready<=0;
+                        write_buffer<=0;
                     end
                 end
                 /** AW **/
@@ -684,7 +743,9 @@ module axi_Master (
                         s_awvalid<=0;
                         s_wvalid<=1;
                         s_bready<=1;
-                        s_wdata<=data_cpu_data_i;
+                        // s_wdata<=data_cpu_data_i;
+                        s_wdata<=write_buffer[31:0];
+                        write_buffer<={{32{1'b0}},write_buffer[127:32]};
                     end
                     else
                     begin
@@ -696,6 +757,7 @@ module axi_Master (
                         s_wvalid<=s_wvalid;
                         s_bready<=s_bready;
                         s_wdata<=0;
+                        write_buffer<=write_buffer;
                     end
                 end
                 /** W **/
@@ -703,28 +765,46 @@ module axi_Master (
                     
                     if(s_wvalid&&s_wready)
                     begin
-                        w_state<=`W_RESP;
-                        s_wdata<=0;
+                        if(cnt==s_awlen)
+                        begin
+                            w_state<=`W_RESP;
+                            s_wdata<=0;
+                            s_wvalid<=0;
+                            write_buffer<=0;
+                            s_wlast=0;
+                        end
+                        else
+                        begin
+                            w_state<=w_state;
+                            s_wdata<=write_buffer[31:0];
+                            write_buffer<={{32{1'b0}},write_buffer[127:32]};
+                            s_wvalid<=1;
+                            if(cnt==s_awlen-1)  s_wlast<=1;
+                            else s_wlast<=0;
+                            
+                        end
+                        
                     end
                     else
                     begin
                         w_state<=w_state;
                         s_wdata<=s_wdata;
-                    end
-
-                    //set wvalid
-                    if(s_wvalid&&s_wready)
-                    begin
-                        s_wvalid<=0;
-                    end
-                    else if(~s_wvalid)
-                    begin
-                        s_wvalid<=1;
-                    end
-                    else
-                    begin
                         s_wvalid<=s_wvalid;
                     end
+
+                    // //set wvalid
+                    // if(s_wvalid&&s_wready)
+                    // begin
+                    //     s_wvalid<=0;
+                    // end
+                    // else if(~s_wvalid)
+                    // begin
+                    //     s_wvalid<=1;
+                    // end
+                    // else
+                    // begin
+                    //     s_wvalid<=s_wvalid;
+                    // end
 
                 end
                 /** B **/
@@ -754,7 +834,7 @@ module axi_Master (
     //set default
     //aw
     assign s_awid=1;
-    assign s_awlen=0;
+    assign s_awlen=(dcache_wr_type_i==3'b100)?8'b11:8'b0;
     assign s_awburst=`INCR;
     assign s_awlock=0;
     assign s_awcache=0;
