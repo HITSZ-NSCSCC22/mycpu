@@ -173,9 +173,13 @@ module ex (
             branch_flag = 1'b0;
             branch_target_address = `ZeroWord;
             case (aluop_i)
-                `EXE_B_OP, `EXE_BL_OP, `EXE_JIRL_OP: begin
+                `EXE_B_OP, `EXE_BL_OP: begin
                     branch_flag = 1'b1;
                     branch_target_address = inst_pc_i + imm;
+                end
+                `EXE_JIRL_OP: begin
+                    branch_flag = 1'b1;
+                    branch_target_address = reg1_i + imm;
                 end
                 `EXE_BEQ_OP: begin
                     if (dispatch_i.branch_com_result[0]) branch_flag = 1'b1;
