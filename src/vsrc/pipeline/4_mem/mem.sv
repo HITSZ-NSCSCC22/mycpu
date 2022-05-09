@@ -22,12 +22,7 @@ module mem (
     input logic [9:0] excp_num_i,
 
     //from csr 
-    input logic csr_pg,
-    input logic csr_da,
-    input logic [31:0] csr_dmw0,
-    input logic [31:0] csr_dmw1,
-    input logic [1:0] csr_plv,
-    input logic [1:0] csr_datf,
+    input csr_to_mem_struct csr_mem_signal,
     input logic disable_cache,
 
     //to addr trans 
@@ -37,12 +32,7 @@ module mem (
     output logic cacop_op_mode_di,
 
     //tlb 
-    input logic data_tlb_found,
-    input logic [4:0] data_tlb_index,
-    input logic data_tlb_v,
-    input logic data_tlb_d,
-    input logic [1:0] data_tlb_mat,
-    input logic [1:0] data_tlb_plv,
+    input tlb_to_mem_struct tlb_mem_signal,
 
     output reg LLbit_we_o,
     output reg LLbit_value_o,
@@ -73,19 +63,19 @@ module mem (
 
 
     //addr dmw trans
-    assign dmw0_en = ((csr_dmw0[`PLV0] && csr_plv == 2'd0) || (csr_dmw0[`PLV3] && csr_plv == 2'd3)) && (signal_i.wdata[31:29] == csr_dmw0[`VSEG]);
-    assign dmw1_en = ((csr_dmw1[`PLV0] && csr_plv == 2'd0) || (csr_dmw1[`PLV3] && csr_plv == 2'd3)) && (signal_i.wdata[31:29] == csr_dmw1[`VSEG]);
+    assign dmw0_en = ((csr_mem_signal.csr_dmw0[`PLV0] && csr_mem_signal.csr_plv == 2'd0) || (csr_mem_signal.csr_dmw0[`PLV3] && csr_mem_signal.csr_plv == 2'd3)) && (signal_i.wdata[31:29] == csr_mem_signal.csr_dmw0[`VSEG]);
+    assign dmw1_en = ((csr_mem_signal.csr_dmw1[`PLV0] && csr_mem_signal.csr_plv == 2'd0) || (csr_mem_signal.csr_dmw1[`PLV3] && csr_mem_signal.csr_plv == 2'd3)) && (signal_i.wdata[31:29] == csr_mem_signal.csr_dmw1[`VSEG]);
 
-    assign pg_mode = !csr_da && csr_pg;
-    assign da_mode = csr_da && !csr_pg;
+    assign pg_mode = !csr_mem_signal.csr_da && csr_mem_signal.csr_pg;
+    assign da_mode = csr_mem_signal.csr_da && !csr_mem_signal.csr_pg;
 
     assign data_addr_trans_en = pg_mode && !dmw0_en && !dmw1_en && !cacop_op_mode_di;
 
-    assign excp_tlbr = access_mem && !data_tlb_found && data_addr_trans_en;
-    assign excp_pil  = mem_load_op  && !data_tlb_v && data_addr_trans_en;  //cache will generate pil exception??
-    assign excp_pis = mem_store_op && !data_tlb_v && data_addr_trans_en;
-    assign excp_ppi = access_mem && data_tlb_v && (csr_plv > data_tlb_plv) && data_addr_trans_en;
-    assign excp_pme  = mem_store_op && data_tlb_v && (csr_plv <= data_tlb_plv) && !data_tlb_d && data_addr_trans_en;
+    assign excp_tlbr = access_mem && !tlb_mem_signal.data_tlb_found && data_addr_trans_en;
+    assign excp_pil  = mem_load_op  && !tlb_mem_signal.data_tlb_v && data_addr_trans_en;  //cache will generate pil exception??
+    assign excp_pis = mem_store_op && !tlb_mem_signal.data_tlb_v && data_addr_trans_en;
+    assign excp_ppi = access_mem && tlb_mem_signal.data_tlb_v && (csr_mem_signal.csr_plv > tlb_mem_signal.data_tlb_plv) && data_addr_trans_en;
+    assign excp_pme  = mem_store_op && tlb_mem_signal.data_tlb_v && (csr_mem_signal.csr_plv <= tlb_mem_signal.data_tlb_plv) && !tlb_mem_signal.data_tlb_d && data_addr_trans_en;
 
     assign excp_o = excp_tlbr || excp_pil || excp_pis || excp_ppi || excp_pme || excp_adem || excp_i;
     assign excp_num_o = {excp_pil, excp_pis, excp_ppi, excp_pme, excp_tlbr, excp_adem, excp_num_i};

@@ -307,9 +307,9 @@ module cpu_top (
                 .broadcast_excp_num_o(),
 
                 // <-> CSR Registers
-                .has_int        (),
+                .has_int        (has_int),
                 .csr_data_i     (id_csr_data[i]),
-                .csr_plv        (),
+                .csr_plv        (csr_plv),
                 .csr_read_addr_o(id_csr_read_addr_o[i])
             );
         end
@@ -352,9 +352,6 @@ module cpu_top (
     logic [`RegBus] branch_target_address[2];
     logic [`RegBus] link_addr;
     logic flush;
-    logic [`RegBus] new_pc;
-    logic [6:0] stall1;  // [pc_reg,if_buffer_1, if_id, id_ex, ex_mem, mem_wb, ctrl]
-    logic [6:0] stall2;
 
 
     //tlb
@@ -540,6 +537,12 @@ module cpu_top (
     logic mem_wb_LLbit_we[2];
     logic mem_wb_LLbit_value[2];
 
+    csr_to_mem_struct csr_mem_signal;
+    tlb_to_mem_struct tlb_mem_signal;
+
+    assign csr_mem_signal = {csr_pg,csr_da,csr_dmw0,csr_dmw1,csr_plv,csr_datf};
+    assign tlb_mem_signal = {data_tlb_found,data_tlb_index,data_tlb_v,data_tlb_d,data_tlb_mat,data_tlb_plv};
+
     generate
         for (genvar i = 0; i < 2; i++) begin : mem
             mem u_mem (
@@ -564,12 +567,7 @@ module cpu_top (
                 .excp_o(mem_excp_o[i]),
                 .excp_num_o(mem_excp_num_o[i]),
 
-                .csr_pg(csr_pg),
-                .csr_da(csr_da),
-                .csr_dmw0(csr_dmw0),
-                .csr_dmw1(csr_dmw1),
-                .csr_plv(csr_plv),
-                .csr_datf(csr_datf),
+                .csr_mem_signal(csr_mem_signal),
                 .disable_cache(1'b0),
 
                 .data_addr_trans_en(mem_data_addr_trans_en[i]),
@@ -577,12 +575,7 @@ module cpu_top (
                 .dmw1_en(mem_data_dmw1_en[i]),
                 .cacop_op_mode_di(cacop_op_mode_di),
 
-                .data_tlb_found(data_tlb_found),
-                .data_tlb_index(data_tlb_index),
-                .data_tlb_v(data_tlb_v),
-                .data_tlb_d(data_tlb_d),
-                .data_tlb_mat(data_tlb_mat),
-                .data_tlb_plv(data_tlb_plv)
+                .tlb_mem_signal(tlb_mem_signal)
             );
         end
 

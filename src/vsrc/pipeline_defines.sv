@@ -76,5 +76,22 @@ typedef struct packed {
     logic [`RegBus] wdata;
 } wb_reg;
 
+typedef struct packed {
+    logic csr_pg;
+    logic csr_da;
+    logic [`RegBus] csr_dmw0;
+    logic [`RegBus] csr_dmw1;
+    logic [1:0] csr_plv;
+    logic [1:0] csr_datf;
+} csr_to_mem_struct;
+
+typedef struct packed {
+    logic data_tlb_found;
+    logic [4:0] data_tlb_index;
+    logic data_tlb_v;
+    logic data_tlb_d;
+    logic [1:0] data_tlb_mat;
+    logic [1:0] data_tlb_plv;
+} tlb_to_mem_struct;
 
 `endif
