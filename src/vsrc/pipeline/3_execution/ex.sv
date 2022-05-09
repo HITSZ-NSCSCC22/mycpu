@@ -190,8 +190,8 @@ module ex (
                     branch_target_address = inst_pc_i + {{14{inst_i[25]}}, inst_i[25:10], 2'b0};
                 end
                 `EXE_BGE_OP: begin
-                    if (reg1_i >= reg2_i)
-                        branch_target_address = inst_pc_i + {{14{inst_i[25]}}, inst_i[25:10], 2'b0};
+                    if (reg1_i >= reg2_i)branch_flag = 1'b1;
+                    branch_target_address = inst_pc_i + {{14{inst_i[25]}}, inst_i[25:10], 2'b0};
                 end
                 `EXE_BLTU_OP: begin
                     if (reg1_i < reg2_i) branch_flag = 1'b1;

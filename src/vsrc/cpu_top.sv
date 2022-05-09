@@ -500,13 +500,10 @@ module cpu_top (
     logic mem_excp_o[2];
     logic [15:0] mem_excp_num_o[2];
 
-    logic data_addr_trans_en_1;
-    logic data_dmw0_en_1;
-    logic data_dmw1_en_1;
+    logic mem_data_addr_trans_en[2];
+    logic mem_data_dmw0_en[2];
+    logic mem_data_dmw1_en[2];
 
-    logic data_addr_trans_en_2;
-    logic data_dmw0_en_2;
-    logic data_dmw1_en_2;
 
     ex_mem_struct mem_signal_i[2];
     logic [1:0] ex_mem_flush;
@@ -575,9 +572,9 @@ module cpu_top (
                 .csr_datf(csr_datf),
                 .disable_cache(1'b0),
 
-                .data_addr_trans_en(data_addr_trans_en_2),
-                .dmw0_en(data_dmw0_en_2),
-                .dmw1_en(data_dmw1_en_2),
+                .data_addr_trans_en(mem_data_addr_trans_en[i]),
+                .dmw0_en(mem_data_dmw0_en[i]),
+                .dmw1_en(mem_data_dmw1_en[i]),
                 .cacop_op_mode_di(cacop_op_mode_di),
 
                 .data_tlb_found(data_tlb_found),
@@ -751,10 +748,9 @@ module cpu_top (
     );
 
 
-    assign data_addr_trans_en = data_addr_trans_en_1 | data_addr_trans_en_2;
-    assign data_dmw0_en = data_dmw0_en_1 | data_dmw0_en_2;
-    assign data_dmw1_en = data_dmw1_en_1 | data_dmw1_en_2;
-
+    assign data_addr_trans_en = mem_data_addr_trans_en[0] | mem_data_addr_trans_en[1];
+    assign data_dmw0_en = mem_data_dmw0_en[0] | mem_data_dmw0_en[1];
+    assign data_dmw1_en = mem_data_dmw1_en[0] | mem_data_dmw1_en[1];
     tlb u_tlb (
         .clk               (clk),
         .asid              (csr_asid),
