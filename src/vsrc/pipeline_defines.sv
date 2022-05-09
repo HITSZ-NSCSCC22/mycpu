@@ -30,6 +30,7 @@ typedef struct packed {
     logic [`InstBus] instr;
     logic [`RegBus] oprand1;
     logic [`RegBus] oprand2;
+    logic [`RegBus] imm;
     logic [`AluOpBus] aluop;
     logic [`AluSelBus] alusel;
     logic [`RegAddrBus] reg_write_addr;

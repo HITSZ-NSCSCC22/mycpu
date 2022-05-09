@@ -33,9 +33,10 @@ module ex (
     assign aluop_i  = dispatch_i.aluop;
     assign alusel_i = dispatch_i.alusel;
 
-    logic [`RegBus] reg1_i, reg2_i;
+    logic [`RegBus] reg1_i, reg2_i, imm;
     assign reg1_i = dispatch_i.oprand1;
     assign reg2_i = dispatch_i.oprand2;
+    assign imm = dispatch_i.imm;
 
     logic [`RegBus] inst_i, inst_pc_i;
     assign inst_i = dispatch_i.instr_info.instr;
@@ -174,31 +175,31 @@ module ex (
             case (aluop_i)
                 `EXE_B_OP, `EXE_BL_OP, `EXE_JIRL_OP: begin
                     branch_flag = 1'b1;
-                    branch_target_address = inst_pc_i + reg2_i;
+                    branch_target_address = inst_pc_i + imm;
                 end
                 `EXE_BEQ_OP: begin
                     if (reg1_i == reg2_i) branch_flag = 1'b1;
-                    branch_target_address = inst_pc_i + inst_i;
+                    branch_target_address = inst_pc_i + imm;
                 end
                 `EXE_BNE_OP: begin
                     if (reg1_i != reg2_i) branch_flag = 1'b1;
-                    branch_target_address = inst_pc_i + {{14{inst_i[25]}}, inst_i[25:10], 2'b0};
+                    branch_target_address = inst_pc_i + imm;
                 end
                 `EXE_BLT_OP: begin
                     if (reg1_i < reg2_i) branch_flag = 1'b1;
-                    branch_target_address = inst_pc_i + {{14{inst_i[25]}}, inst_i[25:10], 2'b0};
+                    branch_target_address = inst_pc_i + imm;
                 end
                 `EXE_BGE_OP: begin
                     if (reg1_i >= reg2_i) branch_flag = 1'b1;
-                    branch_target_address = inst_pc_i + {{14{inst_i[25]}}, inst_i[25:10], 2'b0};
+                    branch_target_address = inst_pc_i + imm;
                 end
                 `EXE_BLTU_OP: begin
                     if (reg1_i < reg2_i) branch_flag = 1'b1;
-                    branch_target_address = inst_pc_i + {{14{inst_i[25]}}, inst_i[25:10], 2'b0};
+                    branch_target_address = inst_pc_i + imm;
                 end
                 `EXE_BGEU_OP: begin
                     if (reg1_i >= reg2_i) branch_flag = 1'b1;
-                    branch_target_address = inst_pc_i + {{14{inst_i[25]}}, inst_i[25:10], 2'b0};
+                    branch_target_address = inst_pc_i + imm;
                 end
                 default: begin
 

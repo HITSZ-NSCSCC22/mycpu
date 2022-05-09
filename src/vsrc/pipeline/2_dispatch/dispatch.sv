@@ -48,7 +48,8 @@ module dispatch #(
                 exe_o[i].csr_signal <= id_i[i].csr_signal;
 
                 exe_o[i].oprand1 <= regfile_reg_read_data_i[i][0];
-                exe_o[i].oprand2 <= id_i[i].use_imm ? id_i[i].imm : regfile_reg_read_data_i[i][1];
+                exe_o[i].oprand2 <= regfile_reg_read_data_i[i][1];
+                exe_o[i].imm <= id_i[i].imm;
             end
         end
     endgenerate
