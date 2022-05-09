@@ -57,6 +57,9 @@ module decoder_3R #(
         reg_read_addr_o = {rj, rk};
         instr_break = 0;
         instr_syscall = 0;
+        // Default
+        aluop_o = `EXE_NOP_OP;
+        alusel_o = `EXE_RES_NOP;
         case (instr[31:15])
             // These two do not need GPR
             `EXE_BREAK: begin
