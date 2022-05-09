@@ -35,7 +35,7 @@ module decoder_2RI12 #(
     // ALU info
     output logic [ ALU_OP_WIDTH-1:0] aluop_o,
     output logic [ALU_SEL_WIDTH-1:0] alusel_o
-    
+
 );
 
     logic [DATA_WIDTH-1:0] instr;
@@ -105,16 +105,22 @@ module decoder_2RI12 #(
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
             end
             `EXE_ST_B: begin
+                reg_write_valid_o = 0;
+                reg_write_addr_o = 0;
                 aluop_o  = `EXE_ST_B_OP;
                 alusel_o = `EXE_RES_LOAD_STORE;
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
             end
             `EXE_ST_H: begin
+                reg_write_valid_o = 0;
+                reg_write_addr_o = 0;
                 aluop_o  = `EXE_ST_H_OP;
                 alusel_o = `EXE_RES_LOAD_STORE;
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
             end
             `EXE_ST_W: begin
+                reg_write_valid_o = 0;
+                reg_write_addr_o = 0;
                 aluop_o  = `EXE_ST_W_OP;
                 alusel_o = `EXE_RES_LOAD_STORE;
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
@@ -130,7 +136,9 @@ module decoder_2RI12 #(
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
             end
             `EXE_PRELD: begin
-                aluop_o  = `EXE_NOP_OP;
+                reg_write_valid_o = 0;
+                reg_write_addr_o = 0;
+                aluop_o = `EXE_NOP_OP;
                 alusel_o = `EXE_RES_NOP;
             end
             default: begin

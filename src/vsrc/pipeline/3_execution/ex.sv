@@ -190,7 +190,7 @@ module ex (
                     branch_target_address = inst_pc_i + {{14{inst_i[25]}}, inst_i[25:10], 2'b0};
                 end
                 `EXE_BGE_OP: begin
-                    if (reg1_i >= reg2_i)branch_flag = 1'b1;
+                    if (reg1_i >= reg2_i) branch_flag = 1'b1;
                     branch_target_address = inst_pc_i + {{14{inst_i[25]}}, inst_i[25:10], 2'b0};
                 end
                 `EXE_BLTU_OP: begin
@@ -244,7 +244,7 @@ module ex (
                 ex_o.wdata = arithout;
             end
             `EXE_RES_JUMP: begin
-                ex_o.wdata = 0;  // FIXME: add link addr
+                ex_o.wdata = inst_pc_i + 4;
             end
             default: begin
                 ex_o.wdata = `ZeroWord;

@@ -815,12 +815,17 @@ module cpu_top (
         debug_commit_pc_delay1 <= debug_commit_pc;
         debug_commit_valid_delay1 <= debug_commit_valid;
     end
-    assign debug0_wb_pc = debug_commit_pc[0];
-    assign debug0_wb_rf_wen = 1;
-    assign debug0_wb_rf_wdata = 0;
-    assign debug0_wb_rf_wnum = 0;
-    assign debug1_wb_pc = debug_commit_pc[1];
-    assign debug1_wb_rf_wen = 1;
+
+    always_ff @(posedge clk) begin
+        debug0_wb_pc <= wb_reg_signal[0].pc; 
+        debug0_wb_rf_wen <= {3'b0,wb_reg_signal[0].we};
+        debug0_wb_rf_wdata <= wb_reg_signal[0].wdata;
+        debug0_wb_rf_wnum <= wb_reg_signal[0].waddr;
+        debug1_wb_pc <= wb_reg_signal[1].pc;
+        debug1_wb_rf_wen <= {3'b0, wb_reg_signal[1].we};
+        debug1_wb_rf_wdata <= wb_reg_signal[1].wdata;
+        debug1_wb_rf_wnum <= wb_reg_signal[1].waddr;
+    end
     // difftest dpi-c
 `ifdef SIMU  // simu is defined in chiplab run_func/makefile
     DifftestInstrCommit difftest_instr_commit_0 (  // todo: not finished yet, blank signal is needed
