@@ -66,8 +66,7 @@ module ex (
         if (rst == `RstEnable) begin
             logicout = `ZeroWord;
         end else begin
-            ex_o.instr_info.pc = inst_pc_i;
-            ex_o.instr_info.valid = inst_valid_i;
+            ex_o.instr_info = dispatch_i.instr_info;
             case (aluop_i)
                 `EXE_OR_OP: begin
                     logicout = reg1_i | reg2_i;
