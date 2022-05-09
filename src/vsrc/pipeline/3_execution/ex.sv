@@ -14,7 +14,7 @@ module ex (
     output logic stallreq,
 
     output logic branch_flag,
-    output logic [`RegBus]branch_target_address,
+    output logic [`RegBus] branch_target_address,
 
     input logic excp_i,
     input logic [8:0] excp_num_i,
@@ -165,46 +165,44 @@ module ex (
     end
 
     always @(*) begin
-        if(rst == `RstEnable)begin
+        if (rst == `RstEnable) begin
             branch_flag = 1'b0;
             branch_target_address = `ZeroWord;
         end else begin
-            case(aluop_i)
-                `EXE_B_OP,`EXE_BL_OP,`EXE_JIRL_OP:begin 
+            // Default is not branching
+            branch_flag = 1'b0;
+            branch_target_address = `ZeroWord;
+            case (aluop_i)
+                `EXE_B_OP, `EXE_BL_OP, `EXE_JIRL_OP: begin
                     branch_flag = 1'b1;
                     branch_target_address = inst_pc_i + reg2_i;
                 end
-                `EXE_BEQ_OP:begin
-                    if(reg1_i == reg2_i)
-                        branch_flag = 1'b1;
-                        branch_target_address = inst_pc_i + inst_i;
+                `EXE_BEQ_OP: begin
+                    if (reg1_i == reg2_i) branch_flag = 1'b1;
+                    branch_target_address = inst_pc_i + inst_i;
                 end
-                `EXE_BNE_OP:begin
-                    if(reg1_i != reg2_i)
-                        branch_flag = 1'b1;
+                `EXE_BNE_OP: begin
+                    if (reg1_i != reg2_i) branch_flag = 1'b1;
+                    branch_target_address = inst_pc_i + {{14{inst_i[25]}}, inst_i[25:10], 2'b0};
+                end
+                `EXE_BLT_OP: begin
+                    if (reg1_i < reg2_i) branch_flag = 1'b1;
+                    branch_target_address = inst_pc_i + {{14{inst_i[25]}}, inst_i[25:10], 2'b0};
+                end
+                `EXE_BGE_OP: begin
+                    if (reg1_i >= reg2_i)
                         branch_target_address = inst_pc_i + {{14{inst_i[25]}}, inst_i[25:10], 2'b0};
                 end
-                `EXE_BLT_OP:begin
-                    if(reg1_i < reg2_i)
-                        branch_flag = 1'b1;
-                        branch_target_address = inst_pc_i + {{14{inst_i[25]}}, inst_i[25:10], 2'b0};
+                `EXE_BLTU_OP: begin
+                    if (reg1_i < reg2_i) branch_flag = 1'b1;
+                    branch_target_address = inst_pc_i + {{14{inst_i[25]}}, inst_i[25:10], 2'b0};
                 end
-                `EXE_BGE_OP:begin
-                    if(reg1_i >= reg2_i)
-                        branch_target_address = inst_pc_i + {{14{inst_i[25]}}, inst_i[25:10], 2'b0};
+                `EXE_BGEU_OP: begin
+                    if (reg1_i >= reg2_i) branch_flag = 1'b1;
+                    branch_target_address = inst_pc_i + {{14{inst_i[25]}}, inst_i[25:10], 2'b0};
                 end
-                `EXE_BLTU_OP:begin
-                    if(reg1_i < reg2_i)
-                        branch_flag = 1'b1;
-                        branch_target_address = inst_pc_i + {{14{inst_i[25]}}, inst_i[25:10], 2'b0};
-                end
-                `EXE_BGEU_OP:begin
-                    if(reg1_i >= reg2_i)
-                        branch_flag = 1'b1;
-                        branch_target_address = inst_pc_i + {{14{inst_i[25]}}, inst_i[25:10], 2'b0};
-                end
-                default:begin
-                    
+                default: begin
+
                 end
             endcase
         end
@@ -230,8 +228,8 @@ module ex (
     end
 
     always @(*) begin
-        ex_o.waddr   = wd_i;
-        ex_o.wreg = wreg_i;
+        ex_o.waddr = wd_i;
+        ex_o.wreg  = wreg_i;
         case (alusel_i)
             `EXE_RES_LOGIC: begin
                 ex_o.wdata = logicout;

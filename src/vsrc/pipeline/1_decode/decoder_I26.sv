@@ -11,7 +11,7 @@ module decoder_I26 #(
     parameter GPR_NUM = 32,
     parameter ALU_OP_WIDTH = 8,
     parameter ALU_SEL_WIDTH = 3
-)(
+) (
     input instr_buffer_info_t instr_info_i,
 
     // indicates current decoder module result is valid or not
@@ -41,26 +41,26 @@ module decoder_I26 #(
 
     // imm26
     logic [25:0] imm_26;
-    assign imm_26 = {instr[9:0] ,instr[25:10]};
+    assign imm_26 = {instr[9:0], instr[25:10]};
 
-    always_comb begin 
+    always_comb begin
         // Default decode
         decode_result_valid_o = 1;
         reg_write_valid_o = 0;
         reg_write_addr_o = 0;
-        imm_o = {{4{imm_26[25]}},imm_26,2'b0};
+        imm_o = {{4{imm_26[25]}}, imm_26, 2'b0};
         case (instr[31:26])
-            `EXE_B:begin
+            `EXE_B: begin
                 aluop_o  = `EXE_B_OP;
                 alusel_o = `EXE_RES_JUMP;
-            end 
-            `EXE_BL:begin
-                aluop_o  = `EXE_BL_OP;
+            end
+            `EXE_BL: begin
+                aluop_o = `EXE_BL_OP;
                 alusel_o = `EXE_RES_JUMP;
                 reg_write_valid_o = 1;
                 reg_write_addr_o = 5'b1;
             end
-            default:begin
+            default: begin
                 decode_result_valid_o = 0;
                 aluop_o = 0;
                 alusel_o = 0;

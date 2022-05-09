@@ -3,14 +3,16 @@
 module ex_mem (
     input logic clk,
     input logic rst,
-    input logic stall,
     input logic excp_flush,
     input logic ertn_flush,
 
-    input ex_mem_struct ex_o,
+    input  ex_mem_struct ex_o,
     output ex_mem_struct mem_i,
 
+    // Stall & flush
+    input logic stall,
     input logic flush,
+
     input logic [`RegBus] ex_current_inst_address,
     input logic excp_i,
     input logic [9:0] excp_num_i,

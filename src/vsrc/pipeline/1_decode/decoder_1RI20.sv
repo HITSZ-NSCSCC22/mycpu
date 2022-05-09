@@ -55,18 +55,23 @@ module decoder_1RI20 #(
         reg_write_addr_o = rd;
         reg_read_valid_o = 2'b00;
         reg_read_addr_o = 10'b0;
-        imm_o = {imm_20,12'b0};
+        imm_o = {imm_20, 12'b0};
         case (instr[31:25])
             `EXE_LU12I_W: begin
-                aluop_o     = `EXE_LUI_OP;
-                alusel_o    = `EXE_RES_MOVE;
+                aluop_o  = `EXE_LUI_OP;
+                alusel_o = `EXE_RES_MOVE;
             end
-            `EXE_PCADDU12I:begin
-                aluop_o     = `EXE_PCADD_OP;
-                alusel_o    = `EXE_RES_MOVE;
+            `EXE_PCADDU12I: begin
+                aluop_o  = `EXE_PCADD_OP;
+                alusel_o = `EXE_RES_MOVE;
             end
             default: begin
                 decode_result_valid_o = 0;
+                reg_write_valid_o = 0;
+                reg_write_addr_o = 0;
+                reg_read_valid_o = 0;
+                reg_read_addr_o = 0;
+                imm_o = 0;
             end
         endcase
     end

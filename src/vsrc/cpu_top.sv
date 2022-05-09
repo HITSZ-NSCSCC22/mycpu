@@ -126,7 +126,7 @@ module cpu_top (
         .inst_cpu_we_i(1'b0),
         .inst_cpu_sel_i(4'b1111),
         .inst_stall_i(),  // FIXME: stall & flush
-        .inst_flush_i(),
+        .inst_flush_i(backend_flush), // FIXME: use ctrl module instead
         .inst_cpu_data_o(axi_data),
         .inst_stallreq(axi_busy),
         .inst_id(4'b0000),  // Read Instruction only, TODO: move this from AXI to cache
@@ -264,7 +264,7 @@ module cpu_top (
         .frontend_stallreq_o(ib_frontend_stallreq),
 
         // <-> Backend
-        .backend_accept_i(2'b11),  // TODO: connect to dispatch
+        .backend_accept_i({id_id_dispatch[1].instr_info.valid, id_id_dispatch[0].instr_info.valid}),  // FIXME: does not carefully designed
         .backend_flush_i(backend_flush),  // Assure output is reset the next cycle
         .backend_instr_o(ib_backend_instr_info)  // -> ID
     );
@@ -323,7 +323,7 @@ module cpu_top (
         .clk       (clk),
         .rst       (rst),
         .stall     (),
-        .flush     (flush),
+        .flush     (backend_flush), // FIXME: does not carefully designed
         .id_i      (id_id_dispatch),
         .dispatch_o(id_dispatch_dispatch)
     );
@@ -451,7 +451,7 @@ module cpu_top (
 
 
     logic disable_cache;
-    logic branch_flag[2];
+    logic [1:0] branch_flag;
 
     assign backend_flush = excp_flush | ertn_flush | branch_flag[0] | branch_flag[1];
 
@@ -509,20 +509,22 @@ module cpu_top (
     logic data_dmw1_en_2;
 
     ex_mem_struct mem_signal_i[2];
-
+    logic [1:0] ex_mem_flush;
     generate
         for (genvar i = 0; i < 2; i++) begin : ex_mem
             ex_mem u_ex_mem (
                 .clk(clk),
                 .rst(rst),
-                .stall(),
                 .excp_flush(excp_flush),
                 .ertn_flush(ertn_flush),
 
                 .ex_o (ex_signal_o[i]),
                 .mem_i(mem_signal_i[i]),
 
-                .flush(flush),
+                // <-> Ctrl
+                .stall(),
+                .flush(ex_mem_flush[i]),
+
                 .ex_current_inst_address(),
                 .excp_i(ex_excp_o[i]),
                 .excp_num_i(ex_excp_num_o[i]),
@@ -670,22 +672,12 @@ module cpu_top (
         .read_data_o (regfile_dispatch_reg_read_data)
     );
 
-
-    ctrl u_ctrl (
-        .clk(clk),
-        .rst(rst),
-        .stall1(stall1),
-        .stallreq_from_id_1(stallreq_from_id_1),
-        .stallreq_from_ex_1(stallreq_from_ex_1),
-        .stall2(stall2),
-        .stallreq_from_id_2(stallreq_from_id_2),
-        .stallreq_from_ex_2(stallreq_from_ex_2),
-        .idle_stallreq(),
-        .excepttype_i_1(mem_excepttype_o_1),
-        .excepttype_i_2(mem_excepttype_o_2),
-        .new_pc(new_pc),
-        .flush(flush)
+    ctrl u_ctrl(
+    	.ex_branch_flag_i (branch_flag),
+        .ex_mem_flush_o   (ex_mem_flush)
     );
+    
+
 
     LLbit_reg u_LLbit_reg (
         .clk(clk),

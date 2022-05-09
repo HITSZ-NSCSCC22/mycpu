@@ -11,7 +11,7 @@ module decoder_2RI14 #(
     parameter GPR_NUM = 32,
     parameter ALU_OP_WIDTH = 8,
     parameter ALU_SEL_WIDTH = 3
-)(
+) (
     input instr_buffer_info_t instr_info_i,
 
     // indicates current decoder module result is valid or not
@@ -59,25 +59,30 @@ module decoder_2RI14 #(
         reg_read_addr_o = 10'b0;
         imm_o    = {{18{imm_14[13]}}, imm_14};  // Signed Extension
         case (instr[31:24])
-            `EXE_LL_W:begin
+            `EXE_LL_W: begin
                 aluop_o = `EXE_LL_OP;
                 alusel_o = `EXE_RES_MOVE;
                 reg_write_valid_o = 1;
                 reg_write_addr_o = rd;
                 reg_read_valid_o = 2'b01;
-                reg_read_addr_o = {5'b0,rj};
-            end    
-            `EXE_SC_W:begin
+                reg_read_addr_o = {5'b0, rj};
+            end
+            `EXE_SC_W: begin
                 aluop_o = `EXE_SC_OP;
                 alusel_o = `EXE_RES_MOVE;
                 reg_write_valid_o = 0;
                 reg_write_addr_o = 0;
                 reg_read_valid_o = 2'b01;
-                reg_read_addr_o = {5'b0,rj};
+                reg_read_addr_o = {5'b0, rj};
             end
-            default:begin
+            default: begin
                 decode_result_valid_o = 0;
-            end 
+                reg_write_valid_o = 0;
+                reg_write_addr_o = 0;
+                reg_read_valid_o = 0;
+                reg_read_addr_o = 0;
+                imm_o    = 0;
+            end
         endcase
     end
 
