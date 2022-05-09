@@ -35,6 +35,7 @@ typedef struct packed {
     logic [`AluSelBus] alusel;
     logic [`RegAddrBus] reg_write_addr;
     logic reg_write_valid;
+    logic [5:0] branch_com_result;
 
     logic csr_we;
     csr_write_signal csr_signal;

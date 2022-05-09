@@ -178,27 +178,27 @@ module ex (
                     branch_target_address = inst_pc_i + imm;
                 end
                 `EXE_BEQ_OP: begin
-                    if (reg1_i == reg2_i) branch_flag = 1'b1;
+                    if (dispatch_i.branch_com_result[0]) branch_flag = 1'b1;
                     branch_target_address = inst_pc_i + imm;
                 end
                 `EXE_BNE_OP: begin
-                    if (reg1_i != reg2_i) branch_flag = 1'b1;
+                    if (dispatch_i.branch_com_result[1]) branch_flag = 1'b1;
                     branch_target_address = inst_pc_i + imm;
                 end
                 `EXE_BLT_OP: begin
-                    if (reg1_i < reg2_i) branch_flag = 1'b1;
+                    if (dispatch_i.branch_com_result[2]) branch_flag = 1'b1;
                     branch_target_address = inst_pc_i + imm;
                 end
                 `EXE_BGE_OP: begin
-                    if (reg1_i >= reg2_i) branch_flag = 1'b1;
+                    if (dispatch_i.branch_com_result[3]) branch_flag = 1'b1;
                     branch_target_address = inst_pc_i + imm;
                 end
                 `EXE_BLTU_OP: begin
-                    if (reg1_i < reg2_i) branch_flag = 1'b1;
+                    if (dispatch_i.branch_com_result[4]) branch_flag = 1'b1;
                     branch_target_address = inst_pc_i + imm;
                 end
                 `EXE_BGEU_OP: begin
-                    if (reg1_i >= reg2_i) branch_flag = 1'b1;
+                    if (dispatch_i.branch_com_result[5]) branch_flag = 1'b1;
                     branch_target_address = inst_pc_i + imm;
                 end
                 default: begin
