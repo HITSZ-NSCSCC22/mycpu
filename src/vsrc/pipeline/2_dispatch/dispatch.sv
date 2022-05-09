@@ -24,6 +24,16 @@ module dispatch #(
     assign rst_n = ~rst;
 
     generate
+        for (genvar i = 0; i < DECODE_WIDTH; i++) begin : reg_read_comb
+            always_comb begin
+                // Reg read
+                regfile_reg_read_valid_o[i] = id_i[i].reg_read_valid;
+                regfile_reg_read_addr_o[i]  = id_i[i].reg_read_addr;
+            end
+        end
+    endgenerate
+
+    generate
         for (genvar i = 0; i < DECODE_WIDTH; i++) begin
             always_ff @(posedge clk or negedge rst_n) begin : dispatch_ff
 
@@ -37,9 +47,6 @@ module dispatch #(
                 exe_o[i].csr_we <= id_i[i].csr_we;
                 exe_o[i].csr_signal <= id_i[i].csr_signal;
 
-                // Reg read
-                regfile_reg_read_valid_o[i] <= id_i[i].reg_read_valid;
-                regfile_reg_read_addr_o[i] <= id_i[i].reg_read_addr;
                 exe_o[i].oprand1 <= regfile_reg_read_data_i[i][0];
                 exe_o[i].oprand2 <= id_i[i].use_imm ? id_i[i].imm : regfile_reg_read_data_i[i][1];
             end

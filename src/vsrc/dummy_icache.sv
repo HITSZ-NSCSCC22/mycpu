@@ -12,6 +12,7 @@ module dummy_icache #(
 
     // <-> IF
     // All signals are 1 cycle valid
+    input flush,
     // all 0 means invalid
     input logic [ADDR_WIDTH-1:0] raddr_1_i,
     input logic [ADDR_WIDTH-1:0] raddr_2_i,
@@ -51,7 +52,7 @@ module dummy_icache #(
         state, next_state;
 
     always_ff @(posedge clk or negedge rst_n) begin : state_ff
-        if (!rst_n) begin
+        if (!rst_n || flush) begin
             state <= ACCEPT_ADDR;
         end else begin
             state <= next_state;
@@ -61,7 +62,7 @@ module dummy_icache #(
     always_comb begin : transition_comb
         case (state)
             ACCEPT_ADDR: begin
-                if (raddr_1_i != 0 || raddr_2_i != 0) begin
+                if ((raddr_1_i != 0 || raddr_2_i != 0) & ~axi_busy_i) begin
                     next_state = IN_TRANSACTION_1;
                 end else begin
                     next_state = ACCEPT_ADDR;
@@ -101,7 +102,7 @@ module dummy_icache #(
         end
     end
 
-    assign stallreq_o = ~(state == ACCEPT_ADDR);
+    assign stallreq_o = ~(state == ACCEPT_ADDR) | axi_busy_i;
 
     always_ff @(posedge clk or negedge rst_n) begin : axi_ff
         if (!rst_n) begin

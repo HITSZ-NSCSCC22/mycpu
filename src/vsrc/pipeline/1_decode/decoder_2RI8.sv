@@ -57,22 +57,27 @@ module decoder_2RI8 #(
         reg_write_addr_o = rd;
         reg_read_valid_o = 2'b01;
         reg_read_addr_o = {5'b0, rj};
-        imm_o = {27'b0,imm_8[4:0]};
+        imm_o = {27'b0, imm_8[4:0]};
         case (instr[31:18])
-            `EXE_SLLI_W:begin
-                aluop_o = `EXE_SLL_OP;
-                alusel_o = `EXE_RES_SHIFT;
-            end 
-            `EXE_SRLI_W:begin
-                aluop_o = `EXE_SRL_OP;
+            `EXE_SLLI_W: begin
+                aluop_o  = `EXE_SLL_OP;
                 alusel_o = `EXE_RES_SHIFT;
             end
-            `EXE_SRAI_W:begin
-                aluop_o = `EXE_SRA_OP;
+            `EXE_SRLI_W: begin
+                aluop_o  = `EXE_SRL_OP;
+                alusel_o = `EXE_RES_SHIFT;
+            end
+            `EXE_SRAI_W: begin
+                aluop_o  = `EXE_SRA_OP;
                 alusel_o = `EXE_RES_SHIFT;
             end
             default: begin
                 decode_result_valid_o = 0;
+                reg_write_valid_o = 0;
+                reg_write_addr_o = 0;
+                reg_read_valid_o = 0;
+                reg_read_addr_o = 0;
+                imm_o = 0;
             end
         endcase
     end

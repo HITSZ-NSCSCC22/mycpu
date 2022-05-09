@@ -51,6 +51,8 @@ module decoder_1RI20 #(
 
     always_comb begin
         decode_result_valid_o = 1;
+        aluop_o = 0;
+        alusel_o = 0;
         reg_write_valid_o = 1;
         reg_write_addr_o = rd;
         reg_read_valid_o = 2'b00;

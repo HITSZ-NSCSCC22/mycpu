@@ -44,11 +44,11 @@ typedef struct packed {
 
     logic wreg;
     logic [`RegAddrBus] waddr;
-    logic [`RegBus] wdata;
     logic [`AluOpBus] aluop;
     logic [`RegBus] mem_addr;
     logic [`RegBus] reg2;
     csr_write_signal csr_signal;
+    logic [`RegBus] wdata;
 } ex_mem_struct;
 
 typedef struct packed {
@@ -66,7 +66,7 @@ typedef struct packed {
     logic ce;
     logic [3:0] sel;
     logic [`DataAddrBus] addr;
-    logic [`RegBus]data;
+    logic [`RegBus] data;
 } mem_axi_struct;
 
 typedef struct packed {

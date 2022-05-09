@@ -202,6 +202,7 @@ module cpu_top (
         .rst(rst),
 
         // <-> Frontend
+        .flush(backend_flush),
         .raddr_1_i (frontend_icache_addr[0]),
         .raddr_2_i (frontend_icache_addr[1]),
         .stallreq_o(icache_frontend_stallreq),
