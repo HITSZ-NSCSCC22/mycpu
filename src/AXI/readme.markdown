@@ -30,6 +30,10 @@
     output reg [`Data]inst_cpu_data_o,
     output wire inst_stallreq,
     input wire [3:0]inst_id,//决定是读数据还是取指令,默认4’b0000
+   //icache 读请求的类型，3’b100表示一次性读取1个cache行(一个cache行默认4*32bit的数据,inst[addr],inst[addr+4],inst[addr+8],inst[addr+12]);其他值表示一次读取1*32bit数据
+    input wire [2:0]icache_rd_type_i,
+
+
 
     //dcache/MEM
     input wire [`ADDR]data_cpu_addr_i,
@@ -42,7 +46,12 @@
     output reg [`Data]data_cpu_data_o,
     output wire data_stallreq,
     input wire [3:0]data_id,//决定是读数据还是取指令,默认4'b0001
-    
+    // 同icache_rd_type_i
+    input wire [2:0]dcache_rd_type_i,
+    //表示一次性写入的数据，3'b100表示把一个cache行写入连续的4*32bit空间,Mem[addr]=dcache_wr_data[31:0],...Mem[addr+12]=dcache_wr_data[127:96];其他数值表示只写入dcache[31:0]
+    input wire [2:0]dcache_wr_type_i,//decache write type
+    //4*32bit的写入数据，如果只想写一个数据，只需要保证31:0是正确的写入数据即可
+    input wire [`BurstData]dcache_wr_data,//data from dcache
 
     AXI标准信号接口，输出到从机或从从机输入，无需关心内部逻辑，照着接线就好，s是前缀。
     //Slave
@@ -100,6 +109,9 @@
    * 支持写操作，读指令和读数据。若同时发出取指和取数，会并行执行(指同时发送两种请求，若先取指后取数或先取数后取指都无法并行)
    * 如果连续发送两次读请求，则会等待第一个读请求结束在处理第二个读请求
    * 先写后读，写请求结束后才会处理读请求
+   * 所有的请求在请求结束前，都需要保证来自cpu的输入信号不变
+   * dcache/icache_rd/wr_type_i表示一次性读或写的数据量。`3'b100`表示一次性读/写连续四个地址的数据；其他值表示只读/写一个数据，推荐直接写0
+   * 即使没有cache。icache和dcache开头的信号都要接
    ```      
          
             wire aresetn=~rst;
@@ -124,6 +136,7 @@
             .inst_cpu_data_o(inst_data_from_axi),
             .inst_stallreq(stallreq_from_if),
             .inst_id(4'b0000),//决定是读数据还是取指令
+            .icache_rd_type_i(3'b100),//3'b100开启连续读4个数据;0只读一个数据
      
      //dacache/MEM
             .data_cpu_addr_i(data_pc),
@@ -136,7 +149,9 @@
             .data_cpu_data_o(mem_data_from_axi),
             .data_stallreq(stallreq_from_mem),
             .data_id(4'b0001),//决定是读数据还是取指令
-
+            .dcache_rd_type_i(),//同icache
+            .dcache_wr_type_i(),//写的数据量，3'b100表示连续写四个数据至相邻的地址；0表示只写一个数据
+            .dcache_wr_data(),//128bit的写入数据，如果只想写一个那么只需要保证31:0正确
     //ar
             .s_arid(i_arid),  //arbitration
             .s_araddr(i_araddr),
