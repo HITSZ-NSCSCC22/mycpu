@@ -113,7 +113,8 @@ module mem (
             case (signal_i.aluop)
                 `EXE_LD_B_OP: begin
                     signal_axi_o.addr = signal_i.mem_addr;
-                    signal_o.wreg = `WriteDisable;
+                    signal_axi_o.we = `WriteEnable;
+                    signal_o.wreg = `WriteEnable;
                     signal_axi_o.ce = `ChipEnable;
                     case (signal_i.mem_addr[1:0])
                         2'b00: begin
@@ -139,7 +140,7 @@ module mem (
                 end
                 `EXE_LD_H_OP: begin
                     signal_axi_o.addr = signal_i.mem_addr;
-                    signal_o.wreg = `WriteDisable;
+                    signal_o.wreg = `WriteEnable;
                     signal_axi_o.ce = `ChipEnable;
                     case (signal_i.mem_addr[1:0])
                         2'b00: begin
@@ -159,14 +160,14 @@ module mem (
                 end
                 `EXE_LD_W_OP: begin
                     signal_axi_o.addr = signal_i.mem_addr;
-                    signal_o.wreg = `WriteDisable;
+                    signal_o.wreg = `WriteEnable;
                     signal_axi_o.ce = `ChipEnable;
                     signal_axi_o.sel = 4'b1111;
                     signal_o.wdata = mem_data_i;
                 end
                 `EXE_LD_BU_OP: begin
                     signal_axi_o.addr = signal_i.mem_addr;
-                    signal_o.wreg = `WriteDisable;
+                    signal_o.wreg = `WriteEnable;
                     signal_axi_o.ce = `ChipEnable;
                     case (signal_i.mem_addr[1:0])
                         2'b00: begin
@@ -192,7 +193,7 @@ module mem (
                 end
                 `EXE_LD_HU_OP: begin
                     signal_axi_o.addr = signal_i.mem_addr;
-                    signal_o.wreg = `WriteDisable;
+                    signal_o.wreg = `WriteEnable;
                     signal_axi_o.ce = `ChipEnable;
                     case (signal_i.mem_addr[1:0])
                         2'b00: begin
