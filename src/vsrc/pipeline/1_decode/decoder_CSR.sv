@@ -77,6 +77,7 @@ module decoder_CSR #(
             end
             default: begin
                 decode_result_valid_o = 0;
+                aluop_o = `EXE_NOP_OP;
                 reg_write_valid_o = 0;
                 reg_write_addr_o = 0;
                 reg_read_valid_o = 0;

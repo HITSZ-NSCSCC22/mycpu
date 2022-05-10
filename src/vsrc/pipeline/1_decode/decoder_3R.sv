@@ -69,7 +69,7 @@ module decoder_3R #(
                 reg_read_addr_o = 0;
                 instr_break = 1;
             end
-            `EXE_BREAK: begin
+            `EXE_SYSCALL: begin
                 reg_write_valid_o = 0;
                 reg_write_addr_o = 0;
                 reg_read_valid_o = 2'b00;

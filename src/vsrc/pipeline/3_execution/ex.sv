@@ -67,7 +67,6 @@ module ex (
         if (rst == `RstEnable) begin
             logicout = `ZeroWord;
         end else begin
-            ex_o.instr_info = dispatch_i.instr_info;
             case (aluop_i)
                 `EXE_OR_OP: begin
                     logicout = reg1_i | reg2_i;
@@ -82,6 +81,7 @@ module ex (
                     logicout = ~(reg1_i | reg2_i);
                 end
                 default: begin
+                    logicout = `ZeroWord;
                 end
             endcase
         end
@@ -91,8 +91,6 @@ module ex (
         if (rst == `RstEnable) begin
             shiftout = `ZeroWord;
         end else begin
-            // inst_pc_o = inst_pc_i;
-            // inst_valid_o = inst_valid_i;
             case (aluop_i)
                 `EXE_SLL_OP: begin
                     shiftout = reg1_i << reg2_i[4:0];
@@ -104,6 +102,7 @@ module ex (
                     shiftout = ({32{reg1_i[31]}} << (6'd32-{1'b0,reg2_i[4:0]})) | reg1_i >> reg2_i[4:0];
                 end
                 default: begin
+                    shiftout = `ZeroWord;
                 end
             endcase
         end
@@ -148,8 +147,6 @@ module ex (
         if (rst == `RstEnable) begin
             arithout = `ZeroWord;
         end else begin
-            //   inst_pc_o = inst_pc_i;
-            //   inst_valid_o = inst_valid_i;
             case (aluop_i)
                 `EXE_ADD_OP: arithout = reg1_i + reg2_i;
                 `EXE_SUB_OP: arithout = reg1_i - reg2_i;
@@ -159,6 +156,7 @@ module ex (
                 `EXE_MOD_OP: arithout = reg1_i % reg2_i;
                 `EXE_SLT_OP, `EXE_SLTU_OP: arithout = {31'b0, reg1_lt_reg2};
                 default: begin
+                    arithout = `ZeroWord;
                 end
             endcase
         end
@@ -226,14 +224,16 @@ module ex (
                     moveout = reg2_i + ex_o.instr_info.pc;
                 end
                 default: begin
+                    moveout = `ZeroWord;
                 end
             endcase
         end
     end
 
     always @(*) begin
+        ex_o.instr_info = dispatch_i.instr_info;
         ex_o.waddr = wd_i;
-        ex_o.wreg  = wreg_i;
+        ex_o.wreg = wreg_i;
         case (alusel_i)
             `EXE_RES_LOGIC: begin
                 ex_o.wdata = logicout;

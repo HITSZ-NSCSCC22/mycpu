@@ -548,21 +548,22 @@ module cs_reg (
         if (rst) csr_ticlr <= 32'b0;
     end
 
+    // Comment out to resolve multi-driven issue
     //llbitc
-    always @(posedge clk) begin
-        if (rst) begin
-            csr_llbctl[`KLO] <= 1'b0;
-            csr_llbctl[31:3] <= 29'b0;
-            llbit <= 1'b0;
-        end else if (ertn_flush) begin
-            if (csr_llbctl[`KLO]) csr_llbctl[`KLO] <= 1'b0;
-            else llbit <= 1'b0;
-        end else if (we == 1'b1 && waddr == `LLBCTL) begin
-            csr_llbctl[`KLO] <= wdata[`KLO];
-            if (wdata[`WCLLB] == 1'b1) llbit <= 1'b0;
-        end else if (llbit_set_i) llbit <= llbit_i;
+    // always @(posedge clk) begin
+    //     if (rst) begin
+    //         csr_llbctl[`KLO] <= 1'b0;
+    //         csr_llbctl[31:3] <= 29'b0;
+    //         llbit <= 1'b0;
+    //     end else if (ertn_flush) begin
+    //         if (csr_llbctl[`KLO]) csr_llbctl[`KLO] <= 1'b0;
+    //         else llbit <= 1'b0;
+    //     end else if (we == 1'b1 && waddr == `LLBCTL) begin
+    //         csr_llbctl[`KLO] <= wdata[`KLO];
+    //         if (wdata[`WCLLB] == 1'b1) llbit <= 1'b0;
+    //     end else if (llbit_set_i) llbit <= llbit_i;
 
-    end
+    // end
 
 
 

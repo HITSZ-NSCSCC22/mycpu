@@ -77,6 +77,8 @@ module decoder_2RI14 #(
             end
             default: begin
                 decode_result_valid_o = 0;
+                aluop_o = `EXE_NOP_OP;
+                alusel_o = `EXE_RES_NOP;
                 reg_write_valid_o = 0;
                 reg_write_addr_o = 0;
                 reg_read_valid_o = 0;

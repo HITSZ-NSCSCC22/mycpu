@@ -82,6 +82,9 @@ module dummy_icache #(
                     next_state = IN_TRANSACTION_2;
                 end
             end
+            default: begin
+                next_state = ACCEPT_ADDR;
+            end
         endcase
     end
 
@@ -108,7 +111,6 @@ module dummy_icache #(
         if (!rst_n) begin
             axi_addr_o <= 0;
         end else begin
-            axi_addr_o <= 0;
             case (state)
                 ACCEPT_ADDR: begin
                     if (raddr_1_i != 0 && axi_busy_i == 0) axi_addr_o <= raddr_1_i;
@@ -117,6 +119,9 @@ module dummy_icache #(
                     if (raddrs[1] != 0 && axi_busy_i == 0) axi_addr_o <= raddrs[1];
                 end
                 IN_TRANSACTION_2: begin
+                    axi_addr_o <= 0;
+                end
+                default: begin
                     axi_addr_o <= 0;
                 end
             endcase

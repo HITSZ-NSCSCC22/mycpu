@@ -37,7 +37,7 @@ module dispatch #(
         for (genvar i = 0; i < DECODE_WIDTH; i++) begin
             always_ff @(posedge clk or negedge rst_n) begin : dispatch_ff
                 if (!rst_n) begin
-                    exe_o <= 0;
+                    exe_o[i] <= 0; //
                 end else begin
 
                     // Pass through to EXE 
