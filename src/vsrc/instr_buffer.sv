@@ -13,7 +13,7 @@ module instr_buffer #(
     output logic frontend_stallreq_o,  // Require frontend to stop
 
     // <-> Backend
-    input logic [ID_WIDTH-1:0] backend_accept_i,  // Backend can accept 0 or more instructions, must return in current cycle!
+    input logic [ID_WIDTH-1:0] backend_accept_i,  // Backend can accept 0 or more instructions, must return in the next cycle!
     input logic backend_flush_i,  // Backend require flush, maybe branch miss
     output instr_buffer_info_t backend_instr_o[ID_WIDTH]
 
@@ -98,9 +98,10 @@ module instr_buffer #(
 
     // Connect backend_instr_o directly to buffer_queue
     // FIXME: may introduce large latency
+    // OPTIM: may have better ways
     always_comb begin : backend_instr_o_comb
         for (integer i = 0; i < ID_WIDTH; i++) begin
-            backend_instr_o[i] = buffer_queue[read_ptr+i];
+            backend_instr_o[i] = buffer_queue[read_ptr+i+backend_accept_num];
         end
     end
 

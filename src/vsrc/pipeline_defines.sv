@@ -12,7 +12,7 @@ typedef struct packed {
     logic use_imm;
     logic [`RegBus] imm;
     logic [1:0] reg_read_valid;  // Read valid for 2 regs
-    logic [`RegNumLog2*2-1:0] reg_read_addr;  // Read addr, {reg2, reg1}
+    logic [1:0][`RegAddrBus] reg_read_addr;  // Read addr, {reg2, reg1}
     logic [`InstBus] instr;
 
     logic [`AluOpBus] aluop;
