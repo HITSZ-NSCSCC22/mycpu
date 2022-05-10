@@ -69,16 +69,16 @@ module cpu_top (
     input         bvalid,
     output        bready,
     // debug info
-    output [31:0] debug0_wb_pc,
-    output [ 3:0] debug0_wb_rf_wen,
-    output [ 4:0] debug0_wb_rf_wnum,
-    output [31:0] debug0_wb_rf_wdata
+    output logic [31:0] debug0_wb_pc,
+    output logic [ 3:0] debug0_wb_rf_wen,
+    output logic [ 4:0] debug0_wb_rf_wnum,
+    output logic [31:0] debug0_wb_rf_wdata
     `ifdef CPU_2CMT
     ,
-    output [31:0] debug1_wb_pc,
-    output [ 3:0] debug1_wb_rf_wen,
-    output [ 4:0] debug1_wb_rf_wnum,
-    output [31:0] debug1_wb_rf_wdata
+    output logic [31:0] debug1_wb_pc,
+    output logic [ 3:0] debug1_wb_rf_wen,
+    output logic [ 4:0] debug1_wb_rf_wnum,
+    output logic [31:0] debug1_wb_rf_wdata
     `endif
 );
 
@@ -821,10 +821,12 @@ module cpu_top (
         debug0_wb_rf_wen <= {3'b0,wb_reg_signal[0].we};
         debug0_wb_rf_wdata <= wb_reg_signal[0].wdata;
         debug0_wb_rf_wnum <= wb_reg_signal[0].waddr;
+        `ifdef CPU_2CMT
         debug1_wb_pc <= wb_reg_signal[1].pc;
         debug1_wb_rf_wen <= {3'b0, wb_reg_signal[1].we};
         debug1_wb_rf_wdata <= wb_reg_signal[1].wdata;
         debug1_wb_rf_wnum <= wb_reg_signal[1].waddr;
+        `endif
     end
     // difftest dpi-c
 `ifdef SIMU  // simu is defined in chiplab run_func/makefile
