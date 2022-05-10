@@ -250,6 +250,7 @@ module cpu_top (
     );
 
     instr_buffer_info_t ib_backend_instr_info[2];  // IB -> ID
+    logic [5:0] stall;
 
     // Instruction Buffer
     // FIFO buffer
@@ -265,7 +266,7 @@ module cpu_top (
         .frontend_stallreq_o(ib_frontend_stallreq),
 
         // <-> Backend
-        .backend_accept_i({id_id_dispatch[1].instr_info.valid, id_id_dispatch[0].instr_info.valid}),  // FIXME: does not carefully designed
+        .backend_accept_i({id_id_dispatch[1].instr_info.valid, id_id_dispatch[0].instr_info.valid} & {stall[0],stall[0]}),  // FIXME: does not carefully designed
         .backend_flush_i(backend_flush),  // Assure output is reset the next cycle
         .backend_instr_o(ib_backend_instr_info)  // -> ID
     );
@@ -281,24 +282,11 @@ module cpu_top (
     // ID Stage
     generate
         for (genvar i = 0; i < 2; i++) begin : id
-            id #(
-                .EXE_STAGE_WIDTH(2),  // Obviously 2 for now
-                .MEM_STAGE_WIDTH(2)
-            ) u_id (
+            id u_id (
                 .instr_buffer_i(ib_backend_instr_info[i]),
                 // FIXME: excp info, currently unused
                 .excp_i        (),
                 .excp_num_i    (),
-
-                // Data forwarding network, unused for now
-                // TODO: add data forwarding network
-                .ex_write_reg_valid_i (),
-                .ex_write_reg_addr_i  (),
-                .ex_write_reg_data_i  (),
-                .ex_aluop_i           (),
-                .mem_write_reg_valid_i(),
-                .mem_write_reg_addr_i (),
-                .mem_write_reg_data_i (),
 
                 // -> Dispatch
                 .dispatch_o(id_id_dispatch[i]),
@@ -323,7 +311,7 @@ module cpu_top (
     id_dispatch u_id_dispatch (
         .clk       (clk),
         .rst       (rst),
-        .stall     (),
+        .stall     (stall[1]),
         .flush     (backend_flush), // FIXME: does not carefully designed
         .id_i      (id_id_dispatch),
         .dispatch_o(id_dispatch_dispatch)
@@ -332,13 +320,23 @@ module cpu_top (
     // Dispatch -> EXE
     dispatch_ex_struct [1:0] dispatch_exe;
 
+    //
+    ex_dispatch_struct ex_data_forward[2];
+    mem_dispatch_struct mem_data_forward[2];
+
     // Dispatch Stage, Sequential logic
     dispatch #(
-        .DECODE_WIDTH(2)
+        .DECODE_WIDTH(2),
+        .EXE_STAGE_WIDTH(2),
+        .MEM_STAGE_WIDTH(2)
     ) u_dispatch (
         .clk (clk),
         .rst (rst),
         .id_i(id_dispatch_dispatch),
+
+        //Data forwarding    
+        .ex_data_forward(ex_data_forward),
+        .mem_data_forward(mem_data_forward),
 
         // <-> Regfile
         .regfile_reg_read_valid_o(dispatch_regfile_reg_read_valid),
@@ -481,6 +479,8 @@ module cpu_top (
                 .branch_flag(branch_flag[i]),
                 .branch_target_address(branch_target_address[i]),
 
+                .ex_data_forward(ex_data_forward[i]),
+
                 .excp_i(ex_excp_i[i]),
                 .excp_num_i(ex_excp_num_i[i]),
                 .excp_o(ex_excp_o[i]),
@@ -517,7 +517,7 @@ module cpu_top (
                 .mem_i(mem_signal_i[i]),
 
                 // <-> Ctrl
-                .stall(),
+                .stall(stall[2]),
                 .flush(ex_mem_flush[i]),
 
                 .ex_current_inst_address(),
@@ -571,6 +571,8 @@ module cpu_top (
                 .csr_mem_signal(csr_mem_signal),
                 .disable_cache(1'b0),
 
+                .mem_data_forward(mem_data_forward[i]),
+
                 .data_addr_trans_en(mem_data_addr_trans_en[i]),
                 .dmw0_en(mem_data_dmw0_en[i]),
                 .dmw1_en(mem_data_dmw1_en[i]),
@@ -602,7 +604,7 @@ module cpu_top (
             mem_wb u_mem_wb (
                 .clk  (clk),
                 .rst  (rst),
-                .stall(),
+                .stall(stall[3]),
 
                 .mem_signal_o(mem_signal_o[i]),
 

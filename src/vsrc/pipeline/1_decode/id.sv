@@ -25,29 +25,12 @@
 // 2. Calculate anything, such as branch target
 // TODO: move regfile read to dispatch stage
 // 
-module id #(
-    parameter EXE_STAGE_WIDTH = 2,
-    parameter MEM_STAGE_WIDTH = 2
-) (
+module id (
     // <- Instruction Buffer
     input instr_buffer_info_t instr_buffer_i,
 
     input logic excp_i,
     input logic [3:0] excp_num_i,
-
-    // <- EXE
-    // Data forwarding
-    input logic ex_write_reg_valid_i[EXE_STAGE_WIDTH],
-    input logic [`RegAddrBus] ex_write_reg_addr_i[EXE_STAGE_WIDTH],
-    input logic [`RegBus] ex_write_reg_data_i[EXE_STAGE_WIDTH],
-    input logic [`AluOpBus] ex_aluop_i[EXE_STAGE_WIDTH],
-
-    // <- Mem
-    // Data forwarding
-    input logic mem_write_reg_valid_i[MEM_STAGE_WIDTH],
-    input logic [`RegAddrBus] mem_write_reg_addr_i[MEM_STAGE_WIDTH],
-    input logic [`RegBus] mem_write_reg_data_i[MEM_STAGE_WIDTH],
-
 
     // -> Dispatch
     output id_dispatch_struct dispatch_o,
@@ -238,6 +221,15 @@ module id #(
     assign broadcast_excp_num_o = {
         excp_ipe, excp_ine, instr_break, instr_syscall, excp_num_i, has_int
     };
+
+    //logic pre_load;
+    //assign pre_load = ((ex_aluop_i == `EXE_LB_OP) ||(ex_aluop_i == `EXE_LBU_OP)||(ex_aluop_i == `EXE_LH_OP) ||
+  	//												(ex_aluop_i == `EXE_LHU_OP)||
+  	//												(ex_aluop_i == `EXE_LW_OP) ||
+  	//												(ex_aluop_i == `EXE_LWR_OP)||
+  	//												(ex_aluop_i == `EXE_LWL_OP)||
+  	//												(ex_aluop_i == `EXE_LL_OP) ||
+  	//												(ex_aluop_i == `EXE_SC_OP)) ? 1'b1 : 1'b0;
 
     // TODO: ex_op generate rules not implemented yet
 

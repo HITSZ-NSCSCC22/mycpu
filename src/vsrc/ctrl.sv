@@ -2,6 +2,7 @@
 module ctrl (
     input logic [1:0] ex_branch_flag_i,
 
+    output logic [5:0] stall,
     output logic [1:0] ex_mem_flush_o
 );
 

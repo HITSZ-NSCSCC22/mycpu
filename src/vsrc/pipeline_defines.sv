@@ -42,6 +42,13 @@ typedef struct packed {
 } dispatch_ex_struct;
 
 typedef struct packed {
+    logic reg_valid;
+    logic [`RegAddrBus] reg_addr;
+    logic [`RegBus] reg_data;
+    logic [`AluOpBus] aluop_i;
+} ex_dispatch_struct;
+
+typedef struct packed {
     instr_buffer_info_t instr_info;
 
     logic wreg;
@@ -52,6 +59,12 @@ typedef struct packed {
     csr_write_signal csr_signal;
     logic [`RegBus] wdata;
 } ex_mem_struct;
+
+typedef struct packed {
+    logic reg_valid;
+    logic [`RegAddrBus] reg_addr;
+    logic [`RegBus] reg_data;
+} mem_dispatch_struct;
 
 typedef struct packed {
     instr_buffer_info_t instr_info;

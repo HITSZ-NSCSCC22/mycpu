@@ -16,6 +16,8 @@ module ex (
     output logic branch_flag,
     output logic [`RegBus] branch_target_address,
 
+    output ex_dispatch_struct ex_data_forward,
+
     input logic excp_i,
     input logic [8:0] excp_num_i,
     output logic excp_o,
@@ -52,6 +54,8 @@ module ex (
     assign ex_o.aluop = aluop_i;
     assign ex_o.mem_addr = reg1_i + {{20{inst_i[21]}}, inst_i[21:10]};
     assign ex_o.reg2 = reg2_i;
+
+    assign ex_data_forward = {ex_o.wreg,ex_o.waddr,ex_o.wdata,ex_o.aluop};
 
     csr_write_signal csr_signal_i;
     assign csr_signal_i = dispatch_i.csr_signal;

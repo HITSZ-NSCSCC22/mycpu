@@ -25,6 +25,8 @@ module mem (
     input csr_to_mem_struct csr_mem_signal,
     input logic disable_cache,
 
+    output mem_dispatch_struct mem_data_forward,
+
     //to addr trans 
     output logic data_addr_trans_en,
     output logic dmw0_en,
@@ -70,6 +72,8 @@ module mem (
     assign da_mode = csr_mem_signal.csr_da && !csr_mem_signal.csr_pg;
 
     assign data_addr_trans_en = pg_mode && !dmw0_en && !dmw1_en && !cacop_op_mode_di;
+
+    assign mem_data_forward = {signal_o.wreg,signal_o.waddr,signal_o.wdata};
 
     assign excp_tlbr = access_mem && !tlb_mem_signal.data_tlb_found && data_addr_trans_en;
     assign excp_pil  = mem_load_op  && !tlb_mem_signal.data_tlb_v && data_addr_trans_en;  //cache will generate pil exception??

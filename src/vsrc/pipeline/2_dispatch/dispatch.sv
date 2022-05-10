@@ -2,7 +2,9 @@
 `include "pipeline_defines.sv"
 
 module dispatch #(
-    parameter DECODE_WIDTH = 2
+    parameter DECODE_WIDTH = 2,
+    parameter EXE_STAGE_WIDTH = 2,
+    parameter MEM_STAGE_WIDTH = 2
 ) (
     input logic clk,
     input logic rst,
@@ -14,6 +16,14 @@ module dispatch #(
     output logic [DECODE_WIDTH-1:0][1:0] regfile_reg_read_valid_o,  // Read valid for 2 regs
     output logic [DECODE_WIDTH-1:0][`RegNumLog2*2-1:0] regfile_reg_read_addr_o,  // Read addr, {reg2, reg1}
     input logic [DECODE_WIDTH-1:0][1:0][`RegBus] regfile_reg_read_data_i,  // Read result
+
+    // <- EXE
+    // Data forwarding
+    input ex_dispatch_struct ex_data_forward[EXE_STAGE_WIDTH],
+
+    // <- Mem
+    // Data forwarding
+    input mem_dispatch_struct mem_data_forward[MEM_STAGE_WIDTH],
 
     // Dispatch Port
     output dispatch_ex_struct [DECODE_WIDTH-1:0] exe_o
@@ -29,6 +39,17 @@ module dispatch #(
                 // Reg read
                 regfile_reg_read_valid_o[i] = id_i[i].reg_read_valid;
                 regfile_reg_read_addr_o[i]  = id_i[i].reg_read_addr;
+            end
+        end
+    endgenerate
+
+    //data relate
+    generate
+        for (genvar i = 0; i < DECODE_WIDTH; i++) begin : data_relate
+            always_comb begin
+                // Reg read
+                exe_o[i].oprand1 = regfile_reg_read_data_i[i][0];
+                exe_o[i].oprand2 = id_i[i].use_imm ? id_i[i].imm : regfile_reg_read_data_i[i][1];
             end
         end
     endgenerate
@@ -50,8 +71,6 @@ module dispatch #(
                     exe_o[i].csr_we <= id_i[i].csr_we;
                     exe_o[i].csr_signal <= id_i[i].csr_signal;
 
-                    exe_o[i].oprand1 <= regfile_reg_read_data_i[i][0];
-                    exe_o[i].oprand2 <= id_i[i].use_imm ? id_i[i].imm : regfile_reg_read_data_i[i][1];
                     exe_o[i].imm <= id_i[i].imm;
                     exe_o[i].branch_com_result[0] <= regfile_reg_read_data_i[i][0] == regfile_reg_read_data_i[i][1];
                     exe_o[i].branch_com_result[1] <= regfile_reg_read_data_i[i][0] != regfile_reg_read_data_i[i][1];
