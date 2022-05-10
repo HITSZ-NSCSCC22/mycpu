@@ -106,7 +106,7 @@
     output reg s_bready
 ```
 
-# 本版本为面向cache的版本，面向CPU的版本，请见上一个版本
+# 本版本为面向cache的版本，面向CPU的版本，请见上一个版本。AXI对cache有特定要求务必要仔细阅读说明，尤其是第4点说明，关系到store指令能否实现
 
 ## 使用说明
 1. 把axi_Master主机接口放到cpuTop中实例化     
@@ -197,7 +197,7 @@
             .s_wid(i_wid),
             .s_wdata(i_wdata),
             .s_wstrb(i_wstrb),//字节选通位和sel差不多，写32字节用4'b1111
-            .s_wlast(i_wlast),
+            .s_wlast(i_wlast),//要接cache，用来进行write buffer的判断，详见说明
             .s_wvalid(i_wvalid),
             .s_wready(i_wready),
 
