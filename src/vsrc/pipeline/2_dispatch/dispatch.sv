@@ -25,6 +25,10 @@ module dispatch #(
     // Data forwarding
     input mem_dispatch_struct mem_data_forward[MEM_STAGE_WIDTH],
 
+    //<- Ctrl
+    //request for stall
+    output logic stallreg_from_dispatch,
+
     // Dispatch Port
     output dispatch_ex_struct [DECODE_WIDTH-1:0] exe_o
 );
@@ -32,6 +36,28 @@ module dispatch #(
     // Reset signal
     logic rst_n;
     assign rst_n = ~rst;
+
+    //Load relate
+    logic pre_load;
+    assign pre_load = ((ex_data_forward[1].aluop_i == `EXE_LD_B_OP) ||(ex_data_forward[1].aluop_i == `EXE_LD_H_OP)||
+                       (ex_data_forward[1].aluop_i == `EXE_LD_W_OP) ||(ex_data_forward[1].aluop_i == `EXE_ST_B_OP)||
+                       (ex_data_forward[1].aluop_i == `EXE_ST_H_OP) ||(ex_data_forward[1].aluop_i == `EXE_ST_W_OP)||
+                       (ex_data_forward[1].aluop_i == `EXE_LD_BU_OP)||(ex_data_forward[1].aluop_i == `EXE_LD_HU_OP) ||
+                       (ex_data_forward[1].aluop_i == `EXE_LL_OP)   ||(ex_data_forward[1].aluop_i == `EXE_SC_OP)) ||
+                      ((ex_data_forward[0].aluop_i == `EXE_LD_B_OP) ||(ex_data_forward[0].aluop_i == `EXE_LD_H_OP)||
+                       (ex_data_forward[0].aluop_i == `EXE_LD_W_OP) ||(ex_data_forward[0].aluop_i == `EXE_ST_B_OP)||
+                       (ex_data_forward[0].aluop_i == `EXE_ST_H_OP) ||(ex_data_forward[0].aluop_i == `EXE_ST_W_OP)||
+                       (ex_data_forward[0].aluop_i == `EXE_LD_BU_OP)||(ex_data_forward[0].aluop_i == `EXE_LD_HU_OP) ||
+                       (ex_data_forward[0].aluop_i == `EXE_LL_OP)   ||(ex_data_forward[0].aluop_i == `EXE_SC_OP))? 1'b1 : 1'b0;
+
+
+    always_comb begin
+        if(rst)
+            stallreg_from_dispatch = `NoStop;
+        else if(pre_load)
+            stallreg_from_dispatch = `Stop;
+    end
+
 
     generate
         for (genvar i = 0; i < DECODE_WIDTH; i++) begin : reg_read_comb
@@ -44,15 +70,48 @@ module dispatch #(
     endgenerate
 
     //data relate
+    logic [`RegBus] oprand1,oprand2;
+
+      generate
+        for (genvar i = 0; i < DECODE_WIDTH; i++)
+            always_comb begin 
+                if (!rst_n) begin
+                    oprand1 = 0; //
+                end else begin
+                    if(ex_data_forward[1].reg_valid == `WriteEnable && ex_data_forward[1].reg_addr == regfile_reg_read_addr_o[i][4:0])
+                        oprand1 = ex_data_forward[1].reg_data;
+                    else if(ex_data_forward[0].reg_valid == `WriteEnable && ex_data_forward[1].reg_addr == regfile_reg_read_addr_o[i][4:0])
+                        oprand1 = ex_data_forward[0].reg_data;
+                    else if(mem_data_forward[1].reg_valid == `WriteEnable && mem_data_forward[1].reg_addr == regfile_reg_read_addr_o[i][4:0])
+                        oprand1 = mem_data_forward[1].reg_data;
+                    else if(mem_data_forward[0].reg_valid == `WriteEnable && mem_data_forward[1].reg_addr == regfile_reg_read_addr_o[i][4:0])
+                        oprand1 = mem_data_forward[0].reg_data;
+                    else 
+                        oprand1 = regfile_reg_read_data_i[i][0];
+                end
+            end
+    endgenerate
+
     generate
-        for (genvar i = 0; i < DECODE_WIDTH; i++) begin : data_relate
-            always_comb begin
-                // Reg read
-                exe_o[i].oprand1 = regfile_reg_read_data_i[i][0];
-                exe_o[i].oprand2 = id_i[i].use_imm ? id_i[i].imm : regfile_reg_read_data_i[i][1];
+        for (genvar i = 0; i < DECODE_WIDTH; i++) begin
+            always_comb begin 
+                if (!rst_n) begin
+                    oprand2 = 0; //
+                end else begin
+                    if(ex_data_forward[1].reg_valid == `WriteEnable && ex_data_forward[1].reg_addr == regfile_reg_read_addr_o[i][4:0])
+                        oprand2 = ex_data_forward[1].reg_data;
+                    else if(ex_data_forward[0].reg_valid == `WriteEnable && ex_data_forward[1].reg_addr == regfile_reg_read_addr_o[i][4:0])
+                        oprand2 = ex_data_forward[0].reg_data;
+                    else if(mem_data_forward[1].reg_valid == `WriteEnable && mem_data_forward[1].reg_addr == regfile_reg_read_addr_o[i][4:0])
+                        oprand2 = mem_data_forward[1].reg_data;
+                    else if(mem_data_forward[0].reg_valid == `WriteEnable && mem_data_forward[1].reg_addr == regfile_reg_read_addr_o[i][4:0])
+                        oprand2 = mem_data_forward[0].reg_data;
+                    else 
+                        oprand2 = id_i[i].use_imm ? id_i[i].imm : regfile_reg_read_data_i[i][1];
+                end
             end
         end
-    endgenerate
+    endgenerate            
 
     generate
         for (genvar i = 0; i < DECODE_WIDTH; i++) begin
@@ -70,6 +129,8 @@ module dispatch #(
                     exe_o[i].reg_write_valid <= id_i[i].reg_write_valid;
                     exe_o[i].csr_we <= id_i[i].csr_we;
                     exe_o[i].csr_signal <= id_i[i].csr_signal;
+                    exe_o[i].oprand1 <= oprand1;
+                    exe_o[i].oprand2 <= oprand2;
 
                     exe_o[i].imm <= id_i[i].imm;
                     exe_o[i].branch_com_result[0] <= regfile_reg_read_data_i[i][0] == regfile_reg_read_data_i[i][1];

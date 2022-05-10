@@ -266,7 +266,7 @@ module cpu_top (
         .frontend_stallreq_o(ib_frontend_stallreq),
 
         // <-> Backend
-        .backend_accept_i({id_id_dispatch[1].instr_info.valid, id_id_dispatch[0].instr_info.valid} & {stall[0],stall[0]}),  // FIXME: does not carefully designed
+        .backend_accept_i({id_id_dispatch[1].instr_info.valid, id_id_dispatch[0].instr_info.valid} & {~stall[0],~stall[0]}),  // FIXME: does not carefully designed
         .backend_flush_i(backend_flush),  // Assure output is reset the next cycle
         .backend_instr_o(ib_backend_instr_info)  // -> ID
     );
@@ -320,9 +320,12 @@ module cpu_top (
     // Dispatch -> EXE
     dispatch_ex_struct [1:0] dispatch_exe;
 
-    //
+    //data relate
     ex_dispatch_struct ex_data_forward[2];
     mem_dispatch_struct mem_data_forward[2];
+
+    //load relate
+    logic stallreg_from_dispatch;
 
     // Dispatch Stage, Sequential logic
     dispatch #(
@@ -342,6 +345,8 @@ module cpu_top (
         .regfile_reg_read_valid_o(dispatch_regfile_reg_read_valid),
         .regfile_reg_read_addr_o (dispatch_regfile_reg_read_addr),
         .regfile_reg_read_data_i (regfile_dispatch_reg_read_data),
+
+        .stallreg_from_dispatch(stallreg_from_dispatch),
 
         // -> EXE
         .exe_o(dispatch_exe)
@@ -667,6 +672,9 @@ module cpu_top (
 
     ctrl u_ctrl(
     	.ex_branch_flag_i (branch_flag),
+        .stallreg_from_dispatch(stallreg_from_dispatch),
+
+        .stall(),
         .ex_mem_flush_o   (ex_mem_flush)
     );
     

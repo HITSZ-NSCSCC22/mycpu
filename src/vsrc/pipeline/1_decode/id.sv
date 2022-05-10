@@ -222,14 +222,6 @@ module id (
         excp_ipe, excp_ine, instr_break, instr_syscall, excp_num_i, has_int
     };
 
-    //logic pre_load;
-    //assign pre_load = ((ex_aluop_i == `EXE_LB_OP) ||(ex_aluop_i == `EXE_LBU_OP)||(ex_aluop_i == `EXE_LH_OP) ||
-  	//												(ex_aluop_i == `EXE_LHU_OP)||
-  	//												(ex_aluop_i == `EXE_LW_OP) ||
-  	//												(ex_aluop_i == `EXE_LWR_OP)||
-  	//												(ex_aluop_i == `EXE_LWL_OP)||
-  	//												(ex_aluop_i == `EXE_LL_OP) ||
-  	//												(ex_aluop_i == `EXE_SC_OP)) ? 1'b1 : 1'b0;
 
     // TODO: ex_op generate rules not implemented yet
 
