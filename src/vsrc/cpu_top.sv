@@ -335,9 +335,14 @@ module cpu_top (
     ) u_dispatch (
         .clk (clk),
         .rst (rst),
+
+        // <- ID
         .id_i(id_dispatch_dispatch),
 
-        //Data forwarding    
+        .stall(),
+        .flush(backend_flush),
+
+        // Data forwarding    
         .ex_data_forward(ex_data_forward),
         .mem_data_forward(mem_data_forward),
 

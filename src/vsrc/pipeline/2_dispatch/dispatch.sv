@@ -12,7 +12,11 @@ module dispatch #(
     // <- ID
     input id_dispatch_struct [DECODE_WIDTH-1:0] id_i,
 
-    // <-> Regfile
+    // <- Ctrl
+    input logic stall,
+    input logic flush,
+
+    // <-> Regfile, wire
     output logic [DECODE_WIDTH-1:0][1:0] regfile_reg_read_valid_o,  // Read valid for 2 regs
     output logic [DECODE_WIDTH-1:0][1:0][`RegAddrBus] regfile_reg_read_addr_o,  // Read addr, {reg2, reg1}
     input logic [DECODE_WIDTH-1:0][1:0][`RegBus] regfile_reg_read_data_i,  // Read result
@@ -25,7 +29,7 @@ module dispatch #(
     // Data forwarding
     input mem_dispatch_struct mem_data_forward[MEM_STAGE_WIDTH],
 
-    // -> Instruction Buffer
+    // -> Instruction Buffer, wire
     output logic [DECODE_WIDTH-1:0] ib_accept_o,
 
     // Dispatch Port
@@ -109,7 +113,11 @@ module dispatch #(
         for (genvar i = 0; i < DECODE_WIDTH; i++) begin
             always_ff @(posedge clk or negedge rst_n) begin : dispatch_ff
                 if (!rst_n) begin
-                    exe_o[i] <= 0;  //
+                    exe_o[i] <= 0;
+                end else if (flush) begin
+                    exe_o[i] <= 0;
+                end else if (stall) begin
+                    // Do nothing, hold output
                 end else if (do_we_issue[i] == 0) begin
                     exe_o[i] <= 0;  // Cannot be issued, so do not issue
                 end else begin
