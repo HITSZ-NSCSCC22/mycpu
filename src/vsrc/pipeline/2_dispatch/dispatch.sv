@@ -94,8 +94,7 @@ module dispatch #(
         for (genvar i = 0; i < DECODE_WIDTH; i++) begin
             always_comb begin
                 begin
-                    if (id_i[i].use_imm) oprand2[i] = id_i[i].imm;
-                    else if(ex_data_forward[1].reg_valid == `WriteEnable && ex_data_forward[1].reg_addr == regfile_reg_read_addr_o[i][1] && id_i[i].reg_read_valid[1])
+                    if(ex_data_forward[1].reg_valid == `WriteEnable && ex_data_forward[1].reg_addr == regfile_reg_read_addr_o[i][1] && id_i[i].reg_read_valid[1])
                         oprand2[i] = ex_data_forward[1].reg_data;
                     else if(ex_data_forward[0].reg_valid == `WriteEnable && ex_data_forward[0].reg_addr == regfile_reg_read_addr_o[i][1] && id_i[i].reg_read_valid[1])
                         oprand2[i] = ex_data_forward[0].reg_data;
@@ -131,16 +130,17 @@ module dispatch #(
                     exe_o[i].reg_write_valid <= id_i[i].reg_write_valid;
                     exe_o[i].csr_we <= id_i[i].csr_we;
                     exe_o[i].csr_signal <= id_i[i].csr_signal;
+
                     exe_o[i].oprand1 <= oprand1[i];
-                    exe_o[i].oprand2 <= oprand2[i];
+                    exe_o[i].oprand2 <= id_i[i].use_imm ? id_i[i].imm : oprand2[i];
 
                     exe_o[i].imm <= id_i[i].imm;
-                    exe_o[i].branch_com_result[0] <= regfile_reg_read_data_i[i][0] == regfile_reg_read_data_i[i][1];
-                    exe_o[i].branch_com_result[1] <= regfile_reg_read_data_i[i][0] != regfile_reg_read_data_i[i][1];
-                    exe_o[i].branch_com_result[2] <= ({~regfile_reg_read_data_i[i][0][31],regfile_reg_read_data_i[i][0][30:0]} < {~regfile_reg_read_data_i[i][0][31],regfile_reg_read_data_i[i][1][30:0]});
-                    exe_o[i].branch_com_result[3] <= ({~regfile_reg_read_data_i[i][0][31],regfile_reg_read_data_i[i][0][30:0]} >= {~regfile_reg_read_data_i[i][0][31],regfile_reg_read_data_i[i][1][30:0]});
-                    exe_o[i].branch_com_result[4] <= regfile_reg_read_data_i[i][0] < regfile_reg_read_data_i[i][1];
-                    exe_o[i].branch_com_result[5] <= regfile_reg_read_data_i[i][0] >= regfile_reg_read_data_i[i][1];
+                    exe_o[i].branch_com_result[0] <= oprand1[i] == oprand2[i];
+                    exe_o[i].branch_com_result[1] <= oprand1[i] != oprand2[i];
+                    exe_o[i].branch_com_result[2] <= ({~oprand1[i][31],oprand1[i][30:0]} < {~oprand2[i][31],oprand2[i][30:0]});
+                    exe_o[i].branch_com_result[3] <= ({~oprand1[i][31],oprand1[i][30:0]} >= {~oprand2[i][31],oprand2[i][30:0]});
+                    exe_o[i].branch_com_result[4] <= oprand1[i] < oprand2[i];
+                    exe_o[i].branch_com_result[5] <= oprand1[i] >= oprand2[i];
                 end
             end
         end

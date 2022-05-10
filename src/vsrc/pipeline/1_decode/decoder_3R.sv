@@ -54,7 +54,7 @@ module decoder_3R #(
         reg_write_valid_o = 1;
         reg_write_addr_o = rd;
         reg_read_valid_o = 2'b11;
-        reg_read_addr_o = {rj, rk};
+        reg_read_addr_o = {rk, rj};
         instr_break = 0;
         instr_syscall = 0;
         // Default
