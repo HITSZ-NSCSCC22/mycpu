@@ -21,30 +21,24 @@
     来自cpu和输出到cpu的信号，其中只有inst_cpu_data_o,data_cpu_data_o和inst_stallreq,data_stallreq是输出的。
     //icache/IF
     input wire [`ADDR]inst_cpu_addr_i,
-    input wire inst_cpu_ce_i,
     input wire [`Data]inst_cpu_data_i,
-    input wire inst_cpu_we_i ,
-    input wire [3:0]inst_cpu_sel_i, 
-    input wire inst_stall_i,
     input wire inst_flush_i,
     output reg [`Data]inst_cpu_data_o,
-    output wire inst_stallreq,
     input wire [3:0]inst_id,//决定是读数据还是取指令,默认4’b0000
    //icache 读请求的类型，3’b100表示一次性读取1个cache行(一个cache行默认4*32bit的数据,inst[addr],inst[addr+4],inst[addr+8],inst[addr+12]);其他值表示一次读取1*32bit数据
     input wire [2:0]icache_rd_type_i,
-
+    input wire icache_rd_req_i,//读请求使能信号，高位有效
+    output reg icache_rd_rdy_o,//读请求可被接受
+    output reg icache_ret_valid_o,//读数据有效
+    output reg [1:0]icache_ret_last_o,//最后一个读数据
 
 
     //dcache/MEM
     input wire [`ADDR]data_cpu_addr_i,
-    input wire data_cpu_ce_i,
     input wire [`Data]data_cpu_data_i,
-    input wire data_cpu_we_i ,
     input wire [3:0]data_cpu_sel_i, 
-    input wire data_stall_i,
     input wire data_flush_i,
     output reg [`Data]data_cpu_data_o,
-    output wire data_stallreq,
     input wire [3:0]data_id,//决定是读数据还是取指令,默认4'b0001
     // 同icache_rd_type_i
     input wire [2:0]dcache_rd_type_i,
@@ -52,6 +46,15 @@
     input wire [2:0]dcache_wr_type_i,//decache write type
     //4*32bit的写入数据，如果只想写一个数据，只需要保证31:0是正确的写入数据即可
     input wire [`BurstData]dcache_wr_data,//data from dcache
+    input wire [2:0]dcache_rd_type_i,
+    input wire dcache_rd_req_i,
+    output reg dcache_rd_rdy_o,
+    output reg dcache_ret_valid_o,
+    output reg [1:0]dcache_ret_last_o,
+    input wire dcache_wr_req_i,//写使能，高为有效
+    output reg dcache_wr_rdy,//写请求可被接受
+
+
 
     AXI标准信号接口，输出到从机或从从机输入，无需关心内部逻辑，照着接线就好，s是前缀。
     //Slave
@@ -103,15 +106,16 @@
     output reg s_bready
 ```
 
+# 本版本为面向cache的版本，面向CPU的版本，请见上一个版本
+
 ## 使用说明
 1. 把axi_Master主机接口放到cpuTop中实例化     
-   * 实现仲裁的axi接口(不支持同种请求的连续发送和突发传输，支持同时送取指和取数)，取值id接口`4’b0000`,取数id接口`4'b0001`
+   * 实现仲裁的axi接口(不支持同种请求的连续发送，支持同时送取指和取数核突发传送)，取值id接口`4’b0000`,取数id接口`4'b0001`
    * 支持写操作，读指令和读数据。若同时发出取指和取数，会并行执行(指同时发送两种请求，若先取指后取数或先取数后取指都无法并行)
    * 如果连续发送两次读请求，则会等待第一个读请求结束在处理第二个读请求
    * 先写后读，写请求结束后才会处理读请求
    * 所有的请求在请求结束前，都需要保证来自cpu的输入信号不变
    * dcache/icache_rd/wr_type_i表示一次性读或写的数据量。`3'b100`表示一次性读/写连续四个地址的数据；其他值表示只读/写一个数据，推荐直接写0
-   * 即使没有cache。icache和dcache开头的信号都要接
    ```      
          
             wire aresetn=~rst;
@@ -127,31 +131,36 @@
             .aresetn(aresetn), //low is valid
     //icache/IF
             .inst_cpu_addr_i(inst_pc),
-            .inst_cpu_ce_i(inst_chip_enable),
-            .inst_cpu_data_i(0),
-            .inst_cpu_we_i(0) ,
             .inst_cpu_sel_i(4'b1111), 
-            .inst_stall_i(0),
             .inst_flush_i(0),
             .inst_cpu_data_o(inst_data_from_axi),
-            .inst_stallreq(stallreq_from_if),
             .inst_id(4'b0000),//决定是读数据还是取指令
             .icache_rd_type_i(3'b100),//3'b100开启连续读4个数据;0只读一个数据
-     
+            .icache_rd_req_i(),//接读使能
+            .icache_rd_rdy_o(),//接读请求握手信号
+            .icache_ret_valid_o(),//接读有效信号
+            .icache_ret_last_o(),//接最后一个读数据信号
+
+
      //dacache/MEM
             .data_cpu_addr_i(data_pc),
-            .data_cpu_ce_i(data_chip_enable),
             .data_cpu_data_i(data),
-            .data_cpu_we_i(data_we) ,
             .data_cpu_sel_i(4'b1111), 
-            .data_stall_i(0),
             .data_flush_i(0),
             .data_cpu_data_o(mem_data_from_axi),
-            .data_stallreq(stallreq_from_mem),
             .data_id(4'b0001),//决定是读数据还是取指令
             .dcache_rd_type_i(),//同icache
             .dcache_wr_type_i(),//写的数据量，3'b100表示连续写四个数据至相邻的地址；0表示只写一个数据
             .dcache_wr_data(),//128bit的写入数据，如果只想写一个那么只需要保证31:0正确
+            .dcache_rd_req_i(),
+            .dcache_rd_rdy_o(),
+            .dcache_ret_valid_o(),
+            .dcache_ret_last_o(),
+            .dcache_wr_data(),//data from dcache
+            .dcache_wr_req_i(),//write enable signal
+            .dcache_wr_rdy(),//write can receive
+
+
     //ar
             .s_arid(i_arid),  //arbitration
             .s_araddr(i_araddr),
@@ -205,3 +214,5 @@
 2. inst_data_from_axi，mem_data_from为从ram中取到的数据  
 
 3. xxx_cpu_sel_i为字节选通使能，用来实现store类型。
+
+4. 关于cache给AXI的信号。在AXI完成写或读请求前，cache的信号必须要持续的拉高。对于读指令，当ret_last拉高时，才能更新输出给AXI的信号（req，type，addr）;`重点`对于写请求，只有当wlast(对应，s_wlast接口的信号)拉高时，才能更新给AXI的信号，这个地方时书上没有写的，需要注意，不然写会失败。
