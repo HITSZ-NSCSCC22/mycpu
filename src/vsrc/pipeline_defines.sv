@@ -74,6 +74,13 @@ typedef struct packed {
     logic [`RegBus] wdata;
     logic [`AluOpBus] aluop;
     csr_write_signal csr_signal;
+
+    //load store difftest
+    logic [7:0] inst_ld_en;
+    logic [7:0] inst_st_en;
+    logic [`DataAddrBus] load_addr;
+    logic [`DataAddrBus] store_addr;
+    logic [`RegBus] store_data;
 } mem_wb_struct;
 
 typedef struct packed {

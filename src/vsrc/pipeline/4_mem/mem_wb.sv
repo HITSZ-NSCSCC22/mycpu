@@ -1,16 +1,16 @@
 `include "pipeline_defines.sv"
 
 module mem_wb (
-    input wire clk,
-    input wire rst,
-    input wire stall,
+    input logic clk,
+    input logic rst,
+    input logic stall,
 
     input mem_wb_struct mem_signal_o,
 
-    input wire mem_LLbit_we,
-    input wire mem_LLbit_value,
+    input logic mem_LLbit_we,
+    input logic mem_LLbit_value,
 
-    input wire flush,
+    input logic flush,
 
 
     output wb_reg wb_reg_o,
@@ -24,20 +24,29 @@ module mem_wb (
     output reg wb_LLbit_we,
     output reg wb_LLbit_value,
 
-    input wire excp_i,
-    input wire [15:0] excp_num,
+    input logic excp_i,
+    input logic [15:0] excp_num,
 
     //to csr
-    output wire [31:0] csr_era,
-    output wire [8:0] csr_esubcode,
-    output wire [5:0] csr_ecode,
-    output wire excp_flush,
-    output wire ertn_flush,
-    output wire va_error,
-    output wire [31:0] bad_va,
-    output wire excp_tlbrefill,
-    output wire excp_tlb,
-    output wire [18:0] excp_tlb_vppn
+    output logic [31:0] csr_era,
+    output logic [8:0] csr_esubcode,
+    output logic [5:0] csr_ecode,
+    output logic excp_flush,
+    output logic ertn_flush,
+    output logic va_error,
+    output logic [31:0] bad_va,
+    output logic excp_tlbrefill,
+    output logic excp_tlb,
+    output logic [18:0] excp_tlb_vppn,
+
+    // load store relate difftest
+    output logic [7:0] debug_commit_inst_ld_en,
+    output logic [31:0] debug_commit_ld_paddr,
+    output logic [31:0] debug_commit_ld_vaddr,
+    output logic [7:0] debug_commit_inst_st_en,
+    output logic [31:0] debug_commit_st_paddr,
+    output logic [31:0] debug_commit_st_vaddr,
+    output logic [31:0] debug_commit_st_data
 );
 
     reg wb_valid;
@@ -96,6 +105,13 @@ module mem_wb (
             debug_commit_instr <= `ZeroWord;
             debug_commit_pc <= `ZeroWord;
             debug_commit_valid <= `InstInvalid;
+            debug_commit_inst_ld_en <= 8'b0;
+            debug_commit_inst_st_en <= 8'b0;
+            debug_commit_ld_paddr <= `ZeroWord;
+            debug_commit_ld_vaddr <= `ZeroWord;
+            debug_commit_st_paddr <= `ZeroWord;
+            debug_commit_st_vaddr <= `ZeroWord;
+            debug_commit_st_data <= `ZeroWord;
         end else if (flush == 1'b1 || excp_i == 1'b1 || mem_signal_o.aluop == `EXE_ERTN_OP) begin
             wb_reg_o.waddr    <= `NOPRegAddr;
             wb_reg_o.we  <= `WriteDisable;
@@ -108,6 +124,13 @@ module mem_wb (
             debug_commit_instr <= `ZeroWord;
             debug_commit_pc <= `ZeroWord;
             debug_commit_valid <= `InstInvalid;
+            debug_commit_inst_ld_en <= 8'b0;
+            debug_commit_inst_st_en <= 8'b0;
+            debug_commit_ld_paddr <= `ZeroWord;
+            debug_commit_ld_vaddr <= `ZeroWord;
+            debug_commit_st_paddr <= `ZeroWord;
+            debug_commit_st_vaddr <= `ZeroWord;
+            debug_commit_st_data <= `ZeroWord;
         end else if (stall == `Stop) begin
             debug_commit_pc <= `ZeroWord;
             debug_commit_instr <= `ZeroWord;
@@ -124,6 +147,13 @@ module mem_wb (
             debug_commit_pc <= mem_signal_o.instr_info.pc;
             debug_commit_valid <= mem_signal_o.instr_info.valid;
             debug_commit_instr <= mem_signal_o.instr_info.instr;
+            debug_commit_inst_ld_en <= mem_signal_o.inst_ld_en;
+            debug_commit_inst_st_en <= mem_signal_o.inst_st_en;
+            debug_commit_ld_paddr <= mem_signal_o.load_addr;
+            debug_commit_ld_vaddr <= mem_signal_o.load_addr;
+            debug_commit_st_paddr <= mem_signal_o.store_addr;
+            debug_commit_st_vaddr <= mem_signal_o.store_addr;
+            debug_commit_st_data <= mem_signal_o.store_data;
         end
     end
 

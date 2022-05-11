@@ -73,7 +73,7 @@ module cpu_top (
     output logic [ 3:0] debug0_wb_rf_wen,
     output logic [ 4:0] debug0_wb_rf_wnum,
     output logic [31:0] debug0_wb_rf_wdata
-    `ifdef CPU_2CMT
+    `ifdef CPU_2debug_commit
     ,
     output logic [31:0] debug1_wb_pc,
     output logic [ 3:0] debug1_wb_rf_wen,
@@ -609,6 +609,13 @@ module cpu_top (
     logic [1:0] debug_commit_valid;
     logic [1:0][`InstBus] debug_commit_instr;
     logic [1:0][`InstAddrBus] debug_commit_pc;
+    logic [7:0] debug_commit_inst_ld_en;
+    logic [31:0] debug_commit_ld_paddr;
+    logic [31:0] debug_commit_ld_vaddr;
+    logic [7:0] debug_commit_inst_st_en;
+    logic [31:0] debug_commit_st_paddr;
+    logic [31:0] debug_commit_st_vaddr;
+    logic [31:0] debug_commit_st_data;
 
     generate
         for (genvar i = 0; i < 2; i++) begin : mem_wb
@@ -648,7 +655,15 @@ module cpu_top (
                 .bad_va(wb_bad_va[i]),
                 .excp_tlbrefill(),
                 .excp_tlb(),
-                .excp_tlb_vppn()
+                .excp_tlb_vppn(),
+
+                .debug_commit_inst_ld_en(debug_commit_inst_ld_en),
+                .debug_commit_ld_paddr(debug_commit_ld_paddr),
+                .debug_commit_ld_vaddr(debug_commit_ld_vaddr),
+                .debug_commit_inst_st_en(debug_commit_inst_st_en),
+                .debug_commit_st_paddr(debug_commit_st_paddr),
+                .debug_commit_st_vaddr(debug_commit_st_vaddr),
+                .debug_commit_st_data(debug_commit_st_data)
             );
         end
     endgenerate
@@ -837,7 +852,7 @@ module cpu_top (
         debug0_wb_rf_wen <= {3'b0,wb_reg_signal[0].we};
         debug0_wb_rf_wdata <= wb_reg_signal[0].wdata;
         debug0_wb_rf_wnum <= wb_reg_signal[0].waddr;
-        `ifdef CPU_2CMT
+        `ifdef CPU_2debug_commit
         debug1_wb_pc <= wb_reg_signal[1].pc;
         debug1_wb_rf_wen <= {3'b0, wb_reg_signal[1].we};
         debug1_wb_rf_wdata <= wb_reg_signal[1].wdata;
@@ -881,6 +896,25 @@ module cpu_top (
         .wdata         (debug1_wb_rf_wdata),
         .csr_rstat     (),
         .csr_data      ()
+    );
+
+    DifftestStoreEvent DifftestStoreEvent(
+        .clock              (aclk),
+        .coreid             (0),
+        .index              (0),
+        .valid              (debug_commit_inst_st_en),
+        .storePAddr         (debug_commit_st_paddr),
+        .storeVAddr         (debug_commit_st_vaddr),
+        .storeData          (debug_commit_st_data)
+    );
+
+    DifftestLoadEvent DifftestLoadEvent(
+        .clock              (aclk),
+        .coreid             (0),
+        .index              (0),
+        .valid              (debug_commit_inst_ld_en),
+        .paddr              (debug_commit_ld_paddr),
+        .vaddr              (debug_commit_ld_paddr)
     );
 
     DifftestCSRRegState difftest_csr_state (
