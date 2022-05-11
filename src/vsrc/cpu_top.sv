@@ -73,7 +73,7 @@ module cpu_top (
     output logic [ 3:0] debug0_wb_rf_wen,
     output logic [ 4:0] debug0_wb_rf_wnum,
     output logic [31:0] debug0_wb_rf_wdata
-    `ifdef CPU_2CMT
+    `ifdef CPU_2debug_commit
     ,
     output logic [31:0] debug1_wb_pc,
     output logic [ 3:0] debug1_wb_rf_wen,
@@ -837,7 +837,7 @@ module cpu_top (
         debug0_wb_rf_wen <= {3'b0,wb_reg_signal[0].we};
         debug0_wb_rf_wdata <= wb_reg_signal[0].wdata;
         debug0_wb_rf_wnum <= wb_reg_signal[0].waddr;
-        `ifdef CPU_2CMT
+        `ifdef CPU_2debug_commit
         debug1_wb_pc <= wb_reg_signal[1].pc;
         debug1_wb_rf_wen <= {3'b0, wb_reg_signal[1].we};
         debug1_wb_rf_wdata <= wb_reg_signal[1].wdata;
@@ -881,6 +881,25 @@ module cpu_top (
         .wdata         (debug1_wb_rf_wdata),
         .csr_rstat     (),
         .csr_data      ()
+    );
+
+    DifftestStoreEvent DifftestStoreEvent(
+        .clock              (aclk),
+        .coreid             (0),
+        .index              (0),
+        .valid              (debug_commit_inst_st_en),
+        .storePAddr         (debug_commit_st_paddr),
+        .storeVAddr         (debug_commit_st_vaddr),
+        .storeData          (debug_commit_st_data)
+    );
+
+    DifftestLoadEvent DifftestLoadEvent(
+        .clock              (aclk),
+        .coreid             (0),
+        .index              (0),
+        .valid              (debug_commit_inst_ld_en),
+        .paddr              (debug_commit_ld_paddr),
+        .vaddr              (debug_commit_ld_vaddr)
     );
 
     DifftestCSRRegState difftest_csr_state (

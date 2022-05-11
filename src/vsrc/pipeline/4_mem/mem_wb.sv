@@ -1,16 +1,16 @@
 `include "pipeline_defines.sv"
 
 module mem_wb (
-    input wire clk,
-    input wire rst,
-    input wire stall,
+    input logic clk,
+    input logic rst,
+    input logic stall,
 
     input mem_wb_struct mem_signal_o,
 
-    input wire mem_LLbit_we,
-    input wire mem_LLbit_value,
+    input logic mem_LLbit_we,
+    input logic mem_LLbit_value,
 
-    input wire flush,
+    input logic flush,
 
 
     output wb_reg wb_reg_o,
@@ -24,20 +24,29 @@ module mem_wb (
     output reg wb_LLbit_we,
     output reg wb_LLbit_value,
 
-    input wire excp_i,
-    input wire [15:0] excp_num,
+    input logic excp_i,
+    input logic [15:0] excp_num,
 
     //to csr
-    output wire [31:0] csr_era,
-    output wire [8:0] csr_esubcode,
-    output wire [5:0] csr_ecode,
-    output wire excp_flush,
-    output wire ertn_flush,
-    output wire va_error,
-    output wire [31:0] bad_va,
-    output wire excp_tlbrefill,
-    output wire excp_tlb,
-    output wire [18:0] excp_tlb_vppn
+    output logic [31:0] csr_era,
+    output logic [8:0] csr_esubcode,
+    output logic [5:0] csr_ecode,
+    output logic excp_flush,
+    output logic ertn_flush,
+    output logic va_error,
+    output logic [31:0] bad_va,
+    output logic excp_tlbrefill,
+    output logic excp_tlb,
+    output logic [18:0] excp_tlb_vppn,
+
+    // load store relate difftest
+    output logic [7:0] debug_commit_inst_ld_en,
+    output logic [31:0] debug_commit_ld_paddr,
+    output logic [31:0] debug_commit_ld_vaddr,
+    output logic [7:0] debug_commit_inst_st_en,
+    output logic [31:0] debug_commit_st_paddr,
+    output logic [31:0] debug_commit_st_vaddr,
+    output logic [31:0] debug_commit_st_data
 );
 
     reg wb_valid;
