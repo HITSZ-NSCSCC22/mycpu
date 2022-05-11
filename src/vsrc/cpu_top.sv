@@ -92,9 +92,6 @@ module cpu_top (
     assign rst_n = aresetn;
     assign rst   = ~rst_n;
 
-    // Global enable signal
-    logic chip_enable;
-
     // ICache <-> AXI Controller
     logic axi_busy;
     logic [`RegBus] axi_data;
@@ -126,7 +123,7 @@ module cpu_top (
         .inst_cpu_we_i(1'b0),
         .inst_cpu_sel_i(4'b1111),
         .inst_stall_i(),  // FIXME: stall & flush
-        .inst_flush_i(backend_flush), // FIXME: use ctrl module instead
+        .inst_flush_i(),
         .inst_cpu_data_o(axi_data),
         .inst_stallreq(axi_busy),
         .inst_id(4'b0000),  // Read Instruction only, TODO: move this from AXI to cache
@@ -240,7 +237,7 @@ module cpu_top (
         .icache_read_data_i(icache_frontend_data),  // <- ICache
 
         // <-> Backend
-        .branch_update_info_i(),              // branch update signals, <- EXE Stage
+        .branch_update_info_i(),              // branch update signals, <- EXE Stage, unused
         .backend_next_pc_i   (next_pc),       // backend PC, <- pc_gen
         .backend_flush_i     (backend_flush), // backend flush, usually come with next_pc
 

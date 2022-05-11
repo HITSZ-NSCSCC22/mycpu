@@ -83,15 +83,19 @@ module instr_buffer #(
         for (integer i = 0; i < ID_WIDTH; i++) begin
             // Reset entry
             if (i < backend_accept_num) begin
+                // verilator lint_off WIDTH
                 next_buffer_queue[read_ptr+i] = 0;
+                // verilator lint_on WIDTH
             end
         end
 
         // Frontend overide
         for (integer i = 0; i < IF_WIDTH; i++) begin
-            // Reset entry
+            // Accept entry from frontend
             if (i < frontend_accept_num) begin
+                // verilator lint_off WIDTH
                 next_buffer_queue[write_ptr+i] = frontend_instr_i[i];
+                // verilator lint_on WIDTH
             end
         end
     end
@@ -101,7 +105,9 @@ module instr_buffer #(
     // OPTIM: may have better ways
     always_comb begin : backend_instr_o_comb
         for (integer i = 0; i < ID_WIDTH; i++) begin
+            // verilator lint_off WIDTH
             backend_instr_o[i] = buffer_queue[read_ptr+i+backend_accept_num];
+            // verilator lint_on WIDTH
         end
     end
 
