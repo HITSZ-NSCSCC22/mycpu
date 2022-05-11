@@ -106,7 +106,7 @@
     output reg s_bready
 ```
 
-# 本版本为面向cache的版本，面向CPU的版本，请见上一个版本。AXI对cache有特定要求务必要仔细阅读说明，尤其是第4点说明，关系到store指令能否实现
+# 本版本为面向cache的版本，面向CPU的版本，请见5.9号提交的版本。AXI对cache有特定要求务必要仔细阅读说明，尤其是第4点说明，关系到store指令能否实现
 
 ## 使用说明
 1. 把axi_Master主机接口放到cpuTop中实例化     
