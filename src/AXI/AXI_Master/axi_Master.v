@@ -762,7 +762,7 @@ module axi_Master (
     assign s_awcache=0;
     assign s_awprot=0;
     assign s_wid=0;
-    assign s_wstrb={4{dcache_wr_req_i}}&data_cpu_sel_i;
+    assign s_wstrb=data_cpu_sel_i;
     
     //set axi signal
     assign s_arid=inst_s_arid|data_s_arid;

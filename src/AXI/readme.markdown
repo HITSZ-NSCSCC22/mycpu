@@ -106,7 +106,7 @@
     output reg s_bready
 ```
 
-# 本版本为面向cache的版本，面向CPU的版本，请见5.9号提交的版本。AXI对cache有特定要求务必要仔细阅读说明，尤其是第4点说明，关系到store指令能否实现
+# 本版本为面向cache的版本，面向CPU的版本，请见5.9号提交的版本。AXI对cache有特定要求务必要仔细阅读说明。
 
 ## 使用说明
 1. 把axi_Master主机接口放到cpuTop中实例化     
@@ -197,7 +197,7 @@
             .s_wid(i_wid),
             .s_wdata(i_wdata),
             .s_wstrb(i_wstrb),//字节选通位和sel差不多，写32字节用4'b1111
-            .s_wlast(i_wlast),//要接cache，用来进行write buffer的判断，详见说明
+            .s_wlast(i_wlast),
             .s_wvalid(i_wvalid),
             .s_wready(i_wready),
 
@@ -215,4 +215,6 @@
 
 3. xxx_cpu_sel_i为字节选通使能，用来实现store类型。
 
-4. 关于cache给AXI的信号。在AXI完成写或读请求前，cache的信号必须要持续的拉高。对于读指令，当ret_last拉高时，才能更新输出给AXI的信号（req，type，addr）;`重点`对于写请求，只有当wlast(对应，s_wlast接口的信号)拉高时，才能更新给AXI的信号，这个地方时书上没有写的，需要注意，不然写会失败。
+4. 关于cache给AXI的信号。在AXI完成写或读请求前，cache的信号必须要持续的拉高。对于读指令，当ret_last拉高时，才能更新输出给AXI的信号（req，type，addr）;对于写，和wr_rdy正常握手就好，输出给AXI的信号只需要保存一个时钟周期。
+
+5. cache何时给信号。cache只要发出读或写请求就立刻给出所有信号(req，type，addr,data)。`重点`addr，data，type，req是同时给到AXI，而不是等到cache与rdy握手后才给addr和data，这样AXI就无法接受数据。握手是指握手后接收方立刻把数据存到寄存器里。
