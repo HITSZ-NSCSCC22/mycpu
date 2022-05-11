@@ -10,7 +10,9 @@
 vivado*
 
 # VSCode configuration files
-.vscode/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
 
 # Verilator output files
 obj_dir/
@@ -28,6 +30,15 @@ src/emu-compile
 src/emu
 src/lock-emu
 src/time.log
+src/.history
 la32-nemu-interpreter-so
 test/*.bin
+test/*.s
 build/
+
+# Branch Predictor Test data
+src/vsrc/branch_predictor/data
+
+# System Verilog language server
+.svlint.toml
+.svls.toml

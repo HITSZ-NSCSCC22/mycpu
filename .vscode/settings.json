@@ -1,0 +1,23 @@
+{
+    "verilog.linting.linter": "verilator",
+    "verilog.linting.iverilog.arguments": "",
+    "verilog.logging.enabled": true,
+    "verilog.linting.verilator.arguments": "-Isrc -Isrc/vsrc -Isrc/vsrc/pipeline/1_fetch -Wall -DCPU_2CMT",
+    "todo-tree.filtering.includeGlobs": [
+        "**/*.sv",
+        "**/*.v"
+    ],
+    "todo-tree.regex.regex": "((\\s|^)($TAGS):)",
+    "todo-tree.regex.enableMultiLine": false,
+    "todo-tree.regex.regexCaseSensitive": true,
+    "todo-tree.general.debug": false,
+    "todo-tree.general.enableFileWatcher": true,
+    "todo-tree.filtering.includeHiddenFiles": true,
+    "todo-tree.filtering.includedWorkspaces": [
+        "**/*"
+    ],
+    "todo-tree.filtering.useBuiltInExcludes": "file and search excludes",
+    "systemverilogFormatter.veribleBuild": "Ubuntu-20.04-focal-x86_64",
+    "systemverilogFormatter.commandLineArguments": "--indentation_spaces 4",
+    "editor.formatOnSave": true
+}
