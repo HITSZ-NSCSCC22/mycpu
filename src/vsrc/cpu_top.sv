@@ -73,7 +73,7 @@ module cpu_top (
     output logic [ 3:0] debug0_wb_rf_wen,
     output logic [ 4:0] debug0_wb_rf_wnum,
     output logic [31:0] debug0_wb_rf_wdata
-    `ifdef CPU_2debug_commit
+    `ifdef CPU_2CMT
     ,
     output logic [31:0] debug1_wb_pc,
     output logic [ 3:0] debug1_wb_rf_wen,
@@ -852,7 +852,7 @@ module cpu_top (
         debug0_wb_rf_wen <= {3'b0,wb_reg_signal[0].we};
         debug0_wb_rf_wdata <= wb_reg_signal[0].wdata;
         debug0_wb_rf_wnum <= wb_reg_signal[0].waddr;
-        `ifdef CPU_2debug_commit
+        `ifdef CPU_2CMT
         debug1_wb_pc <= wb_reg_signal[1].pc;
         debug1_wb_rf_wen <= {3'b0, wb_reg_signal[1].we};
         debug1_wb_rf_wdata <= wb_reg_signal[1].wdata;
