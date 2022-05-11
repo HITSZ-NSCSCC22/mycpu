@@ -105,6 +105,13 @@ module mem_wb (
             debug_commit_instr <= `ZeroWord;
             debug_commit_pc <= `ZeroWord;
             debug_commit_valid <= `InstInvalid;
+            debug_commit_inst_ld_en <= 8'b0;
+            debug_commit_inst_st_en <= 8'b0;
+            debug_commit_ld_paddr <= `ZeroWord;
+            debug_commit_ld_vaddr <= `ZeroWord;
+            debug_commit_st_paddr <= `ZeroWord;
+            debug_commit_st_vaddr <= `ZeroWord;
+            debug_commit_st_data <= `ZeroWord;
         end else if (flush == 1'b1 || excp_i == 1'b1 || mem_signal_o.aluop == `EXE_ERTN_OP) begin
             wb_reg_o.waddr    <= `NOPRegAddr;
             wb_reg_o.we  <= `WriteDisable;
@@ -117,6 +124,13 @@ module mem_wb (
             debug_commit_instr <= `ZeroWord;
             debug_commit_pc <= `ZeroWord;
             debug_commit_valid <= `InstInvalid;
+            debug_commit_inst_ld_en <= 8'b0;
+            debug_commit_inst_st_en <= 8'b0;
+            debug_commit_ld_paddr <= `ZeroWord;
+            debug_commit_ld_vaddr <= `ZeroWord;
+            debug_commit_st_paddr <= `ZeroWord;
+            debug_commit_st_vaddr <= `ZeroWord;
+            debug_commit_st_data <= `ZeroWord;
         end else if (stall == `Stop) begin
             debug_commit_pc <= `ZeroWord;
             debug_commit_instr <= `ZeroWord;
@@ -133,6 +147,13 @@ module mem_wb (
             debug_commit_pc <= mem_signal_o.instr_info.pc;
             debug_commit_valid <= mem_signal_o.instr_info.valid;
             debug_commit_instr <= mem_signal_o.instr_info.instr;
+            debug_commit_inst_ld_en <= mem_signal_o.inst_ld_en;
+            debug_commit_inst_st_en <= mem_signal_o.inst_st_en;
+            debug_commit_ld_paddr <= mem_signal_o.load_addr;
+            debug_commit_ld_vaddr <= mem_signal_o.load_addr;
+            debug_commit_st_paddr <= mem_signal_o.store_addr;
+            debug_commit_st_vaddr <= mem_signal_o.store_addr;
+            debug_commit_st_data <= mem_signal_o.store_data;
         end
     end
 

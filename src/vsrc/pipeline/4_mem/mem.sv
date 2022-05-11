@@ -56,6 +56,7 @@ module mem (
     logic excp_pme;
     logic excp_ppi;
 
+
     assign access_mem = mem_load_op || mem_store_op;
 
     assign mem_load_op = signal_i.aluop == `EXE_LD_B_OP || signal_i.aluop == `EXE_LD_BU_OP || signal_i.aluop == `EXE_LD_H_OP || signal_i.aluop == `EXE_LD_HU_OP ||
@@ -63,6 +64,17 @@ module mem (
 
     assign mem_store_op = signal_i.aluop == `EXE_ST_B_OP || signal_i.aluop == `EXE_ST_H_OP || signal_i.aluop == `EXE_ST_W_OP || signal_i.aluop == `EXE_SC_OP;
 
+    //difftest
+    assign signal_o.inst_ld_en = {2'b0, signal_i.aluop == `EXE_LL_OP ? 1'b1 : 1'b0, signal_i.aluop == `EXE_LD_W_OP ? 1'b1 : 1'b0, 
+                        signal_i.aluop == `EXE_LD_HU_OP ? 1'b1 : 1'b0, signal_i.aluop == `EXE_LD_H_OP ? 1'b1 : 1'b0, 
+                        signal_i.aluop == `EXE_LD_BU_OP ? 1'b1 : 1'b0, signal_i.aluop == `EXE_LD_B_OP ? 1'b1 : 1'b0};
+
+    assign signal_o.inst_st_en = {4'b0, signal_i.aluop == `EXE_SC_OP ? 1'b1 : 1'b0, signal_i.aluop == `EXE_ST_W_OP ? 1'b1 : 1'b0, 
+                        signal_i.aluop == `EXE_ST_H_OP ? 1'b1 : 1'b0, signal_i.aluop == `EXE_ST_B_OP ? 1'b1 : 1'b0};
+
+    assign signal_o.load_addr = signal_i.mem_addr;
+    assign signal_o.store_addr = signal_o.load_addr;
+    assign signal_o.store_data = signal_axi_o.data;
 
     //addr dmw trans
     assign dmw0_en = ((csr_mem_signal.csr_dmw0[`PLV0] && csr_mem_signal.csr_plv == 2'd0) || (csr_mem_signal.csr_dmw0[`PLV3] && csr_mem_signal.csr_plv == 2'd3)) && (signal_i.wdata[31:29] == csr_mem_signal.csr_dmw0[`VSEG]);

@@ -609,6 +609,13 @@ module cpu_top (
     logic [1:0] debug_commit_valid;
     logic [1:0][`InstBus] debug_commit_instr;
     logic [1:0][`InstAddrBus] debug_commit_pc;
+    logic [7:0] debug_commit_inst_ld_en;
+    logic [31:0] debug_commit_ld_paddr;
+    logic [31:0] debug_commit_ld_vaddr;
+    logic [7:0] debug_commit_inst_st_en;
+    logic [31:0] debug_commit_st_paddr;
+    logic [31:0] debug_commit_st_vaddr;
+    logic [31:0] debug_commit_st_data;
 
     generate
         for (genvar i = 0; i < 2; i++) begin : mem_wb
@@ -648,7 +655,15 @@ module cpu_top (
                 .bad_va(wb_bad_va[i]),
                 .excp_tlbrefill(),
                 .excp_tlb(),
-                .excp_tlb_vppn()
+                .excp_tlb_vppn(),
+
+                .debug_commit_inst_ld_en(debug_commit_inst_ld_en),
+                .debug_commit_ld_paddr(debug_commit_ld_paddr),
+                .debug_commit_ld_vaddr(debug_commit_ld_vaddr),
+                .debug_commit_inst_st_en(debug_commit_inst_st_en),
+                .debug_commit_st_paddr(debug_commit_st_paddr),
+                .debug_commit_st_vaddr(debug_commit_st_vaddr),
+                .debug_commit_st_data(debug_commit_st_data)
             );
         end
     endgenerate
@@ -899,7 +914,7 @@ module cpu_top (
         .index              (0),
         .valid              (debug_commit_inst_ld_en),
         .paddr              (debug_commit_ld_paddr),
-        .vaddr              (debug_commit_ld_vaddr)
+        .vaddr              (debug_commit_ld_paddr)
     );
 
     DifftestCSRRegState difftest_csr_state (
