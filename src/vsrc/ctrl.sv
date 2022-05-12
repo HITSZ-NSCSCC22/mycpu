@@ -18,16 +18,10 @@ module ctrl (
     assign ex_mem_flush_o[0] = 0;
 
     always_comb begin
-        if(rst)
-            stall = 5'b00000;
-        else if(data_stallreq_from_axi)
-            stall = 5'b11110;
-        else if(stallreq_from_dispatch)
-            stall = 5'b11100;
-        else if(inst_stallreq_from_axi)
-            stall = 5'b11000;
-        else 
-            stall = 5'b00000;
+        if (rst) stall = 5'b00000;
+        else if (data_stallreq_from_axi) stall = 5'b11110;
+        else if (stallreq_from_dispatch) stall = 5'b11100;
+        else stall = 5'b00000;
     end
 
 endmodule  //ctrl

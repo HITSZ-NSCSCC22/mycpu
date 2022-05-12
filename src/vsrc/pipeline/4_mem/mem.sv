@@ -43,7 +43,7 @@ module mem (
     output logic [15:0] excp_num_o
 );
 
-    reg   LLbit;
+    reg LLbit;
     logic access_mem;
     logic mem_store_op;
     logic mem_load_op;
@@ -56,11 +56,14 @@ module mem (
     logic excp_pme;
     logic excp_ppi;
 
+    logic [`InstAddrBus] debug_pc_i;
+    assign debug_pc_i = signal_i.instr_info.pc;
+
     logic [`AluOpBus] aluop_i;
     assign aluop_i = signal_i.aluop;
 
-    logic [`RegBus] mem_addr,reg2_i;
-    assign mem_addr = signal_i.mem_addr; 
+    logic [`RegBus] mem_addr, reg2_i;
+    assign mem_addr = signal_i.mem_addr;
     assign reg2_i = signal_i.reg2;
 
     assign access_mem = mem_load_op || mem_store_op;
@@ -71,12 +74,23 @@ module mem (
     assign mem_store_op = aluop_i == `EXE_ST_B_OP || aluop_i == `EXE_ST_H_OP || aluop_i == `EXE_ST_W_OP || aluop_i == `EXE_SC_OP;
 
     //difftest
-    assign signal_o.inst_ld_en = {2'b0, aluop_i == `EXE_LL_OP ? 1'b1 : 1'b0, aluop_i == `EXE_LD_W_OP ? 1'b1 : 1'b0, 
-                        aluop_i == `EXE_LD_HU_OP ? 1'b1 : 1'b0, aluop_i == `EXE_LD_H_OP ? 1'b1 : 1'b0, 
-                        aluop_i == `EXE_LD_BU_OP ? 1'b1 : 1'b0, aluop_i == `EXE_LD_B_OP ? 1'b1 : 1'b0};
+    assign signal_o.inst_ld_en = {
+        2'b0,
+        aluop_i == `EXE_LL_OP ? 1'b1 : 1'b0,
+        aluop_i == `EXE_LD_W_OP ? 1'b1 : 1'b0,
+        aluop_i == `EXE_LD_HU_OP ? 1'b1 : 1'b0,
+        aluop_i == `EXE_LD_H_OP ? 1'b1 : 1'b0,
+        aluop_i == `EXE_LD_BU_OP ? 1'b1 : 1'b0,
+        aluop_i == `EXE_LD_B_OP ? 1'b1 : 1'b0
+    };
 
-    assign signal_o.inst_st_en = {4'b0, aluop_i == `EXE_SC_OP ? 1'b1 : 1'b0, aluop_i == `EXE_ST_W_OP ? 1'b1 : 1'b0, 
-                        aluop_i == `EXE_ST_H_OP ? 1'b1 : 1'b0, aluop_i == `EXE_ST_B_OP ? 1'b1 : 1'b0};
+    assign signal_o.inst_st_en = {
+        4'b0,
+        aluop_i == `EXE_SC_OP ? 1'b1 : 1'b0,
+        aluop_i == `EXE_ST_W_OP ? 1'b1 : 1'b0,
+        aluop_i == `EXE_ST_H_OP ? 1'b1 : 1'b0,
+        aluop_i == `EXE_ST_B_OP ? 1'b1 : 1'b0
+    };
 
     assign signal_o.load_addr = mem_addr;
     assign signal_o.store_addr = signal_o.load_addr;
@@ -91,7 +105,7 @@ module mem (
 
     assign data_addr_trans_en = pg_mode && !dmw0_en && !dmw1_en && !cacop_op_mode_di;
 
-    assign mem_data_forward = {signal_o.wreg,signal_o.waddr,signal_o.wdata};
+    assign mem_data_forward = {signal_o.wreg, signal_o.waddr, signal_o.wdata};
 
     assign excp_tlbr = access_mem && !tlb_mem_signal.data_tlb_found && data_addr_trans_en;
     assign excp_pil  = mem_load_op  && !tlb_mem_signal.data_tlb_v && data_addr_trans_en;  //cache will generate pil exception??
@@ -232,12 +246,7 @@ module mem (
                     signal_o.wreg = `WriteEnable;
                     signal_axi_o.we = `WriteEnable;
                     signal_axi_o.ce = `ChipEnable;
-                    signal_axi_o.data = {
-                        reg2_i[7:0],
-                        reg2_i[7:0],
-                        reg2_i[7:0],
-                        reg2_i[7:0]
-                    };
+                    signal_axi_o.data = {reg2_i[7:0], reg2_i[7:0], reg2_i[7:0], reg2_i[7:0]};
                     case (mem_addr[1:0])
                         2'b00: begin
                             signal_axi_o.sel = 4'b1000;
