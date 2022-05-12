@@ -4,8 +4,7 @@ module ctrl (
 
     input logic [1:0] ex_branch_flag_i,
     input logic stallreq_from_dispatch,
-    input logic data_stallreq_from_axi,
-    input logic inst_stallreq_from_axi,
+    input logic [1:0] mem_stallreq_i,
     input logic excp_i,
     input logic [15:0] excp_num_i,
 
@@ -19,7 +18,7 @@ module ctrl (
 
     always_comb begin
         if (rst) stall = 5'b00000;
-        else if (data_stallreq_from_axi) stall = 5'b11110;
+        else if (mem_stallreq_i[0] | mem_stallreq_i[1]) stall = 5'b11110;
         else if (stallreq_from_dispatch) stall = 5'b11100;
         else stall = 5'b00000;
     end

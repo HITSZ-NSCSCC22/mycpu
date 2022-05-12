@@ -11,7 +11,11 @@ module mem (
 
     output mem_axi_struct signal_axi_o,
 
+    // -> Ctrl
+    output stallreq,
 
+    // <- AXI Controller
+    input logic axi_busy_i,
     input logic [`RegBus] mem_data_i,
 
     input logic LLbit_i,
@@ -68,6 +72,7 @@ module mem (
 
     assign access_mem = mem_load_op || mem_store_op;
 
+    assign stallreq = axi_busy_i;
     assign mem_load_op = aluop_i == `EXE_LD_B_OP || aluop_i == `EXE_LD_BU_OP || aluop_i == `EXE_LD_H_OP || aluop_i == `EXE_LD_HU_OP ||
                        aluop_i == `EXE_LD_W_OP || aluop_i == `EXE_LL_OP;
 

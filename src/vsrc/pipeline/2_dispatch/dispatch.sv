@@ -14,8 +14,8 @@ module dispatch #(
 
     // <- Ctrl
     output logic stallreq,
-    input logic stall,
-    input logic flush,
+    input  logic stall,
+    input  logic flush,
 
     // <-> Regfile, wire
     output logic [DECODE_WIDTH-1:0][1:0] regfile_reg_read_valid_o,  // Read valid for 2 regs
@@ -45,12 +45,12 @@ module dispatch #(
     assign aluop_i[0] = ex_data_forward[0].aluop_i;
     assign aluop_i[1] = ex_data_forward[1].aluop_i;
 
-    assign stallreq = aluop_i[0] == `EXE_LD_B_OP || aluop_i[0] == `EXE_LD_BU_OP || aluop_i[0] == `EXE_LD_H_OP || aluop_i[0] == `EXE_LD_HU_OP ||
-                       aluop_i[0] == `EXE_LD_W_OP || aluop_i[0] == `EXE_LL_OP || aluop_i[0] == `EXE_ST_B_OP || 
-                       aluop_i[0] == `EXE_ST_H_OP || aluop_i[0] == `EXE_ST_W_OP || aluop_i[0] == `EXE_SC_OP ||
-                       aluop_i[1] == `EXE_LD_B_OP || aluop_i[1] == `EXE_LD_BU_OP || aluop_i[1] == `EXE_LD_H_OP || aluop_i[1] == `EXE_LD_HU_OP ||
-                       aluop_i[1] == `EXE_LD_W_OP || aluop_i[1] == `EXE_LL_OP || aluop_i[1] == `EXE_ST_B_OP || 
-                       aluop_i[1] == `EXE_ST_H_OP || aluop_i[1] == `EXE_ST_W_OP || aluop_i[1] == `EXE_SC_OP;
+    // assign stallreq = aluop_i[0] == `EXE_LD_B_OP || aluop_i[0] == `EXE_LD_BU_OP || aluop_i[0] == `EXE_LD_H_OP || aluop_i[0] == `EXE_LD_HU_OP ||
+    //                    aluop_i[0] == `EXE_LD_W_OP || aluop_i[0] == `EXE_LL_OP || aluop_i[0] == `EXE_ST_B_OP || 
+    //                    aluop_i[0] == `EXE_ST_H_OP || aluop_i[0] == `EXE_ST_W_OP || aluop_i[0] == `EXE_SC_OP ||
+    //                    aluop_i[1] == `EXE_LD_B_OP || aluop_i[1] == `EXE_LD_BU_OP || aluop_i[1] == `EXE_LD_H_OP || aluop_i[1] == `EXE_LD_HU_OP ||
+    //                    aluop_i[1] == `EXE_LD_W_OP || aluop_i[1] == `EXE_LL_OP || aluop_i[1] == `EXE_ST_B_OP || 
+    //                    aluop_i[1] == `EXE_ST_H_OP || aluop_i[1] == `EXE_ST_W_OP || aluop_i[1] == `EXE_SC_OP;
 
     // Dispatch flag
     logic [EXE_STAGE_WIDTH-1:0] do_we_issue;
