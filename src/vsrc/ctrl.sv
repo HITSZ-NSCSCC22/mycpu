@@ -20,6 +20,8 @@ module ctrl (
             stall = 4'b0000;
         else if(stallreg_from_dispatch)
             stall = 4'b1100;
+        else 
+            stall = 4'b0000;
     end
 
 endmodule  //ctrl

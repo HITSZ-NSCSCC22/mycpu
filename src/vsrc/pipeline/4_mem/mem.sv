@@ -56,23 +56,29 @@ module mem (
     logic excp_pme;
     logic excp_ppi;
 
+    logic [`AluOpBus] aluop_i;
+    assign aluop_i = signal_i.aluop;
+
+    logic [`RegBus] mem_addr,reg2_i;
+    assign mem_addr = signal_i.mem_addr; 
+    assign reg2_i = signal_i.reg2;
 
     assign access_mem = mem_load_op || mem_store_op;
 
-    assign mem_load_op = signal_i.aluop == `EXE_LD_B_OP || signal_i.aluop == `EXE_LD_BU_OP || signal_i.aluop == `EXE_LD_H_OP || signal_i.aluop == `EXE_LD_HU_OP ||
-                       signal_i.aluop == `EXE_LD_W_OP || signal_i.aluop == `EXE_LL_OP;
+    assign mem_load_op = aluop_i == `EXE_LD_B_OP || aluop_i == `EXE_LD_BU_OP || aluop_i == `EXE_LD_H_OP || aluop_i == `EXE_LD_HU_OP ||
+                       aluop_i == `EXE_LD_W_OP || aluop_i == `EXE_LL_OP;
 
-    assign mem_store_op = signal_i.aluop == `EXE_ST_B_OP || signal_i.aluop == `EXE_ST_H_OP || signal_i.aluop == `EXE_ST_W_OP || signal_i.aluop == `EXE_SC_OP;
+    assign mem_store_op = aluop_i == `EXE_ST_B_OP || aluop_i == `EXE_ST_H_OP || aluop_i == `EXE_ST_W_OP || aluop_i == `EXE_SC_OP;
 
     //difftest
-    assign signal_o.inst_ld_en = {2'b0, signal_i.aluop == `EXE_LL_OP ? 1'b1 : 1'b0, signal_i.aluop == `EXE_LD_W_OP ? 1'b1 : 1'b0, 
-                        signal_i.aluop == `EXE_LD_HU_OP ? 1'b1 : 1'b0, signal_i.aluop == `EXE_LD_H_OP ? 1'b1 : 1'b0, 
-                        signal_i.aluop == `EXE_LD_BU_OP ? 1'b1 : 1'b0, signal_i.aluop == `EXE_LD_B_OP ? 1'b1 : 1'b0};
+    assign signal_o.inst_ld_en = {2'b0, aluop_i == `EXE_LL_OP ? 1'b1 : 1'b0, aluop_i == `EXE_LD_W_OP ? 1'b1 : 1'b0, 
+                        aluop_i == `EXE_LD_HU_OP ? 1'b1 : 1'b0, aluop_i == `EXE_LD_H_OP ? 1'b1 : 1'b0, 
+                        aluop_i == `EXE_LD_BU_OP ? 1'b1 : 1'b0, aluop_i == `EXE_LD_B_OP ? 1'b1 : 1'b0};
 
-    assign signal_o.inst_st_en = {4'b0, signal_i.aluop == `EXE_SC_OP ? 1'b1 : 1'b0, signal_i.aluop == `EXE_ST_W_OP ? 1'b1 : 1'b0, 
-                        signal_i.aluop == `EXE_ST_H_OP ? 1'b1 : 1'b0, signal_i.aluop == `EXE_ST_B_OP ? 1'b1 : 1'b0};
+    assign signal_o.inst_st_en = {4'b0, aluop_i == `EXE_SC_OP ? 1'b1 : 1'b0, aluop_i == `EXE_ST_W_OP ? 1'b1 : 1'b0, 
+                        aluop_i == `EXE_ST_H_OP ? 1'b1 : 1'b0, aluop_i == `EXE_ST_B_OP ? 1'b1 : 1'b0};
 
-    assign signal_o.load_addr = signal_i.mem_addr;
+    assign signal_o.load_addr = mem_addr;
     assign signal_o.store_addr = signal_o.load_addr;
     assign signal_o.store_data = signal_axi_o.data;
 
@@ -111,6 +117,7 @@ module mem (
             LLbit_we_o = 1'b0;
             LLbit_value_o = 1'b0;
             signal_o.instr_info.pc = `ZeroWord;
+            signal_axi_o = 0;
         end else begin
             LLbit_we_o = 1'b0;
             LLbit_value_o = 1'b0;
@@ -120,15 +127,14 @@ module mem (
             signal_o.wreg = signal_i.wreg;
             signal_o.waddr = signal_i.waddr;
             signal_o.wdata = signal_i.wdata;
-            signal_o.aluop = signal_i.aluop;
+            signal_o.aluop = aluop_i;
             signal_o.csr_signal = signal_i.csr_signal;
-            case (signal_i.aluop)
+            case (aluop_i)
                 `EXE_LD_B_OP: begin
-                    signal_axi_o.addr = signal_i.mem_addr;
-                    signal_axi_o.we = `WriteEnable;
+                    signal_axi_o.addr = mem_addr;
                     signal_o.wreg = `WriteEnable;
                     signal_axi_o.ce = `ChipEnable;
-                    case (signal_i.mem_addr[1:0])
+                    case (mem_addr[1:0])
                         2'b00: begin
                             signal_o.wdata   = {{24{mem_data_i[31]}}, mem_data_i[31:24]};
                             signal_axi_o.sel = 4'b1000;
@@ -151,10 +157,10 @@ module mem (
                     endcase
                 end
                 `EXE_LD_H_OP: begin
-                    signal_axi_o.addr = signal_i.mem_addr;
+                    signal_axi_o.addr = mem_addr;
                     signal_o.wreg = `WriteEnable;
                     signal_axi_o.ce = `ChipEnable;
-                    case (signal_i.mem_addr[1:0])
+                    case (mem_addr[1:0])
                         2'b00: begin
                             signal_o.wdata   = {{16{mem_data_i[31]}}, mem_data_i[31:16]};
                             signal_axi_o.sel = 4'b1100;
@@ -171,17 +177,17 @@ module mem (
                     endcase
                 end
                 `EXE_LD_W_OP: begin
-                    signal_axi_o.addr = signal_i.mem_addr;
+                    signal_axi_o.addr = mem_addr;
                     signal_o.wreg = `WriteEnable;
                     signal_axi_o.ce = `ChipEnable;
                     signal_axi_o.sel = 4'b1111;
                     signal_o.wdata = mem_data_i;
                 end
                 `EXE_LD_BU_OP: begin
-                    signal_axi_o.addr = signal_i.mem_addr;
+                    signal_axi_o.addr = mem_addr;
                     signal_o.wreg = `WriteEnable;
                     signal_axi_o.ce = `ChipEnable;
-                    case (signal_i.mem_addr[1:0])
+                    case (mem_addr[1:0])
                         2'b00: begin
                             signal_o.wdata   = {{24{1'b0}}, mem_data_i[31:24]};
                             signal_axi_o.sel = 4'b1000;
@@ -204,10 +210,10 @@ module mem (
                     endcase
                 end
                 `EXE_LD_HU_OP: begin
-                    signal_axi_o.addr = signal_i.mem_addr;
+                    signal_axi_o.addr = mem_addr;
                     signal_o.wreg = `WriteEnable;
                     signal_axi_o.ce = `ChipEnable;
-                    case (signal_i.mem_addr[1:0])
+                    case (mem_addr[1:0])
                         2'b00: begin
                             signal_o.wdata   = {{16{1'b0}}, mem_data_i[31:16]};
                             signal_axi_o.sel = 4'b1100;
@@ -222,16 +228,17 @@ module mem (
                     endcase
                 end
                 `EXE_ST_B_OP: begin
-                    signal_axi_o.addr = signal_i.mem_addr;
+                    signal_axi_o.addr = mem_addr;
                     signal_o.wreg = `WriteEnable;
+                    signal_axi_o.we = `WriteEnable;
                     signal_axi_o.ce = `ChipEnable;
                     signal_axi_o.data = {
-                        signal_i.reg2[7:0],
-                        signal_i.reg2[7:0],
-                        signal_i.reg2[7:0],
-                        signal_i.reg2[7:0]
+                        reg2_i[7:0],
+                        reg2_i[7:0],
+                        reg2_i[7:0],
+                        reg2_i[7:0]
                     };
-                    case (signal_i.mem_addr[1:0])
+                    case (mem_addr[1:0])
                         2'b00: begin
                             signal_axi_o.sel = 4'b1000;
                         end
@@ -250,11 +257,12 @@ module mem (
                     endcase
                 end
                 `EXE_ST_H_OP: begin
-                    signal_axi_o.addr = signal_i.mem_addr;
+                    signal_axi_o.addr = mem_addr;
                     signal_o.wreg = `WriteEnable;
+                    signal_axi_o.we = `WriteEnable;
                     signal_axi_o.ce = `ChipEnable;
-                    signal_axi_o.data = {signal_i.reg2[15:0], signal_i.reg2[15:0]};
-                    case (signal_i.mem_addr[1:0])
+                    signal_axi_o.data = {reg2_i[15:0], reg2_i[15:0]};
+                    case (mem_addr[1:0])
                         2'b00: begin
                             signal_axi_o.sel = 4'b1100;
                         end
@@ -267,14 +275,15 @@ module mem (
                     endcase
                 end
                 `EXE_ST_W_OP: begin
-                    signal_axi_o.addr = signal_i.mem_addr;
+                    signal_axi_o.addr = mem_addr;
                     signal_o.wreg = `WriteEnable;
+                    signal_axi_o.we = `WriteEnable;
                     signal_axi_o.ce = `ChipEnable;
-                    signal_axi_o.data = signal_i.reg2;
+                    signal_axi_o.data = reg2_i;
                     signal_axi_o.sel = 4'b1111;
                 end
                 `EXE_LL_OP: begin
-                    signal_axi_o.addr = signal_i.mem_addr;
+                    signal_axi_o.addr = mem_addr;
                     signal_o.wreg = `WriteDisable;
                     signal_axi_o.ce = `ChipEnable;
                     signal_axi_o.sel = 4'b1111;
@@ -284,10 +293,11 @@ module mem (
                 end
                 `EXE_SC_OP: begin
                     if (LLbit == 1'b1) begin
-                        signal_axi_o.addr = signal_i.mem_addr;
+                        signal_axi_o.addr = mem_addr;
+                        signal_axi_o.we = `WriteEnable;
                         signal_o.wreg = `WriteEnable;
                         signal_axi_o.ce = `ChipEnable;
-                        signal_axi_o.data = signal_i.reg2;
+                        signal_axi_o.data = reg2_i;
                         signal_axi_o.sel = 4'b1111;
                         LLbit_we_o = 1'b1;
                         LLbit_value_o = 1'b0;

@@ -13,6 +13,7 @@ module dispatch #(
     input id_dispatch_struct [DECODE_WIDTH-1:0] id_i,
 
     // <- Ctrl
+    output logic stallreq,
     input logic stall,
     input logic flush,
 
@@ -39,6 +40,18 @@ module dispatch #(
     // Reset signal
     logic rst_n;
     assign rst_n = ~rst;
+
+    logic [`AluOpBus] aluop_i[2];
+    assign aluop_i[0] = ex_data_forward[0].aluop_i;
+    assign aluop_i[1] = ex_data_forward[1].aluop_i;
+
+    logic pre_ls_inst;
+    assign pre_ls_inst = aluop_i[0] == `EXE_LD_B_OP || aluop_i[0] == `EXE_LD_BU_OP || aluop_i[0] == `EXE_LD_H_OP || aluop_i[0] == `EXE_LD_HU_OP ||
+                       aluop_i[0] == `EXE_LD_W_OP || aluop_i[0] == `EXE_LL_OP || aluop_i[0] == `EXE_ST_B_OP || 
+                       aluop_i[0] == `EXE_ST_H_OP || aluop_i[0] == `EXE_ST_W_OP || aluop_i[0] == `EXE_SC_OP ||
+                       aluop_i[1] == `EXE_LD_B_OP || aluop_i[1] == `EXE_LD_BU_OP || aluop_i[1] == `EXE_LD_H_OP || aluop_i[1] == `EXE_LD_HU_OP ||
+                       aluop_i[1] == `EXE_LD_W_OP || aluop_i[1] == `EXE_LL_OP || aluop_i[1] == `EXE_ST_B_OP || 
+                       aluop_i[1] == `EXE_ST_H_OP || aluop_i[1] == `EXE_ST_W_OP || aluop_i[1] == `EXE_SC_OP;
 
     // Dispatch flag
     logic [EXE_STAGE_WIDTH-1:0] do_we_issue;

@@ -109,8 +109,8 @@ module cpu_top (
     mem_axi_struct mem_axi_signal[2];
 
     assign data_axi_we = mem_axi_signal[0].we | mem_axi_signal[1].we;
-    assign data_axi_addr = mem_axi_signal[0].we ? mem_axi_signal[1].addr : mem_axi_signal[1].we ? mem_axi_signal[1].addr : 32'b0;
-    assign data_axi_data = mem_axi_signal[0].we ? mem_axi_signal[1].data : mem_axi_signal[1].we ? mem_axi_signal[1].data : 32'b0;
+    assign data_axi_addr = mem_axi_signal[0].ce ? mem_axi_signal[0].addr : mem_axi_signal[1].ce ? mem_axi_signal[1].addr : 32'b0;
+    assign data_axi_data = mem_axi_signal[0].ce ? mem_axi_signal[0].data : mem_axi_signal[1].ce ? mem_axi_signal[1].data : 32'b0;
 
     axi_master u_axi_master (
         .aclk   (aclk),
@@ -120,7 +120,7 @@ module cpu_top (
         .inst_cpu_addr_i(axi_addr),
         .inst_cpu_ce_i(axi_addr != 0),  // FIXME: ce should not be used as valid?
         .inst_cpu_data_i(0),
-        .inst_cpu_we_i(1'b0),
+        .inst_cpu_we_i(data_axi_we),
         .inst_cpu_sel_i(4'b1111),
         .inst_stall_i(),  // FIXME: stall & flush
         .inst_flush_i(),
@@ -247,7 +247,7 @@ module cpu_top (
     );
 
     instr_buffer_info_t ib_backend_instr_info[2];  // IB -> ID
-    logic [5:0] stall;
+    logic [3:0] stall;
 
     logic [1:0] dispatch_ib_accept;
 
@@ -310,7 +310,7 @@ module cpu_top (
     id_dispatch u_id_dispatch (
         .clk       (clk),
         .rst       (rst),
-        .stall     (stall[1]),
+        .stall     (stall[0]),
         .flush     (backend_flush), // FIXME: does not carefully designed
         .id_i      (id_id_dispatch),
         .dispatch_o(id_dispatch_dispatch)
@@ -322,6 +322,8 @@ module cpu_top (
     //data relate
     ex_dispatch_struct ex_data_forward[2];
     mem_dispatch_struct mem_data_forward[2];
+
+    logic stallreg_from_dispatch;
 
 
     // Dispatch Stage, Sequential logic
@@ -336,7 +338,8 @@ module cpu_top (
         // <- ID
         .id_i(id_dispatch_dispatch),
 
-        .stall(),
+        .stallreq(stallreg_from_dispatch),
+        .stall(stall[1]),
         .flush(backend_flush),
 
         // Data forwarding    
@@ -692,7 +695,7 @@ module cpu_top (
     	.ex_branch_flag_i (branch_flag),
         .stallreg_from_dispatch(stallreg_from_dispatch),
 
-        .stall(),
+        .stall(stall),
         .ex_mem_flush_o   (ex_mem_flush)
     );
     
