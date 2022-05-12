@@ -5,7 +5,6 @@ module axi_Master (
     //inst
     input wire [`ADDR]inst_cpu_addr_i,
     input wire inst_cpu_ce_i,
-    input wire [`Data]inst_cpu_data_i,
     input wire inst_cpu_we_i ,
     input wire [3:0]inst_cpu_sel_i, 
     input wire inst_flush_i,
@@ -17,7 +16,6 @@ module axi_Master (
     //data
     input wire [`ADDR]data_cpu_addr_i,
     input wire data_cpu_ce_i,
-    input wire [`Data]data_cpu_data_i,
     input wire data_cpu_we_i ,
     input wire [3:0]data_cpu_sel_i, 
     input wire data_flush_i,
@@ -333,20 +331,6 @@ module axi_Master (
                         inst_s_arlen<=0;
                     end
 
-                    // //set s_rready
-                    // if(~s_rready)
-                    // begin
-                    //     s_rready<=1;
-                    // end
-                    // else if(s_rready&&s_rvalid)
-                    // begin
-                    //     s_rready<=0;
-                        
-                    // end
-                    // else
-                    // begin
-                    //     s_rready<=s_rready;
-                    // end
                 end
 
                 /**STALL**/
@@ -685,7 +669,6 @@ module axi_Master (
                         s_awvalid<=0;
                         s_wvalid<=1;
                         s_bready<=1;
-                        // s_wdata<=data_cpu_data_i;
                         s_wdata<=write_buffer[31:0];
                         write_buffer<={{32{1'b0}},write_buffer[127:32]};
 
@@ -706,6 +689,7 @@ module axi_Master (
                         s_wlast<=s_wlast;
                     end
                 end
+
                 /** W **/
                 `W_DATA:begin
                     

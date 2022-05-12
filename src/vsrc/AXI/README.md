@@ -112,6 +112,7 @@
    * 所有的请求在请求结束前，都需要保证来自cpu的输入信号不变
    * dcache/icache_rd/wr_type_i表示一次性读或写的数据量。`3'b100`表示一次性读/写连续四个地址的数据；其他值表示只读/写一个数据，推荐直接写0
    * 即使没有cache。icache和dcache开头的信号都要接
+   * 下面的说明，不适用突发传输，icache/dcache_rd/wr_type_i照着抄就好，不需要改。需要注意的是dcache_wr_data需要是128bit的数据，如果只想写一个的话，需要再前面添加96个0，例如写data[31:0]，则dcache_wr_data({{96{1'b0}}},data[31:0])
    ```      
          
             wire aresetn=~rst;
@@ -128,30 +129,26 @@
     //icache/IF
             .inst_cpu_addr_i(inst_pc),
             .inst_cpu_ce_i(inst_chip_enable),
-            .inst_cpu_data_i(0),
             .inst_cpu_we_i(0) ,
             .inst_cpu_sel_i(4'b1111), 
-            .inst_stall_i(0),
             .inst_flush_i(0),
             .inst_cpu_data_o(inst_data_from_axi),
             .inst_stallreq(stallreq_from_if),
             .inst_id(4'b0000),//决定是读数据还是取指令
-            .icache_rd_type_i(3'b100),//3'b100开启连续读4个数据;0只读一个数据
+            .icache_rd_type_i(0),//3'b100开启连续读4个数据;0只读一个数据
      
      //dacache/MEM
             .data_cpu_addr_i(data_pc),
             .data_cpu_ce_i(data_chip_enable),
-            .data_cpu_data_i(data),
             .data_cpu_we_i(data_we) ,
             .data_cpu_sel_i(4'b1111), 
-            .data_stall_i(0),
             .data_flush_i(0),
             .data_cpu_data_o(mem_data_from_axi),
             .data_stallreq(stallreq_from_mem),
             .data_id(4'b0001),//决定是读数据还是取指令
-            .dcache_rd_type_i(3’b100),//同icache
-            .dcache_wr_type_i(3'b100),//写的数据量，3'b100表示连续写四个数据至相邻的地址；0表示只写一个数据
-            .dcache_wr_data(}),//128bit的写入数据，如果只想写一个那么只需要保证31:0正确
+            .dcache_rd_type_i(0),//同icache
+            .dcache_wr_type_i(0),//写的数据量，3'b100表示连续写四个数据至相邻的地址；0表示只写一个数据
+            .dcache_wr_data({{96{1'b0}},data[31:0]}),//128bit的写入数据，如果只想写一个那么只需要保证31:0正确
     //ar
             .s_arid(i_arid),  //arbitration
             .s_araddr(i_araddr),
