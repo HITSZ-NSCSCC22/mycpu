@@ -3,12 +3,14 @@ module ctrl (
     input logic rst,
 
     input logic [1:0] ex_branch_flag_i,
-    input logic stallreg_from_dispatch,
+    input logic stallreq_from_dispatch,
+    input logic data_stallreq_from_axi,
+    input logic inst_stallreq_from_axi,
     input logic excp_i,
     input logic [15:0] excp_num_i,
 
 
-    output logic [3:0] stall,
+    output logic [4:0] stall,
     output logic [1:0] ex_mem_flush_o
 );
 
@@ -17,11 +19,15 @@ module ctrl (
 
     always_comb begin
         if(rst)
-            stall = 4'b0000;
-        else if(stallreg_from_dispatch)
-            stall = 4'b1100;
+            stall = 5'b00000;
+        else if(data_stallreq_from_axi)
+            stall = 5'b11110;
+        else if(stallreq_from_dispatch)
+            stall = 5'b11100;
+        else if(inst_stallreq_from_axi)
+            stall = 5'b11000;
         else 
-            stall = 4'b0000;
+            stall = 5'b00000;
     end
 
 endmodule  //ctrl

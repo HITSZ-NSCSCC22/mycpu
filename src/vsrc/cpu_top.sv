@@ -122,7 +122,7 @@ module cpu_top (
         .inst_cpu_data_i(0),
         .inst_cpu_we_i(data_axi_we),
         .inst_cpu_sel_i(4'b1111),
-        .inst_stall_i(),  // FIXME: stall & flush
+        .inst_stall_i(stall[0]),  // FIXME: stall & flush
         .inst_flush_i(),
         .inst_cpu_data_o(axi_data),
         .inst_stallreq(axi_busy),
@@ -247,7 +247,7 @@ module cpu_top (
     );
 
     instr_buffer_info_t ib_backend_instr_info[2];  // IB -> ID
-    logic [3:0] stall;
+    logic [4:0] stall;
 
     logic [1:0] dispatch_ib_accept;
 
@@ -310,7 +310,7 @@ module cpu_top (
     id_dispatch u_id_dispatch (
         .clk       (clk),
         .rst       (rst),
-        .stall     (stall[0]),
+        .stall     (stall[1]),
         .flush     (backend_flush), // FIXME: does not carefully designed
         .id_i      (id_id_dispatch),
         .dispatch_o(id_dispatch_dispatch)
@@ -323,7 +323,7 @@ module cpu_top (
     ex_dispatch_struct ex_data_forward[2];
     mem_dispatch_struct mem_data_forward[2];
 
-    logic stallreg_from_dispatch;
+    logic stallreq_from_dispatch;
 
 
     // Dispatch Stage, Sequential logic
@@ -338,8 +338,8 @@ module cpu_top (
         // <- ID
         .id_i(id_dispatch_dispatch),
 
-        .stallreq(stallreg_from_dispatch),
-        .stall(stall[1]),
+        .stallreq(stallreq_from_dispatch),
+        .stall(stall[2]),
         .flush(backend_flush),
 
         // Data forwarding    
@@ -528,7 +528,7 @@ module cpu_top (
                 .mem_i(mem_signal_i[i]),
 
                 // <-> Ctrl
-                .stall(stall[2]),
+                .stall(stall[3]),
                 .flush(ex_mem_flush[i]),
 
                 .ex_current_inst_address(),
@@ -622,7 +622,7 @@ module cpu_top (
             mem_wb u_mem_wb (
                 .clk  (clk),
                 .rst  (rst),
-                .stall(stall[3]),
+                .stall(stall[4]),
 
                 .mem_signal_o(mem_signal_o[i]),
 
@@ -692,8 +692,14 @@ module cpu_top (
     );
 
     ctrl u_ctrl(
+        .rst(rst),
     	.ex_branch_flag_i (branch_flag),
-        .stallreg_from_dispatch(stallreg_from_dispatch),
+        .stallreq_from_dispatch(stallreq_from_dispatch),
+        .data_stallreq_from_axi(data_axi_busy),
+        .inst_stallreq_from_axi(axi_busy),
+
+        .excp_i(),
+        .excp_num_i(),
 
         .stall(stall),
         .ex_mem_flush_o   (ex_mem_flush)
