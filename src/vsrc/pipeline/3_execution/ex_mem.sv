@@ -33,8 +33,8 @@ module ex_mem (
             mem_current_inst_address <= `ZeroWord;
             excp_o <= 1'b0;
             excp_num_o <= 10'b0;
-        end else
-        if (stall == `Stop) begin
+        end else if (stall == `Stop) begin
+            // Do nothing
         end else begin
             mem_i <= ex_o;
             mem_current_inst_address <= ex_current_inst_address;

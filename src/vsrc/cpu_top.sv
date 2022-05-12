@@ -122,7 +122,6 @@ module cpu_top (
         .inst_cpu_data_i(0),
         .inst_cpu_we_i(data_axi_we),
         .inst_cpu_sel_i(4'b1111),
-        .inst_stall_i(stall[0]),  // FIXME: stall & flush
         .inst_flush_i(),
         .inst_cpu_data_o(axi_data),
         .inst_stallreq(axi_busy),
@@ -134,7 +133,6 @@ module cpu_top (
         .data_cpu_data_i(data_axi_data),
         .data_cpu_we_i(1'b0),  // FIXME: Write enable
         .data_cpu_sel_i(4'b1111),
-        .data_stall_i(),
         .data_flush_i(),
         .data_cpu_data_o(axi_mem_data),
         .data_stallreq(data_axi_busy),
@@ -545,6 +543,8 @@ module cpu_top (
 
     mem_wb_struct mem_signal_o[2];
 
+    logic [1:0] mem_stallreq;
+
     logic LLbit_o;
     logic mem_wb_LLbit_we[2];
     logic mem_wb_LLbit_value[2];
@@ -564,9 +564,15 @@ module cpu_top (
 
                 .signal_o(mem_signal_o[i]),
 
+                // -> AXI Controller
                 .signal_axi_o(mem_axi_signal[i]),
 
+                // <- AXI Controller
+                .axi_busy_i(data_axi_busy),
                 .mem_data_i(axi_mem_data),
+
+                // -> Ctrl
+                .stallreq(mem_stallreq[i]),
 
                 .LLbit_i(LLbit_o),
                 .wb_LLbit_we_i(wb_LLbit_we_i[i]),
@@ -695,8 +701,7 @@ module cpu_top (
         .rst(rst),
     	.ex_branch_flag_i (branch_flag),
         .stallreq_from_dispatch(stallreq_from_dispatch),
-        .data_stallreq_from_axi(data_axi_busy),
-        .inst_stallreq_from_axi(axi_busy),
+        .mem_stallreq_i(mem_stallreq),
 
         .excp_i(),
         .excp_num_i(),

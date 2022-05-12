@@ -9,6 +9,7 @@ module ex (
 
     input logic [18:0] csr_vppn,
 
+    // -> MEM
     output ex_mem_struct ex_o,
 
     output logic stallreq,
@@ -52,10 +53,12 @@ module ex (
     assign wreg_i = dispatch_i.reg_write_valid;
 
     assign ex_o.aluop = aluop_i;
+    logic [`InstAddrBus] debug_mem_addr_o;
+    assign debug_mem_addr_o = ex_o.mem_addr;
     assign ex_o.mem_addr = reg1_i + {{20{inst_i[21]}}, inst_i[21:10]};
     assign ex_o.reg2 = reg2_i;
 
-    assign ex_data_forward = {ex_o.wreg,ex_o.waddr,ex_o.wdata,ex_o.aluop};
+    assign ex_data_forward = {ex_o.wreg, ex_o.waddr, ex_o.wdata, ex_o.aluop};
 
     csr_write_signal csr_signal_i;
     assign csr_signal_i = dispatch_i.csr_signal;
