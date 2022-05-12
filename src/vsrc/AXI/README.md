@@ -203,4 +203,4 @@
 
 3. xxx_cpu_sel_i为字节选通使能，用来实现store类型。
 
-4. stallreq_if和stallreq_mem为暂停请求，因为AXI直接面向CPU，所以，在AXI进行读写数据时，CPU必须暂停，等到AXI完成读写数据的操作。连接到CTRL中。详情看具体的文件。注意stallreq_mem一定要在stallreq_if之前，不然取指和访存同时生效时，访存没法被暂停。
+4. stallreq_if和stallreq_mem为暂停请求，因为AXI直接面向CPU，所以，在AXI进行读写数据时，CPU必须暂停，等到AXI完成读写数据的操作。

@@ -156,12 +156,10 @@ module axi_Master (
                                 is_fetching_inst=1;
                             end       
                         end
-                `STALL:begin
-                            inst_stall_req_r=0;
-                            inst_cpu_data_o=inst_buffer;
-                            is_fetching_inst=0;
-                       end
                 default:begin
+                            inst_stall_req_r=0;
+                            inst_cpu_data_o=0;
+                            is_fetching_inst=0;
                         end
             endcase
         end
@@ -295,8 +293,7 @@ module axi_Master (
                 `R_DATA:begin
                     if(s_rvalid&&s_rlast)
                     begin
-                        if(!(data_cpu_ce_i&&(data_cpu_we_i==0)))
-                        begin
+
                             inst_r_state<=`R_FREE;
                             inst_buffer<=s_rdata;
                             inst_s_rready<=0;
@@ -305,19 +302,6 @@ module axi_Master (
                             inst_s_araddr<=0;
                             inst_s_arsize<=0;
                             inst_s_arlen<=0;
-                        end
-                        else
-                        begin
-                            inst_r_state<=`STALL;
-                            inst_buffer<=s_rdata;
-                            inst_s_rready<=0;
-
-                            inst_s_arid<=0;
-                            inst_s_araddr<=0;
-                            inst_s_arsize<=0;
-                            inst_s_arlen<=0;
-                        end
-
                     end
                     else
                     begin
@@ -332,14 +316,6 @@ module axi_Master (
                     end
 
                 end
-
-                /**STALL**/
-                `STALL:
-                begin
-                    if(data_stall_req_r==0) inst_r_state<=`R_FREE;
-                    else inst_r_state<=inst_r_state;
-                end
-
                 default:
                 begin
                     
