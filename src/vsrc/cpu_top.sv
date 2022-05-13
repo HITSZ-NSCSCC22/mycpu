@@ -129,13 +129,13 @@ module cpu_top (
         // <-> MEM Stage
         .data_cpu_addr_i(data_axi_addr),
         .data_cpu_ce_i(data_axi_addr != 0),  // FIXME: ce should not be used as valid?
-        // .data_cpu_data_i(data_axi_data), FIXME: data_axi_data should be available
+        // .data_cpu_data_i(data_axi_data), FIXME: change to cache interface
         .data_cpu_we_i(1'b0),  // FIXME: Write enable
         .data_cpu_sel_i(4'b1111),
         .data_flush_i(),
         .data_cpu_data_o(axi_mem_data),
         .data_stallreq(data_axi_busy),
-        .data_id(4'b0000),
+        .data_id(4'b0001),
 
         // External AXI signals
         .s_arid(arid),
