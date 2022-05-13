@@ -3,6 +3,7 @@
 `include "defines.sv"
 `include "instr_info.sv"
 `include "csr_defines.sv"
+`include "tlb_defines.sv"
 
 `define DECODE_WIDTH 2
 typedef struct packed {

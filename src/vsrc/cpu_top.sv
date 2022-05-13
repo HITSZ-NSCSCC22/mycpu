@@ -364,49 +364,6 @@ module cpu_top (
     //tlb
     logic inst_addr_trans_en;
     logic data_addr_trans_en;
-    logic fetch_en;
-    logic [31:0] inst_vaddr;
-    logic inst_dmw0_en;
-    logic inst_dmw1_en;
-    logic [7:0] inst_index;
-    logic [19:0] inst_tag;
-    logic [3:0] inst_offset;
-    logic inst_tlb_found;
-    logic inst_tlb_v;
-    logic inst_tlb_d;
-    logic [1:0] inst_tlb_mat;
-    logic [1:0] inst_tlb_plv;
-    logic data_fetch;
-    logic [31:0] data_vaddr;
-    logic data_dmw0_en;
-    logic data_dmw1_en;
-    logic cacop_op_mode_di;
-    logic [7:0] data_index;
-    logic [19:0] data_tag;
-    logic [3:0] data_offset;
-    logic data_tlb_found;
-    logic [4:0] data_tlb_index;
-    logic data_tlb_v;
-    logic data_tlb_d;
-    logic [1:0] data_tlb_mat;
-    logic [1:0] data_tlb_plv;
-    logic tlbfill_en;
-    logic tlbwr_en;
-    logic [4:0] rand_index;
-    logic [31:0] tlbw_tlbehi;
-    logic [31:0] tlbw_tlbelo0;
-    logic [31:0] tlbw_tlbelo1;
-    logic [31:0] tlbw_r_tlbidx;
-    logic [5:0] tlbw_ecode;
-    logic [31:0] tlbr_tlbehi;
-    logic [31:0] tlbr_tlbelo0;
-    logic [31:0] tlbr_tlbelo1;
-    logic [31:0] tlbr_tlbidx;
-    logic [9:0] tlbr_asid;
-    logic invtlb_en;
-    logic [9:0] invtlb_asid;
-    logic [18:0] invtlb_vpn;
-    logic [4:0] invtlb_op;
 
     //csr
     logic has_int;
@@ -528,11 +485,9 @@ module cpu_top (
                 .stall(stall[3]),
                 .flush(ex_mem_flush[i]),
 
-                .ex_current_inst_address(),
                 .excp_i(ex_excp_o[i]),
                 .excp_num_i(ex_excp_num_o[i]),
 
-                .mem_current_inst_address(),
                 .excp_o(mem_excp_i[i]),
                 .excp_num_o(mem_excp_num_i[i])
             );
@@ -552,7 +507,7 @@ module cpu_top (
     tlb_to_mem_struct tlb_mem_signal;
 
     assign csr_mem_signal = {csr_pg,csr_da,csr_dmw0,csr_dmw1,csr_plv,csr_datf};
-    assign tlb_mem_signal = {data_tlb_found,data_tlb_index,data_tlb_v,data_tlb_d,data_tlb_mat,data_tlb_plv};
+    //assign tlb_mem_signal = {data_tlb_found,data_tlb_index,data_tlb_v,data_tlb_d,data_tlb_mat,data_tlb_plv};
 
     generate
         for (genvar i = 0; i < 2; i++) begin : mem
@@ -762,30 +717,38 @@ module cpu_top (
         .era_out(csr_era),
         .tlbrentry_out(csr_tlbrentry),
         .asid_out(csr_asid),
-        .rand_index(rand_index),
-        .tlbehi_out(tlbw_tlbehi),
-        .tlbelo0_out(tlbw_tlbelo0),
-        .tlbelo1_out(tlbw_tlbelo1),
-        .tlbidx_out(tlbw_r_tlbidx),
+        .rand_index(tlb_write_signal_i.rand_index),
+        .tlbehi_out(tlb_write_signal_i.tlbehi),
+        .tlbelo0_out(tlb_write_signal_i.tlbelo0),
+        .tlbelo1_out(tlb_write_signal_i.tlbelo1),
+        .tlbidx_out(tlb_write_signal_i.tlbidx),
         .pg_out(csr_pg),
         .da_out(csr_da),
         .dmw0_out(csr_dmw0),
         .dmw1_out(csr_dmw1),
         .datf_out(csr_datf),
         .datm_out(csr_datm),
-        .ecode_out(tlbw_ecode),
-        .tlbrd_en(tlbrd_en),
-        .tlbehi_in(tlbr_tlbehi),
-        .tlbelo0_in(tlbr_tlbelo0),
-        .tlbelo1_in(tlbr_tlbelo1),
-        .tlbidx_in(tlbr_tlbidx),
-        .asid_in(tlbr_asid)
+        .ecode_out(tlb_write_signal_i.ecode),
+        .tlbrd_en(),
+        .tlbehi_in(tlb_read_signal_o.tlbehi),
+        .tlbelo0_in(tlb_read_signal_o.tlbelo0),
+        .tlbelo1_in(tlb_read_signal_o.tlbelo1),
+        .tlbidx_in(tlb_read_signal_o.tlbidx),
+        .asid_in(tlb_read_signal_o.asid)
     );
 
 
     assign data_addr_trans_en = mem_data_addr_trans_en[0] | mem_data_addr_trans_en[1];
-    assign data_dmw0_en = mem_data_dmw0_en[0] | mem_data_dmw0_en[1];
-    assign data_dmw1_en = mem_data_dmw1_en[0] | mem_data_dmw1_en[1];
+    assign tlb_data_i.dmw0_en = mem_data_dmw0_en[0] | mem_data_dmw0_en[1];
+    assign tlb_data_i.dmw1_en = mem_data_dmw1_en[0] | mem_data_dmw1_en[1];
+
+    inst_tlb_struct tlb_inst_i;
+    tlb_inst_struct tlb_inst_o;
+    data_tlb_struct tlb_data_i;
+    tlb_data_struct tlb_data_o;
+    tlb_write_in_struct tlb_write_signal_i;
+    tlb_read_out_struct tlb_read_signal_o;
+    tlb_inv_in_struct tlb_inv_signal_i;
     tlb u_tlb (
         .clk               (clk),
         .asid              (csr_asid),
@@ -793,58 +756,22 @@ module cpu_top (
         .inst_addr_trans_en(inst_addr_trans_en),
         .data_addr_trans_en(data_addr_trans_en),
         //inst addr trans
-        .inst_fetch        (fetch_en),
-        .inst_vaddr        (inst_vaddr),
-        .inst_dmw0_en      (inst_dmw0_en),
-        .inst_dmw1_en      (inst_dmw1_en),
-        .inst_index        (inst_index),
-        .inst_tag          (inst_tag),
-        .inst_offset       (inst_offset),
-        .inst_tlb_found    (inst_tlb_found),
-        .inst_tlb_v        (inst_tlb_v),
-        .inst_tlb_d        (inst_tlb_d),
-        .inst_tlb_mat      (inst_tlb_mat),
-        .inst_tlb_plv      (inst_tlb_plv),
+        .inst_i(tlb_inst_i),
+        .inst_o(tlb_inst_o),
         //data addr trans 
-        .data_fetch        (data_fetch),
-        .data_vaddr        (data_vaddr),
-        .data_dmw0_en      (data_dmw0_en),
-        .data_dmw1_en      (data_dmw1_en),
-        .cacop_op_mode_di  (cacop_op_mode_di),
-        .data_index        (data_index),
-        .data_tag          (data_tag),
-        .data_offset       (data_offset),
-        .data_tlb_found    (data_tlb_found),
-        .data_tlb_index    (data_tlb_index),
-        .data_tlb_v        (data_tlb_v),
-        .data_tlb_d        (data_tlb_d),
-        .data_tlb_mat      (data_tlb_mat),
-        .data_tlb_plv      (data_tlb_plv),
+        .data_i(tlb_data_i),
+        .data_o(tlb_data_o),
         //tlbwr tlbfill tlb write 
-        .tlbfill_en        (tlbfill_en),
-        .tlbwr_en          (tlbwr_en),
-        .rand_index        (rand_index),
-        .tlbehi_in         (tlbw_tlbehi),
-        .tlbelo0_in        (tlbw_tlbelo0),
-        .tlbelo1_in        (tlbw_tlbelo1),
-        .tlbidx_in         (tlbw_r_tlbidx),
-        .ecode_in          (tlbw_ecode),
+        .write_signal_i(tlb_write_signal_i),
         //tlbp tlb read
-        .tlbehi_out        (tlbr_tlbehi),
-        .tlbelo0_out       (tlbr_tlbelo0),
-        .tlbelo1_out       (tlbr_tlbelo1),
-        .tlbidx_out        (tlbr_tlbidx),
-        .asid_out          (tlbr_asid),
+        .read_signal_o(tlb_read_signal_o),
         //invtlb 
-        .invtlb_en         (invtlb_en),
-        .invtlb_asid       (invtlb_asid),
-        .invtlb_vpn        (invtlb_vpn),
-        .invtlb_op         (invtlb_op),
+        .inv_signal_i(tlb_inv_signal_i),
         //from csr
-        .csr_dmw0          (csr_dmw0),
-        .csr_dmw1          (csr_dmw1),
-        .csr_da            (csr_da),
-        .csr_pg            (csr_pg)
+        .csr_dmw0(csr_dmw0),
+        .csr_dmw1(csr_dmw1),
+        .csr_da(csr_da),
+        .csr_pg(csr_pg)
     );
 
     // Difftest Delay signals
