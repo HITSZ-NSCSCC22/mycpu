@@ -131,6 +131,11 @@ module axi_master (
                         is_fetching_inst = 0;
                     end
                 end
+                `R_ADDR:begin
+                    inst_stall_req_r = 1;
+                    inst_cpu_data_o  = 0;
+                    is_fetching_inst = 1;
+                end
                 `R_DATA:begin
                             if(s_rvalid&&s_rlast)
                             begin
