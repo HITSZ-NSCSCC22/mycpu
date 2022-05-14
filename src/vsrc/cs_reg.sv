@@ -3,66 +3,71 @@
 `include "defines.sv"
 `include "csr_defines.sv"
 module cs_reg (
-    input wire clk,
-    input wire rst,
+    input logic clk,
+    input logic rst,
 
     input csr_write_signal write_signal_1,
     input csr_write_signal write_signal_2,
 
+    input logic excp_flush,
+    input logic ertn_flush,
+    input logic [8:0] interrupt_i,
+    input logic [31:0] era_i,
+    input logic [8:0] esubcode_i,
+    input logic [5:0] ecode_i,
+    input logic va_error_i,
+    input logic [31:0] bad_va_i,
+    input logic tlbsrch_en,
+    input logic tlbsrch_found,
+    input logic [4:0] tlbsrch_index,
+    input logic excp_tlbrefill,
+    input logic excp_tlb,
+    input logic [18:0] excp_tlb_vppn,
 
-    input wire excp_flush,
-    input wire ertn_flush,
-    input wire [8:0] interrupt_i,
-    input wire [31:0] era_i,
-    input wire [8:0] esubcode_i,
-    input wire [5:0] ecode_i,
-    input wire va_error_i,
-    input wire [31:0] bad_va_i,
-    input wire tlbsrch_en,
-    input wire tlbsrch_found,
-    input wire [4:0] tlbsrch_index,
-    input wire excp_tlbrefill,
-    input wire excp_tlb,
-    input wire [18:0] excp_tlb_vppn,
+    input logic [13:0] raddr_1,
+    output logic [`RegBus] rdata_1,
+    input logic [13:0] raddr_2,
+    output logic [`RegBus] rdata_2,
 
-    input wire [13:0] raddr_1,
-    output wire [`RegBus] rdata_1,
-    input wire [13:0] raddr_2,
-    output wire [`RegBus] rdata_2,
+    //timer 64
+    output logic [63:0] timer_64_o,
+    output logic [31:0] tid_o,
 
-    input wire llbit_i,
-    input wire llbit_set_i,
+    input logic llbit_i,
+    input logic llbit_set_i,
 
-    output wire llbit_o,
-    output wire [18:0] vppn_o,
+    output logic llbit_o,
+    output logic [18:0] vppn_o,
+
+    output logic [1:0] plv_o,
 
     //to pc_reg
-    output wire has_int,
-    output wire [31:0] eentry_out,
-    output wire [31:0] era_out,
-    output wire [31:0] tlbrentry_out,
+    output logic has_int,
+    output logic [31:0] eentry_out,
+    output logic [31:0] era_out,
+    output logic [31:0] tlbrentry_out,
 
     //to tlb
-    output wire [9:0] asid_out,
-    output wire [4:0] rand_index,
-    output wire [31:0] tlbehi_out,
-    output wire [31:0] tlbelo0_out,
-    output wire [31:0] tlbelo1_out,
-    output wire [31:0] tlbidx_out,
-    output wire pg_out,
-    output wire da_out,
-    output wire [31:0] dmw0_out,
-    output wire [31:0] dmw1_out,
-    output wire [1:0] datf_out,
-    output wire [1:0] datm_out,
-    output wire [5:0] ecode_out,
+    output logic [9:0] asid_out,
+    output logic [4:0] rand_index,
+    output logic [31:0] tlbehi_out,
+    output logic [31:0] tlbelo0_out,
+    output logic [31:0] tlbelo1_out,
+    output logic [31:0] tlbidx_out,
+    output logic pg_out,
+    output logic da_out,
+    output logic [31:0] dmw0_out,
+    output logic [31:0] dmw1_out,
+    output logic [1:0] datf_out,
+    output logic [1:0] datm_out,
+    output logic [5:0] ecode_out,
     //from tlb
-    input wire tlbrd_en,
-    input wire [31:0] tlbehi_in,
-    input wire [31:0] tlbelo0_in,
-    input wire [31:0] tlbelo1_in,
-    input wire [31:0] tlbidx_in,
-    input wire [9:0] asid_in
+    input logic tlbrd_en,
+    input logic [31:0] tlbehi_in,
+    input logic [31:0] tlbelo0_in,
+    input logic [31:0] tlbelo1_in,
+    input logic [31:0] tlbidx_in,
+    input logic [9:0] asid_in
 );
 
     reg [31:0] csr_crmd;
@@ -94,16 +99,16 @@ module cs_reg (
     reg [31:0] csr_dmw0;
     reg [31:0] csr_dmw1;
 
-    wire [31:0] csr_pgd;
+    logic [31:0] csr_pgd;
     reg timer_en;
     reg [63:0] timer_64;
 
     reg llbit;
 
-    wire eret_tlbrefill_excp;
-    wire tlbrd_valid_wr_en;
-    wire tlbrd_invalid_wr_en;
-    wire no_forward;
+    logic eret_tlbrefill_excp;
+    logic tlbrd_valid_wr_en;
+    logic tlbrd_invalid_wr_en;
+    logic no_forward;
 
     //选择有写入信号的进行赋值，同样假设不会有写冲突
     reg we;
@@ -154,7 +159,7 @@ module cs_reg (
 
     assign has_int = ((csr_ectl[`LIE] & csr_estat[`IS]) != 13'b0) & csr_crmd[`IE];
 
-    assign plv_out  = {2{excp_flush}} & 2'b0            |
+    assign plv_o  = {2{excp_flush}} & 2'b0            |
                   {2{ertn_flush}} & csr_prmd[`PPLV] |
                   {2{(we == 1'b1 && waddr == `CRMD)  }} & wdata[`PLV]   |
                   {2{!excp_flush && !ertn_flush && !(we == 1'b1 && waddr == `CRMD)}} & csr_crmd[`PLV];
@@ -219,6 +224,19 @@ module cs_reg (
                  {32{raddr_2 == `DMW0}}    & csr_dmw0    |
                  {32{raddr_2 == `DMW1}}    & csr_dmw1    ;
 
+    assign eentry_out   = csr_eentry;
+assign era_out      = csr_era;
+assign timer_64_o = timer_64 + {{32{csr_cntc[31]}}, csr_cntc};
+assign tid_o      = csr_tid;
+assign llbit_o    = llbit;
+assign asid_out     = csr_asid[`TLB_ASID];
+assign vppn_o     = (we && waddr == `TLBEHI) ? wdata[`VPPN] : csr_tlbehi[`VPPN];
+assign tlbehi_out   = csr_tlbehi;
+assign tlbelo0_out  = csr_tlbelo0;
+assign tlbelo1_out  = csr_tlbelo1;
+assign tlbidx_out   = csr_tlbidx;
+assign rand_index   = timer_64[4:0];
+
 
     //crmd
     always @(posedge clk) begin
@@ -230,14 +248,14 @@ module cs_reg (
             csr_crmd[`DATF] <= 2'b0;
             csr_crmd[`DATM] <= 2'b0;
             csr_crmd[31:9]  <= 23'b0;
-        end else if (ertn_flush) begin
+        end else if (excp_flush) begin
             csr_crmd[`PLV] <= 2'b0;
             csr_crmd[`IE]  <= 1'b0;
             if (excp_tlbrefill) begin
                 csr_crmd[`DA] <= 1'b1;
                 csr_crmd[`PG] <= 1'b0;
             end
-        end else if (excp_flush) begin
+        end else if (ertn_flush) begin
             csr_crmd[`PLV] <= csr_prmd[`PPLV];
             csr_crmd[`IE]  <= csr_prmd[`PIE];
             if (eret_tlbrefill_excp) begin
@@ -271,10 +289,6 @@ module cs_reg (
     always @(posedge clk) begin
         if (rst) csr_ectl <= 32'b0;
         else if (we == 1'b1 && waddr == `ECTL) csr_ectl[`LIE] <= wdata[`LIE];
-    end
-
-    always @(posedge clk) begin
-
     end
 
     //estate
@@ -332,6 +346,21 @@ module cs_reg (
     always @(posedge clk) begin
         if (rst) begin
             csr_cpuid <= 32'b0;
+        end
+    end
+
+    //tval
+    always @(posedge clk) begin
+        if (we && waddr == `TCFG) begin
+            csr_tval <= {wdata[`INITVAL], 2'b0};
+        end
+        else if (timer_en) begin
+            if (csr_tval != 32'b0) begin
+            csr_tval <= csr_tval - 32'b1;
+            end
+            else if (csr_tval == 32'b0) begin
+                csr_tval <= csr_tcfg[`PERIODIC] ? {csr_tcfg[`INITVAL], 2'b0} : 32'hffffffff;
+            end
         end
     end
 
@@ -393,6 +422,8 @@ module cs_reg (
     always @(posedge clk) begin
         if (rst) csr_tlbehi[12:0] <= 13'b0;
         else if (we == 1'b1 && waddr == `TLBEHI) csr_tlbehi[`VPPN] <= wdata[`VPPN];
+        else if (tlbrd_valid_wr_en) csr_tlbehi[`VPPN] <= tlbehi_in[`VPPN];
+        else if (tlbrd_invalid_wr_en) csr_tlbehi[`VPPN] <= 19'b0;
         else if (excp_tlb) csr_tlbehi[`VPPN] <= excp_tlb_vppn;
     end
 
@@ -413,7 +444,14 @@ module cs_reg (
             csr_tlbelo0[`TLB_MAT] <= tlbelo0_in[`TLB_MAT];
             csr_tlbelo0[`TLB_G]   <= tlbelo0_in[`TLB_G];
             csr_tlbelo0[`TLB_PPN] <= tlbelo0_in[`TLB_PPN];
-        end
+        end else if(tlbrd_invalid_wr_en) begin
+            csr_tlbelo0[`TLB_V]   <= 1'b0;
+            csr_tlbelo0[`TLB_D]   <= 1'b0;
+            csr_tlbelo0[`TLB_PLV] <= 2'b0;
+            csr_tlbelo0[`TLB_MAT] <= 2'b0;
+            csr_tlbelo0[`TLB_G]   <= 1'b0;
+            csr_tlbelo0[`TLB_PPN] <= 24'b0;
+    end
     end
 
     //tlbelo1
@@ -433,6 +471,13 @@ module cs_reg (
             csr_tlbelo1[`TLB_MAT] <= tlbelo1_in[`TLB_MAT];
             csr_tlbelo1[`TLB_G]   <= tlbelo1_in[`TLB_G];
             csr_tlbelo1[`TLB_PPN] <= tlbelo1_in[`TLB_PPN];
+        end else if (tlbrd_invalid_wr_en) begin
+            csr_tlbelo1[`TLB_V]   <= 1'b0;
+            csr_tlbelo1[`TLB_D]   <= 1'b0;
+            csr_tlbelo1[`TLB_PLV] <= 2'b0;
+            csr_tlbelo1[`TLB_MAT] <= 2'b0;
+            csr_tlbelo1[`TLB_G]   <= 1'b0;
+            csr_tlbelo1[`TLB_PPN] <= 24'b0;
         end
     end
 
@@ -441,6 +486,7 @@ module cs_reg (
         if (rst) csr_asid[31:10] <= 22'h280;
         else if (we == 1'b1 && waddr == `ASID) csr_asid[`TLB_ASID] <= wdata[`TLB_ASID];
         else if (tlbrd_valid_wr_en) csr_asid[`TLB_ASID] <= asid_in;
+        else if (tlbrd_invalid_wr_en) csr_asid[`TLB_ASID] <= 10'b0;
     end
 
     //pgdl
@@ -548,23 +594,14 @@ module cs_reg (
         if (rst) csr_ticlr <= 32'b0;
     end
 
-    // Comment out to resolve multi-driven issue
-    //llbitc
-    // always @(posedge clk) begin
-    //     if (rst) begin
-    //         csr_llbctl[`KLO] <= 1'b0;
-    //         csr_llbctl[31:3] <= 29'b0;
-    //         llbit <= 1'b0;
-    //     end else if (ertn_flush) begin
-    //         if (csr_llbctl[`KLO]) csr_llbctl[`KLO] <= 1'b0;
-    //         else llbit <= 1'b0;
-    //     end else if (we == 1'b1 && waddr == `LLBCTL) begin
-    //         csr_llbctl[`KLO] <= wdata[`KLO];
-    //         if (wdata[`WCLLB] == 1'b1) llbit <= 1'b0;
-    //     end else if (llbit_set_i) llbit <= llbit_i;
-
-    // end
-
-
+    //timer_64
+    always @(posedge clk) begin
+        if (rst) begin
+            timer_64 <= 64'b0;
+        end
+        else begin
+            timer_64 <= timer_64 + 1'b1;
+        end
+    end
 
 endmodule

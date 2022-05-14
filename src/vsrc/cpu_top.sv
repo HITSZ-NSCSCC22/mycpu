@@ -389,6 +389,7 @@ module cpu_top (
     logic csr_llbit_set_i;
     logic csr_llbit_o;
     logic csr_llbit_set_o;
+    logic [18:0] csr_vppn_o;
     logic [`RegBus] csr_eentry;
     logic [31:0] csr_tlbrentry;
     logic [`RegBus] csr_era;
@@ -435,7 +436,7 @@ module cpu_top (
                 .rst(rst),
 
                 .dispatch_i(dispatch_exe[i]),
-                .csr_vppn  (),
+                .csr_vppn  (csr_vppn_o),
 
                 .ex_o(ex_signal_o[i]),
 
@@ -505,6 +506,8 @@ module cpu_top (
 
     csr_to_mem_struct csr_mem_signal;
     tlb_to_mem_struct tlb_mem_signal;
+    assign tlb_mem_signal = {tlb_data_o.found,tlb_data_o.tlb_index,tlb_data_o.tlb_v,
+                            tlb_data_o.tlb_d,tlb_data_o.tlb_mat,tlb_data_o.tlb_plv};
 
     assign csr_mem_signal = {csr_pg,csr_da,csr_dmw0,csr_dmw1,csr_plv,csr_datf};
     //assign tlb_mem_signal = {data_tlb_found,data_tlb_index,data_tlb_v,data_tlb_d,data_tlb_mat,data_tlb_plv};
@@ -696,12 +699,18 @@ module cpu_top (
         .rst(rst),
         .excp_flush(excp_flush),
         .ertn_flush(ertn_flush),
+        .interrupt_i(),
+        .ecode_i(),
         .write_signal_1(wb_csr_signal[0]),
         .write_signal_2(wb_csr_signal[1]),
         .raddr_1(id_csr_read_addr_o[0]),
         .raddr_2(id_csr_read_addr_o[1]),
         .rdata_1(id_csr_data[0]),
         .rdata_2(id_csr_data[1]),
+        .llbit_i(),
+        .llbit_set_i(),
+        .llbit_o(),
+        .vppn_o(csr_vppn_o),
         .era_i(csr_era_i),
         .esubcode_i(csr_esubcode_i),
         .va_error_i(va_error_i),
