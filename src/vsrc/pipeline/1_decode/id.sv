@@ -35,9 +35,6 @@ module id (
     // -> Dispatch
     output id_dispatch_struct dispatch_o,
 
-    output logic broadcast_excp_o,
-    output logic [8:0] broadcast_excp_num_o,
-
     // <- CSR
     input logic has_int,
     input logic [`RegBus] csr_data_i,
@@ -214,11 +211,13 @@ module id (
     logic excp_ine;
     logic excp_ipe;
 
+    assign dispatch_o.refetch = (dispatch_o.aluop == `EXE_TLBFILL_OP || dispatch_o.aluop == `EXE_TLBRD_OP || dispatch_o.aluop == `EXE_TLBWR_OP || dispatch_o.aluop == `EXE_TLBSRCH_OP || dispatch_o.aluop == `EXE_ERTN_OP || dispatch_o.aluop == `EXE_INVTLB_OP) ; 
+
     assign excp_ine = (instr_valid == `InstInvalid) && instr_buffer_i.valid;
     assign excp_ipe = kernel_instr && (csr_plv == 2'b11);
 
-    assign broadcast_excp_o = excp_ipe | instr_syscall | instr_break | excp_i | excp_ine | has_int;
-    assign broadcast_excp_num_o = {
+    assign dispatch_o.excp = excp_ipe | instr_syscall | instr_break | excp_i | excp_ine | has_int;
+    assign dispatch_o.excp_num = {
         excp_ipe, excp_ine, instr_break, instr_syscall, excp_num_i, has_int
     };
 

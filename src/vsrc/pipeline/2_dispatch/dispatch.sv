@@ -153,6 +153,10 @@ module dispatch #(
                     exe_o[i].branch_com_result[3] <= ({~oprand1[i][31],oprand1[i][30:0]} >= {~oprand2[i][31],oprand2[i][30:0]});
                     exe_o[i].branch_com_result[4] <= oprand1[i] < oprand2[i];
                     exe_o[i].branch_com_result[5] <= oprand1[i] >= oprand2[i];
+
+                    exe_o[i].excp <= id_i[i].excp;
+                    exe_o[i].excp_num <= id_i[i].excp_num; 
+                    exe_o[i].refetch <= id_i[i].refetch;
                 end
             end
         end

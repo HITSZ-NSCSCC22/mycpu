@@ -19,10 +19,6 @@ module ex (
 
     output ex_dispatch_struct ex_data_forward,
 
-    input logic excp_i,
-    input logic [8:0] excp_num_i,
-    output logic excp_o,
-    output logic [9:0] excp_num_o
 );
 
     reg [`RegBus] logicout;
@@ -68,8 +64,9 @@ module ex (
     assign ex_o.csr_signal.addr = csr_signal_i.addr;
     assign ex_o.csr_signal.data = (aluop_i ==`EXE_CSRXCHG_OP) ?((reg1_i & reg2_i) | (~reg1_i & csr_signal_i.data)) : csr_signal_i.data;
 
-    assign excp_o = excp_i || 1'b0;
-    assign excp_num_o = {1'b0, excp_num_i};
+    assign ex_o.excp = dispatch_i.excp || 1'b0;
+    assign ex_o.excp_num = {1'b0, dispatch_i.excp_num};
+    assign ex_o.refetch = dispatch_i.refetch;
 
     always @(*) begin
         if (rst == `RstEnable) begin
