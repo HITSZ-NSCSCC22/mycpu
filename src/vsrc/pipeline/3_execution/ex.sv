@@ -44,8 +44,6 @@ module ex (
     logic [`RegBus] inst_i, inst_pc_i;
     assign inst_i = dispatch_i.instr_info.instr;
     assign inst_pc_i = dispatch_i.instr_info.pc;
-    logic inst_valid_i;
-    assign inst_valid_i = dispatch_i.instr_info.valid;
 
     logic wreg_i;
     logic [`RegAddrBus] wd_i;
@@ -55,6 +53,8 @@ module ex (
     assign ex_o.aluop = aluop_i;
     logic [`InstAddrBus] debug_mem_addr_o;
     assign debug_mem_addr_o = ex_o.mem_addr;
+
+    // TODO:fix vppn select
     assign ex_o.mem_addr = reg1_i + {{20{inst_i[21]}}, inst_i[21:10]};
     assign ex_o.reg2 = reg2_i;
 
@@ -62,6 +62,7 @@ module ex (
 
     csr_write_signal csr_signal_i;
     assign csr_signal_i = dispatch_i.csr_signal;
+    
     //写入csr的数据，对csrxchg指令进行掩码处理
     assign ex_o.csr_signal.we = csr_signal_i.we;
     assign ex_o.csr_signal.addr = csr_signal_i.addr;
@@ -118,11 +119,9 @@ module ex (
     //比较模块
     logic reg1_lt_reg2;
     logic [`RegBus] reg2_i_mux;
-    logic [`RegBus] reg1_i_mux;
     logic [`RegBus] result_compare;
 
     assign reg2_i_mux = (aluop_i == `EXE_SLT_OP) ? ~reg2_i + 32'b1 : reg2_i; // shifted encoding when signed comparison
-    assign reg1_i_mux = (aluop_i == `EXE_SLT_OP) ? ~reg1_i + 32'b1 : reg1_i;
     assign result_compare = reg1_i + reg2_i_mux;
     assign reg1_lt_reg2  = (aluop_i == `EXE_SLT_OP) ? ((reg1_i[31] && !reg2_i[31]) || (!reg1_i[31] && !reg2_i[31] && result_compare[31])||
 			               (reg1_i[31] && reg2_i[31] && result_compare[31])) : (reg1_i < reg2_i);

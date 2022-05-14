@@ -112,7 +112,7 @@ tlb_entry tlb_entry(
     .s1_vppn        (s1_vppn        ),
     .s1_odd_page    (s1_odd_page    ),
     .s1_asid        (asid           ),
-    .s1_found       (data_o.tlb_found ),
+    .s1_found       (data_o.found ),
     .s1_index       (data_o.tlb_index ),
     .s1_ps          (s1_ps          ),
     .s1_ppn         (s1_ppn         ),

@@ -105,7 +105,7 @@ typedef struct packed {
     logic [`RegBus] csr_dmw0;
     logic [`RegBus] csr_dmw1;
     logic [1:0] csr_plv;
-    logic [1:0] csr_datf;
+    logic [1:0] csr_datm;
 } csr_to_mem_struct;
 
 typedef struct packed {

@@ -385,10 +385,6 @@ module cpu_top (
     logic excp_tlbrefill;
     logic excp_tlb;
     logic [18:0] excp_tlb_vppn;
-    logic csr_llbit_i;
-    logic csr_llbit_set_i;
-    logic csr_llbit_o;
-    logic csr_llbit_set_o;
     logic [18:0] csr_vppn_o;
     logic [`RegBus] csr_eentry;
     logic [31:0] csr_tlbrentry;
@@ -503,13 +499,15 @@ module cpu_top (
     logic LLbit_o;
     logic mem_wb_LLbit_we[2];
     logic mem_wb_LLbit_value[2];
+    logic cacop_op_mode_di[2];
+    assign tlb_data_i.cacop_op_mode_di =  cacop_op_mode_di[0] |  cacop_op_mode_di[1];
 
     csr_to_mem_struct csr_mem_signal;
     tlb_to_mem_struct tlb_mem_signal;
     assign tlb_mem_signal = {tlb_data_o.found,tlb_data_o.tlb_index,tlb_data_o.tlb_v,
                             tlb_data_o.tlb_d,tlb_data_o.tlb_mat,tlb_data_o.tlb_plv};
 
-    assign csr_mem_signal = {csr_pg,csr_da,csr_dmw0,csr_dmw1,csr_plv,csr_datf};
+    assign csr_mem_signal = {csr_pg,csr_da,csr_dmw0,csr_dmw1,csr_plv,csr_datm};
     //assign tlb_mem_signal = {data_tlb_found,data_tlb_index,data_tlb_v,data_tlb_d,data_tlb_mat,data_tlb_plv};
 
     generate
@@ -550,7 +548,7 @@ module cpu_top (
                 .data_addr_trans_en(mem_data_addr_trans_en[i]),
                 .dmw0_en(mem_data_dmw0_en[i]),
                 .dmw1_en(mem_data_dmw1_en[i]),
-                .cacop_op_mode_di(cacop_op_mode_di),
+                .cacop_op_mode_di(cacop_op_mode_di[i]),
 
                 .tlb_mem_signal(tlb_mem_signal)
             );
@@ -616,9 +614,9 @@ module cpu_top (
                 .ertn_flush(wb_ertn_flush[i]),
                 .va_error(wb_va_error[i]),
                 .bad_va(wb_bad_va[i]),
-                .excp_tlbrefill(),
-                .excp_tlb(),
-                .excp_tlb_vppn(),
+                .excp_tlbrefill(wb_excp_tlbrefill[i]),
+                .excp_tlb(excp_tlb),
+                .excp_tlb_vppn(wb_excp_tlb_vppn[i]),
 
                 .debug_commit_inst_ld_en(debug_commit_inst_ld_en),
                 .debug_commit_ld_paddr(debug_commit_ld_paddr),
@@ -668,18 +666,6 @@ module cpu_top (
     );
     
 
-
-    LLbit_reg u_LLbit_reg (
-        .clk(clk),
-        .rst(rst),
-        .flush(1'b0),
-        .LLbit_i_1(wb_LLbit_value_i[0]),
-        .LLbit_i_2(wb_LLbit_value_i[1]),
-        .we(wb_LLbit_we_i[0] | wb_LLbit_we_i[1]),
-        .LLbit_o(LLbit_o)
-    );
-
-
     //目前没有进行冲突处理，是假设不会同时出现两条异常同时发生
     assign csr_era_i = wb_csr_era[0] | wb_csr_era[1];
     assign csr_ecode_i = wb_csr_ecode[0] | wb_csr_ecode[1];
@@ -699,19 +685,22 @@ module cpu_top (
         .rst(rst),
         .excp_flush(excp_flush),
         .ertn_flush(ertn_flush),
-        .interrupt_i(),
-        .ecode_i(),
+        .interrupt_i({1'b0,intrpt}),
+        .ecode_i(csr_ecode_i),
         .write_signal_1(wb_csr_signal[0]),
         .write_signal_2(wb_csr_signal[1]),
         .raddr_1(id_csr_read_addr_o[0]),
         .raddr_2(id_csr_read_addr_o[1]),
         .rdata_1(id_csr_data[0]),
         .rdata_2(id_csr_data[1]),
-        .llbit_i(),
-        .llbit_set_i(),
-        .llbit_o(),
+        .llbit_i(wb_LLbit_value_i[0] | wb_LLbit_value_i[1]),
+        .llbit_set_i(wb_LLbit_we_i[0] | wb_LLbit_we_i[1]),
+        .llbit_o(LLbit_o),
         .vppn_o(csr_vppn_o),
         .era_i(csr_era_i),
+        .timer_64_o(),
+        .tid_o(),
+        .plv_o(csr_plv),
         .esubcode_i(csr_esubcode_i),
         .va_error_i(va_error_i),
         .bad_va_i(bad_va_i),
@@ -758,6 +747,9 @@ module cpu_top (
     tlb_write_in_struct tlb_write_signal_i;
     tlb_read_out_struct tlb_read_signal_o;
     tlb_inv_in_struct tlb_inv_signal_i;
+    
+    assign tlb_inst_i = {35'b0};
+
     tlb u_tlb (
         .clk               (clk),
         .asid              (csr_asid),
