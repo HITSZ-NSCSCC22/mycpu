@@ -22,9 +22,6 @@ module mem (
     input logic wb_LLbit_we_i,
     input logic wb_LLbit_value_i,
 
-    input logic excp_i,
-    input logic [9:0] excp_num_i,
-
     //from csr 
     input csr_to_mem_struct csr_mem_signal,
     input logic disable_cache,
@@ -41,10 +38,8 @@ module mem (
     input tlb_to_mem_struct tlb_mem_signal,
 
     output reg LLbit_we_o,
-    output reg LLbit_value_o,
+    output reg LLbit_value_o
 
-    output logic excp_o,
-    output logic [15:0] excp_num_o
 );
 
     reg LLbit;
@@ -69,6 +64,11 @@ module mem (
     logic [`RegBus] mem_addr, reg2_i;
     assign mem_addr = signal_i.mem_addr;
     assign reg2_i = signal_i.reg2;
+
+    logic excp_i;
+    logic [9:0] excp_num_i;
+    assign excp_i = signal_i.excp;
+    assign excp_num_i = signal_i.excp_num;
 
     assign access_mem = mem_load_op || mem_store_op;
 
@@ -118,8 +118,9 @@ module mem (
     assign excp_ppi = access_mem && tlb_mem_signal.data_tlb_v && (csr_mem_signal.csr_plv > tlb_mem_signal.data_tlb_plv) && data_addr_trans_en;
     assign excp_pme  = mem_store_op && tlb_mem_signal.data_tlb_v && (csr_mem_signal.csr_plv <= tlb_mem_signal.data_tlb_plv) && !tlb_mem_signal.data_tlb_d && data_addr_trans_en;
 
-    assign excp_o = excp_tlbr || excp_pil || excp_pis || excp_ppi || excp_pme || excp_adem || excp_i;
-    assign excp_num_o = {excp_pil, excp_pis, excp_ppi, excp_pme, excp_tlbr, excp_adem, excp_num_i};
+    assign signal_o.excp = excp_tlbr || excp_pil || excp_pis || excp_ppi || excp_pme || excp_adem || excp_i;
+    assign signal_o.excp_num = {excp_pil, excp_pis, excp_ppi, excp_pme, excp_tlbr, excp_adem, excp_num_i};
+    assign signal_o.refetch = signal_i.refetch;
 
     always @(*) begin
         if (rst == `RstEnable) LLbit = 1'b0;

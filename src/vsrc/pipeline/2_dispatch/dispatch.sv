@@ -30,6 +30,11 @@ module dispatch #(
     // Data forwarding
     input mem_dispatch_struct mem_data_forward[MEM_STAGE_WIDTH],
 
+    //<-> CSR
+    //get wdata from csr
+    output [13:0] csr_read_addr,
+    input [`RegBus] csr_data,
+
     // -> Instruction Buffer, wire
     output logic [DECODE_WIDTH-1:0] ib_accept_o,
 
@@ -41,9 +46,12 @@ module dispatch #(
     logic rst_n;
     assign rst_n = ~rst;
 
-    logic [`AluOpBus] aluop_i[2];
-    assign aluop_i[0] = ex_data_forward[0].aluop_i;
-    assign aluop_i[1] = ex_data_forward[1].aluop_i;
+    //logic [`AluOpBus] aluop_i[2];
+    //assign aluop_i[0] = ex_data_forward[0].aluop_i;
+    //assign aluop_i[1] = ex_data_forward[1].aluop_i;
+
+    //assume two csr write instr not come together
+    assign csr_read_addr = id_i[0].imm[13:0] | id_i[1].imm[13:0] ;
 
     // assign stallreq = aluop_i[0] == `EXE_LD_B_OP || aluop_i[0] == `EXE_LD_BU_OP || aluop_i[0] == `EXE_LD_H_OP || aluop_i[0] == `EXE_LD_HU_OP ||
     //                    aluop_i[0] == `EXE_LD_W_OP || aluop_i[0] == `EXE_LL_OP || aluop_i[0] == `EXE_ST_B_OP || 
@@ -153,6 +161,13 @@ module dispatch #(
                     exe_o[i].branch_com_result[3] <= ({~oprand1[i][31],oprand1[i][30:0]} >= {~oprand2[i][31],oprand2[i][30:0]});
                     exe_o[i].branch_com_result[4] <= oprand1[i] < oprand2[i];
                     exe_o[i].branch_com_result[5] <= oprand1[i] >= oprand2[i];
+
+                    exe_o[i].excp <= id_i[i].excp;
+                    exe_o[i].excp_num <= id_i[i].excp_num; 
+                    exe_o[i].refetch <= id_i[i].refetch;
+
+                    exe_o[i].csr_signal.addr <= id_i[i].imm[13:0];
+                    exe_o[i].csr_signal.data <= csr_data;
                 end
             end
         end

@@ -35,16 +35,10 @@ module id (
     // -> Dispatch
     output id_dispatch_struct dispatch_o,
 
-    output logic broadcast_excp_o,
-    output logic [8:0] broadcast_excp_num_o,
-
     // <- CSR
     input logic has_int,
-    input logic [`RegBus] csr_data_i,
-    input logic [1:0] csr_plv,
+    input logic [1:0] csr_plv
 
-    // -> CSR
-    output reg [13:0] csr_read_addr_o
 );
 
     logic [`InstAddrBus] pc_i;
@@ -53,6 +47,10 @@ module id (
     assign inst_i = instr_buffer_i.valid ? instr_buffer_i.instr : `ZeroWord;
 
     logic instr_break, instr_syscall, kernel_instr;
+    assign kernel_instr = dispatch_o.aluop == `EXE_CSRRD_OP | dispatch_o.aluop == `EXE_CSRWR_OP | dispatch_o.aluop == `EXE_CSRXCHG_OP |
+                          dispatch_o.aluop == `EXE_TLBFILL_OP |dispatch_o.aluop == `EXE_TLBRD_OP |dispatch_o.aluop == `EXE_TLBWR_OP |
+                          dispatch_o.aluop == `EXE_TLBSRCH_OP | dispatch_o.aluop == `EXE_ERTN_OP |dispatch_o.aluop == `EXE_IDLE_OP |
+                          dispatch_o.aluop == `EXE_INVTLB_OP;
 
     // Sub-decoder section
     localparam SUB_DECODER_NUM = 9;
@@ -210,15 +208,16 @@ module id (
 
 
     // TODO: add explanation
-    logic res_from_csr;
     logic excp_ine;
     logic excp_ipe;
+
+    assign dispatch_o.refetch = (dispatch_o.aluop == `EXE_TLBFILL_OP || dispatch_o.aluop == `EXE_TLBRD_OP || dispatch_o.aluop == `EXE_TLBWR_OP || dispatch_o.aluop == `EXE_TLBSRCH_OP || dispatch_o.aluop == `EXE_ERTN_OP || dispatch_o.aluop == `EXE_INVTLB_OP) ; 
 
     assign excp_ine = (instr_valid == `InstInvalid) && instr_buffer_i.valid;
     assign excp_ipe = kernel_instr && (csr_plv == 2'b11);
 
-    assign broadcast_excp_o = excp_ipe | instr_syscall | instr_break | excp_i | excp_ine | has_int;
-    assign broadcast_excp_num_o = {
+    assign dispatch_o.excp = excp_ipe | instr_syscall | instr_break | excp_i | excp_ine | has_int;
+    assign dispatch_o.excp_num = {
         excp_ipe, excp_ine, instr_break, instr_syscall, excp_num_i, has_int
     };
 

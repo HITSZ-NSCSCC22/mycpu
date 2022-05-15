@@ -35,7 +35,7 @@ typedef struct packed {
     logic [7:0] index;           
     logic [19:0] tag;             
     logic [3:0] offset;          
-    logic tlb_found;       
+    logic found;       
     logic [4:0] tlb_index;       
     logic tlb_v;           
     logic tlb_d;           

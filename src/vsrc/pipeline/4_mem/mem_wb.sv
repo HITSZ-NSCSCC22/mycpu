@@ -24,8 +24,7 @@ module mem_wb (
     output reg wb_LLbit_we,
     output reg wb_LLbit_value,
 
-    input logic excp_i,
-    input logic [15:0] excp_num,
+    output fetch_flush,
 
     //to csr
     output logic [31:0] csr_era,
@@ -51,9 +50,14 @@ module mem_wb (
 
     reg wb_valid;
 
+    logic excp_i;
+    logic [15:0] excp_num;
+    assign excp_num = mem_signal_o.excp_num;
+    assign excp_i = mem_signal_o.excp;
     assign csr_era = mem_signal_o.instr_info.pc;
     assign excp_flush = excp_i;
     assign ertn_flush = mem_signal_o.aluop == `EXE_ERTN_OP;
+    assign fetch_flush = mem_signal_o.refetch;
 
 
     assign csr_ecode = excp_num[0] ? `ECODE_INT : excp_num[1] ? `ECODE_ADEF : excp_num[2] ? `ECODE_TLBR : excp_num[3] ? `ECODE_PIF : 

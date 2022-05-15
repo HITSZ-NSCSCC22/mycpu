@@ -22,6 +22,10 @@ typedef struct packed {
     logic reg_write_valid;
     logic csr_we;
     csr_write_signal csr_signal;
+
+    logic excp;
+    logic [8:0] excp_num;
+    logic refetch;
 } id_dispatch_struct;
 
 
@@ -40,6 +44,10 @@ typedef struct packed {
 
     logic csr_we;
     csr_write_signal csr_signal;
+
+    logic excp;
+    logic [8:0] excp_num;
+    logic refetch;
 } dispatch_ex_struct;
 
 typedef struct packed {
@@ -59,6 +67,10 @@ typedef struct packed {
     logic [`RegBus] reg2;
     csr_write_signal csr_signal;
     logic [`RegBus] wdata;
+
+    logic excp;
+    logic [9:0] excp_num;
+    logic refetch;
 } ex_mem_struct;
 
 typedef struct packed {
@@ -82,6 +94,10 @@ typedef struct packed {
     logic [`DataAddrBus] load_addr;
     logic [`DataAddrBus] store_addr;
     logic [`RegBus] store_data;
+
+    logic excp;
+    logic [15:0] excp_num;
+    logic refetch;
 } mem_wb_struct;
 
 typedef struct packed {
@@ -105,7 +121,7 @@ typedef struct packed {
     logic [`RegBus] csr_dmw0;
     logic [`RegBus] csr_dmw1;
     logic [1:0] csr_plv;
-    logic [1:0] csr_datf;
+    logic [1:0] csr_datm;
 } csr_to_mem_struct;
 
 typedef struct packed {
