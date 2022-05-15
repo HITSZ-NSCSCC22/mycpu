@@ -9,7 +9,6 @@
 `include "frontend/frontend.sv"
 `include "instr_buffer.sv"
 `include "dummy_icache.sv"
-`include "LLbit_reg.sv"
 `include "ctrl.sv"
 `include "pipeline_defines.sv"
 `include "pipeline/1_decode/id.sv"
@@ -287,15 +286,9 @@ module cpu_top (
                 // -> Dispatch
                 .dispatch_o(id_id_dispatch[i]),
 
-                // Exception broadcast
-                .broadcast_excp_o    (),
-                .broadcast_excp_num_o(),
-
-                // <-> CSR Registers
+                // <- CSR Registers
                 .has_int        (has_int),
-                .csr_data_i     (id_csr_data[i]),
-                .csr_plv        (csr_plv),
-                .csr_read_addr_o(id_csr_read_addr_o[i])
+                .csr_plv        (csr_plv)
             );
         end
     endgenerate
@@ -347,6 +340,10 @@ module cpu_top (
         .regfile_reg_read_valid_o(dispatch_regfile_reg_read_valid),
         .regfile_reg_read_addr_o (dispatch_regfile_reg_read_addr),
         .regfile_reg_read_data_i (regfile_dispatch_reg_read_data),
+
+        // <-> CSR
+        .csr_read_addr(dispatch_csr_read_addr),
+        .csr_data(dispatch_csr_data),
 
         // -> IB
         .ib_accept_o(dispatch_ib_accept),
@@ -421,8 +418,6 @@ module cpu_top (
 
 
     ex_mem_struct ex_signal_o[2];
-    logic ex_excp_i[2];
-    logic [8:0] ex_excp_num_i[2];
 
 
     // EXE Stage
@@ -441,24 +436,13 @@ module cpu_top (
                 .branch_flag(branch_flag[i]),
                 .branch_target_address(branch_target_address[i]),
 
-                .ex_data_forward(ex_data_forward[i]),
+                .ex_data_forward(ex_data_forward[i])
 
-                .excp_i(ex_excp_i[i]),
-                .excp_num_i(ex_excp_num_i[i]),
-                .excp_o(ex_excp_o[i]),
-                .excp_num_o(ex_excp_num_o[i])
             );
         end
     endgenerate
 
-    logic ex_excp_o[2];
-    logic [9:0] ex_excp_num_o[2];
 
-
-    logic mem_excp_i[2];
-    logic [9:0] mem_excp_num_i[2];
-    logic mem_excp_o[2];
-    logic [15:0] mem_excp_num_o[2];
 
     logic mem_data_addr_trans_en[2];
     logic mem_data_dmw0_en[2];
@@ -480,13 +464,8 @@ module cpu_top (
 
                 // <-> Ctrl
                 .stall(stall[3]),
-                .flush(ex_mem_flush[i]),
+                .flush(ex_mem_flush[i])
 
-                .excp_i(ex_excp_o[i]),
-                .excp_num_i(ex_excp_num_o[i]),
-
-                .excp_o(mem_excp_i[i]),
-                .excp_num_o(mem_excp_num_i[i])
             );
         end
 
@@ -535,11 +514,6 @@ module cpu_top (
                 .LLbit_we_o(mem_wb_LLbit_we[i]),
                 .LLbit_value_o(mem_wb_LLbit_value[i]),
 
-                .excp_i(mem_excp_i[i]),
-                .excp_num_i(mem_excp_num_i[i]),
-                .excp_o(mem_excp_o[i]),
-                .excp_num_o(mem_excp_num_o[i]),
-
                 .csr_mem_signal(csr_mem_signal),
                 .disable_cache(1'b0),
 
@@ -566,6 +540,8 @@ module cpu_top (
     logic wb_LLbit_value_i[2];
     logic [46:0] wb_csr_signal[2];
 
+    logic fetch_flush;
+
     // Difftest Related
     logic [1:0] debug_commit_valid;
     logic [1:0][`InstBus] debug_commit_instr;
@@ -591,6 +567,7 @@ module cpu_top (
                 .mem_LLbit_value(mem_wb_LLbit_value[i]),
 
                 .flush(flush),
+                .fetch_flush(fetch_flush),
 
                 .wb_reg_o(wb_reg_signal[i]),
 
@@ -603,8 +580,6 @@ module cpu_top (
                 .wb_LLbit_we(wb_LLbit_we_i[i]),
                 .wb_LLbit_value(wb_LLbit_value_i[i]),
 
-                .excp_i  (mem_excp_o[i]),
-                .excp_num(mem_excp_num_o[i]),
 
                 //to csr
                 .csr_era(wb_csr_era[i]),
@@ -658,11 +633,13 @@ module cpu_top (
         .stallreq_from_dispatch(stallreq_from_dispatch),
         .mem_stallreq_i(mem_stallreq),
 
-        .excp_i(),
-        .excp_num_i(),
+        .excp_flush(excp_flush),
+        .ertn_flush(ertn_flush),
+        .fetch_flush(fetch_flush),
 
         .stall(stall),
-        .ex_mem_flush_o   (ex_mem_flush)
+        .ex_mem_flush_o(ex_mem_flush),
+        .flush(flush)
     );
     
 
@@ -677,8 +654,8 @@ module cpu_top (
     assign excp_tlbrefill = wb_excp_tlbrefill[0] | wb_excp_tlbrefill[1];
     assign excp_tlb_vppn = wb_excp_tlb_vppn[0] | wb_excp_tlb_vppn[1];
 
-    logic [13:0] id_csr_read_addr_o[2];
-    logic [`RegBus] id_csr_data[2];
+    logic [13:0] dispatch_csr_read_addr;
+    logic [`RegBus] dispatch_csr_data;
 
     cs_reg u_cs_reg (
         .clk(clk),
@@ -689,10 +666,8 @@ module cpu_top (
         .ecode_i(csr_ecode_i),
         .write_signal_1(wb_csr_signal[0]),
         .write_signal_2(wb_csr_signal[1]),
-        .raddr_1(id_csr_read_addr_o[0]),
-        .raddr_2(id_csr_read_addr_o[1]),
-        .rdata_1(id_csr_data[0]),
-        .rdata_2(id_csr_data[1]),
+        .raddr(dispatch_csr_read_addr),
+        .rdata(dispatch_csr_data),
         .llbit_i(wb_LLbit_value_i[0] | wb_LLbit_value_i[1]),
         .llbit_set_i(wb_LLbit_we_i[0] | wb_LLbit_we_i[1]),
         .llbit_o(LLbit_o),

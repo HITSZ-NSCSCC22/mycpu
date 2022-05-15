@@ -137,16 +137,22 @@ module axi_master (
                     is_fetching_inst = 1;
                 end
                 `R_DATA:begin
-                            if(s_rvalid&&s_rlast)
+                    //use id to judge the s_rdata type 
+                            if(s_rvalid&&s_rlast&&s_rid[0]==0)
                             begin
                                inst_stall_req_r=0;
                                inst_cpu_data_o=s_rdata;
                                is_fetching_inst=0;
                             end
+                            else if (s_rvalid&&s_rready&&s_rid[0]==0) begin
+                                inst_stall_req_r=1;
+                                inst_cpu_data_o=s_rdata;
+                                is_fetching_inst=1;
+                            end
                             else
                             begin
                                 inst_stall_req_r=1;
-                                inst_cpu_data_o=s_rdata;
+                                inst_cpu_data_o=0;
                                 is_fetching_inst=1;
                             end       
                         end
@@ -341,10 +347,10 @@ module axi_master (
                     data_cpu_data_o  = 0;
                 end
                 `R_DATA: begin
-                    if (s_rvalid && s_rlast) begin
+                    if (s_rvalid && s_rlast&&s_rid[0]==1) begin
                         data_stall_req_r = 0;
                         data_cpu_data_o  = s_rdata;
-                    end else if (s_rvalid && s_rready) begin
+                    end else if (s_rvalid && s_rready&&s_rid[0]==1) begin
                         data_stall_req_r = 1;
                         data_cpu_data_o  = s_rdata;
                     end else begin
