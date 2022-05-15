@@ -51,7 +51,7 @@ module dispatch #(
     //assign aluop_i[1] = ex_data_forward[1].aluop_i;
 
     //assume two csr write instr not come together
-    assign csr_read_addr = id_i[0].imm[13:0] | id_i[1].imm[13:0] ;
+    assign csr_read_addr = id_i[0].imm[13:0] | id_i[1].imm[13:0];
 
     // assign stallreq = aluop_i[0] == `EXE_LD_B_OP || aluop_i[0] == `EXE_LD_BU_OP || aluop_i[0] == `EXE_LD_H_OP || aluop_i[0] == `EXE_LD_HU_OP ||
     //                    aluop_i[0] == `EXE_LD_W_OP || aluop_i[0] == `EXE_LL_OP || aluop_i[0] == `EXE_ST_B_OP || 
@@ -62,7 +62,8 @@ module dispatch #(
 
     // Dispatch flag
     logic [EXE_STAGE_WIDTH-1:0] do_we_issue;
-    assign ib_accept_o = do_we_issue & {id_i[1].instr_info.valid, id_i[0].instr_info.valid};
+    // If stall, tell IB no more instructions can be accepted
+    assign ib_accept_o = stall ? 0 :do_we_issue & {id_i[1].instr_info.valid, id_i[0].instr_info.valid};
 
     // Stall
     always_comb begin
@@ -163,7 +164,7 @@ module dispatch #(
                     exe_o[i].branch_com_result[5] <= oprand1[i] >= oprand2[i];
 
                     exe_o[i].excp <= id_i[i].excp;
-                    exe_o[i].excp_num <= id_i[i].excp_num; 
+                    exe_o[i].excp_num <= id_i[i].excp_num;
                     exe_o[i].refetch <= id_i[i].refetch;
 
                     exe_o[i].csr_signal.addr <= id_i[i].imm[13:0];
