@@ -150,7 +150,7 @@ module axi_Master (
                     icache_ret_last_o=0;
                     end
                 `R_DATA:begin
-                            if(s_rvalid&&s_rlast)
+                            if(s_rvalid&&s_rlast&&s_rid[0]==0)
                             begin
                                inst_cpu_data_o=s_rdata;
                                is_fetching_inst=0;
@@ -159,8 +159,7 @@ module axi_Master (
                                icache_ret_valid_o=1;
                                icache_ret_last_o=1;
                             end
-                            // else if(s_rvalid&&s_rready)
-                            else
+                            else if(s_rvalid&&s_rready&&s_rid[0]==0)
                             begin
                                 inst_cpu_data_o=s_rdata;
                                 is_fetching_inst=1;
@@ -169,14 +168,14 @@ module axi_Master (
                                 icache_ret_valid_o=1;
                                 icache_ret_last_o=0;
                             end
-                            // else
-                            // begin
-                            //     inst_cpu_data_o=s_rdata;
-                            //     is_fetching_inst=1;
-                            //     icache_rd_rdy_o=0;
-                            //     icache_ret_valid_o=0;
-                            //     icache_ret_last_o=0;
-                            // end       
+                            else
+                            begin
+                                inst_cpu_data_o=0;
+                                is_fetching_inst=1;
+                                icache_rd_rdy_o=0;
+                                icache_ret_valid_o=0;
+                                icache_ret_last_o=0;
+                            end       
                         end
                 default:begin
                         end
@@ -393,28 +392,27 @@ module axi_Master (
                     dcache_ret_last_o=0;
                     end
                 `R_DATA:begin
-                            if(s_rvalid&&s_rlast)
+                            if(s_rvalid&&s_rlast&&s_rid[0]==1)
                             begin
                                data_cpu_data_o=s_rdata;
                                dcache_rd_rdy_o=1;
                                dcache_ret_valid_o=1;
                                dcache_ret_last_o=1;
                             end
-                            // else if(s_rvalid&&s_rready)
-                            else
+                            else if(s_rvalid&&s_rready&&s_rid[0]==1)
                             begin
                                 data_cpu_data_o=s_rdata;
                                 dcache_rd_rdy_o=0;
                                 dcache_ret_valid_o=1;
                                 dcache_ret_last_o=0;
                             end
-                            // else
-                            // begin
-                            //     data_cpu_data_o=0;
-                            //     dcache_rd_rdy_o=0;
-                            //     dcache_ret_valid_o=0;
-                            //     dcache_ret_last_o=0;
-                            // end       
+                            else
+                            begin
+                                data_cpu_data_o=0;
+                                dcache_rd_rdy_o=0;
+                                dcache_ret_valid_o=0;
+                                dcache_ret_last_o=0;
+                            end       
                         end
                 default:begin
                         end
