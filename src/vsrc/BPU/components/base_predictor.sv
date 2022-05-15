@@ -1,7 +1,7 @@
 // Base Predictor is a pure PC-indexed bimodal table
 // Using BRAM, so result is delayed by 1 cycle
 
-`include "branch_predictor/utils/bram.sv"
+`include "BPU/utils/bram.sv"
 
 module base_predictor #(
     parameter TABLE_DEPTH_EXP2 = 10,
