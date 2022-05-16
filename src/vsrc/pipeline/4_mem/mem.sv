@@ -63,7 +63,7 @@ module mem (
 
     logic [`RegBus] mem_addr, reg2_i;
     assign mem_addr = signal_i.mem_addr;
-    assign reg2_i = signal_i.reg2;
+    assign reg2_i   = signal_i.reg2;
 
     logic excp_i;
     logic [9:0] excp_num_i;
@@ -72,7 +72,7 @@ module mem (
 
     assign access_mem = mem_load_op || mem_store_op;
 
-    assign stallreq = axi_busy_i;
+    assign stallreq = axi_busy_i & (mem_load_op | mem_store_op);
     assign mem_load_op = aluop_i == `EXE_LD_B_OP || aluop_i == `EXE_LD_BU_OP || aluop_i == `EXE_LD_H_OP || aluop_i == `EXE_LD_HU_OP ||
                        aluop_i == `EXE_LD_W_OP || aluop_i == `EXE_LL_OP;
 
@@ -119,7 +119,9 @@ module mem (
     assign excp_pme  = mem_store_op && tlb_mem_signal.data_tlb_v && (csr_mem_signal.csr_plv <= tlb_mem_signal.data_tlb_plv) && !tlb_mem_signal.data_tlb_d && data_addr_trans_en;
 
     assign signal_o.excp = excp_tlbr || excp_pil || excp_pis || excp_ppi || excp_pme || excp_adem || excp_i;
-    assign signal_o.excp_num = {excp_pil, excp_pis, excp_ppi, excp_pme, excp_tlbr, excp_adem, excp_num_i};
+    assign signal_o.excp_num = {
+        excp_pil, excp_pis, excp_ppi, excp_pme, excp_tlbr, excp_adem, excp_num_i
+    };
     assign signal_o.refetch = signal_i.refetch;
 
     always @(*) begin
