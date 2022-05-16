@@ -118,7 +118,7 @@ module cpu_top (
         // <-> ICache
         .inst_cpu_addr_i(axi_addr),
         .inst_cpu_ce_i(axi_addr != 0),  // FIXME: ce should not be used as valid?
-        .inst_cpu_we_i(data_axi_we),
+        .inst_cpu_we_i(),
         .inst_cpu_sel_i(4'b1111),
         .inst_flush_i(),
         .inst_cpu_data_o(axi_data),
@@ -129,7 +129,7 @@ module cpu_top (
         .data_cpu_addr_i(data_axi_addr),
         .data_cpu_ce_i(data_axi_addr != 0),  // FIXME: ce should not be used as valid?
         // .data_cpu_data_i(data_axi_data), FIXME: change to cache interface
-        .data_cpu_we_i(1'b0),  // FIXME: Write enable
+        .data_cpu_we_i(data_axi_we),  // FIXME: Write enable
         .data_cpu_sel_i(4'b1111),
         .data_flush_i(),
         .data_cpu_data_o(axi_mem_data),
@@ -546,13 +546,13 @@ module cpu_top (
     logic [1:0] debug_commit_valid;
     logic [1:0][`InstBus] debug_commit_instr;
     logic [1:0][`InstAddrBus] debug_commit_pc;
-    logic [7:0] debug_commit_inst_ld_en;
-    logic [31:0] debug_commit_ld_paddr;
-    logic [31:0] debug_commit_ld_vaddr;
-    logic [7:0] debug_commit_inst_st_en;
-    logic [31:0] debug_commit_st_paddr;
-    logic [31:0] debug_commit_st_vaddr;
-    logic [31:0] debug_commit_st_data;
+    logic [1:0][7:0] debug_commit_inst_ld_en;
+    logic [1:0][31:0] debug_commit_ld_paddr;
+    logic [1:0][31:0] debug_commit_ld_vaddr;
+    logic [1:0][7:0] debug_commit_inst_st_en;
+    logic [1:0][31:0] debug_commit_st_paddr;
+    logic [1:0][31:0] debug_commit_st_vaddr;
+    logic [1:0][31:0] debug_commit_st_data;
 
     generate
         for (genvar i = 0; i < 2; i++) begin : mem_wb
@@ -593,13 +593,13 @@ module cpu_top (
                 .excp_tlb(excp_tlb),
                 .excp_tlb_vppn(wb_excp_tlb_vppn[i]),
 
-                .debug_commit_inst_ld_en(debug_commit_inst_ld_en),
-                .debug_commit_ld_paddr(debug_commit_ld_paddr),
-                .debug_commit_ld_vaddr(debug_commit_ld_vaddr),
-                .debug_commit_inst_st_en(debug_commit_inst_st_en),
-                .debug_commit_st_paddr(debug_commit_st_paddr),
-                .debug_commit_st_vaddr(debug_commit_st_vaddr),
-                .debug_commit_st_data(debug_commit_st_data)
+                .debug_commit_inst_ld_en(debug_commit_inst_ld_en[i]),
+                .debug_commit_ld_paddr(debug_commit_ld_paddr[i]),
+                .debug_commit_ld_vaddr(debug_commit_ld_vaddr[i]),
+                .debug_commit_inst_st_en(debug_commit_inst_st_en[i]),
+                .debug_commit_st_paddr(debug_commit_st_paddr[i]),
+                .debug_commit_st_vaddr(debug_commit_st_vaddr[i]),
+                .debug_commit_st_data(debug_commit_st_data[i])
             );
         end
     endgenerate
@@ -811,14 +811,42 @@ module cpu_top (
         .csr_data      ()
     );
 
+    logic [1:0][7:0] cmt_inst_ld_en;
+    logic [1:0][31:0] cmt_ld_paddr;
+    logic [1:0][31:0] cmt_ld_vaddr;
+    logic [1:0][7:0] cmt_inst_st_en;
+    logic [1:0][31:0] cmt_st_paddr;
+    logic [1:0][31:0] cmt_st_vaddr;
+    logic [1:0][31:0] cmt_st_data;
+
+    always_ff @(posedge clk) begin 
+        if(rst)begin
+            cmt_inst_ld_en <= 8'b0;
+            cmt_ld_paddr <= `ZeroWord;
+            cmt_ld_vaddr <= `ZeroWord;
+            cmt_inst_st_en <= 8'b0;
+            cmt_st_paddr <= `ZeroWord;
+            cmt_st_vaddr <= `ZeroWord;
+            cmt_st_data <= `ZeroWord;
+        end else begin
+            cmt_inst_ld_en <= debug_commit_inst_ld_en;
+            cmt_ld_paddr <= debug_commit_ld_paddr;
+            cmt_ld_vaddr <= debug_commit_ld_vaddr;
+            cmt_inst_st_en <= debug_commit_inst_st_en;
+            cmt_st_paddr <= debug_commit_st_paddr;
+            cmt_st_vaddr <= debug_commit_st_vaddr;
+            cmt_st_data <= debug_commit_st_data;
+        end
+    end
+
     DifftestStoreEvent DifftestStoreEvent(
         .clock              (aclk),
         .coreid             (0),
         .index              (0),
-        .valid              (debug_commit_inst_st_en),
-        .storePAddr         (debug_commit_st_paddr),
-        .storeVAddr         (debug_commit_st_vaddr),
-        .storeData          (debug_commit_st_data)
+        .valid              (cmt_inst_st_en[1]), // FIXME: two mem module
+        .storePAddr         (cmt_st_paddr[1]),
+        .storeVAddr         (cmt_st_vaddr[1]),
+        .storeData          (cmt_st_data[1])
     );
 
     DifftestLoadEvent DifftestLoadEvent(

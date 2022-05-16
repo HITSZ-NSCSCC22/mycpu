@@ -64,8 +64,13 @@ module ex (
     assign ex_o.csr_signal.addr = csr_signal_i.addr;
     assign ex_o.csr_signal.data = (aluop_i ==`EXE_CSRXCHG_OP) ?((reg1_i & reg2_i) | (~reg1_i & csr_signal_i.data)) : csr_signal_i.data;
 
-    assign ex_o.excp = dispatch_i.excp || 1'b0;
-    assign ex_o.excp_num = {1'b0, dispatch_i.excp_num};
+    logic excp_ale,excp_i;
+    logic [9:0]excp_num;
+    assign excp_ale = 1'b0;
+    assign excp_num = {excp_ale, dispatch_i.excp_num};
+    assign excp_i = dispatch_i.excp || excp_ale;
+    assign ex_o.excp = excp_i;
+    assign ex_o.excp_num = excp_num;
     assign ex_o.refetch = dispatch_i.refetch;
 
     always @(*) begin

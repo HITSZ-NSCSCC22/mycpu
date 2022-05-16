@@ -1,6 +1,6 @@
 // Branch Target Buffer
-`include "branch_predictor/defines.sv"
-`include "../defines.sv"
+`include "defines.sv"
+`include "BPU/include/bpu_defines.sv"
 
 
 module btb (

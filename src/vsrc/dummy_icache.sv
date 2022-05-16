@@ -119,7 +119,9 @@ module dummy_icache #(
                     if (raddrs[1] != 0 && axi_busy_i == 0) axi_addr_o <= raddrs[1];
                 end
                 IN_TRANSACTION_2: begin
-                    axi_addr_o <= 0;
+                    if (next_state == ACCEPT_ADDR) begin
+                        axi_addr_o <= 0;
+                    end
                 end
                 default: begin
                     axi_addr_o <= 0;

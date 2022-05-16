@@ -1,29 +1,33 @@
 // TAGE predictor
 // This is the main predictor
 
-`include "../defines.v"
-`include "branch_predictor/defines.sv"
-`include "branch_predictor/utils/fpa.sv"
+`include "defines.sv"
+`include "BPU/include/bpu_defines.sv"
+`include "BPU/utils/fpa.sv"
+
+// Components
+`include "BPU/components/btb.sv"
+`include "BPU/components/base_predictor.sv"
+`include "BPU/components/tagged_predictor.sv"
 
 
 module tage_predictor #(
-    parameter PROVIDER_HISTORY_BUFFER_SIZE  = 10,
-    parameter TAGGED_PREDICTOR_USEFUL_WIDTH = 3
+    parameter PROVIDER_HISTORY_BUFFER_SIZE = 10,
+    parameter TAGGED_PREDICTOR_USEFUL_WIDTH = 3,
+    parameter GHR_DEPTH = 200
 ) (
     input logic clk,
     input logic rst,
+
+    // Input a PC to predict
     input logic [`RegBus] pc_i,
 
     // Update signals
-    input logic branch_valid_i,
-    input logic branch_conditional_i,
-    input logic branch_taken_i,
-    input logic [`RegBus] branch_pc_i,
-    input logic [`RegBus] branch_target_address_i,
+    input branch_update_info_t branch_update_info_i,
 
     output logic [`RegBus] predicted_branch_target_o,
     output logic predict_branch_taken_o,
-    output logic predict_valid,
+    output logic predict_valid_o,
     output logic [5*32-1:0] perf_tag_hit_counter
 );
 
@@ -39,14 +43,24 @@ module tage_predictor #(
     logic rst_n;
     assign rst_n = ~rst;
 
+    // Extract packed signals
+    // update-prefixed signals are updated related 
+    logic update_valid = branch_update_info_i.valid;
+    logic update_predict_correct = branch_update_info_i.predict_correct;
+    logic update_branch_taken = branch_update_info_i.branch_taken;
+    logic update_is_conditional = branch_update_info_i.is_conditional;
+    // logic [$clog2(TAG_COMPONENT_AMOUNT+1)-1:0] update_provider_id;
+    // assign update_provider_id = branch_update_info_i.provider_id;
+    logic [`RegBus] update_pc = branch_update_info_i.pc;
+
     // Global History Register
-    bit [`GHR_BUS] GHR;
+    bit [GHR_DEPTH-1:0] GHR;
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             GHR <= 0;
-        end else if (branch_valid_i) begin
+        end else if (update_valid) begin
             // Shift left for every valid branch
-            GHR <= {GHR[`GHR_DEPTH-2:0], branch_taken_i};
+            GHR <= {GHR[GHR_DEPTH-2:0], update_branch_taken};
         end
     end
 
@@ -57,9 +71,9 @@ module tage_predictor #(
         .clk                    (clk),
         .rst                    (rst),
         .query_pc_i             (pc_i),
-        .update_valid           (branch_valid_i),
-        .update_pc_i            (branch_pc_i),
-        .update_branch_target_i (branch_target_address_i),
+        .update_valid           (update_valid),
+        .update_pc_i            (),                           // TODO: finish up BTB
+        .update_branch_target_i (),
         .branch_target_address_o(predicted_branch_target_o),
         .btb_hit                (btb_hit)
     );
@@ -72,13 +86,15 @@ module tage_predictor #(
         .CTR_WIDTH       (2),
         .PC_WIDTH        (`RegWidth)
     ) u_base_predictor (
-        .clk              (clk),
-        .rst              (rst),
-        .pc_i             (pc_i),
-        .update_valid     (base_update_ctr),
-        .update_instr_info({branch_pc_i, branch_taken_i}),
-        .taken            (base_taken)
+        .clk          (clk),
+        .rst          (rst),
+        .pc_i         (pc_i),
+        .update_valid (base_update_ctr),
+        .update_info_i({update_pc, update_branch_taken}),
+        .taken        (base_taken)
     );
+
+    /*
 
     localparam TAG_COMPONENT_AMOUNT = 4;
 
@@ -125,9 +141,9 @@ module tage_predictor #(
                 logic realloc_entry;
             } update_info_struct;
             update_info_struct update_info;
-            assign update_info.pc = branch_pc_i;
+            assign update_info.pc = update_pc;
             assign update_info.update_ctr = tag_update_ctr[provider_id];
-            assign update_info.inc_ctr = branch_taken_i;
+            assign update_info.inc_ctr = update_branch_taken;
             assign update_info.update_useful = tag_update_useful[provider_id];
             assign update_info.inc_useful = tag_update_inc_useful[provider_id];
             assign update_info.realloc_entry = tag_update_realloc_entry[provider_id];
@@ -171,13 +187,13 @@ module tage_predictor #(
     };
     always_ff @(posedge clk) begin : shift
         for (integer i = 1; i < PROVIDER_HISTORY_BUFFER_SIZE; i++) begin
-            /* verilator lint_off WIDTH */
+            // verilator lint_off WIDTH 
             if (i == provider_history_matched_id + 1) begin
                 provider_history_buffer[i] <= 0;
             end else begin
                 provider_history_buffer[i] <= provider_history_buffer[i-1];
             end
-            /* verilator lint_on WIDTH */
+            // verilator lint_on WIDTH 
         end
     end
 
@@ -213,9 +229,9 @@ module tage_predictor #(
             if (tag_update_query_useful_match[i]) begin
                 // 1/2 probability when longer history tag want to be selected
                 if (tag_update_useful_pingpong_counter[i] != 2'b00) begin
-                    /* verilator lint_off WIDTH */
+                    // verilator lint_off WIDTH 
                     tag_update_useful_zero_id = i + 1;
-                    /* verilator lint_on WIDTH */
+                    // verilator lint_on WIDTH 
                 end
             end
         end
@@ -247,7 +263,6 @@ module tage_predictor #(
 
 
 
-    logic [$clog2(TAG_COMPONENT_AMOUNT+1)-1:0] update_provider_id;  // including base predictor
     assign update_provider_id = provider_history_buffer[provider_history_matched_id].pred_provider_id;
 
     // Fill update structs
@@ -257,7 +272,7 @@ module tage_predictor #(
         for (integer i = 0; i < TAG_COMPONENT_AMOUNT + 1; i++) begin
             update_ctr[i] = 1'b0;
         end
-        if (branch_conditional_i) begin  // Only update on conditional branches
+        if (update_is_conditional) begin  // Only update on conditional branches
             update_ctr[update_provider_id] = 1'b1;  // One hot
         end
     end
@@ -270,7 +285,7 @@ module tage_predictor #(
             tag_update_inc_useful[i] = 1'b0;
             tag_update_realloc_entry[i] = 1'b0;
         end
-        if (branch_conditional_i) begin  // Only update on conditional branches
+        if (update_is_conditional) begin  // Only update on conditional branches
             // If useful, update useful bits
             tag_update_useful[update_provider_id-1] = provider_history_buffer[provider_history_matched_id].useful;
             // Increase if correct, else decrease
@@ -282,14 +297,14 @@ module tage_predictor #(
                 if (tag_update_useful_zero_id > update_provider_id) begin  // Have found a slot to allocate
                     tag_update_realloc_entry[tag_update_useful_zero_id-1] = 1'b1;
                 end else begin  // No slot to allocate, decrease all useful bits of longer history components
-                    /* verilator lint_off WIDTH */
+                    // verilator lint_off WIDTH
                     for (integer i = 0; i < TAG_COMPONENT_AMOUNT; i++) begin
                         if (i >= update_provider_id - 1) begin
                             tag_update_useful[i] = 1'b1;
                             tag_update_inc_useful[i] = 1'b0;
                         end
                     end
-                    /* verilator lint_on WIDTH */
+                    // verilator lint_on WIDTH 
                 end
             end
         end
@@ -331,5 +346,8 @@ module tage_predictor #(
             end
         end
     endgenerate
+
+    */
+
 
 endmodule  // tage_predictor

@@ -109,6 +109,9 @@ module decoder_2RI12 #(
                 reg_write_addr_o = 0;
                 aluop_o  = `EXE_ST_B_OP;
                 alusel_o = `EXE_RES_LOAD_STORE;
+                reg_write_valid_o = 0;
+                reg_read_valid_o = 2'b11;
+                reg_read_addr_o = {rd, rj};
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
             end
             `EXE_ST_H: begin
@@ -116,6 +119,9 @@ module decoder_2RI12 #(
                 reg_write_addr_o = 0;
                 aluop_o  = `EXE_ST_H_OP;
                 alusel_o = `EXE_RES_LOAD_STORE;
+                reg_write_valid_o = 0;
+                reg_read_valid_o = 2'b11;
+                reg_read_addr_o = {rd, rj};
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
             end
             `EXE_ST_W: begin
@@ -123,6 +129,9 @@ module decoder_2RI12 #(
                 reg_write_addr_o = 0;
                 aluop_o  = `EXE_ST_W_OP;
                 alusel_o = `EXE_RES_LOAD_STORE;
+                reg_write_valid_o = 0;
+                reg_read_valid_o = 2'b11;
+                reg_read_addr_o = {rd, rj};
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
             end
             `EXE_LD_BU: begin

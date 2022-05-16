@@ -46,23 +46,28 @@ module dispatch #(
     logic rst_n;
     assign rst_n = ~rst;
 
-    //logic [`AluOpBus] aluop_i[2];
-    //assign aluop_i[0] = ex_data_forward[0].aluop_i;
-    //assign aluop_i[1] = ex_data_forward[1].aluop_i;
+    logic [`AluSelBus] alusel_i[2];
+    assign alusel_i[0]   = id_i[0].alusel;
+    assign alusel_i[1]   = id_i[1].alusel;
 
     //assume two csr write instr not come together
-    assign csr_read_addr = id_i[0].imm[13:0] | id_i[1].imm[13:0] ;
+    assign csr_read_addr = id_i[0].imm[13:0] | id_i[1].imm[13:0];
 
-    // assign stallreq = aluop_i[0] == `EXE_LD_B_OP || aluop_i[0] == `EXE_LD_BU_OP || aluop_i[0] == `EXE_LD_H_OP || aluop_i[0] == `EXE_LD_HU_OP ||
-    //                    aluop_i[0] == `EXE_LD_W_OP || aluop_i[0] == `EXE_LL_OP || aluop_i[0] == `EXE_ST_B_OP || 
-    //                    aluop_i[0] == `EXE_ST_H_OP || aluop_i[0] == `EXE_ST_W_OP || aluop_i[0] == `EXE_SC_OP ||
-    //                    aluop_i[1] == `EXE_LD_B_OP || aluop_i[1] == `EXE_LD_BU_OP || aluop_i[1] == `EXE_LD_H_OP || aluop_i[1] == `EXE_LD_HU_OP ||
-    //                    aluop_i[1] == `EXE_LD_W_OP || aluop_i[1] == `EXE_LL_OP || aluop_i[1] == `EXE_ST_B_OP || 
-    //                    aluop_i[1] == `EXE_ST_H_OP || aluop_i[1] == `EXE_ST_W_OP || aluop_i[1] == `EXE_SC_OP;
+    logic is_both_mem_instr;
+    assign is_both_mem_instr = alusel_i[0] == `EXE_RES_LOAD_STORE && alusel_i[1] == `EXE_RES_LOAD_STORE;
 
     // Dispatch flag
     logic [EXE_STAGE_WIDTH-1:0] do_we_issue;
-    assign ib_accept_o = do_we_issue & {id_i[1].instr_info.valid, id_i[0].instr_info.valid};
+    logic [EXE_STAGE_WIDTH-1:0] issue_valid;
+    assign issue_valid = do_we_issue & {id_i[1].instr_info.valid, id_i[0].instr_info.valid};
+    // If stall, tell IB no more instructions can be accepted
+    logic [DECODE_WIDTH-1:0] instr_valid;  // For observability
+    always_comb begin
+        for (integer i = 0; i < DECODE_WIDTH; i++) begin
+            instr_valid[i] = id_i[i].instr_info.valid;
+        end
+    end
+    assign ib_accept_o = stall ? 0 :do_we_issue & {id_i[1].instr_info.valid, id_i[0].instr_info.valid};
 
     // Stall
     always_comb begin
@@ -73,6 +78,8 @@ module dispatch #(
         end else if (id_i[1].reg_read_addr[1] == id_i[0].reg_write_addr && id_i[1].reg_read_valid[1] && id_i[0].reg_write_valid) begin
             // If P1 instr read reg2 && P0 instr write reg && reg addr is the same
             // Only P0 is issued
+            do_we_issue = 2'b01;
+        end else if (is_both_mem_instr) begin
             do_we_issue = 2'b01;
         end else begin
             do_we_issue = 2'b11;  // No data dependecies, can be issued
@@ -137,9 +144,7 @@ module dispatch #(
                     exe_o[i] <= 0;
                 end else if (stall) begin
                     // Do nothing, hold output
-                end else if (do_we_issue[i] == 0) begin
-                    exe_o[i] <= 0;  // Cannot be issued, so do not issue
-                end else begin
+                end else if (issue_valid[i]) begin
 
                     // Pass through to EXE 
                     // TODO: add dispatch logic
@@ -163,11 +168,13 @@ module dispatch #(
                     exe_o[i].branch_com_result[5] <= oprand1[i] >= oprand2[i];
 
                     exe_o[i].excp <= id_i[i].excp;
-                    exe_o[i].excp_num <= id_i[i].excp_num; 
+                    exe_o[i].excp_num <= id_i[i].excp_num;
                     exe_o[i].refetch <= id_i[i].refetch;
 
                     exe_o[i].csr_signal.addr <= id_i[i].imm[13:0];
                     exe_o[i].csr_signal.data <= csr_data;
+                end else begin
+                    exe_o[i] <= 0;  // Cannot be issued, so do not issue
                 end
             end
         end
