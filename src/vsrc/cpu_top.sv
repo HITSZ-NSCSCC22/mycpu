@@ -546,13 +546,13 @@ module cpu_top (
     logic [1:0] debug_commit_valid;
     logic [1:0][`InstBus] debug_commit_instr;
     logic [1:0][`InstAddrBus] debug_commit_pc;
-    logic [7:0] debug_commit_inst_ld_en;
-    logic [31:0] debug_commit_ld_paddr;
-    logic [31:0] debug_commit_ld_vaddr;
-    logic [7:0] debug_commit_inst_st_en;
-    logic [31:0] debug_commit_st_paddr;
-    logic [31:0] debug_commit_st_vaddr;
-    logic [31:0] debug_commit_st_data;
+    logic [1:0][7:0] debug_commit_inst_ld_en;
+    logic [1:0][31:0] debug_commit_ld_paddr;
+    logic [1:0][31:0] debug_commit_ld_vaddr;
+    logic [1:0][7:0] debug_commit_inst_st_en;
+    logic [1:0][31:0] debug_commit_st_paddr;
+    logic [1:0][31:0] debug_commit_st_vaddr;
+    logic [1:0][31:0] debug_commit_st_data;
 
     generate
         for (genvar i = 0; i < 2; i++) begin : mem_wb
@@ -593,13 +593,13 @@ module cpu_top (
                 .excp_tlb(excp_tlb),
                 .excp_tlb_vppn(wb_excp_tlb_vppn[i]),
 
-                .debug_commit_inst_ld_en(debug_commit_inst_ld_en),
-                .debug_commit_ld_paddr(debug_commit_ld_paddr),
-                .debug_commit_ld_vaddr(debug_commit_ld_vaddr),
-                .debug_commit_inst_st_en(debug_commit_inst_st_en),
-                .debug_commit_st_paddr(debug_commit_st_paddr),
-                .debug_commit_st_vaddr(debug_commit_st_vaddr),
-                .debug_commit_st_data(debug_commit_st_data)
+                .debug_commit_inst_ld_en(debug_commit_inst_ld_en[i]),
+                .debug_commit_ld_paddr(debug_commit_ld_paddr[i]),
+                .debug_commit_ld_vaddr(debug_commit_ld_vaddr[i]),
+                .debug_commit_inst_st_en(debug_commit_inst_st_en[i]),
+                .debug_commit_st_paddr(debug_commit_st_paddr[i]),
+                .debug_commit_st_vaddr(debug_commit_st_vaddr[i]),
+                .debug_commit_st_data(debug_commit_st_data[i])
             );
         end
     endgenerate
@@ -811,13 +811,13 @@ module cpu_top (
         .csr_data      ()
     );
 
-    logic [7:0] cmt_inst_ld_en;
-    logic [31:0] cmt_ld_paddr;
-    logic [31:0] cmt_ld_vaddr;
-    logic [7:0] cmt_inst_st_en;
-    logic [31:0] cmt_st_paddr;
-    logic [31:0] cmt_st_vaddr;
-    logic [31:0] cmt_st_data;
+    logic [1:0][7:0] cmt_inst_ld_en;
+    logic [1:0][31:0] cmt_ld_paddr;
+    logic [1:0][31:0] cmt_ld_vaddr;
+    logic [1:0][7:0] cmt_inst_st_en;
+    logic [1:0][31:0] cmt_st_paddr;
+    logic [1:0][31:0] cmt_st_vaddr;
+    logic [1:0][31:0] cmt_st_data;
 
     always_ff @(posedge clk) begin 
         if(rst)begin
@@ -843,10 +843,10 @@ module cpu_top (
         .clock              (aclk),
         .coreid             (0),
         .index              (0),
-        .valid              (cmt_inst_st_en),
-        .storePAddr         (cmt_st_paddr),
-        .storeVAddr         (cmt_st_vaddr),
-        .storeData          (cmt_st_data)
+        .valid              (cmt_inst_st_en[1]), // FIXME: two mem module
+        .storePAddr         (cmt_st_paddr[1]),
+        .storeVAddr         (cmt_st_vaddr[1]),
+        .storeData          (cmt_st_data[1])
     );
 
     DifftestLoadEvent DifftestLoadEvent(
