@@ -161,7 +161,8 @@ module id (
 
     // Generate imm, using OR
     logic [`RegBus] imm;
-    assign dispatch_o.use_imm = imm != 0;  // HACK: works for now
+    assign dispatch_o.use_imm = (imm != 0) && !(dispatch_o.aluop == `EXE_ST_B_OP | dispatch_o.aluop == `EXE_ST_H_OP |
+                                dispatch_o.aluop == `EXE_ST_W_OP | dispatch_o.aluop == `EXE_SC_OP);  // HACK: works for now
     assign dispatch_o.imm = imm;
     always_comb begin
         imm = 0;
@@ -210,16 +211,20 @@ module id (
     // TODO: add explanation
     logic excp_ine;
     logic excp_ipe;
+    logic excp;
+    logic [8:0] excp_num;
 
     assign dispatch_o.refetch = (dispatch_o.aluop == `EXE_TLBFILL_OP || dispatch_o.aluop == `EXE_TLBRD_OP || dispatch_o.aluop == `EXE_TLBWR_OP || dispatch_o.aluop == `EXE_TLBSRCH_OP || dispatch_o.aluop == `EXE_ERTN_OP || dispatch_o.aluop == `EXE_INVTLB_OP) ; 
 
-    assign excp_ine = (instr_valid == `InstInvalid) && instr_buffer_i.valid;
+    assign excp_ine = !(instr_valid == `InstInvalid) && !instr_buffer_i.valid;
     assign excp_ipe = kernel_instr && (csr_plv == 2'b11);
 
-    assign dispatch_o.excp = excp_ipe | instr_syscall | instr_break | excp_i | excp_ine | has_int;
-    assign dispatch_o.excp_num = {
+    assign excp = excp_ipe | instr_syscall | instr_break | excp_i | excp_ine | has_int;
+    assign excp_num  = {
         excp_ipe, excp_ine, instr_break, instr_syscall, excp_num_i, has_int
     };
+    assign dispatch_o.excp = excp;
+    assign dispatch_o.excp_num = excp_num;
 
 
     // TODO: ex_op generate rules not implemented yet

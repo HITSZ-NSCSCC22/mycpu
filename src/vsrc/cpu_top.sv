@@ -811,14 +811,42 @@ module cpu_top (
         .csr_data      ()
     );
 
+    logic [7:0] cmt_inst_ld_en;
+    logic [31:0] cmt_ld_paddr;
+    logic [31:0] cmt_ld_vaddr;
+    logic [7:0] cmt_inst_st_en;
+    logic [31:0] cmt_st_paddr;
+    logic [31:0] cmt_st_vaddr;
+    logic [31:0] cmt_st_data;
+
+    always_ff @(posedge clk) begin 
+        if(rst)begin
+            cmt_inst_ld_en <= 8'b0;
+            cmt_ld_paddr <= `ZeroWord;
+            cmt_ld_vaddr <= `ZeroWord;
+            cmt_inst_st_en <= 8'b0;
+            cmt_st_paddr <= `ZeroWord;
+            cmt_st_vaddr <= `ZeroWord;
+            cmt_st_data <= `ZeroWord;
+        end else begin
+            cmt_inst_ld_en <= debug_commit_inst_ld_en;
+            cmt_ld_paddr <= debug_commit_ld_paddr;
+            cmt_ld_vaddr <= debug_commit_ld_vaddr;
+            cmt_inst_st_en <= debug_commit_inst_st_en;
+            cmt_st_paddr <= debug_commit_st_paddr;
+            cmt_st_vaddr <= debug_commit_st_vaddr;
+            cmt_st_data <= debug_commit_st_data;
+        end
+    end
+
     DifftestStoreEvent DifftestStoreEvent(
         .clock              (aclk),
         .coreid             (0),
         .index              (0),
-        .valid              (debug_commit_inst_st_en),
-        .storePAddr         (debug_commit_st_paddr),
-        .storeVAddr         (debug_commit_st_vaddr),
-        .storeData          (debug_commit_st_data)
+        .valid              (cmt_inst_st_en),
+        .storePAddr         (cmt_st_paddr),
+        .storeVAddr         (cmt_st_vaddr),
+        .storeData          (cmt_st_data)
     );
 
     DifftestLoadEvent DifftestLoadEvent(
