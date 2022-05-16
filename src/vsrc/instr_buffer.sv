@@ -64,7 +64,7 @@ module instr_buffer #(
 
     // Update ptrs
     always_ff @(posedge clk or negedge rst_n) begin : ptr_ff
-        if (!rst_n) begin
+        if (!rst_n || backend_flush_i) begin
             read_ptr  <= 0;
             write_ptr <= 0;
         end else begin
@@ -107,9 +107,9 @@ module instr_buffer #(
         for (integer i = 0; i < ID_WIDTH; i++) begin
             logic [$clog2(BUFFER_SIZE)-1:0] current_read_ptr;
             // verilator lint_off WIDTH
-            assign current_read_ptr = read_ptr + i + backend_accept_num;
+            assign current_read_ptr = read_ptr + backend_accept_num;
+            backend_instr_o[i] = buffer_queue[current_read_ptr+i];
             // verilator lint_on WIDTH
-            backend_instr_o[i] = buffer_queue[current_read_ptr];
         end
     end
 
