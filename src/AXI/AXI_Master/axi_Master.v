@@ -309,7 +309,7 @@ module axi_Master (
 
                 /** R **/
                 `R_DATA:begin
-                    if(s_rvalid&&s_rlast)
+                    if(s_rvalid&&s_rlast&&s_rid[0]==0)
                     begin
                             inst_r_state<=`R_FREE;
                             inst_buffer<=s_rdata;
@@ -502,7 +502,7 @@ module axi_Master (
 
                 /** R **/
                 `R_DATA:begin
-                    if(s_rvalid&&s_rlast)
+                    if(s_rvalid&&s_rlast&&s_rid[0]==1)
                     begin
                         data_r_state<=`R_FREE;
                         data_buffer<=s_rdata;
