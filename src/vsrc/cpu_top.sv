@@ -118,7 +118,7 @@ module cpu_top (
         // <-> ICache
         .inst_cpu_addr_i(axi_addr),
         .inst_cpu_ce_i(axi_addr != 0),  // FIXME: ce should not be used as valid?
-        .inst_cpu_we_i(data_axi_we),
+        .inst_cpu_we_i(),
         .inst_cpu_sel_i(4'b1111),
         .inst_flush_i(),
         .inst_cpu_data_o(axi_data),
@@ -129,7 +129,7 @@ module cpu_top (
         .data_cpu_addr_i(data_axi_addr),
         .data_cpu_ce_i(data_axi_addr != 0),  // FIXME: ce should not be used as valid?
         // .data_cpu_data_i(data_axi_data), FIXME: change to cache interface
-        .data_cpu_we_i(1'b0),  // FIXME: Write enable
+        .data_cpu_we_i(data_axi_we),  // FIXME: Write enable
         .data_cpu_sel_i(4'b1111),
         .data_flush_i(),
         .data_cpu_data_o(axi_mem_data),
