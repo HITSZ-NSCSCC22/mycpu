@@ -155,7 +155,8 @@ module id (
         .imm_o                (sub_decoder_imm[8]),
         .reg_write_valid_o    (sub_decoder_reg_write_valid[8]),
         .reg_write_addr_o     (sub_decoder_reg_write_addr[8]),
-        .aluop_o              (sub_decoder_aluop[8])
+        .aluop_o              (sub_decoder_aluop[8]),
+        .alusel_o             (sub_decoder_alusel[8])
     );
     // Sub-decoder END
 

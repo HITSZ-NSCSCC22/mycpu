@@ -25,6 +25,8 @@ module ex (
     reg [`RegBus] shiftout;
     reg [`RegBus] moveout;
     reg [`RegBus] arithout;
+    reg [`RegBus] csr_out;
+    assign csr_out = reg2_i;
 
     // Assign input
     logic [`AluOpBus] aluop_i;
@@ -259,6 +261,9 @@ module ex (
             end
             `EXE_RES_JUMP: begin
                 ex_o.wdata = inst_pc_i + 4;
+            end
+            `EXE_RES_CSR:begin
+                 ex_o.wdata = reg2_i;
             end
             default: begin
                 ex_o.wdata = `ZeroWord;

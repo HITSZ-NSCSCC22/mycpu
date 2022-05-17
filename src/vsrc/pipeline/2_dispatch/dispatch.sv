@@ -50,8 +50,17 @@ module dispatch #(
     assign alusel_i[0]   = id_i[0].alusel;
     assign alusel_i[1]   = id_i[1].alusel;
 
+    logic [`AluOpBus] aluop_i[2];
+    assign aluop_i[0] = id_i[0].aluop;
+    assign aluop_i[1] = id_i[1].aluop;
+
+    logic csr_op[2];
+    assign csr_op[0] = aluop_i[0] == `EXE_CSRWR_OP | aluop_i[0] == `EXE_CSRRD_OP | aluop_i[0] == `EXE_CSRXCHG_OP;
+    assign csr_op[1] = aluop_i[1] == `EXE_CSRWR_OP | id_i[1].aluop == `EXE_CSRRD_OP | id_i[1].aluop == `EXE_CSRXCHG_OP;
+
     //assume two csr write instr not come together
-    assign csr_read_addr = id_i[0].imm[13:0] | id_i[1].imm[13:0];
+    //assign csr_read_addr = id_i[0].imm[13:0] | id_i[1].imm[13:0];
+    assign csr_read_addr = csr_op[0] ? id_i[0].imm[13:0] : csr_op[1] ? id_i[1].imm[13:0] : 14'b0;
 
     logic is_both_mem_instr;
     assign is_both_mem_instr = alusel_i[0] == `EXE_RES_LOAD_STORE && alusel_i[1] == `EXE_RES_LOAD_STORE;
@@ -129,6 +138,8 @@ module dispatch #(
                         oprand2[i] = mem_data_forward[1].reg_data;
                     else if(mem_data_forward[0].reg_valid == `WriteEnable && mem_data_forward[0].reg_addr == regfile_reg_read_addr_o[i][1] && id_i[i].reg_read_valid[1])
                         oprand2[i] = mem_data_forward[0].reg_data;
+                    else if(csr_op[i] == 1'b1)
+                        oprand2[i] = csr_data;
                     else oprand2[i] = regfile_reg_read_data_i[i][1];
                 end
             end
@@ -153,8 +164,6 @@ module dispatch #(
                     exe_o[i].alusel <= id_i[i].alusel;
                     exe_o[i].reg_write_addr <= id_i[i].reg_write_addr;
                     exe_o[i].reg_write_valid <= id_i[i].reg_write_valid;
-                    exe_o[i].csr_we <= id_i[i].csr_we;
-                    exe_o[i].csr_signal <= id_i[i].csr_signal;
 
                     exe_o[i].oprand1 <= oprand1[i];
                     exe_o[i].oprand2 <= id_i[i].use_imm ? id_i[i].imm : oprand2[i];
@@ -170,9 +179,10 @@ module dispatch #(
                     exe_o[i].excp <= id_i[i].excp;
                     exe_o[i].excp_num <= id_i[i].excp_num;
                     exe_o[i].refetch <= id_i[i].refetch;
-
+                    
+                    exe_o[i].csr_signal.we <= csr_op[i];
                     exe_o[i].csr_signal.addr <= id_i[i].imm[13:0];
-                    exe_o[i].csr_signal.data <= csr_data;
+                    exe_o[i].csr_signal.data <= oprand1[0];
                 end else begin
                     exe_o[i] <= 0;  // Cannot be issued, so do not issue
                 end

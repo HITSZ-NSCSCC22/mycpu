@@ -151,6 +151,7 @@ module mem (
             signal_o.wdata = signal_i.wdata;
             signal_o.aluop = aluop_i;
             signal_o.csr_signal = signal_i.csr_signal;
+            signal_axi_o = 0;
             case (aluop_i)
                 `EXE_LD_B_OP: begin
                     signal_axi_o.addr = mem_addr;

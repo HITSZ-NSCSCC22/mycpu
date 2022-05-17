@@ -33,7 +33,8 @@ module decoder_CSR #(
 
 
     // ALU info
-    output logic [ALU_OP_WIDTH-1:0] aluop_o
+    output logic [ALU_OP_WIDTH-1:0] aluop_o,
+    output logic [ALU_SEL_WIDTH-1:0] alusel_o
 
 );
 
@@ -62,14 +63,17 @@ module decoder_CSR #(
                 case (rj)
                     `EXE_CSRRD: begin
                         aluop_o = `EXE_CSRRD_OP;
+                        alusel_o = `EXE_RES_CSR;
                     end
                     `EXE_CSRWR: begin
                         aluop_o = `EXE_CSRWR_OP;
+                        alusel_o = `EXE_RES_CSR;
                         reg_read_valid_o = 2'b01;
                         reg_read_addr_o = {5'b0, rd};
                     end
                     default: begin  // EXE_CSRXCHG
                         aluop_o = `EXE_CSRXCHG_OP;
+                        alusel_o = `EXE_RES_CSR;
                         reg_read_valid_o = 2'b11;
                         reg_read_addr_o = {rj, rd};
                     end
