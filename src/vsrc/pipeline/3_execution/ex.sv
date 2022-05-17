@@ -25,8 +25,6 @@ module ex (
     reg [`RegBus] shiftout;
     reg [`RegBus] moveout;
     reg [`RegBus] arithout;
-    reg [`RegBus] csr_out;
-    assign csr_out = reg2_i;
 
     // Assign input
     logic [`AluOpBus] aluop_i;
@@ -64,7 +62,7 @@ module ex (
     //写入csr的数据，对csrxchg指令进行掩码处理
     assign ex_o.csr_signal.we = csr_signal_i.we;
     assign ex_o.csr_signal.addr = csr_signal_i.addr;
-    assign ex_o.csr_signal.data = (aluop_i ==`EXE_CSRXCHG_OP) ?((reg1_i & reg2_i) | (~reg1_i & csr_signal_i.data)) : csr_signal_i.data;
+    assign ex_o.csr_signal.data = (aluop_i ==`EXE_CSRXCHG_OP) ? ((reg1_i & reg2_i) | (~reg2_i & dispatch_i.csr_reg_data)) : csr_signal_i.data;
 
     logic excp_ale, excp_i;
     logic [9:0] excp_num;
@@ -263,7 +261,7 @@ module ex (
                 ex_o.wdata = inst_pc_i + 4;
             end
             `EXE_RES_CSR:begin
-                 ex_o.wdata = reg2_i;
+                 ex_o.wdata = dispatch_i.csr_reg_data;
             end
             default: begin
                 ex_o.wdata = `ZeroWord;

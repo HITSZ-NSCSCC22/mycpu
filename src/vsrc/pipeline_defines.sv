@@ -42,7 +42,7 @@ typedef struct packed {
     logic reg_write_valid;
     logic [5:0] branch_com_result;
 
-    logic csr_we;
+    logic [`RegBus] csr_reg_data;
     csr_write_signal csr_signal;
 
     logic excp;

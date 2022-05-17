@@ -138,8 +138,6 @@ module dispatch #(
                         oprand2[i] = mem_data_forward[1].reg_data;
                     else if(mem_data_forward[0].reg_valid == `WriteEnable && mem_data_forward[0].reg_addr == regfile_reg_read_addr_o[i][1] && id_i[i].reg_read_valid[1])
                         oprand2[i] = mem_data_forward[0].reg_data;
-                    else if(csr_op[i] == 1'b1)
-                        oprand2[i] = csr_data;
                     else oprand2[i] = regfile_reg_read_data_i[i][1];
                 end
             end
@@ -183,6 +181,7 @@ module dispatch #(
                     exe_o[i].csr_signal.we <= csr_op[i];
                     exe_o[i].csr_signal.addr <= id_i[i].imm[13:0];
                     exe_o[i].csr_signal.data <= oprand1[0];
+                    exe_o[i].csr_reg_data <= csr_data;
                 end else begin
                     exe_o[i] <= 0;  // Cannot be issued, so do not issue
                 end
