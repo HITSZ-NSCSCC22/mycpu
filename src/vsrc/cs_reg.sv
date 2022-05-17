@@ -522,7 +522,7 @@ assign rand_index   = timer_64[4:0];
             csr_dmw1[2:1]  <= 2'b0;
             csr_dmw1[24:6] <= 19'b0;
             csr_dmw1[28]   <= 1'b0;
-        end else if (we == 1'b1 && waddr == `DMW0) begin
+        end else if (we == 1'b1 && waddr == `DMW1) begin
             csr_dmw1[`PLV0] <= wdata[`PLV0];
             csr_dmw1[`PLV3] <= wdata[`PLV3];
             csr_dmw1[`DMW_MAT] <= wdata[`DMW_MAT];

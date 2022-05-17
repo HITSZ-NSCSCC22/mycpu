@@ -163,7 +163,8 @@ module id (
     // Generate imm, using OR
     logic [`RegBus] imm;
     assign dispatch_o.use_imm = (imm != 0) && !(dispatch_o.aluop == `EXE_ST_B_OP | dispatch_o.aluop == `EXE_ST_H_OP |
-                                dispatch_o.aluop == `EXE_ST_W_OP | dispatch_o.aluop == `EXE_SC_OP);  // HACK: works for now
+                                dispatch_o.aluop == `EXE_ST_W_OP | dispatch_o.aluop == `EXE_CSRRD_OP | dispatch_o.aluop == `EXE_CSRWR_OP
+                                | dispatch_o.aluop == `EXE_CSRRD_OP | dispatch_o.aluop == `EXE_CSRXCHG_OP);  // HACK: works for now
     assign dispatch_o.imm = imm;
     always_comb begin
         imm = 0;
