@@ -97,8 +97,8 @@ module mem (
         aluop_i == `EXE_ST_B_OP ? 1'b1 : 1'b0
     };
 
-    assign signal_o.load_addr = mem_addr;
-    assign signal_o.store_addr = signal_o.load_addr;
+    assign signal_o.load_addr = mem_load_op ? mem_addr : 0;
+    assign signal_o.store_addr = mem_store_op ? mem_addr : 0;
     assign signal_o.store_data = signal_axi_o.data;
 
     //addr dmw trans
@@ -324,7 +324,8 @@ module mem (
                     end
                 end
                 default: begin
-
+                    // Reset AXI signals, IMPORTANT!
+                    signal_axi_o = 0;
                 end
             endcase
         end

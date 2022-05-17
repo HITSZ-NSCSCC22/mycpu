@@ -17,7 +17,7 @@ module ex (
     output logic branch_flag,
     output logic [`RegBus] branch_target_address,
 
-    output ex_dispatch_struct ex_data_forward,
+    output ex_dispatch_struct ex_data_forward
 
 );
 
@@ -58,14 +58,14 @@ module ex (
 
     csr_write_signal csr_signal_i;
     assign csr_signal_i = dispatch_i.csr_signal;
-    
+
     //写入csr的数据，对csrxchg指令进行掩码处理
     assign ex_o.csr_signal.we = csr_signal_i.we;
     assign ex_o.csr_signal.addr = csr_signal_i.addr;
     assign ex_o.csr_signal.data = (aluop_i ==`EXE_CSRXCHG_OP) ?((reg1_i & reg2_i) | (~reg1_i & csr_signal_i.data)) : csr_signal_i.data;
 
-    logic excp_ale,excp_i;
-    logic [9:0]excp_num;
+    logic excp_ale, excp_i;
+    logic [9:0] excp_num;
     assign excp_ale = 1'b0;
     assign excp_num = {excp_ale, dispatch_i.excp_num};
     assign excp_i = dispatch_i.excp || excp_ale;
