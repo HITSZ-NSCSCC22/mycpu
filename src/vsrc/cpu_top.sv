@@ -131,10 +131,13 @@ module cpu_top (
         // .data_cpu_data_i(data_axi_data), FIXME: change to cache interface
         .data_cpu_we_i(data_axi_we),  // FIXME: Write enable
         .data_cpu_sel_i(4'b1111),
-        .data_flush_i(),
         .data_cpu_data_o(axi_mem_data),
         .data_stallreq(data_axi_busy),
         .data_id(4'b0001),
+        .dcache_rd_type_i(3'b000), // For [31:0]
+        .dcache_wr_type_i(3'b000), 
+        .dcache_wr_data({{96{1'b0}},data_axi_data}),
+
 
         // External AXI signals
         .s_arid(arid),

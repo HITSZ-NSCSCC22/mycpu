@@ -57,6 +57,8 @@ module mem (
 
     logic [`InstAddrBus] debug_pc_i;
     assign debug_pc_i = signal_i.instr_info.pc;
+    logic [`RegBus] debug_wdata_o;
+    assign debug_wdata_o = signal_o.wdata;
 
     logic [`AluOpBus] aluop_i;
     assign aluop_i = signal_i.aluop;

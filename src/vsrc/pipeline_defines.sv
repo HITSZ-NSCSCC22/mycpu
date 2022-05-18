@@ -42,7 +42,7 @@ typedef struct packed {
     logic reg_write_valid;
     logic [5:0] branch_com_result;
 
-    logic [`RegBus] csr_reg_data;
+    logic [`RegBus]  csr_reg_data;
     csr_write_signal csr_signal;
 
     logic excp;
@@ -84,7 +84,6 @@ typedef struct packed {
 
     logic [`RegAddrBus] waddr;
     logic wreg;
-    logic [`RegBus] wdata;
     logic [`AluOpBus] aluop;
     csr_write_signal csr_signal;
 
@@ -98,6 +97,7 @@ typedef struct packed {
     logic excp;
     logic [15:0] excp_num;
     logic refetch;
+    logic [`RegBus] wdata;
 } mem_wb_struct;
 
 typedef struct packed {
