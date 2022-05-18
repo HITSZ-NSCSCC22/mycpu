@@ -83,6 +83,7 @@ typedef struct packed {
     instr_buffer_info_t instr_info;
 
     logic [`RegAddrBus] waddr;
+    logic [`RegBus] wdata;
     logic wreg;
     logic [`AluOpBus] aluop;
     csr_write_signal csr_signal;
@@ -97,7 +98,6 @@ typedef struct packed {
     logic excp;
     logic [15:0] excp_num;
     logic refetch;
-    logic [`RegBus] wdata;
 } mem_wb_struct;
 
 typedef struct packed {

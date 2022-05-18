@@ -39,10 +39,10 @@ module mem_wb (
     output logic [18:0] excp_tlb_vppn,
 
     // load store relate difftest
-    output logic [7:0] debug_commit_inst_ld_en,
+    output logic [ 7:0] debug_commit_inst_ld_en,
     output logic [31:0] debug_commit_ld_paddr,
     output logic [31:0] debug_commit_ld_vaddr,
-    output logic [7:0] debug_commit_inst_st_en,
+    output logic [ 7:0] debug_commit_inst_st_en,
     output logic [31:0] debug_commit_st_paddr,
     output logic [31:0] debug_commit_st_vaddr,
     output logic [31:0] debug_commit_st_data

@@ -136,11 +136,15 @@ module mem (
 
     always @(*) begin
         if (rst == `RstEnable) begin
-            signal_o = 0;
+            signal_o.instr_info = 0;
+            signal_o.wreg = 0;
+            signal_o.wdata = 0;
+            signal_o.waddr = 0;
+            signal_o.csr_signal = 0;
+            signal_o.aluop = 0;
             signal_axi_o = 0;
             LLbit_we_o = 1'b0;
             LLbit_value_o = 1'b0;
-            signal_o.instr_info.pc = `ZeroWord;
             signal_axi_o = 0;
         end else begin
             LLbit_we_o = 1'b0;

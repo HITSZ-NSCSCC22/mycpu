@@ -105,10 +105,8 @@ module instr_buffer #(
     // OPTIM: may have better ways
     always_comb begin : backend_instr_o_comb
         for (integer i = 0; i < ID_WIDTH; i++) begin
-            logic [$clog2(BUFFER_SIZE)-1:0] current_read_ptr;
             // verilator lint_off WIDTH
-            assign current_read_ptr = read_ptr + backend_accept_num;
-            backend_instr_o[i] = buffer_queue[current_read_ptr+i];
+            backend_instr_o[i] = buffer_queue[read_ptr+i+backend_accept_num];
             // verilator lint_on WIDTH
         end
     end
