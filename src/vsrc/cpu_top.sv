@@ -843,10 +843,10 @@ module cpu_top (
         .clock              (aclk),
         .coreid             (0),
         .index              (0),
-        .valid              (cmt_inst_st_en[1]), // FIXME: two mem module
-        .storePAddr         (cmt_st_paddr[1]),
-        .storeVAddr         (cmt_st_vaddr[1]),
-        .storeData          (cmt_st_data[1])
+        .valid              (cmt_inst_st_en[1] | cmt_inst_st_en [0]),
+        .storePAddr         (cmt_st_paddr[1] | cmt_st_paddr[0]),
+        .storeVAddr         (cmt_st_vaddr[1] | cmt_st_vaddr[0]),
+        .storeData          (cmt_st_data[1] | cmt_st_data[0])
     );
 
     DifftestLoadEvent DifftestLoadEvent(
