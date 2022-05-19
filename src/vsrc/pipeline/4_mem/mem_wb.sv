@@ -116,7 +116,7 @@ module mem_wb (
             debug_commit_st_paddr <= `ZeroWord;
             debug_commit_st_vaddr <= `ZeroWord;
             debug_commit_st_data <= `ZeroWord;
-        end else if (flush == 1'b1 || excp_i == 1'b1 || mem_signal_o.aluop == `EXE_ERTN_OP) begin
+        end else if (mem_signal_o.aluop == `EXE_ERTN_OP) begin
             wb_reg_o.waddr    <= `NOPRegAddr;
             wb_reg_o.we  <= `WriteDisable;
             wb_reg_o.wdata <= `ZeroWord;
