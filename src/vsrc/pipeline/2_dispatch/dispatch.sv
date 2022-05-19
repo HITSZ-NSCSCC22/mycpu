@@ -178,7 +178,7 @@ module dispatch #(
                     exe_o[i].excp_num <= id_i[i].excp_num;
                     exe_o[i].refetch <= id_i[i].refetch;
                     
-                    exe_o[i].csr_signal.we <= csr_op[i];
+                    exe_o[i].csr_signal.we <= csr_op[i] && aluop_i[i] != `EXE_CSRRD_OP;
                     exe_o[i].csr_signal.addr <= id_i[i].imm[13:0];
                     exe_o[i].csr_signal.data <= oprand1[0];
                     exe_o[i].csr_reg_data <= csr_data;
