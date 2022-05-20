@@ -192,7 +192,7 @@ module cs_reg (
                  {32{raddr == `DMW0}}    & csr_dmw0    |
                  {32{raddr == `DMW1}}    & csr_dmw1    ;
 
-    assign eentry_out   = csr_eentry;
+assign eentry_out   = csr_eentry;
 assign era_out      = csr_era;
 assign timer_64_o = timer_64 + {{32{csr_cntc[31]}}, csr_cntc};
 assign tid_o      = csr_tid;
