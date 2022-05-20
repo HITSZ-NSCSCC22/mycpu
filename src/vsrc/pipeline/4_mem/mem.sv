@@ -26,7 +26,10 @@ module mem (
     input csr_to_mem_struct csr_mem_signal,
     input logic disable_cache,
 
-    output mem_dispatch_struct mem_data_forward,
+    // Data forward
+    // -> Dispatch
+    // -> EX
+    output mem_data_forward_t mem_data_forward_o,
 
     //to addr trans 
     output logic data_addr_trans_en,
@@ -101,7 +104,6 @@ module mem (
 
     assign signal_o.load_addr = mem_load_op ? mem_addr : 0;
     assign signal_o.store_addr = mem_store_op ? mem_addr : 0;
-    assign signal_o.store_data = signal_axi_o.data;
 
     //addr dmw trans
     assign dmw0_en = ((csr_mem_signal.csr_dmw0[`PLV0] && csr_mem_signal.csr_plv == 2'd0) || (csr_mem_signal.csr_dmw0[`PLV3] && csr_mem_signal.csr_plv == 2'd3)) && (signal_i.wdata[31:29] == csr_mem_signal.csr_dmw0[`VSEG]);
@@ -112,7 +114,8 @@ module mem (
 
     assign data_addr_trans_en = pg_mode && !dmw0_en && !dmw1_en && !cacop_op_mode_di;
 
-    assign mem_data_forward = {signal_o.wreg, signal_o.waddr, signal_o.wdata};
+    // Data forward
+    assign mem_data_forward_o = {mem_load_op, signal_o.wreg, signal_o.waddr, signal_o.wdata};
 
     assign excp_tlbr = access_mem && !tlb_mem_signal.data_tlb_found && data_addr_trans_en;
     assign excp_pil  = mem_load_op  && !tlb_mem_signal.data_tlb_v && data_addr_trans_en;  //cache will generate pil exception??
@@ -146,6 +149,7 @@ module mem (
             LLbit_we_o = 1'b0;
             LLbit_value_o = 1'b0;
             signal_axi_o = 0;
+            signal_o.store_data = 0;
         end else begin
             LLbit_we_o = 1'b0;
             LLbit_value_o = 1'b0;
@@ -158,27 +162,29 @@ module mem (
             signal_o.aluop = aluop_i;
             signal_o.csr_signal = signal_i.csr_signal;
             signal_axi_o = 0;
+            signal_o.store_data = 0;
             case (aluop_i)
                 `EXE_LD_B_OP: begin
                     signal_axi_o.addr = mem_addr;
                     signal_o.wreg = `WriteEnable;
                     signal_axi_o.ce = `ChipEnable;
+                    signal_axi_o.sel = 4'b1111;
                     case (mem_addr[1:0])
-                        2'b00: begin
-                            signal_o.wdata   = {{24{mem_data_i[31]}}, mem_data_i[31:24]};
-                            signal_axi_o.sel = 4'b1000;
-                        end
-                        2'b01: begin
-                            signal_o.wdata   = {{24{mem_data_i[23]}}, mem_data_i[23:16]};
-                            signal_axi_o.sel = 4'b0100;
+                        2'b11: begin
+                            signal_o.wdata = {{24{mem_data_i[31]}}, mem_data_i[31:24]};
+                            // signal_axi_o.sel = 4'b1000;
                         end
                         2'b10: begin
-                            signal_o.wdata   = {{24{mem_data_i[15]}}, mem_data_i[15:8]};
-                            signal_axi_o.sel = 4'b0010;
+                            signal_o.wdata = {{24{mem_data_i[23]}}, mem_data_i[23:16]};
+                            // signal_axi_o.sel = 4'b0100;
                         end
-                        2'b11: begin
-                            signal_o.wdata   = {{24{mem_data_i[7]}}, mem_data_i[7:0]};
-                            signal_axi_o.sel = 4'b0001;
+                        2'b01: begin
+                            signal_o.wdata = {{24{mem_data_i[15]}}, mem_data_i[15:8]};
+                            // signal_axi_o.sel = 4'b0010;
+                        end
+                        2'b00: begin
+                            signal_o.wdata = {{24{mem_data_i[7]}}, mem_data_i[7:0]};
+                            // signal_axi_o.sel = 4'b0001;
                         end
                         default: begin
                             signal_o.wdata = `ZeroWord;
@@ -190,12 +196,12 @@ module mem (
                     signal_o.wreg = `WriteEnable;
                     signal_axi_o.ce = `ChipEnable;
                     case (mem_addr[1:0])
-                        2'b00: begin
+                        2'b10: begin
                             signal_o.wdata   = {{16{mem_data_i[31]}}, mem_data_i[31:16]};
                             signal_axi_o.sel = 4'b1100;
                         end
 
-                        2'b10: begin
+                        2'b00: begin
                             signal_o.wdata   = {{16{mem_data_i[15]}}, mem_data_i[15:0]};
                             signal_axi_o.sel = 4'b0011;
                         end
@@ -217,19 +223,19 @@ module mem (
                     signal_o.wreg = `WriteEnable;
                     signal_axi_o.ce = `ChipEnable;
                     case (mem_addr[1:0])
-                        2'b00: begin
+                        2'b11: begin
                             signal_o.wdata   = {{24{1'b0}}, mem_data_i[31:24]};
                             signal_axi_o.sel = 4'b1000;
                         end
-                        2'b01: begin
+                        2'b10: begin
                             signal_o.wdata   = {{24{1'b0}}, mem_data_i[23:16]};
                             signal_axi_o.sel = 4'b0100;
                         end
-                        2'b10: begin
+                        2'b01: begin
                             signal_o.wdata   = {{24{1'b0}}, mem_data_i[15:8]};
                             signal_axi_o.sel = 4'b0010;
                         end
-                        2'b11: begin
+                        2'b00: begin
                             signal_o.wdata   = {{24{1'b0}}, mem_data_i[7:0]};
                             signal_axi_o.sel = 4'b0001;
                         end
@@ -243,11 +249,11 @@ module mem (
                     signal_o.wreg = `WriteEnable;
                     signal_axi_o.ce = `ChipEnable;
                     case (mem_addr[1:0])
-                        2'b00: begin
+                        2'b10: begin
                             signal_o.wdata   = {{16{1'b0}}, mem_data_i[31:16]};
                             signal_axi_o.sel = 4'b1100;
                         end
-                        2'b10: begin
+                        2'b00: begin
                             signal_o.wdata   = {{16{1'b0}}, mem_data_i[15:0]};
                             signal_axi_o.sel = 4'b0011;
                         end
@@ -263,20 +269,21 @@ module mem (
                     signal_axi_o.ce = `ChipEnable;
                     signal_axi_o.data = {reg2_i[7:0], reg2_i[7:0], reg2_i[7:0], reg2_i[7:0]};
                     case (mem_addr[1:0])
-                        2'b00: begin
+                        2'b11: begin
                             signal_axi_o.sel = 4'b1000;
-                        end
-                        2'b01: begin
-                            signal_axi_o.sel = 4'b0100;
+                            signal_o.store_data = {reg2_i[7:0], 24'b0};
                         end
                         2'b10: begin
+                            signal_axi_o.sel = 4'b0100;
+                            signal_o.store_data = {8'b0, reg2_i[7:0], 16'b0};
+                        end
+                        2'b01: begin
                             signal_axi_o.sel = 4'b0010;
+                            signal_o.store_data = {16'b0, reg2_i[7:0], 8'b0};
                         end
-                        2'b11: begin
+                        2'b00: begin
                             signal_axi_o.sel = 4'b0001;
-                        end
-                        default: begin
-                            signal_axi_o.sel = 4'b0000;
+                            signal_o.store_data = {24'b0, reg2_i[7:0]};
                         end
                     endcase
                 end
@@ -287,11 +294,13 @@ module mem (
                     signal_axi_o.ce = `ChipEnable;
                     signal_axi_o.data = {reg2_i[15:0], reg2_i[15:0]};
                     case (mem_addr[1:0])
-                        2'b00: begin
-                            signal_axi_o.sel = 4'b1100;
-                        end
                         2'b10: begin
+                            signal_axi_o.sel = 4'b1100;
+                            signal_o.store_data = {reg2_i[15:0], 16'b0};
+                        end
+                        2'b00: begin
                             signal_axi_o.sel = 4'b0011;
+                            signal_o.store_data = {16'b0, reg2_i[15:0]};
                         end
                         default: begin
                             signal_axi_o.sel = 4'b0000;
@@ -305,6 +314,7 @@ module mem (
                     signal_axi_o.ce = `ChipEnable;
                     signal_axi_o.data = reg2_i;
                     signal_axi_o.sel = 4'b1111;
+                    signal_o.store_data = reg2_i;
                 end
                 `EXE_LL_OP: begin
                     signal_axi_o.addr = mem_addr;

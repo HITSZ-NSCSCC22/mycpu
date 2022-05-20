@@ -32,6 +32,10 @@ typedef struct packed {
 typedef struct packed {
     instr_buffer_info_t instr_info;
 
+    // Pass ID info to EX to help data forwarding
+    logic [1:0][`RegAddrBus] read_reg_addr;
+    logic use_imm;
+
     logic [`InstBus] instr;
     logic [`RegBus] oprand1;
     logic [`RegBus] oprand2;
@@ -73,11 +77,13 @@ typedef struct packed {
     logic refetch;
 } ex_mem_struct;
 
+// MEM stage data forwarding
 typedef struct packed {
-    logic reg_valid;
-    logic [`RegAddrBus] reg_addr;
-    logic [`RegBus] reg_data;
-} mem_dispatch_struct;
+    logic is_load_data;
+    logic write_reg;
+    logic [`RegAddrBus] write_reg_addr;
+    logic [`RegBus] write_reg_data;
+} mem_data_forward_t;
 
 typedef struct packed {
     instr_buffer_info_t instr_info;

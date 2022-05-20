@@ -16,6 +16,10 @@ module mem_wb (
     output wb_ctrl wb_ctrl_signal
 );
 
+    // For observability
+    logic [`RegBus] debug_mem_wdata;
+    assign debug_mem_wdata = mem_signal_o.wdata;
+
     always @(posedge clk) begin
         if (rst == `RstEnable) begin
             wb_ctrl_signal.valid <= 1'b0;

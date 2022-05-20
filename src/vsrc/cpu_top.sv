@@ -103,13 +103,14 @@ module cpu_top (
     logic [`RegBus] data_axi_data;
     logic [`RegBus] axi_mem_data;
     logic data_axi_busy;
-
+    logic [3:0] data_axi_sel; // Byte selection
 
     mem_axi_struct mem_axi_signal[2];
 
     assign data_axi_we = mem_axi_signal[0].we | mem_axi_signal[1].we;
     assign data_axi_addr = mem_axi_signal[0].ce ? mem_axi_signal[0].addr : mem_axi_signal[1].ce ? mem_axi_signal[1].addr : 32'b0;
     assign data_axi_data = mem_axi_signal[0].ce ? mem_axi_signal[0].data : mem_axi_signal[1].ce ? mem_axi_signal[1].data : 32'b0;
+    assign data_axi_sel = mem_axi_signal[0].ce ? mem_axi_signal[0].sel : mem_axi_signal[1].ce ? mem_axi_signal[1].sel : 4'b0;
 
     axi_master u_axi_master (
         .aclk   (aclk),
@@ -127,7 +128,7 @@ module cpu_top (
         .data_cpu_addr_i(data_axi_addr),
         .data_cpu_ce_i(data_axi_addr != 0),  // FIXME: ce should not be used as valid?
         .data_cpu_we_i(data_axi_we),  // FIXME: Write enable
-        .data_cpu_sel_i(4'b1111),
+        .data_cpu_sel_i(data_axi_sel),
         .data_cpu_data_o(axi_mem_data),
         .data_stallreq(data_axi_busy),
         .data_id(4'b0001),
@@ -309,9 +310,9 @@ module cpu_top (
     // Dispatch -> EXE
     dispatch_ex_struct [1:0] dispatch_exe;
 
-    //data relate
-    ex_dispatch_struct ex_data_forward[2];
-    mem_dispatch_struct mem_data_forward[2];
+    // Data forwarding
+    ex_dispatch_struct [1:0] ex_data_forward;
+    mem_data_forward_t [1:0] mem_data_forward;
 
     logic stallreq_from_dispatch;
 
@@ -334,7 +335,7 @@ module cpu_top (
 
         // Data forwarding    
         .ex_data_forward(ex_data_forward),
-        .mem_data_forward(mem_data_forward),
+        .mem_data_forward_i(mem_data_forward),
 
         // <-> Regfile
         .regfile_reg_read_valid_o(dispatch_regfile_reg_read_valid),
@@ -425,6 +426,8 @@ module cpu_top (
                 .dispatch_i(dispatch_exe[i]),
                 .csr_vppn  (csr_vppn_o),
 
+                .mem_data_forward_i(mem_data_forward),
+
                 .ex_o(ex_signal_o[i]),
 
                 .stallreq(ex_stallreq[i]),
@@ -514,7 +517,10 @@ module cpu_top (
                 .csr_mem_signal(csr_mem_signal),
                 .disable_cache(1'b0),
 
-                .mem_data_forward(mem_data_forward[i]),
+                // Data forward
+                // -> Dispatch
+                // -> EX
+                .mem_data_forward_o(mem_data_forward[i]),
 
                 .data_addr_trans_en(mem_data_addr_trans_en[i]),
                 .dmw0_en(mem_data_dmw0_en[i]),

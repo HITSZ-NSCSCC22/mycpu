@@ -24,11 +24,11 @@ module dispatch #(
 
     // <- EXE
     // Data forwarding
-    input ex_dispatch_struct ex_data_forward[EXE_STAGE_WIDTH],
+    input ex_dispatch_struct [EXE_STAGE_WIDTH-1:0] ex_data_forward,
 
     // <- Mem
     // Data forwarding
-    input mem_dispatch_struct mem_data_forward[MEM_STAGE_WIDTH],
+    input mem_data_forward_t [MEM_STAGE_WIDTH-1:0] mem_data_forward_i,
 
     //<-> CSR
     //get wdata from csr
@@ -38,7 +38,7 @@ module dispatch #(
     // -> Instruction Buffer, wire
     output logic [DECODE_WIDTH-1:0] ib_accept_o,
 
-    // Dispatch Port
+    // Dispatch Port, -> EXE
     output dispatch_ex_struct [DECODE_WIDTH-1:0] exe_o
 );
 
@@ -47,8 +47,8 @@ module dispatch #(
     assign rst_n = ~rst;
 
     logic [`AluSelBus] alusel_i[2];
-    assign alusel_i[0]   = id_i[0].alusel;
-    assign alusel_i[1]   = id_i[1].alusel;
+    assign alusel_i[0] = id_i[0].alusel;
+    assign alusel_i[1] = id_i[1].alusel;
 
     logic [`AluOpBus] aluop_i[2];
     assign aluop_i[0] = id_i[0].aluop;
@@ -116,10 +116,10 @@ module dispatch #(
                         oprand1[i] = ex_data_forward[1].reg_data;
                     else if(ex_data_forward[0].reg_valid == `WriteEnable && ex_data_forward[0].reg_addr == regfile_reg_read_addr_o[i][0] && id_i[i].reg_read_valid[0])
                         oprand1[i] = ex_data_forward[0].reg_data;
-                    else if(mem_data_forward[1].reg_valid == `WriteEnable && mem_data_forward[1].reg_addr == regfile_reg_read_addr_o[i][0] && id_i[i].reg_read_valid[0])
-                        oprand1[i] = mem_data_forward[1].reg_data;
-                    else if(mem_data_forward[0].reg_valid == `WriteEnable && mem_data_forward[0].reg_addr == regfile_reg_read_addr_o[i][0] && id_i[i].reg_read_valid[0])
-                        oprand1[i] = mem_data_forward[0].reg_data;
+                    else if(mem_data_forward_i[1].write_reg == `WriteEnable && mem_data_forward_i[1].write_reg_addr == regfile_reg_read_addr_o[i][0] && id_i[i].reg_read_valid[0])
+                        oprand1[i] = mem_data_forward_i[1].write_reg_data;
+                    else if(mem_data_forward_i[0].write_reg == `WriteEnable && mem_data_forward_i[0].write_reg_addr == regfile_reg_read_addr_o[i][0] && id_i[i].reg_read_valid[0])
+                        oprand1[i] = mem_data_forward_i[0].write_reg_data;
                     else oprand1[i] = regfile_reg_read_data_i[i][0];
                 end
             end
@@ -130,14 +130,14 @@ module dispatch #(
         for (genvar i = 0; i < DECODE_WIDTH; i++) begin
             always_comb begin
                 begin
-                    if(ex_data_forward[1].reg_valid == `WriteEnable && ex_data_forward[1].reg_addr == regfile_reg_read_addr_o[i][1] && id_i[i].reg_read_valid[1])
+                    if(ex_data_forward[1].reg_valid== `WriteEnable && ex_data_forward[1].reg_addr == regfile_reg_read_addr_o[i][1] && id_i[i].reg_read_valid[1])
                         oprand2[i] = ex_data_forward[1].reg_data;
                     else if(ex_data_forward[0].reg_valid == `WriteEnable && ex_data_forward[0].reg_addr == regfile_reg_read_addr_o[i][1] && id_i[i].reg_read_valid[1])
                         oprand2[i] = ex_data_forward[0].reg_data;
-                    else if(mem_data_forward[1].reg_valid == `WriteEnable && mem_data_forward[1].reg_addr == regfile_reg_read_addr_o[i][1] && id_i[i].reg_read_valid[1])
-                        oprand2[i] = mem_data_forward[1].reg_data;
-                    else if(mem_data_forward[0].reg_valid == `WriteEnable && mem_data_forward[0].reg_addr == regfile_reg_read_addr_o[i][1] && id_i[i].reg_read_valid[1])
-                        oprand2[i] = mem_data_forward[0].reg_data;
+                    else if(mem_data_forward_i[1].write_reg == `WriteEnable && mem_data_forward_i[1].write_reg_addr == regfile_reg_read_addr_o[i][1] && id_i[i].reg_read_valid[1])
+                        oprand2[i] = mem_data_forward_i[1].write_reg_data;
+                    else if(mem_data_forward_i[0].write_reg == `WriteEnable && mem_data_forward_i[0].write_reg_addr == regfile_reg_read_addr_o[i][1] && id_i[i].reg_read_valid[1])
+                        oprand2[i] = mem_data_forward_i[0].write_reg_data;
                     else oprand2[i] = regfile_reg_read_data_i[i][1];
                 end
             end
@@ -156,8 +156,12 @@ module dispatch #(
                 end else if (issue_valid[i]) begin
 
                     // Pass through to EXE 
-                    // TODO: add dispatch logic
                     exe_o[i].instr_info <= id_i[i].instr_info;
+                    exe_o[i].use_imm <= id_i[i].use_imm;
+                    exe_o[i].read_reg_addr <= {
+                        id_i[i].reg_read_valid[1] ? regfile_reg_read_addr_o[i][1] : 5'b0,
+                        id_i[i].reg_read_valid[0] ? regfile_reg_read_addr_o[i][0] : 5'b0
+                    };
                     exe_o[i].aluop <= id_i[i].aluop;
                     exe_o[i].alusel <= id_i[i].alusel;
                     exe_o[i].reg_write_addr <= id_i[i].reg_write_addr;
@@ -177,7 +181,7 @@ module dispatch #(
                     exe_o[i].excp <= id_i[i].excp;
                     exe_o[i].excp_num <= id_i[i].excp_num;
                     exe_o[i].refetch <= id_i[i].refetch;
-                    
+
                     exe_o[i].csr_signal.we <= csr_op[i] && aluop_i[i] != `EXE_CSRRD_OP;
                     exe_o[i].csr_signal.addr <= id_i[i].imm[13:0];
                     exe_o[i].csr_signal.data <= oprand1[0];

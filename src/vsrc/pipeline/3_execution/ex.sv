@@ -11,6 +11,10 @@ module ex (
     // Information from dispatch
     input dispatch_ex_struct dispatch_i,
 
+    // <- MEM 
+    // Data forward
+    input mem_data_forward_t [1:0] mem_data_forward_i,  // TODO: remove magic number
+
     input logic [18:0] csr_vppn,
 
     // -> MEM
@@ -31,15 +35,33 @@ module ex (
     reg [`RegBus] moveout;
     reg [`RegBus] arithout;
 
-    // Assign input
+    // Assign input /////////////////////////////
+
+    // ALU 
     logic [`AluOpBus] aluop_i;
     logic [`AluSelBus] alusel_i;
     assign aluop_i  = dispatch_i.aluop;
     assign alusel_i = dispatch_i.alusel;
 
-    logic [`RegBus] reg1_i, reg2_i, imm;
-    assign reg1_i = dispatch_i.oprand1;
-    assign reg2_i = dispatch_i.oprand2;
+    logic [1:0][`RegAddrBus] read_reg_addr;
+    assign read_reg_addr = dispatch_i.read_reg_addr;
+
+    // Determine oprands
+    logic [`RegBus] reg1_i, reg2_i, imm, oprand1, oprand2;
+    always_comb begin
+        if(mem_data_forward_i[1].write_reg == `WriteEnable && mem_data_forward_i[1].is_load_data && mem_data_forward_i[1].write_reg_addr == dispatch_i.read_reg_addr[0])
+            oprand1 = mem_data_forward_i[1].write_reg_data;
+        else if(mem_data_forward_i[0].write_reg == `WriteEnable && mem_data_forward_i[0].is_load_data && mem_data_forward_i[0].write_reg_addr == dispatch_i.read_reg_addr[0] )
+            oprand1 = mem_data_forward_i[0].write_reg_data;
+        else oprand1 = dispatch_i.oprand1;
+        if(mem_data_forward_i[1].write_reg == `WriteEnable && mem_data_forward_i[1].is_load_data && mem_data_forward_i[1].write_reg_addr == dispatch_i.read_reg_addr[1] )
+            oprand2 = mem_data_forward_i[1].write_reg_data;
+        else if(mem_data_forward_i[0].write_reg == `WriteEnable && mem_data_forward_i[0].is_load_data && mem_data_forward_i[0].write_reg_addr == dispatch_i.read_reg_addr[1] )
+            oprand2 = mem_data_forward_i[0].write_reg_data;
+        else oprand2 = dispatch_i.oprand2;
+    end
+    assign reg1_i = oprand1;
+    assign reg2_i = dispatch_i.use_imm ? dispatch_i.imm : oprand2;
     assign imm = dispatch_i.imm;
 
     logic [`RegBus] inst_i, inst_pc_i;
