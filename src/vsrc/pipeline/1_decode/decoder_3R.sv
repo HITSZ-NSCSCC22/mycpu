@@ -63,6 +63,7 @@ module decoder_3R #(
         case (instr[31:15])
             // These two do not need GPR
             `EXE_BREAK: begin
+                aluop_o  = `EXE_BREAK_OP;
                 reg_write_valid_o = 0;
                 reg_write_addr_o = 0;
                 reg_read_valid_o = 2'b00;
@@ -70,6 +71,7 @@ module decoder_3R #(
                 instr_break = 1;
             end
             `EXE_SYSCALL: begin
+                aluop_o  = `EXE_SYSCALL_OP;
                 reg_write_valid_o = 0;
                 reg_write_addr_o = 0;
                 reg_read_valid_o = 2'b00;

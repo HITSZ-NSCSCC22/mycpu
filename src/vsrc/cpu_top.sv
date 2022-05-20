@@ -398,12 +398,6 @@ module cpu_top (
 
     logic idle_flush;
     logic [`InstAddrBus] idle_pc;
-    logic wb_excp_flush[2];
-    logic wb_ertn_flush[2];
-
-    assign excp_flush = wb_excp_flush[0] | wb_excp_flush[1];
-    assign ertn_flush = wb_ertn_flush[0] | wb_ertn_flush[1];
-
 
     logic disable_cache;
     logic [1:0] branch_flag;
