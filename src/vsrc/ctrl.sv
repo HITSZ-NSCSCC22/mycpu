@@ -7,9 +7,9 @@ module ctrl (
     input logic [1:0] ex_branch_flag_i,
     input logic stallreq_from_dispatch,
     input logic [1:0] mem_stallreq_i,
-    input logic excp_flush,
-    input logic ertn_flush,
-    input logic fetch_flush,
+    output logic excp_flush,
+    output logic ertn_flush,
+    output logic fetch_flush,
 
     output logic [4:0] stall,
     output logic [1:0] ex_mem_flush_o,
@@ -41,8 +41,15 @@ module ctrl (
     logic valid;
     assign valid = wb_i_1.valid | wb_i_2.valid;
 
+    logic [`AluOpBus] aluop,aluop_1;
+    assign aluop = wb_i_1.aluop;
+    assign aluop_1 = wb_i_2.aluop;
+
     assign ex_mem_flush_o[1] = ex_branch_flag_i[0];
     assign ex_mem_flush_o[0] = 0;
+    assign excp_flush = excp;
+    assign ertn_flush = wb_i_1.aluop == `EXE_ERTN_OP | wb_i_2.aluop == `EXE_ERTN_OP;
+    assign fetch_flush = 0;
     assign flush = fetch_flush | excp_flush | ertn_flush;
 
     //暂停处理
@@ -55,14 +62,14 @@ module ctrl (
 
     //提交difftest
     assign commit_0 = wb_i_1.diff_commit_o;
-    assign commit_1 = (wb_i_1.aluop == `EXE_ERTN_OP) ? 0 : wb_i_2.diff_commit_o;
+    assign commit_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP) ? 0 : wb_i_2.diff_commit_o;
 
     //写入寄存器堆
     assign reg_o_0 = wb_i_1.wb_reg_o;
-    assign reg_o_1 = (wb_i_1.aluop == `EXE_ERTN_OP) ? 0 : wb_i_2.wb_reg_o;
+    assign reg_o_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP) ? 0 : wb_i_2.wb_reg_o;
 
     assign csr_w_o_0 = wb_i_1.csr_signal_o;
-    assign csr_w_o_1 = (wb_i_1.aluop == `EXE_ERTN_OP) ? 0 : wb_i_2.csr_signal_o;
+    assign csr_w_o_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP) ? 0 : wb_i_2.csr_signal_o;
 
     logic excp;
     logic [15:0] excp_num;
