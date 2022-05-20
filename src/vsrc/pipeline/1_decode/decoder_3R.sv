@@ -78,6 +78,11 @@ module decoder_3R #(
                     reg_read_valid_o = 2'b00;
                     reg_read_addr_o = 0;
                     instr_syscall = 1;
+                end else begin
+                    reg_write_valid_o = 0;
+                    reg_write_addr_o  = 0;
+                    reg_read_valid_o  = 2'b00;
+                    reg_read_addr_o   = 0;
                 end
             end
             `EXE_ADD_W: begin
