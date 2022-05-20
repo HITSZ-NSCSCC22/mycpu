@@ -492,6 +492,7 @@ module cpu_top (
     assign csr_mem_signal = {csr_pg,csr_da,csr_dmw0,csr_dmw1,csr_plv,csr_datm};
     //assign tlb_mem_signal = {data_tlb_found,data_tlb_index,data_tlb_v,data_tlb_d,data_tlb_mat,data_tlb_plv};
 
+    logic wb_LLbit_we_i[2],wb_LLbit_value_i[2];
     generate
         for (genvar i = 0; i < 2; i++) begin : mem
             mem u_mem (
@@ -533,29 +534,14 @@ module cpu_top (
 
     endgenerate
 
-
-    logic [18:0] wb_excp_tlb_vppn[2];
-
-    logic wb_excp_tlbrefill[2];
-    wb_reg wb_reg_signal[2];
-
-    logic wb_LLbit_we_i[2];
-    logic wb_LLbit_value_i[2];
-    logic [46:0] wb_csr_signal[2];
-
     logic fetch_flush;
 
     // Difftest Related
     logic [1:0] debug_commit_valid;
     logic [1:0][`InstBus] debug_commit_instr;
     logic [1:0][`InstAddrBus] debug_commit_pc;
-    logic [1:0][7:0] debug_commit_inst_ld_en;
-    logic [1:0][31:0] debug_commit_ld_paddr;
-    logic [1:0][31:0] debug_commit_ld_vaddr;
-    logic [1:0][7:0] debug_commit_inst_st_en;
-    logic [1:0][31:0] debug_commit_st_paddr;
-    logic [1:0][31:0] debug_commit_st_vaddr;
-    logic [1:0][31:0] debug_commit_st_data;
+
+    wb_ctrl wb_ctrl_signal[2];
 
     generate
         for (genvar i = 0; i < 2; i++) begin : mem_wb
@@ -570,39 +556,9 @@ module cpu_top (
                 .mem_LLbit_value(mem_wb_LLbit_value[i]),
 
                 .flush(flush),
-                .fetch_flush(fetch_flush),
 
-                .wb_reg_o(wb_reg_signal[i]),
-
-                .wb_csr_signal_o(wb_csr_signal[i]),
-
-                .debug_commit_pc(debug_commit_pc[i]),
-                .debug_commit_valid(debug_commit_valid[i]),
-                .debug_commit_instr(debug_commit_instr[i]),
-
-                .wb_LLbit_we(wb_LLbit_we_i[i]),
-                .wb_LLbit_value(wb_LLbit_value_i[i]),
-
-
-                //to csr
-                .csr_era(wb_csr_era[i]),
-                .csr_esubcode(wb_csr_esubcode[i]),
-                .csr_ecode(wb_csr_ecode[i]),
-                .excp_flush(wb_excp_flush[i]),
-                .ertn_flush(wb_ertn_flush[i]),
-                .va_error(wb_va_error[i]),
-                .bad_va(wb_bad_va[i]),
-                .excp_tlbrefill(wb_excp_tlbrefill[i]),
-                .excp_tlb(excp_tlb),
-                .excp_tlb_vppn(wb_excp_tlb_vppn[i]),
-
-                .debug_commit_inst_ld_en(debug_commit_inst_ld_en[i]),
-                .debug_commit_ld_paddr(debug_commit_ld_paddr[i]),
-                .debug_commit_ld_vaddr(debug_commit_ld_vaddr[i]),
-                .debug_commit_inst_st_en(debug_commit_inst_st_en[i]),
-                .debug_commit_st_paddr(debug_commit_st_paddr[i]),
-                .debug_commit_st_vaddr(debug_commit_st_vaddr[i]),
-                .debug_commit_st_data(debug_commit_st_data[i])
+                //to ctrl
+                .wb_ctrl_signal(wb_ctrl_signal[i])
             );
         end
     endgenerate
@@ -614,14 +570,14 @@ module cpu_top (
         .clk(clk),
         .rst(rst),
 
-        .we_1   (wb_reg_signal[0].we),
-        .pc_i_1 (wb_reg_signal[0].pc),
-        .waddr_1(wb_reg_signal[0].waddr),
-        .wdata_1(wb_reg_signal[0].wdata),
-        .we_2   (wb_reg_signal[1].we),
-        .pc_i_2 (wb_reg_signal[1].pc),
-        .waddr_2(wb_reg_signal[1].waddr),
-        .wdata_2(wb_reg_signal[1].wdata),
+        .we_1   (reg_o[0].we),
+        .pc_i_1 (reg_o[0].pc),
+        .waddr_1(reg_o[0].waddr),
+        .wdata_1(reg_o[0].wdata),
+        .we_2   (reg_o[1].we),
+        .pc_i_2 (reg_o[1].pc),
+        .waddr_2(reg_o[1].waddr),
+        .wdata_2(reg_o[1].wdata),
 
         // Read signals
         // Registers are read in dispatch stage
@@ -630,8 +586,14 @@ module cpu_top (
         .read_data_o (regfile_dispatch_reg_read_data)
     );
 
+    diff_commit commit[2];
+    wb_reg  reg_o[2];
+    csr_write_signal  csr_w_o[2];
+
     ctrl u_ctrl(
         .rst(rst),
+        .wb_i_1(wb_ctrl_signal[0]),
+        .wb_i_2(wb_ctrl_signal[1]),
     	.ex_branch_flag_i (branch_flag),
         .stallreq_from_dispatch(stallreq_from_dispatch),
         .mem_stallreq_i(mem_stallreq),
@@ -642,20 +604,26 @@ module cpu_top (
 
         .stall(stall),
         .ex_mem_flush_o(ex_mem_flush),
-        .flush(flush)
+        .flush(flush),
+
+        .csr_era(csr_era_i),
+        .csr_esubcode(csr_esubcode_i),
+        .csr_ecode(csr_ecode_i),
+        .va_error(va_error_i),
+        .bad_va(bad_va_i),
+        .excp_tlbrefill(excp_tlbrefill),
+        .excp_tlb(excp_tlb),
+        .excp_tlb_vppn(excp_tlb_vppn),
+
+        .reg_o_0(reg_o[0]),
+        .reg_o_1(reg_o[1]),
+        .csr_w_o_0(csr_w_o[0]),
+        .csr_w_o_1(csr_w_o[1]),
+        //difftest-commit
+        .commit_0(commit[0]),
+        .commit_1(commit[1])
     );
     
-
-    //目前没有进行冲突处理，是假设不会同时出现两条异常同时发生
-    assign csr_era_i = wb_csr_era[0] | wb_csr_era[1];
-    assign csr_ecode_i = wb_csr_ecode[0] | wb_csr_ecode[1];
-    assign csr_esubcode_i = wb_csr_esubcode[0] | wb_csr_esubcode[1];
-    assign excp_flush = wb_excp_flush[0] | wb_excp_flush[1];
-    assign ertn_flush = wb_ertn_flush[0] | wb_ertn_flush[1];
-    assign va_error_i = wb_va_error[0] | wb_va_error[1];
-    assign bad_va_i = wb_bad_va[0] | wb_bad_va[1];
-    assign excp_tlbrefill = wb_excp_tlbrefill[0] | wb_excp_tlbrefill[1];
-    assign excp_tlb_vppn = wb_excp_tlb_vppn[0] | wb_excp_tlb_vppn[1];
 
     logic [13:0] dispatch_csr_read_addr;
     logic [`RegBus] dispatch_csr_data;
@@ -667,8 +635,8 @@ module cpu_top (
         .ertn_flush(ertn_flush),
         .interrupt_i({1'b0,intrpt}),
         .ecode_i(csr_ecode_i),
-        .write_signal_1(wb_csr_signal[0]),
-        .write_signal_2(wb_csr_signal[1]),
+        .write_signal_1(csr_w_o[0]),
+        .write_signal_2(csr_w_o[1]),
         .raddr(dispatch_csr_read_addr),
         .rdata(dispatch_csr_data),
         .llbit_i(wb_LLbit_value_i[0] | wb_LLbit_value_i[1]),
@@ -712,7 +680,6 @@ module cpu_top (
         .tlbidx_in(tlb_read_signal_o.tlbidx),
         .asid_in(tlb_read_signal_o.asid)
     );
-
 
     assign data_addr_trans_en = mem_data_addr_trans_en[0] | mem_data_addr_trans_en[1];
     assign tlb_data_i.dmw0_en = mem_data_dmw0_en[0] | mem_data_dmw0_en[1];
@@ -764,15 +731,15 @@ module cpu_top (
     end
 
     always_ff @(posedge clk) begin
-        debug0_wb_pc <= wb_reg_signal[0].pc; 
-        debug0_wb_rf_wen <= {3'b0,wb_reg_signal[0].we};
-        debug0_wb_rf_wdata <= wb_reg_signal[0].wdata;
-        debug0_wb_rf_wnum <= wb_reg_signal[0].waddr;
+        debug0_wb_pc <= reg_o[0].pc; 
+        debug0_wb_rf_wen <= {3'b0,reg_o[0].we};
+        debug0_wb_rf_wdata <= reg_o[0].wdata;
+        debug0_wb_rf_wnum <= reg_o[0].waddr;
         `ifdef CPU_2CMT
-        debug1_wb_pc <= wb_reg_signal[1].pc;
-        debug1_wb_rf_wen <= {3'b0, wb_reg_signal[1].we};
-        debug1_wb_rf_wdata <= wb_reg_signal[1].wdata;
-        debug1_wb_rf_wnum <= wb_reg_signal[1].waddr;
+        debug1_wb_pc <= reg_o[1].pc;
+        debug1_wb_rf_wen <= {3'b0, reg_o[1].we};
+        debug1_wb_rf_wdata <= reg_o[1].wdata;
+        debug1_wb_rf_wnum <= reg_o[1].waddr;
         `endif
     end
     // difftest dpi-c
@@ -832,13 +799,13 @@ module cpu_top (
             cmt_st_vaddr <= `ZeroWord;
             cmt_st_data <= `ZeroWord;
         end else begin
-            cmt_inst_ld_en <= debug_commit_inst_ld_en;
-            cmt_ld_paddr <= debug_commit_ld_paddr;
-            cmt_ld_vaddr <= debug_commit_ld_vaddr;
-            cmt_inst_st_en <= debug_commit_inst_st_en;
-            cmt_st_paddr <= debug_commit_st_paddr;
-            cmt_st_vaddr <= debug_commit_st_vaddr;
-            cmt_st_data <= debug_commit_st_data;
+            cmt_inst_ld_en <= {commit[0].inst_ld_en,commit[1].inst_ld_en};
+            cmt_ld_paddr <= {commit[0].ld_paddr,commit[1].ld_paddr};
+            cmt_ld_vaddr <= {commit[0].ld_vaddr,commit[1].ld_vaddr};
+            cmt_inst_st_en <= {commit[0].inst_st_en,commit[1].inst_st_en};
+            cmt_st_paddr <= {commit[0].st_paddr,commit[1].st_paddr};
+            cmt_st_vaddr <= {commit[0].st_vaddr,commit[1].st_vaddr};
+            cmt_st_data <= {commit[0].st_data,commit[1].st_data};
         end
     end
 

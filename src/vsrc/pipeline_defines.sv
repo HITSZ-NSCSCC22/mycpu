@@ -116,6 +116,36 @@ typedef struct packed {
 } wb_reg;
 
 typedef struct packed {
+    logic [`InstAddrBus] pc;
+    logic valid;
+    logic [`InstBus] instr;
+    logic [ 7:0] inst_ld_en;
+    logic [31:0] ld_paddr;
+    logic [31:0] ld_vaddr;
+    logic [ 7:0] inst_st_en;
+    logic [31:0] st_paddr;
+    logic [31:0] st_vaddr;
+    logic [31:0] st_data;
+} diff_commit;
+
+typedef struct packed {
+    logic we;
+    logic value;
+} wb_llbit;
+
+typedef struct packed {
+    logic valid;
+    logic [`AluOpBus] aluop;
+    wb_reg wb_reg_o;
+    wb_llbit llbit_o;
+    logic excp;
+    logic [15:0] excp_num;
+    logic fetch_flush;
+    csr_write_signal csr_signal_o;
+    diff_commit diff_commit_o;
+} wb_ctrl;
+
+typedef struct packed {
     logic csr_pg;
     logic csr_da;
     logic [`RegBus] csr_dmw0;
