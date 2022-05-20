@@ -66,14 +66,14 @@ module ctrl (
 
     //提交difftest
     assign commit_0 = wb_i_1.diff_commit_o;
-    assign commit_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP) ? 0 : wb_i_2.diff_commit_o;
+    assign commit_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP) ? 0 : wb_i_2.diff_commit_o;
 
     //写入寄存器堆
     assign reg_o_0 = wb_i_1.wb_reg_o;
-    assign reg_o_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP) ? 0 : wb_i_2.wb_reg_o;
+    assign reg_o_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP ) ? 0 : wb_i_2.wb_reg_o;
 
     assign csr_w_o_0 = wb_i_1.csr_signal_o;
-    assign csr_w_o_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP) ? 0 : wb_i_2.csr_signal_o;
+    assign csr_w_o_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP ) ? 0 : wb_i_2.csr_signal_o;
 
     logic excp;
     logic [15:0] excp_num;
