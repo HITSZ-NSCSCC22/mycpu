@@ -132,7 +132,7 @@ module dummy_icache #(
 
     // Output logic
     always_ff @(posedge clk or negedge rst_n) begin : output_ff
-        if (!rst_n) begin
+        if (!rst_n || flush) begin
             rvalid_1_o <= 0;
             rvalid_2_o <= 0;
             raddr_1_o  <= 0;

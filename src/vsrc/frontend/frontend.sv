@@ -89,7 +89,7 @@ module frontend #(
     end
 
     always_ff @(posedge clk or negedge rst_n) begin : instr_buffer_o_ff
-        if (!rst_n) begin
+        if (!rst_n || backend_flush_i) begin
             for (integer i = 0; i < FETCH_WIDTH; i++) begin
                 instr_buffer_o[i] <= 0;
             end
