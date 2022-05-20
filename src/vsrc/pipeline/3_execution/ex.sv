@@ -1,6 +1,10 @@
 `include "pipeline_defines.sv"
+`include "muldiv/mul.sv"
 
 module ex (
+    // Pass through to multi-cycle ALU
+    // DO NOT use within the module
+    input logic clk,
     input logic rst,
 
     // <- Dispatch
@@ -12,6 +16,7 @@ module ex (
     // -> MEM
     output ex_mem_struct ex_o,
 
+    // Multi-cycle ALU stallreq
     output logic stallreq,
 
     output logic branch_flag,
@@ -129,29 +134,57 @@ module ex (
 			               (reg1_i[31] && reg2_i[31] && result_compare[31])) : (reg1_i < reg2_i);
 
 
-    //乘法模块
-
-    logic [`RegBus] opdata1_mul;
-    logic [`RegBus] opdata2_mul;
-    logic [`DoubleRegBus] hilo_temp;
-    reg [`DoubleRegBus] mulres;
-
-    assign opdata1_mul = (((aluop_i == `EXE_MUL_OP) || (aluop_i == `EXE_MULH_OP))
-                        && (reg1_i[31] == 1'b1)) ? (~reg1_i + 1) : reg1_i;
-
-    assign opdata2_mul = (((aluop_i == `EXE_MUL_OP) || (aluop_i == `EXE_MULH_OP))
-                        && (reg2_i[31] == 1'b1)) ? (~reg2_i + 1) : reg1_i;
-
-    assign hilo_temp = opdata1_mul * opdata2_mul;
-
-    always @(*) begin
-        if (rst == `RstEnable) mulres = {`ZeroWord, `ZeroWord};
-        else if ((aluop_i == `EXE_MUL_OP) || (aluop_i == `EXE_MULH_OP)) begin
-            if (reg1_i[31] ^ reg2_i[31] == 1'b1) mulres = ~hilo_temp + 1;
-            else mulres = hilo_temp;
-        end else mulres = hilo_temp;
+    // Divider and Multiplier
+    // Multi-cycle
+    logic muldiv_op;  // High effective
+    always_comb begin
+        case (aluop_i)
+            `EXE_MUL_OP, `EXE_MULH_OP, `EXE_MULHU_OP, `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP: begin
+                muldiv_op = 1;
+            end
+            default: begin
+                muldiv_op = 0;
+            end
+        endcase
     end
+    logic [2:0] muldiv_para;  // 0-7 muldiv mode selection
+    always_comb begin
+        case (aluop_i)
+            `EXE_MUL_OP:   muldiv_para = 3'h0;
+            `EXE_MULH_OP:  muldiv_para = 3'h1;
+            `EXE_MULHU_OP: muldiv_para = 3'h3;
+            `EXE_DIV_OP:   muldiv_para = 3'h4;
+            `EXE_DIVU_OP:  muldiv_para = 3'h5;
+            `EXE_MOD_OP:   muldiv_para = 3'h6;
+            `EXE_MODU_OP:  muldiv_para = 3'h7;
+            default: begin
+                muldiv_para = 0;
+            end
+        endcase
+    end
+    logic [31:0] muldiv_result;
+    logic muldiv_finished;
+    logic muldiv_ack;
+    logic muldiv_busy;  // Low means busy
+    always_comb begin
+        muldiv_ack = muldiv_finished & muldiv_op;
+    end
+    mul u_mul (
+        .clk           (clk),
+        .rst           (rst),
+        .clear_pipeline(1'b0),
+        .mul_para      (muldiv_para),
+        .mul_initial   (muldiv_op & muldiv_busy & ~muldiv_finished),
+        .mul_rs0       (reg1_i),
+        .mul_rs1       (reg2_i),
+        .mul_ready     (muldiv_busy),
+        .mul_finished  (muldiv_finished),                             // 1 means finished
+        .mul_data      (muldiv_result),
+        .mul_ack       (muldiv_ack)
+    );
 
+
+    assign stallreq = muldiv_op & ~muldiv_finished;
 
     always @(*) begin
         if (rst == `RstEnable) begin
@@ -160,10 +193,11 @@ module ex (
             case (aluop_i)
                 `EXE_ADD_OP: arithout = reg1_i + reg2_i;
                 `EXE_SUB_OP: arithout = reg1_i - reg2_i;
-                `EXE_MUL_OP: arithout = mulres[31:0];
-                `EXE_MULH_OP, `EXE_MULHU_OP: arithout = mulres[63:32];
-                `EXE_DIV_OP: arithout = reg1_i / reg2_i;
-                `EXE_MOD_OP: arithout = reg1_i % reg2_i;
+
+                `EXE_MUL_OP, `EXE_MULH_OP, `EXE_MULHU_OP, `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP: begin
+                    // Select result from multi-cycle divider
+                    arithout = muldiv_result;
+                end
                 `EXE_SLT_OP, `EXE_SLTU_OP: arithout = {31'b0, reg1_lt_reg2};
                 default: begin
                     arithout = `ZeroWord;
@@ -241,7 +275,7 @@ module ex (
     end
 
     always @(*) begin
-        ex_o.instr_info = dispatch_i.instr_info;
+        ex_o.instr_info = stallreq ? 0 : dispatch_i.instr_info;
         ex_o.waddr = wd_i;
         ex_o.wreg = wreg_i;
         case (alusel_i)
@@ -260,8 +294,8 @@ module ex (
             `EXE_RES_JUMP: begin
                 ex_o.wdata = inst_pc_i + 4;
             end
-            `EXE_RES_CSR:begin
-                 ex_o.wdata = dispatch_i.csr_reg_data;
+            `EXE_RES_CSR: begin
+                ex_o.wdata = dispatch_i.csr_reg_data;
             end
             default: begin
                 ex_o.wdata = `ZeroWord;

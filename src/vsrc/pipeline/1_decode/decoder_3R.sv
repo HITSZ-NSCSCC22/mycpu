@@ -132,12 +132,20 @@ module decoder_3R #(
                 aluop_o  = `EXE_MULHU_OP;
                 alusel_o = `EXE_RES_ARITH;
             end
-            `EXE_DIV_W, `EXE_DIV_WU: begin
+            `EXE_DIV_W: begin
                 aluop_o  = `EXE_DIV_OP;
                 alusel_o = `EXE_RES_ARITH;
             end
-            `EXE_MOD_W, `EXE_MOD_WU: begin
+            `EXE_DIV_WU: begin
+                aluop_o  = `EXE_DIVU_OP;
+                alusel_o = `EXE_RES_ARITH;
+            end
+            `EXE_MOD_W: begin
                 aluop_o  = `EXE_MOD_OP;
+                alusel_o = `EXE_RES_ARITH;
+            end
+            `EXE_MOD_WU: begin
+                aluop_o  = `EXE_MODU_OP;
                 alusel_o = `EXE_RES_ARITH;
             end
             `EXE_IDLE, `EXE_DBAR, `EXE_IBAR: begin

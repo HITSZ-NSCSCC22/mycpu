@@ -243,7 +243,7 @@ module cpu_top (
     );
 
     instr_buffer_info_t ib_backend_instr_info[2];  // IB -> ID
-    logic [4:0] stall;
+    logic [4:0] stall; // from 4->0 {mem_wb, ex_mem, dispatch_ex, id_dispatch, _}
 
     logic [1:0] dispatch_ib_accept;
 
@@ -421,9 +421,11 @@ module cpu_top (
 
 
     // EXE Stage
+    logic [1:0] ex_stallreq;
     generate
         for (genvar i = 0; i < 2; i++) begin : ex
             ex u_ex (
+                .clk  (clk),
                 .rst(rst),
 
                 .dispatch_i(dispatch_exe[i]),
@@ -431,7 +433,7 @@ module cpu_top (
 
                 .ex_o(ex_signal_o[i]),
 
-                .stallreq(),
+                .stallreq(ex_stallreq[i]),
 
                 .branch_flag(branch_flag[i]),
                 .branch_target_address(branch_target_address[i]),
@@ -591,7 +593,11 @@ module cpu_top (
         .rst(rst),
         .wb_i_1(wb_ctrl_signal[0]),
         .wb_i_2(wb_ctrl_signal[1]),
+
+        // <- EX
     	.ex_branch_flag_i (branch_flag),
+        .ex_stallreq_i (ex_stallreq),
+
         .stallreq_from_dispatch(stallreq_from_dispatch),
         .mem_stallreq_i(mem_stallreq),
 

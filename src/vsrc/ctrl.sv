@@ -5,13 +5,16 @@ module ctrl (
     input wb_ctrl wb_i_1,
     input wb_ctrl wb_i_2,
     input logic [1:0] ex_branch_flag_i,
+    input logic [1:0] ex_stallreq_i,
     input logic stallreq_from_dispatch,
     input logic [1:0] mem_stallreq_i,
     input logic excp_flush,
     input logic ertn_flush,
     input logic fetch_flush,
 
-    output logic [4:0] stall,
+    // Stall request to each stage
+    output logic [4:0] stall,  // from 4->0 {ex_mem, dispatch_ex, id_dispatch, _}
+
     output logic [1:0] ex_mem_flush_o,
     output logic flush,
 
@@ -26,11 +29,11 @@ module ctrl (
     output logic [18:0] excp_tlb_vppn,
 
     //regfile-write
-    output wb_reg  reg_o_0,
-    output wb_reg  reg_o_1,
+    output wb_reg reg_o_0,
+    output wb_reg reg_o_1,
 
     //csr-write
-    output csr_write_signal  csr_w_o_0,
+    output csr_write_signal csr_w_o_0,
     output csr_write_signal csr_w_o_1,
 
     //difftest-commit
@@ -48,25 +51,26 @@ module ctrl (
     //暂停处理
     always_comb begin
         if (rst) stall = 5'b00000;
+        else if (ex_stallreq_i[0] | ex_stallreq_i[1]) stall = 5'b11110;
         else if (mem_stallreq_i[0] | mem_stallreq_i[1]) stall = 5'b11110;
         else if (stallreq_from_dispatch) stall = 5'b11100;
         else stall = 5'b00000;
     end
 
     //提交difftest
-    assign commit_0 = wb_i_1.diff_commit_o;
-    assign commit_1 = (wb_i_1.aluop == `EXE_ERTN_OP) ? 0 : wb_i_2.diff_commit_o;
+    assign commit_0  = wb_i_1.diff_commit_o;
+    assign commit_1  = (wb_i_1.aluop == `EXE_ERTN_OP) ? 0 : wb_i_2.diff_commit_o;
 
     //写入寄存器堆
-    assign reg_o_0 = wb_i_1.wb_reg_o;
-    assign reg_o_1 = (wb_i_1.aluop == `EXE_ERTN_OP) ? 0 : wb_i_2.wb_reg_o;
+    assign reg_o_0   = wb_i_1.wb_reg_o;
+    assign reg_o_1   = (wb_i_1.aluop == `EXE_ERTN_OP) ? 0 : wb_i_2.wb_reg_o;
 
     assign csr_w_o_0 = wb_i_1.csr_signal_o;
     assign csr_w_o_1 = (wb_i_1.aluop == `EXE_ERTN_OP) ? 0 : wb_i_2.csr_signal_o;
 
     logic excp;
     logic [15:0] excp_num;
-    logic [`RegBus] pc,error_va;
+    logic [`RegBus] pc, error_va;
     assign excp = wb_i_1.excp | wb_i_2.excp;
     assign csr_era = pc;
     //异常处理，优先处理第一条流水线的异常
