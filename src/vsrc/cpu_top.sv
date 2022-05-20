@@ -118,9 +118,7 @@ module cpu_top (
         // <-> ICache
         .inst_cpu_addr_i(axi_addr),
         .inst_cpu_ce_i(axi_addr != 0),  // FIXME: ce should not be used as valid?
-        .inst_cpu_we_i(),
         .inst_cpu_sel_i(4'b1111),
-        .inst_flush_i(),
         .inst_cpu_data_o(axi_data),
         .inst_stallreq(axi_busy),
         .inst_id(4'b0000),  // Read Instruction only, TODO: move this from AXI to cache
@@ -128,7 +126,6 @@ module cpu_top (
         // <-> MEM Stage
         .data_cpu_addr_i(data_axi_addr),
         .data_cpu_ce_i(data_axi_addr != 0),  // FIXME: ce should not be used as valid?
-        // .data_cpu_data_i(data_axi_data), FIXME: change to cache interface
         .data_cpu_we_i(data_axi_we),  // FIXME: Write enable
         .data_cpu_sel_i(4'b1111),
         .data_cpu_data_o(axi_mem_data),
@@ -536,11 +533,6 @@ module cpu_top (
 
     logic fetch_flush;
 
-    // Difftest Related
-    logic [1:0] debug_commit_valid;
-    logic [1:0][`InstBus] debug_commit_instr;
-    logic [1:0][`InstAddrBus] debug_commit_pc;
-
     wb_ctrl wb_ctrl_signal[2];
 
     generate
@@ -586,8 +578,13 @@ module cpu_top (
         .read_data_o (regfile_dispatch_reg_read_data)
     );
 
-    diff_commit commit[2];
+    // Difftest related
+    // Ctrl -> DifftestEvents
+    diff_commit difftest_commit_info[2];
+
+    // Ctrl -> Regfile
     wb_reg  reg_o[2];
+
     csr_write_signal  csr_w_o[2];
 
     ctrl u_ctrl(
@@ -619,9 +616,10 @@ module cpu_top (
         .reg_o_1(reg_o[1]),
         .csr_w_o_0(csr_w_o[0]),
         .csr_w_o_1(csr_w_o[1]),
-        //difftest-commit
-        .commit_0(commit[0]),
-        .commit_1(commit[1])
+
+        // -> Difftest
+        .commit_0(difftest_commit_info[0]),
+        .commit_1(difftest_commit_info[1])
     );
     
 
@@ -721,13 +719,9 @@ module cpu_top (
     );
 
     // Difftest Delay signals
-    logic [1:0] debug_commit_valid_delay1;
-    logic [1:0][`InstBus] debug_commit_instr_delay1;
-    logic [1:0][`InstAddrBus] debug_commit_pc_delay1;
+    diff_commit difftest_commit_info_delay1[2];
     always_ff @(posedge clk) begin
-        debug_commit_instr_delay1 <= debug_commit_instr;
-        debug_commit_pc_delay1 <= debug_commit_pc;
-        debug_commit_valid_delay1 <= debug_commit_valid;
+        difftest_commit_info_delay1 <= difftest_commit_info;
     end
 
     always_ff @(posedge clk) begin
@@ -743,14 +737,14 @@ module cpu_top (
         `endif
     end
     // difftest dpi-c
-`ifdef SIMU  // simu is defined in chiplab run_func/makefile
-    DifftestInstrCommit difftest_instr_commit_0 (  // todo: not finished yet, blank signal is needed
+`ifdef SIMU  // SIMU is defined in chiplab run_func/makefile
+    DifftestInstrCommit difftest_instr_commit_0 (  
         .clock         (aclk),
         .coreid        (0),                             // only one core, so always 0
         .index         (0),                             // commit channel index
-        .valid         (debug_commit_valid_delay1[0]),  // 1 means valid
-        .pc            (debug_commit_pc_delay1[0]),
-        .instr         (debug_commit_instr_delay1[0]),
+        .valid         (difftest_commit_info_delay1[0].valid),  // 1 means valid
+        .pc            (difftest_commit_info_delay1[0].pc),
+        .instr         (difftest_commit_info_delay1[0].instr),
         .skip          (0),                             // not sure meaning, but keep 0 for now
         .is_TLBFILL    (),
         .TLBFILL_index (),
@@ -762,14 +756,14 @@ module cpu_top (
         .csr_rstat     (),
         .csr_data      ()
     );
-    DifftestInstrCommit difftest_instr_commit_1 (  // todo: not finished yet, blank signal is needed
+    DifftestInstrCommit difftest_instr_commit_1 (  
         .clock         (aclk),
         .coreid        (0),                             // only one core, so always 0
         .index         (1),                             // commit channel index
-        .valid         (debug_commit_valid_delay1[1]),  // 1 means valid
-        .pc            (debug_commit_pc_delay1[1]),
-        .instr         (debug_commit_instr_delay1[1]),
         .skip          (0),                             // not sure meaning, but keep 0 for now
+        .valid         (difftest_commit_info_delay1[1].valid),  // 1 means valid
+        .pc            (difftest_commit_info_delay1[1].pc),
+        .instr         (difftest_commit_info_delay1[1].instr),
         .is_TLBFILL    (),
         .TLBFILL_index (),
         .is_CNTinst    (),
@@ -781,44 +775,18 @@ module cpu_top (
         .csr_data      ()
     );
 
-    logic [1:0][7:0] cmt_inst_ld_en;
-    logic [1:0][31:0] cmt_ld_paddr;
-    logic [1:0][31:0] cmt_ld_vaddr;
-    logic [1:0][7:0] cmt_inst_st_en;
-    logic [1:0][31:0] cmt_st_paddr;
-    logic [1:0][31:0] cmt_st_vaddr;
-    logic [1:0][31:0] cmt_st_data;
-
-    always_ff @(posedge clk) begin 
-        if(rst)begin
-            cmt_inst_ld_en <= 8'b0;
-            cmt_ld_paddr <= `ZeroWord;
-            cmt_ld_vaddr <= `ZeroWord;
-            cmt_inst_st_en <= 8'b0;
-            cmt_st_paddr <= `ZeroWord;
-            cmt_st_vaddr <= `ZeroWord;
-            cmt_st_data <= `ZeroWord;
-        end else begin
-            cmt_inst_ld_en <= {commit[0].inst_ld_en,commit[1].inst_ld_en};
-            cmt_ld_paddr <= {commit[0].ld_paddr,commit[1].ld_paddr};
-            cmt_ld_vaddr <= {commit[0].ld_vaddr,commit[1].ld_vaddr};
-            cmt_inst_st_en <= {commit[0].inst_st_en,commit[1].inst_st_en};
-            cmt_st_paddr <= {commit[0].st_paddr,commit[1].st_paddr};
-            cmt_st_vaddr <= {commit[0].st_vaddr,commit[1].st_vaddr};
-            cmt_st_data <= {commit[0].st_data,commit[1].st_data};
-        end
-    end
-
     DifftestStoreEvent DifftestStoreEvent(
         .clock              (aclk),
         .coreid             (0),
         .index              (0),
-        .valid              (cmt_inst_st_en[1] | cmt_inst_st_en [0]),
-        .storePAddr         (cmt_st_paddr[1] | cmt_st_paddr[0]),
-        .storeVAddr         (cmt_st_vaddr[1] | cmt_st_vaddr[0]),
-        .storeData          (cmt_st_data[1] | cmt_st_data[0])
+        .valid              (difftest_commit_info_delay1[0].inst_st_en | difftest_commit_info_delay1[1].inst_st_en),
+        .storePAddr         (difftest_commit_info_delay1[0].st_paddr | difftest_commit_info_delay1[1].st_paddr),
+        .storeVAddr         (difftest_commit_info_delay1[0].st_vaddr |difftest_commit_info_delay1[1].st_vaddr),
+        .storeData          (difftest_commit_info_delay1[0].st_data | difftest_commit_info_delay1[1].st_data)
     );
 
+    // Currently unused
+    /*
     DifftestLoadEvent DifftestLoadEvent(
         .clock              (aclk),
         .coreid             (0),
@@ -826,7 +794,7 @@ module cpu_top (
         .valid              (debug_commit_inst_ld_en),
         .paddr              (debug_commit_ld_paddr),
         .vaddr              (debug_commit_ld_paddr)
-    );
+    );*/
 
     DifftestCSRRegState difftest_csr_state (
         .clock    (aclk),

@@ -115,14 +115,16 @@ typedef struct packed {
     logic [`RegBus] wdata;
 } wb_reg;
 
+// Difftest Commit Information
+// Used to submit instr info into difftest framework
 typedef struct packed {
     logic [`InstAddrBus] pc;
     logic valid;
     logic [`InstBus] instr;
-    logic [ 7:0] inst_ld_en;
+    logic [7:0] inst_ld_en;
     logic [31:0] ld_paddr;
     logic [31:0] ld_vaddr;
-    logic [ 7:0] inst_st_en;
+    logic [7:0] inst_st_en;
     logic [31:0] st_paddr;
     logic [31:0] st_vaddr;
     logic [31:0] st_data;

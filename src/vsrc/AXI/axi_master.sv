@@ -5,9 +5,8 @@ module axi_master (
     //inst
     input wire [`ADDR] inst_cpu_addr_i,
     input wire inst_cpu_ce_i,
-    input wire inst_cpu_we_i ,
-    input wire [3:0]inst_cpu_sel_i, 
-    input wire inst_flush_i,
+    input wire inst_cpu_we_i,
+    input wire [3:0] inst_cpu_sel_i,
     output reg [`Data] inst_cpu_data_o,
     output wire inst_stallreq,
     input wire [3:0] inst_id,  //决定是读数据还是取指令
@@ -16,9 +15,8 @@ module axi_master (
     //data
     input wire [`ADDR] data_cpu_addr_i,
     input wire data_cpu_ce_i,
-    input wire data_cpu_we_i ,
-    input wire [3:0]data_cpu_sel_i, 
-    input wire data_flush_i,
+    input wire data_cpu_we_i,
+    input wire [3:0] data_cpu_sel_i,
     output reg [`Data] data_cpu_data_o,
     output wire data_stallreq,
     input wire [3:0] data_id,  //决定是读数据还是取指令
@@ -131,36 +129,32 @@ module axi_master (
                         is_fetching_inst = 0;
                     end
                 end
-                `R_ADDR:begin
+                `R_ADDR: begin
                     inst_stall_req_r = 1;
                     inst_cpu_data_o  = 0;
                     is_fetching_inst = 1;
                 end
-                `R_DATA:begin
+                `R_DATA: begin
                     //use id to judge the s_rdata type 
-                            if(s_rvalid&&s_rlast&&s_rid[0]==0)
-                            begin
-                               inst_stall_req_r=0;
-                               inst_cpu_data_o=s_rdata;
-                               is_fetching_inst=0;
-                            end
-                            else if (s_rvalid&&s_rready&&s_rid[0]==0) begin
-                                inst_stall_req_r=1;
-                                inst_cpu_data_o=s_rdata;
-                                is_fetching_inst=1;
-                            end
-                            else
-                            begin
-                                inst_stall_req_r=1;
-                                inst_cpu_data_o=0;
-                                is_fetching_inst=1;
-                            end       
-                        end
-                default:begin
-                            inst_stall_req_r=0;
-                            inst_cpu_data_o=0;
-                            is_fetching_inst=0;
-                        end
+                    if (s_rvalid && s_rlast && s_rid[0] == 0) begin
+                        inst_stall_req_r = 0;
+                        inst_cpu_data_o  = s_rdata;
+                        is_fetching_inst = 0;
+                    end else if (s_rvalid && s_rready && s_rid[0] == 0) begin
+                        inst_stall_req_r = 1;
+                        inst_cpu_data_o  = s_rdata;
+                        is_fetching_inst = 1;
+                    end else begin
+                        inst_stall_req_r = 1;
+                        inst_cpu_data_o  = 0;
+                        is_fetching_inst = 1;
+                    end
+                end
+                default: begin
+                    inst_stall_req_r = 0;
+                    inst_cpu_data_o  = 0;
+                    is_fetching_inst = 0;
+                end
             endcase
         end
     end
@@ -275,24 +269,21 @@ module axi_master (
                 end
 
                 /** R **/
-                `R_DATA:begin
-                    if(s_rvalid&&s_rlast&&s_rid[0]==0)
-                    begin
+                `R_DATA: begin
+                    if (s_rvalid && s_rlast && s_rid[0] == 0) begin
 
-                            inst_r_state<=`R_FREE;
-                            inst_buffer<=s_rdata;
-                            inst_s_rready<=0;
+                        inst_r_state  <= `R_FREE;
+                        inst_buffer   <= s_rdata;
+                        inst_s_rready <= 0;
 
-                            inst_s_arid<=0;
-                            inst_s_araddr<=0;
-                            inst_s_arsize<=0;
-                            inst_s_arlen<=0;
-                    end
-                    else
-                    begin
-                        inst_r_state<=inst_r_state;
-                        inst_buffer<=0;
-                        inst_s_rready<=inst_s_rready;
+                        inst_s_arid   <= 0;
+                        inst_s_araddr <= 0;
+                        inst_s_arsize <= 0;
+                        inst_s_arlen  <= 0;
+                    end else begin
+                        inst_r_state  <= inst_r_state;
+                        inst_buffer   <= 0;
+                        inst_s_rready <= inst_s_rready;
 
                         inst_s_arid   <= inst_s_arid;
                         inst_s_araddr <= inst_s_araddr;
@@ -301,9 +292,8 @@ module axi_master (
                     end
 
                 end
-                default:
-                begin
-                    
+                default: begin
+
                 end
 
             endcase
@@ -347,10 +337,10 @@ module axi_master (
                     data_cpu_data_o  = 0;
                 end
                 `R_DATA: begin
-                    if (s_rvalid && s_rlast&&s_rid[0]==1) begin
+                    if (s_rvalid && s_rlast && s_rid[0] == 1) begin
                         data_stall_req_r = 0;
                         data_cpu_data_o  = s_rdata;
-                    end else if (s_rvalid && s_rready&&s_rid[0]==1) begin
+                    end else if (s_rvalid && s_rready && s_rid[0] == 1) begin
                         data_stall_req_r = 1;
                         data_cpu_data_o  = s_rdata;
                     end else begin
@@ -437,7 +427,7 @@ module axi_master (
 
                 /** R **/
                 `R_DATA: begin
-                    if (s_rvalid && s_rlast&&s_rid[0]==1) begin
+                    if (s_rvalid && s_rlast && s_rid[0] == 1) begin
                         data_r_state  <= `R_FREE;
                         data_buffer   <= s_rdata;
                         data_s_rready <= 0;
@@ -582,11 +572,11 @@ module axi_master (
                         s_awaddr <= 0;
                         s_awsize <= 0;
 
-                        s_awvalid<=0;
-                        s_wvalid<=1;
-                        s_bready<=1;
-                        s_wdata<=write_buffer[31:0];
-                        write_buffer<={{32{1'b0}},write_buffer[127:32]};
+                        s_awvalid <= 0;
+                        s_wvalid <= 1;
+                        s_bready <= 1;
+                        s_wdata <= write_buffer[31:0];
+                        write_buffer <= {{32{1'b0}}, write_buffer[127:32]};
 
                         if (s_awlen == 0) s_wlast <= 1;
                         else s_wlast <= 0;
