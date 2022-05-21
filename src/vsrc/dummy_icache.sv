@@ -119,7 +119,9 @@ module dummy_icache #(
                     if (raddrs[1] != 0 && axi_busy_i == 0) axi_addr_o <= raddrs[1];
                 end
                 IN_TRANSACTION_2: begin
-                    axi_addr_o <= 0;
+                    if (next_state == ACCEPT_ADDR) begin
+                        axi_addr_o <= 0;
+                    end
                 end
                 default: begin
                     axi_addr_o <= 0;
@@ -130,7 +132,7 @@ module dummy_icache #(
 
     // Output logic
     always_ff @(posedge clk or negedge rst_n) begin : output_ff
-        if (!rst_n) begin
+        if (!rst_n || flush) begin
             rvalid_1_o <= 0;
             rvalid_2_o <= 0;
             raddr_1_o  <= 0;

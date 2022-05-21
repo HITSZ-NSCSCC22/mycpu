@@ -78,3 +78,9 @@ git checkout -b <branch_name>
 
 `git pull`如果出现merge冲突，无需着急，执行`git reset --hard HEAD`将状态恢复到`git pull`之前，然后在群里大喊！
 
+
+## Credit
+
+> 引用和致谢
+
+- [乘除法器](https://github.com/risclite/rv32m-multiplier-and-divider)

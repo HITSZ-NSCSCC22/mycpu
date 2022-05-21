@@ -9,7 +9,6 @@
 `include "frontend/frontend.sv"
 `include "instr_buffer.sv"
 `include "dummy_icache.sv"
-`include "LLbit_reg.sv"
 `include "ctrl.sv"
 `include "pipeline_defines.sv"
 `include "pipeline/1_decode/id.sv"
@@ -92,9 +91,6 @@ module cpu_top (
     assign rst_n = aresetn;
     assign rst   = ~rst_n;
 
-    // Global enable signal
-    logic chip_enable;
-
     // ICache <-> AXI Controller
     logic axi_busy;
     logic [`RegBus] axi_data;
@@ -107,13 +103,14 @@ module cpu_top (
     logic [`RegBus] data_axi_data;
     logic [`RegBus] axi_mem_data;
     logic data_axi_busy;
-
+    logic [3:0] data_axi_sel; // Byte selection
 
     mem_axi_struct mem_axi_signal[2];
 
     assign data_axi_we = mem_axi_signal[0].we | mem_axi_signal[1].we;
-    assign data_axi_addr = mem_axi_signal[0].we ? mem_axi_signal[1].addr : mem_axi_signal[1].we ? mem_axi_signal[1].addr : 32'b0;
-    assign data_axi_data = mem_axi_signal[0].we ? mem_axi_signal[1].data : mem_axi_signal[1].we ? mem_axi_signal[1].data : 32'b0;
+    assign data_axi_addr = mem_axi_signal[0].ce ? mem_axi_signal[0].addr : mem_axi_signal[1].ce ? mem_axi_signal[1].addr : 32'b0;
+    assign data_axi_data = mem_axi_signal[0].ce ? mem_axi_signal[0].data : mem_axi_signal[1].ce ? mem_axi_signal[1].data : 32'b0;
+    assign data_axi_sel = mem_axi_signal[0].ce ? mem_axi_signal[0].sel : mem_axi_signal[1].ce ? mem_axi_signal[1].sel : 4'b0;
 
     axi_master u_axi_master (
         .aclk   (aclk),
@@ -122,11 +119,7 @@ module cpu_top (
         // <-> ICache
         .inst_cpu_addr_i(axi_addr),
         .inst_cpu_ce_i(axi_addr != 0),  // FIXME: ce should not be used as valid?
-        .inst_cpu_data_i(0),
-        .inst_cpu_we_i(1'b0),
         .inst_cpu_sel_i(4'b1111),
-        .inst_stall_i(),  // FIXME: stall & flush
-        .inst_flush_i(backend_flush), // FIXME: use ctrl module instead
         .inst_cpu_data_o(axi_data),
         .inst_stallreq(axi_busy),
         .inst_id(4'b0000),  // Read Instruction only, TODO: move this from AXI to cache
@@ -134,14 +127,15 @@ module cpu_top (
         // <-> MEM Stage
         .data_cpu_addr_i(data_axi_addr),
         .data_cpu_ce_i(data_axi_addr != 0),  // FIXME: ce should not be used as valid?
-        .data_cpu_data_i(data_axi_data),
-        .data_cpu_we_i(1'b0),  // FIXME: Write enable
-        .data_cpu_sel_i(4'b1111),
-        .data_stall_i(),
-        .data_flush_i(),
+        .data_cpu_we_i(data_axi_we),  // FIXME: Write enable
+        .data_cpu_sel_i(data_axi_sel),
         .data_cpu_data_o(axi_mem_data),
         .data_stallreq(data_axi_busy),
-        .data_id(4'b0000),
+        .data_id(4'b0001),
+        .dcache_rd_type_i(3'b000), // For [31:0]
+        .dcache_wr_type_i(3'b000), 
+        .dcache_wr_data({{96{1'b0}},data_axi_data}),
+
 
         // External AXI signals
         .s_arid(arid),
@@ -240,7 +234,7 @@ module cpu_top (
         .icache_read_data_i(icache_frontend_data),  // <- ICache
 
         // <-> Backend
-        .branch_update_info_i(),              // branch update signals, <- EXE Stage
+        .branch_update_info_i(),              // branch update signals, <- EXE Stage, unused
         .backend_next_pc_i   (next_pc),       // backend PC, <- pc_gen
         .backend_flush_i     (backend_flush), // backend flush, usually come with next_pc
 
@@ -250,7 +244,7 @@ module cpu_top (
     );
 
     instr_buffer_info_t ib_backend_instr_info[2];  // IB -> ID
-    logic [5:0] stall;
+    logic [4:0] stall; // from 4->0 {mem_wb, ex_mem, dispatch_ex, id_dispatch, _}
 
     logic [1:0] dispatch_ib_accept;
 
@@ -293,15 +287,9 @@ module cpu_top (
                 // -> Dispatch
                 .dispatch_o(id_id_dispatch[i]),
 
-                // Exception broadcast
-                .broadcast_excp_o    (),
-                .broadcast_excp_num_o(),
-
-                // <-> CSR Registers
+                // <- CSR Registers
                 .has_int        (has_int),
-                .csr_data_i     (id_csr_data[i]),
-                .csr_plv        (csr_plv),
-                .csr_read_addr_o(id_csr_read_addr_o[i])
+                .csr_plv        (csr_plv)
             );
         end
     endgenerate
@@ -322,9 +310,11 @@ module cpu_top (
     // Dispatch -> EXE
     dispatch_ex_struct [1:0] dispatch_exe;
 
-    //data relate
-    ex_dispatch_struct ex_data_forward[2];
-    mem_dispatch_struct mem_data_forward[2];
+    // Data forwarding
+    ex_dispatch_struct [1:0] ex_data_forward;
+    mem_data_forward_t [1:0] mem_data_forward;
+
+    logic stallreq_from_dispatch;
 
 
     // Dispatch Stage, Sequential logic
@@ -339,17 +329,22 @@ module cpu_top (
         // <- ID
         .id_i(id_dispatch_dispatch),
 
-        .stall(),
+        .stallreq(stallreq_from_dispatch),
+        .stall(stall[2]),
         .flush(backend_flush),
 
         // Data forwarding    
         .ex_data_forward(ex_data_forward),
-        .mem_data_forward(mem_data_forward),
+        .mem_data_forward_i(mem_data_forward),
 
         // <-> Regfile
         .regfile_reg_read_valid_o(dispatch_regfile_reg_read_valid),
         .regfile_reg_read_addr_o (dispatch_regfile_reg_read_addr),
         .regfile_reg_read_data_i (regfile_dispatch_reg_read_data),
+
+        // <-> CSR
+        .csr_read_addr(dispatch_csr_read_addr),
+        .csr_data(dispatch_csr_data),
 
         // -> IB
         .ib_accept_o(dispatch_ib_accept),
@@ -367,49 +362,6 @@ module cpu_top (
     //tlb
     logic inst_addr_trans_en;
     logic data_addr_trans_en;
-    logic fetch_en;
-    logic [31:0] inst_vaddr;
-    logic inst_dmw0_en;
-    logic inst_dmw1_en;
-    logic [7:0] inst_index;
-    logic [19:0] inst_tag;
-    logic [3:0] inst_offset;
-    logic inst_tlb_found;
-    logic inst_tlb_v;
-    logic inst_tlb_d;
-    logic [1:0] inst_tlb_mat;
-    logic [1:0] inst_tlb_plv;
-    logic data_fetch;
-    logic [31:0] data_vaddr;
-    logic data_dmw0_en;
-    logic data_dmw1_en;
-    logic cacop_op_mode_di;
-    logic [7:0] data_index;
-    logic [19:0] data_tag;
-    logic [3:0] data_offset;
-    logic data_tlb_found;
-    logic [4:0] data_tlb_index;
-    logic data_tlb_v;
-    logic data_tlb_d;
-    logic [1:0] data_tlb_mat;
-    logic [1:0] data_tlb_plv;
-    logic tlbfill_en;
-    logic tlbwr_en;
-    logic [4:0] rand_index;
-    logic [31:0] tlbw_tlbehi;
-    logic [31:0] tlbw_tlbelo0;
-    logic [31:0] tlbw_tlbelo1;
-    logic [31:0] tlbw_r_tlbidx;
-    logic [5:0] tlbw_ecode;
-    logic [31:0] tlbr_tlbehi;
-    logic [31:0] tlbr_tlbelo0;
-    logic [31:0] tlbr_tlbelo1;
-    logic [31:0] tlbr_tlbidx;
-    logic [9:0] tlbr_asid;
-    logic invtlb_en;
-    logic [9:0] invtlb_asid;
-    logic [18:0] invtlb_vpn;
-    logic [4:0] invtlb_op;
 
     //csr
     logic has_int;
@@ -431,10 +383,7 @@ module cpu_top (
     logic excp_tlbrefill;
     logic excp_tlb;
     logic [18:0] excp_tlb_vppn;
-    logic csr_llbit_i;
-    logic csr_llbit_set_i;
-    logic csr_llbit_o;
-    logic csr_llbit_set_o;
+    logic [18:0] csr_vppn_o;
     logic [`RegBus] csr_eentry;
     logic [31:0] csr_tlbrentry;
     logic [`RegBus] csr_era;
@@ -450,12 +399,6 @@ module cpu_top (
 
     logic idle_flush;
     logic [`InstAddrBus] idle_pc;
-    logic wb_excp_flush[2];
-    logic wb_ertn_flush[2];
-
-    assign excp_flush = wb_excp_flush[0] | wb_excp_flush[1];
-    assign ertn_flush = wb_ertn_flush[0] | wb_ertn_flush[1];
-
 
     logic disable_cache;
     logic [1:0] branch_flag;
@@ -470,44 +413,35 @@ module cpu_top (
 
 
     ex_mem_struct ex_signal_o[2];
-    logic ex_excp_i[2];
-    logic [8:0] ex_excp_num_i[2];
 
 
     // EXE Stage
+    logic [1:0] ex_stallreq;
     generate
         for (genvar i = 0; i < 2; i++) begin : ex
             ex u_ex (
+                .clk  (clk),
                 .rst(rst),
 
                 .dispatch_i(dispatch_exe[i]),
-                .csr_vppn  (),
+                .csr_vppn  (csr_vppn_o),
+
+                .mem_data_forward_i(mem_data_forward),
 
                 .ex_o(ex_signal_o[i]),
 
-                .stallreq(),
+                .stallreq(ex_stallreq[i]),
 
                 .branch_flag(branch_flag[i]),
                 .branch_target_address(branch_target_address[i]),
 
-                .ex_data_forward(ex_data_forward[i]),
+                .ex_data_forward(ex_data_forward[i])
 
-                .excp_i(ex_excp_i[i]),
-                .excp_num_i(ex_excp_num_i[i]),
-                .excp_o(ex_excp_o[i]),
-                .excp_num_o(ex_excp_num_o[i])
             );
         end
     endgenerate
 
-    logic ex_excp_o[2];
-    logic [9:0] ex_excp_num_o[2];
 
-
-    logic mem_excp_i[2];
-    logic [9:0] mem_excp_num_i[2];
-    logic mem_excp_o[2];
-    logic [15:0] mem_excp_num_o[2];
 
     logic mem_data_addr_trans_en[2];
     logic mem_data_dmw0_en[2];
@@ -528,16 +462,9 @@ module cpu_top (
                 .mem_i(mem_signal_i[i]),
 
                 // <-> Ctrl
-                .stall(stall[2]),
-                .flush(ex_mem_flush[i]),
+                .stall(stall[3]),
+                .flush(ex_mem_flush[i])
 
-                .ex_current_inst_address(),
-                .excp_i(ex_excp_o[i]),
-                .excp_num_i(ex_excp_num_o[i]),
-
-                .mem_current_inst_address(),
-                .excp_o(mem_excp_i[i]),
-                .excp_num_o(mem_excp_num_i[i])
             );
         end
 
@@ -545,16 +472,23 @@ module cpu_top (
 
     mem_wb_struct mem_signal_o[2];
 
+    logic [1:0] mem_stallreq;
+
     logic LLbit_o;
     logic mem_wb_LLbit_we[2];
     logic mem_wb_LLbit_value[2];
+    logic cacop_op_mode_di[2];
+    assign tlb_data_i.cacop_op_mode_di =  cacop_op_mode_di[0] |  cacop_op_mode_di[1];
 
     csr_to_mem_struct csr_mem_signal;
     tlb_to_mem_struct tlb_mem_signal;
+    assign tlb_mem_signal = {tlb_data_o.found,tlb_data_o.tlb_index,tlb_data_o.tlb_v,
+                            tlb_data_o.tlb_d,tlb_data_o.tlb_mat,tlb_data_o.tlb_plv};
 
-    assign csr_mem_signal = {csr_pg,csr_da,csr_dmw0,csr_dmw1,csr_plv,csr_datf};
-    assign tlb_mem_signal = {data_tlb_found,data_tlb_index,data_tlb_v,data_tlb_d,data_tlb_mat,data_tlb_plv};
+    assign csr_mem_signal = {csr_pg,csr_da,csr_dmw0,csr_dmw1,csr_plv,csr_datm};
+    //assign tlb_mem_signal = {data_tlb_found,data_tlb_index,data_tlb_v,data_tlb_d,data_tlb_mat,data_tlb_plv};
 
+    logic wb_LLbit_we_i[2],wb_LLbit_value_i[2];
     generate
         for (genvar i = 0; i < 2; i++) begin : mem
             mem u_mem (
@@ -564,9 +498,15 @@ module cpu_top (
 
                 .signal_o(mem_signal_o[i]),
 
+                // -> AXI Controller
                 .signal_axi_o(mem_axi_signal[i]),
 
+                // <- AXI Controller
+                .axi_busy_i(data_axi_busy),
                 .mem_data_i(axi_mem_data),
+
+                // -> Ctrl
+                .stallreq(mem_stallreq[i]),
 
                 .LLbit_i(LLbit_o),
                 .wb_LLbit_we_i(wb_LLbit_we_i[i]),
@@ -574,20 +514,18 @@ module cpu_top (
                 .LLbit_we_o(mem_wb_LLbit_we[i]),
                 .LLbit_value_o(mem_wb_LLbit_value[i]),
 
-                .excp_i(mem_excp_i[i]),
-                .excp_num_i(mem_excp_num_i[i]),
-                .excp_o(mem_excp_o[i]),
-                .excp_num_o(mem_excp_num_o[i]),
-
                 .csr_mem_signal(csr_mem_signal),
                 .disable_cache(1'b0),
 
-                .mem_data_forward(mem_data_forward[i]),
+                // Data forward
+                // -> Dispatch
+                // -> EX
+                .mem_data_forward_o(mem_data_forward[i]),
 
                 .data_addr_trans_en(mem_data_addr_trans_en[i]),
                 .dmw0_en(mem_data_dmw0_en[i]),
                 .dmw1_en(mem_data_dmw1_en[i]),
-                .cacop_op_mode_di(cacop_op_mode_di),
+                .cacop_op_mode_di(cacop_op_mode_di[i]),
 
                 .tlb_mem_signal(tlb_mem_signal)
             );
@@ -595,34 +533,16 @@ module cpu_top (
 
     endgenerate
 
+    logic fetch_flush;
 
-    logic [18:0] wb_excp_tlb_vppn[2];
-
-    logic wb_excp_tlbrefill[2];
-    wb_reg wb_reg_signal[2];
-
-    logic wb_LLbit_we_i[2];
-    logic wb_LLbit_value_i[2];
-    logic [46:0] wb_csr_signal[2];
-
-    // Difftest Related
-    logic [1:0] debug_commit_valid;
-    logic [1:0][`InstBus] debug_commit_instr;
-    logic [1:0][`InstAddrBus] debug_commit_pc;
-    logic [7:0] debug_commit_inst_ld_en;
-    logic [31:0] debug_commit_ld_paddr;
-    logic [31:0] debug_commit_ld_vaddr;
-    logic [7:0] debug_commit_inst_st_en;
-    logic [31:0] debug_commit_st_paddr;
-    logic [31:0] debug_commit_st_vaddr;
-    logic [31:0] debug_commit_st_data;
+    wb_ctrl wb_ctrl_signal[2];
 
     generate
         for (genvar i = 0; i < 2; i++) begin : mem_wb
             mem_wb u_mem_wb (
                 .clk  (clk),
                 .rst  (rst),
-                .stall(stall[3]),
+                .stall(stall[4]),
 
                 .mem_signal_o(mem_signal_o[i]),
 
@@ -631,39 +551,8 @@ module cpu_top (
 
                 .flush(flush),
 
-                .wb_reg_o(wb_reg_signal[i]),
-
-                .wb_csr_signal_o(wb_csr_signal[i]),
-
-                .debug_commit_pc(debug_commit_pc[i]),
-                .debug_commit_valid(debug_commit_valid[i]),
-                .debug_commit_instr(debug_commit_instr[i]),
-
-                .wb_LLbit_we(wb_LLbit_we_i[i]),
-                .wb_LLbit_value(wb_LLbit_value_i[i]),
-
-                .excp_i  (mem_excp_o[i]),
-                .excp_num(mem_excp_num_o[i]),
-
-                //to csr
-                .csr_era(wb_csr_era[i]),
-                .csr_esubcode(wb_csr_esubcode[i]),
-                .csr_ecode(wb_csr_ecode[i]),
-                .excp_flush(wb_excp_flush[i]),
-                .ertn_flush(wb_ertn_flush[i]),
-                .va_error(wb_va_error[i]),
-                .bad_va(wb_bad_va[i]),
-                .excp_tlbrefill(),
-                .excp_tlb(),
-                .excp_tlb_vppn(),
-
-                .debug_commit_inst_ld_en(debug_commit_inst_ld_en),
-                .debug_commit_ld_paddr(debug_commit_ld_paddr),
-                .debug_commit_ld_vaddr(debug_commit_ld_vaddr),
-                .debug_commit_inst_st_en(debug_commit_inst_st_en),
-                .debug_commit_st_paddr(debug_commit_st_paddr),
-                .debug_commit_st_vaddr(debug_commit_st_vaddr),
-                .debug_commit_st_data(debug_commit_st_data)
+                //to ctrl
+                .wb_ctrl_signal(wb_ctrl_signal[i])
             );
         end
     endgenerate
@@ -675,14 +564,14 @@ module cpu_top (
         .clk(clk),
         .rst(rst),
 
-        .we_1   (wb_reg_signal[0].we),
-        .pc_i_1 (wb_reg_signal[0].pc),
-        .waddr_1(wb_reg_signal[0].waddr),
-        .wdata_1(wb_reg_signal[0].wdata),
-        .we_2   (wb_reg_signal[1].we),
-        .pc_i_2 (wb_reg_signal[1].pc),
-        .waddr_2(wb_reg_signal[1].waddr),
-        .wdata_2(wb_reg_signal[1].wdata),
+        .we_1   (reg_o[0].we),
+        .pc_i_1 (reg_o[0].pc),
+        .waddr_1(reg_o[0].waddr),
+        .wdata_1(reg_o[0].wdata),
+        .we_2   (reg_o[1].we),
+        .pc_i_2 (reg_o[1].pc),
+        .waddr_2(reg_o[1].waddr),
+        .wdata_2(reg_o[1].wdata),
 
         // Read signals
         // Registers are read in dispatch stage
@@ -691,53 +580,77 @@ module cpu_top (
         .read_data_o (regfile_dispatch_reg_read_data)
     );
 
-    ctrl u_ctrl(
-    	.ex_branch_flag_i (branch_flag),
-        .stallreg_from_dispatch(stallreg_from_dispatch),
+    // Difftest related
+    // Ctrl -> DifftestEvents
+    diff_commit difftest_commit_info[2];
 
-        .stall(),
-        .ex_mem_flush_o   (ex_mem_flush)
+    // Ctrl -> Regfile
+    wb_reg  reg_o[2];
+
+    csr_write_signal  csr_w_o[2];
+
+    ctrl u_ctrl(
+        .rst(rst),
+        .wb_i_1(wb_ctrl_signal[0]),
+        .wb_i_2(wb_ctrl_signal[1]),
+
+        // <- EX
+    	.ex_branch_flag_i (branch_flag),
+        .ex_stallreq_i (ex_stallreq),
+
+        .stallreq_from_dispatch(stallreq_from_dispatch),
+        .mem_stallreq_i(mem_stallreq),
+
+        .excp_flush(excp_flush),
+        .ertn_flush(ertn_flush),
+        .fetch_flush(fetch_flush),
+
+        .stall(stall),
+        .ex_mem_flush_o(ex_mem_flush),
+        .flush(flush),
+
+        .csr_era(csr_era_i),
+        .csr_esubcode(csr_esubcode_i),
+        .csr_ecode(csr_ecode_i),
+        .va_error(va_error_i),
+        .bad_va(bad_va_i),
+        .excp_tlbrefill(excp_tlbrefill),
+        .excp_tlb(excp_tlb),
+        .excp_tlb_vppn(excp_tlb_vppn),
+
+        .reg_o_0(reg_o[0]),
+        .reg_o_1(reg_o[1]),
+        .csr_w_o_0(csr_w_o[0]),
+        .csr_w_o_1(csr_w_o[1]),
+
+        // -> Difftest
+        .commit_0(difftest_commit_info[0]),
+        .commit_1(difftest_commit_info[1])
     );
     
 
-
-    LLbit_reg u_LLbit_reg (
-        .clk(clk),
-        .rst(rst),
-        .flush(1'b0),
-        .LLbit_i_1(wb_LLbit_value_i[0]),
-        .LLbit_i_2(wb_LLbit_value_i[1]),
-        .we(wb_LLbit_we_i[0] | wb_LLbit_we_i[1]),
-        .LLbit_o(LLbit_o)
-    );
-
-
-    //目前没有进行冲突处理，是假设不会同时出现两条异常同时发生
-    assign csr_era_i = wb_csr_era[0] | wb_csr_era[1];
-    assign csr_ecode_i = wb_csr_ecode[0] | wb_csr_ecode[1];
-    assign csr_esubcode_i = wb_csr_esubcode[0] | wb_csr_esubcode[1];
-    assign excp_flush = wb_excp_flush[0] | wb_excp_flush[1];
-    assign ertn_flush = wb_ertn_flush[0] | wb_ertn_flush[1];
-    assign va_error_i = wb_va_error[0] | wb_va_error[1];
-    assign bad_va_i = wb_bad_va[0] | wb_bad_va[1];
-    assign excp_tlbrefill = wb_excp_tlbrefill[0] | wb_excp_tlbrefill[1];
-    assign excp_tlb_vppn = wb_excp_tlb_vppn[0] | wb_excp_tlb_vppn[1];
-
-    logic [13:0] id_csr_read_addr_o[2];
-    logic [`RegBus] id_csr_data[2];
+    logic [13:0] dispatch_csr_read_addr;
+    logic [`RegBus] dispatch_csr_data;
 
     cs_reg u_cs_reg (
         .clk(clk),
         .rst(rst),
         .excp_flush(excp_flush),
         .ertn_flush(ertn_flush),
-        .write_signal_1(wb_csr_signal[0]),
-        .write_signal_2(wb_csr_signal[1]),
-        .raddr_1(id_csr_read_addr_o[0]),
-        .raddr_2(id_csr_read_addr_o[1]),
-        .rdata_1(id_csr_data[0]),
-        .rdata_2(id_csr_data[1]),
+        .interrupt_i({1'b0,intrpt}),
+        .ecode_i(csr_ecode_i),
+        .write_signal_1(csr_w_o[0]),
+        .write_signal_2(csr_w_o[1]),
+        .raddr(dispatch_csr_read_addr),
+        .rdata(dispatch_csr_data),
+        .llbit_i(wb_LLbit_value_i[0] | wb_LLbit_value_i[1]),
+        .llbit_set_i(wb_LLbit_we_i[0] | wb_LLbit_we_i[1]),
+        .llbit_o(LLbit_o),
+        .vppn_o(csr_vppn_o),
         .era_i(csr_era_i),
+        .timer_64_o(),
+        .tid_o(),
+        .plv_o(csr_plv),
         .esubcode_i(csr_esubcode_i),
         .va_error_i(va_error_i),
         .bad_va_i(bad_va_i),
@@ -752,30 +665,40 @@ module cpu_top (
         .era_out(csr_era),
         .tlbrentry_out(csr_tlbrentry),
         .asid_out(csr_asid),
-        .rand_index(rand_index),
-        .tlbehi_out(tlbw_tlbehi),
-        .tlbelo0_out(tlbw_tlbelo0),
-        .tlbelo1_out(tlbw_tlbelo1),
-        .tlbidx_out(tlbw_r_tlbidx),
+        .rand_index(tlb_write_signal_i.rand_index),
+        .tlbehi_out(tlb_write_signal_i.tlbehi),
+        .tlbelo0_out(tlb_write_signal_i.tlbelo0),
+        .tlbelo1_out(tlb_write_signal_i.tlbelo1),
+        .tlbidx_out(tlb_write_signal_i.tlbidx),
         .pg_out(csr_pg),
         .da_out(csr_da),
         .dmw0_out(csr_dmw0),
         .dmw1_out(csr_dmw1),
         .datf_out(csr_datf),
         .datm_out(csr_datm),
-        .ecode_out(tlbw_ecode),
-        .tlbrd_en(tlbrd_en),
-        .tlbehi_in(tlbr_tlbehi),
-        .tlbelo0_in(tlbr_tlbelo0),
-        .tlbelo1_in(tlbr_tlbelo1),
-        .tlbidx_in(tlbr_tlbidx),
-        .asid_in(tlbr_asid)
+        .ecode_out(tlb_write_signal_i.ecode),
+        .tlbrd_en(),
+        .tlbehi_in(tlb_read_signal_o.tlbehi),
+        .tlbelo0_in(tlb_read_signal_o.tlbelo0),
+        .tlbelo1_in(tlb_read_signal_o.tlbelo1),
+        .tlbidx_in(tlb_read_signal_o.tlbidx),
+        .asid_in(tlb_read_signal_o.asid)
     );
 
-
     assign data_addr_trans_en = mem_data_addr_trans_en[0] | mem_data_addr_trans_en[1];
-    assign data_dmw0_en = mem_data_dmw0_en[0] | mem_data_dmw0_en[1];
-    assign data_dmw1_en = mem_data_dmw1_en[0] | mem_data_dmw1_en[1];
+    assign tlb_data_i.dmw0_en = mem_data_dmw0_en[0] | mem_data_dmw0_en[1];
+    assign tlb_data_i.dmw1_en = mem_data_dmw1_en[0] | mem_data_dmw1_en[1];
+
+    inst_tlb_struct tlb_inst_i;
+    tlb_inst_struct tlb_inst_o;
+    data_tlb_struct tlb_data_i;
+    tlb_data_struct tlb_data_o;
+    tlb_write_in_struct tlb_write_signal_i;
+    tlb_read_out_struct tlb_read_signal_o;
+    tlb_inv_in_struct tlb_inv_signal_i;
+    
+    assign tlb_inst_i = {35'b0};
+
     tlb u_tlb (
         .clk               (clk),
         .asid              (csr_asid),
@@ -783,91 +706,51 @@ module cpu_top (
         .inst_addr_trans_en(inst_addr_trans_en),
         .data_addr_trans_en(data_addr_trans_en),
         //inst addr trans
-        .inst_fetch        (fetch_en),
-        .inst_vaddr        (inst_vaddr),
-        .inst_dmw0_en      (inst_dmw0_en),
-        .inst_dmw1_en      (inst_dmw1_en),
-        .inst_index        (inst_index),
-        .inst_tag          (inst_tag),
-        .inst_offset       (inst_offset),
-        .inst_tlb_found    (inst_tlb_found),
-        .inst_tlb_v        (inst_tlb_v),
-        .inst_tlb_d        (inst_tlb_d),
-        .inst_tlb_mat      (inst_tlb_mat),
-        .inst_tlb_plv      (inst_tlb_plv),
+        .inst_i(tlb_inst_i),
+        .inst_o(tlb_inst_o),
         //data addr trans 
-        .data_fetch        (data_fetch),
-        .data_vaddr        (data_vaddr),
-        .data_dmw0_en      (data_dmw0_en),
-        .data_dmw1_en      (data_dmw1_en),
-        .cacop_op_mode_di  (cacop_op_mode_di),
-        .data_index        (data_index),
-        .data_tag          (data_tag),
-        .data_offset       (data_offset),
-        .data_tlb_found    (data_tlb_found),
-        .data_tlb_index    (data_tlb_index),
-        .data_tlb_v        (data_tlb_v),
-        .data_tlb_d        (data_tlb_d),
-        .data_tlb_mat      (data_tlb_mat),
-        .data_tlb_plv      (data_tlb_plv),
+        .data_i(tlb_data_i),
+        .data_o(tlb_data_o),
         //tlbwr tlbfill tlb write 
-        .tlbfill_en        (tlbfill_en),
-        .tlbwr_en          (tlbwr_en),
-        .rand_index        (rand_index),
-        .tlbehi_in         (tlbw_tlbehi),
-        .tlbelo0_in        (tlbw_tlbelo0),
-        .tlbelo1_in        (tlbw_tlbelo1),
-        .tlbidx_in         (tlbw_r_tlbidx),
-        .ecode_in          (tlbw_ecode),
+        .write_signal_i(tlb_write_signal_i),
         //tlbp tlb read
-        .tlbehi_out        (tlbr_tlbehi),
-        .tlbelo0_out       (tlbr_tlbelo0),
-        .tlbelo1_out       (tlbr_tlbelo1),
-        .tlbidx_out        (tlbr_tlbidx),
-        .asid_out          (tlbr_asid),
+        .read_signal_o(tlb_read_signal_o),
         //invtlb 
-        .invtlb_en         (invtlb_en),
-        .invtlb_asid       (invtlb_asid),
-        .invtlb_vpn        (invtlb_vpn),
-        .invtlb_op         (invtlb_op),
+        .inv_signal_i(tlb_inv_signal_i),
         //from csr
-        .csr_dmw0          (csr_dmw0),
-        .csr_dmw1          (csr_dmw1),
-        .csr_da            (csr_da),
-        .csr_pg            (csr_pg)
+        .csr_dmw0(csr_dmw0),
+        .csr_dmw1(csr_dmw1),
+        .csr_da(csr_da),
+        .csr_pg(csr_pg)
     );
 
     // Difftest Delay signals
-    logic [1:0] debug_commit_valid_delay1;
-    logic [1:0][`InstBus] debug_commit_instr_delay1;
-    logic [1:0][`InstAddrBus] debug_commit_pc_delay1;
+    diff_commit difftest_commit_info_delay1[2];
     always_ff @(posedge clk) begin
-        debug_commit_instr_delay1 <= debug_commit_instr;
-        debug_commit_pc_delay1 <= debug_commit_pc;
-        debug_commit_valid_delay1 <= debug_commit_valid;
+        difftest_commit_info_delay1 <= difftest_commit_info;
     end
 
     always_ff @(posedge clk) begin
-        debug0_wb_pc <= wb_reg_signal[0].pc; 
-        debug0_wb_rf_wen <= {3'b0,wb_reg_signal[0].we};
-        debug0_wb_rf_wdata <= wb_reg_signal[0].wdata;
-        debug0_wb_rf_wnum <= wb_reg_signal[0].waddr;
+        debug0_wb_pc <= reg_o[0].pc; 
+        debug0_wb_rf_wen <= {3'b0,reg_o[0].we};
+        debug0_wb_rf_wdata <= reg_o[0].wdata;
+        debug0_wb_rf_wnum <= reg_o[0].waddr;
         `ifdef CPU_2CMT
-        debug1_wb_pc <= wb_reg_signal[1].pc;
-        debug1_wb_rf_wen <= {3'b0, wb_reg_signal[1].we};
-        debug1_wb_rf_wdata <= wb_reg_signal[1].wdata;
-        debug1_wb_rf_wnum <= wb_reg_signal[1].waddr;
+        debug1_wb_pc <= reg_o[1].pc;
+        debug1_wb_rf_wen <= {3'b0, reg_o[1].we};
+        debug1_wb_rf_wdata <= reg_o[1].wdata;
+        debug1_wb_rf_wnum <= reg_o[1].waddr;
         `endif
     end
     // difftest dpi-c
-`ifdef SIMU  // simu is defined in chiplab run_func/makefile
-    DifftestInstrCommit difftest_instr_commit_0 (  // todo: not finished yet, blank signal is needed
+`ifdef SIMU  // SIMU is defined in chiplab run_func/makefile
+    DifftestInstrCommit difftest_instr_commit_0 (  
         .clock         (aclk),
         .coreid        (0),                             // only one core, so always 0
         .index         (0),                             // commit channel index
-        .valid         (debug_commit_valid_delay1[0]),  // 1 means valid
-        .pc            (debug_commit_pc_delay1[0]),
-        .instr         (debug_commit_instr_delay1[0]),
+        .valid         (difftest_commit_info_delay1[0].valid),  // 1 means valid
+        .pc            (difftest_commit_info_delay1[0].pc),
+        .instr         (difftest_commit_info_delay1[0].instr),
         .skip          (0),                             // not sure meaning, but keep 0 for now
         .is_TLBFILL    (),
         .TLBFILL_index (),
@@ -879,14 +762,14 @@ module cpu_top (
         .csr_rstat     (),
         .csr_data      ()
     );
-    DifftestInstrCommit difftest_instr_commit_1 (  // todo: not finished yet, blank signal is needed
+    DifftestInstrCommit difftest_instr_commit_1 (  
         .clock         (aclk),
         .coreid        (0),                             // only one core, so always 0
         .index         (1),                             // commit channel index
-        .valid         (debug_commit_valid_delay1[1]),  // 1 means valid
-        .pc            (debug_commit_pc_delay1[1]),
-        .instr         (debug_commit_instr_delay1[1]),
         .skip          (0),                             // not sure meaning, but keep 0 for now
+        .valid         (difftest_commit_info_delay1[1].valid),  // 1 means valid
+        .pc            (difftest_commit_info_delay1[1].pc),
+        .instr         (difftest_commit_info_delay1[1].instr),
         .is_TLBFILL    (),
         .TLBFILL_index (),
         .is_CNTinst    (),
@@ -902,12 +785,14 @@ module cpu_top (
         .clock              (aclk),
         .coreid             (0),
         .index              (0),
-        .valid              (debug_commit_inst_st_en),
-        .storePAddr         (debug_commit_st_paddr),
-        .storeVAddr         (debug_commit_st_vaddr),
-        .storeData          (debug_commit_st_data)
+        .valid              (difftest_commit_info_delay1[0].inst_st_en | difftest_commit_info_delay1[1].inst_st_en),
+        .storePAddr         (difftest_commit_info_delay1[0].st_paddr | difftest_commit_info_delay1[1].st_paddr),
+        .storeVAddr         (difftest_commit_info_delay1[0].st_vaddr |difftest_commit_info_delay1[1].st_vaddr),
+        .storeData          (difftest_commit_info_delay1[0].st_data | difftest_commit_info_delay1[1].st_data)
     );
 
+    // Currently unused
+    /*
     DifftestLoadEvent DifftestLoadEvent(
         .clock              (aclk),
         .coreid             (0),
@@ -915,7 +800,7 @@ module cpu_top (
         .valid              (debug_commit_inst_ld_en),
         .paddr              (debug_commit_ld_paddr),
         .vaddr              (debug_commit_ld_paddr)
-    );
+    );*/
 
     DifftestCSRRegState difftest_csr_state (
         .clock    (aclk),

@@ -47,7 +47,8 @@ module regfile #(
         for (integer i = 0; i < READ_PORTS; i++) begin
             if (rst == `RstEnable) read_data_o[i] = `ZeroWord;  // Reset to zero
             else if (read_addr_i[i] == 0) read_data_o[i] = `ZeroWord;  // r0 is always zero
-            // TODO: add shortcut from write to read
+            else if (waddr_1 == read_addr_i[i]) read_data_o[i] = wdata_1;
+            else if (waddr_2 == read_addr_i[i]) read_data_o[i] = wdata_2;
             else if (read_valid_i[i]) read_data_o[i] = regs[read_addr_i[i]];  // Read reg when valid
             else read_data_o[i] = `ZeroWord;  // Else zero
         end

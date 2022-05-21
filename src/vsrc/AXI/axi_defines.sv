@@ -9,9 +9,11 @@
 `define Prot 2:0
 `define Data 31:0
 `define Resp 1:0
+`define BurstData 127:0
+
 
 //stall state
-`define STALL  4'b1111  //哈佛结构增加的暂停缓存状态，用于处理暂停信号
+`define STALL 4'b1111  //哈佛结构增加的暂停缓存状态，用于处理暂停信号
 
 //Master read state
 `define R_FREE 4'b0000

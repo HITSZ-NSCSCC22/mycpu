@@ -63,6 +63,7 @@ module decoder_3R #(
         case (instr[31:15])
             // These two do not need GPR
             `EXE_BREAK: begin
+                aluop_o = `EXE_BREAK_OP;
                 reg_write_valid_o = 0;
                 reg_write_addr_o = 0;
                 reg_read_valid_o = 2'b00;
@@ -70,11 +71,19 @@ module decoder_3R #(
                 instr_break = 1;
             end
             `EXE_SYSCALL: begin
-                reg_write_valid_o = 0;
-                reg_write_addr_o = 0;
-                reg_read_valid_o = 2'b00;
-                reg_read_addr_o = 0;
-                instr_syscall = 1;
+                if (instr[14:0] != 15'h11) begin // HACK: in nemu difftest, syscall 0x11 is reserved for a stop signal, so as NOP
+                    aluop_o = `EXE_SYSCALL_OP;
+                    reg_write_valid_o = 0;
+                    reg_write_addr_o = 0;
+                    reg_read_valid_o = 2'b00;
+                    reg_read_addr_o = 0;
+                    instr_syscall = 1;
+                end else begin
+                    reg_write_valid_o = 0;
+                    reg_write_addr_o  = 0;
+                    reg_read_valid_o  = 2'b00;
+                    reg_read_addr_o   = 0;
+                end
             end
             `EXE_ADD_W: begin
                 aluop_o  = `EXE_ADD_OP;
@@ -132,12 +141,20 @@ module decoder_3R #(
                 aluop_o  = `EXE_MULHU_OP;
                 alusel_o = `EXE_RES_ARITH;
             end
-            `EXE_DIV_W, `EXE_DIV_WU: begin
+            `EXE_DIV_W: begin
                 aluop_o  = `EXE_DIV_OP;
                 alusel_o = `EXE_RES_ARITH;
             end
-            `EXE_MOD_W, `EXE_MOD_WU: begin
+            `EXE_DIV_WU: begin
+                aluop_o  = `EXE_DIVU_OP;
+                alusel_o = `EXE_RES_ARITH;
+            end
+            `EXE_MOD_W: begin
                 aluop_o  = `EXE_MOD_OP;
+                alusel_o = `EXE_RES_ARITH;
+            end
+            `EXE_MOD_WU: begin
+                aluop_o  = `EXE_MODU_OP;
                 alusel_o = `EXE_RES_ARITH;
             end
             `EXE_IDLE, `EXE_DBAR, `EXE_IBAR: begin
