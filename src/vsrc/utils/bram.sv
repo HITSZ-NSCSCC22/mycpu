@@ -1,19 +1,20 @@
 // simulate BRAM IP in simulation without Vivado
 // data read latency is 1 cycle
 module bram #(
-    parameter DATA_WIDTH = 1,
-    parameter DATA_DEPTH_EXP2 = 1
+    parameter DATA_WIDTH = 128,
+    parameter ADDR_WIDTH = 8,
+    parameter DATA_DEPTH_EXP2 = 8
 ) (
     input logic clk,
     input logic wea,  // Write enable A
     input logic web,  // Write enable B
 
-    input logic [DATA_WIDTH-1:0] dina,
-    input logic [DATA_DEPTH_EXP2-1:0] addra,
+    input  logic [DATA_WIDTH-1:0] dina,
+    input  logic [ADDR_WIDTH-1:0] addra,
     output logic [DATA_WIDTH-1:0] douta,
 
-    input logic [DATA_WIDTH-1:0] dinb,
-    input logic [DATA_DEPTH_EXP2-1:0] addrb,
+    input  logic [DATA_WIDTH-1:0] dinb,
+    input  logic [ADDR_WIDTH-1:0] addrb,
     output logic [DATA_WIDTH-1:0] doutb
 );
 
@@ -34,13 +35,13 @@ module bram #(
 
     // Write logic
     always_ff @(posedge clk) begin
-        if (wea) begin
-            data[addra] <= dina;
-        end
         if (web) begin
-            if (addra != addrb) begin  // Write conflict
-                data[addrb] <= dinb;
-            end
+            data[addrb[DATA_DEPTH_EXP2-1:0]] <= dinb;
+        end
+
+        // A port has priority
+        if (wea) begin
+            data[addra[DATA_DEPTH_EXP2-1:0]] <= dina;
         end
     end
 
