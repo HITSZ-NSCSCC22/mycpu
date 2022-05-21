@@ -26,10 +26,20 @@ module icache #(
     // <-> AXI Controller
     output logic [ADDR_WIDTH-1:0] axi_addr_o,
     output logic axi_rreq_o,
-    input logic axi_busy_i,  // High effective
-    input logic [DATA_WIDTH-1:0] axi_data_i
+    input logic axi_rdy_i,
+    input logic axi_rvalid_i,
+    input logic [1:0] axi_rlast_i,
+    input logic [CACHELINE_WIDTH-1:0] axi_data_i
 );
 
+    // Reset signal
+    logic rst_n;
+    assign rst_n = ~rst;
+
+
+    /////////////////////////////////////////////////
+    // PO, query BRAM
+    ////////////////////////////////////////////////
 
     logic [NWAY-1:0][1:0][CACHELINE_WIDTH-1:0] data_bram_rdata;
     logic [NWAY-1:0][1:0][CACHELINE_WIDTH-1:0] data_bram_wdata;
@@ -103,18 +113,35 @@ module icache #(
         end
     end
 
+
+
+    ////////////////////////////////////////////////////
+    // P1, output gen
+    ///////////////////////////////////////////////////
+
+    // Input reg
+    logic rreq_1_delay1, rreq_2_delay1;
+    logic [ADDR_WIDTH-1:0] raddr_1_delay1, raddr_2_delay1;
+    always_ff @(posedge clk) begin
+        rreq_1_delay1  <= rreq_1_i;
+        rreq_2_delay1  <= rreq_2_i;
+        raddr_1_delay1 <= raddr_1_i;
+        raddr_2_delay1 <= raddr_2_i;
+    end
+
+
     logic [NWAY-1:0][1:0] tag_hit;
     always_comb begin
         for (integer i = 0; i < NWAY; i++) begin
-            tag_hit[i][0] = tag_bram_rdata[i][0][19:0] == raddr_1_i[ADDR_WIDTH-1:ADDR_WIDTH-20];
-            tag_hit[i][1] = tag_bram_rdata[i][1][19:0] == raddr_2_i[ADDR_WIDTH-1:ADDR_WIDTH-20];
+            tag_hit[i][0] = tag_bram_rdata[i][0][19:0] == raddr_1_delay1[ADDR_WIDTH-1:ADDR_WIDTH-20];
+            tag_hit[i][1] = tag_bram_rdata[i][1][19:0] == raddr_2_delay1[ADDR_WIDTH-1:ADDR_WIDTH-20];
         end
     end
 
     // Generate read output
     logic [1:0] offset_1, offset_2;
-    assign offset_1 = raddr_1_i[3:2];
-    assign offset_2 = raddr_2_i[3:2];
+    assign offset_1 = raddr_1_delay1[3:2];
+    assign offset_2 = raddr_2_delay1[3:2];
     logic [NWAY-1:0][1:0][DATA_WIDTH-1:0] data_inside_cacheline;
     always_comb begin
         for (integer i = 0; i < NWAY; i++) begin
@@ -145,6 +172,110 @@ module icache #(
             if (tag_hit[i][1]) begin
                 rvalid_2_o = 1;
                 rdata_2_o  = data_inside_cacheline[i][1];
+            end
+        end
+    end
+
+
+    // Refill state machine
+    enum int {
+        IDLE,
+        REFILL_1_REQ,
+        REFILL_1_WAIT,
+        REFILL_2_REQ,
+        REFILL_2_WAIT
+    }
+        state, next_state;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            state <= IDLE;
+        end else begin
+            state <= next_state;
+        end
+    end
+
+
+    logic miss_1, miss_2;
+    assign miss_1 = rreq_1_delay1 & ~rvalid_1_o;
+    assign miss_2 = rreq_2_delay1 & ~rvalid_2_o;
+
+    always_comb begin : transition_comb
+        case (state)
+            IDLE: begin
+                if (miss_1) next_state = REFILL_1_REQ;
+                else if (miss_2) next_state = REFILL_2_REQ;
+                else next_state = IDLE;
+            end
+            REFILL_1_REQ: begin
+                if (axi_rdy_i) next_state = REFILL_1_WAIT;
+                else next_state = REFILL_1_REQ;
+            end
+            REFILL_2_REQ: begin
+                if (axi_rdy_i) next_state = REFILL_2_WAIT;
+                else next_state = REFILL_2_REQ;
+            end
+            REFILL_1_WAIT: begin
+                if (rvalid_1_o) begin
+                    if (miss_2) next_state = REFILL_2_REQ;
+                    else next_state = IDLE;
+                end else next_state = REFILL_1_WAIT;
+            end
+            REFILL_2_WAIT: begin
+                if (rvalid_2_o) begin
+                    if (miss_1) next_state = REFILL_1_REQ;
+                    else next_state = IDLE;
+                end else next_state = REFILL_2_WAIT;
+            end
+            default: begin
+                next_state = IDLE;
+            end
+        endcase
+    end
+
+    // State machine output
+    always_comb begin
+        // Default value 
+        axi_rreq_o = 0;
+        axi_addr_o = 0;
+        case (state)
+            REFILL_1_REQ, REFILL_1_WAIT: begin
+                axi_rreq_o = 1;
+                axi_addr_o = raddr_1_i;
+            end
+            REFILL_2_REQ, REFILL_2_WAIT: begin
+                axi_rreq_o = 1;
+                axi_addr_o = raddr_2_i;
+            end
+            default: begin
+            end
+        endcase
+    end
+
+    // Refill write BRAM
+    logic random_r;
+    always_ff @(posedge clk) begin
+        random_r <= ~random_r;
+    end
+    always_comb begin
+        for (integer i = 0; i < NWAY; i++) begin
+            tag_bram_we[i] = 0;
+            tag_bram_wdata[i] = 0;
+            data_bram_we[i] = 0;
+            data_bram_wdata[i] = 0;
+            if (i[0] == random_r) begin
+                // write this way
+                if (state == REFILL_1_WAIT && axi_rvalid_i) begin
+                    tag_bram_we[i][0] = 1;
+                    tag_bram_wdata[i][0] = {1'b1, raddr_1_i[31:12]};
+                    data_bram_we[i][0] = 1;
+                    data_bram_wdata[i][0] = axi_data_i;
+                end
+                if (state == REFILL_2_WAIT && axi_rvalid_i) begin
+                    tag_bram_we[i][1] = 1;
+                    tag_bram_wdata[i][1] = {1'b1, raddr_1_i[31:12]};
+                    data_bram_we[i][1] = 1;
+                    data_bram_wdata[i][1] = axi_data_i;
+                end
             end
         end
     end

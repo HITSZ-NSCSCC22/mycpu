@@ -8,7 +8,7 @@
 `include "AXI/axi_master.sv"
 `include "frontend/frontend.sv"
 `include "instr_buffer.sv"
-`include "dummy_icache.sv"
+`include "icache.sv"
 `include "ctrl.sv"
 `include "pipeline_defines.sv"
 `include "pipeline/1_decode/id.sv"
@@ -92,9 +92,10 @@ module cpu_top (
     assign rst   = ~rst_n;
 
     // ICache <-> AXI Controller
-    logic axi_busy;
-    logic [`RegBus] axi_data;
-    logic [`RegBus] axi_addr;
+    logic icache_axi_rreq;
+    logic axi_icache_rdy, axi_icache_rvalid;
+    logic [127:0] axi_icache_data; // 128b
+    logic [`RegBus] icache_axi_addr;
 
     // MEM <-> AXI Controller
     // TODO: replace with DCache
@@ -117,9 +118,14 @@ module cpu_top (
         .aresetn(aresetn),
 
         // <-> ICache
-        .inst_cpu_addr_i(axi_addr),
-        .inst_cpu_data_o(axi_data),
+        .inst_cpu_addr_i(icache_axi_addr),
+        .inst_cpu_data_o(axi_icache_data),
         .inst_id(4'b0000),  // Read Instruction only
+        .icache_rd_type_i(3'b000), // Read 128b for 1 time
+        .icache_rd_req_i(icache_axi_rreq),
+        .icache_rd_rdy_o(axi_icache_rdy),
+        .icache_ret_valid_o(axi_icache_rvalid),
+        .icache_ret_last_o(),
 
         // <-> MEM Stage
         .data_cpu_addr_i(data_axi_addr),
@@ -178,34 +184,39 @@ module cpu_top (
     // ICache -> Frontend
     logic icache_frontend_stallreq;
     logic icache_frontend_valid[FETCH_WIDTH];
-    logic [`InstAddrBus] icache_frontend_addr[FETCH_WIDTH];
+    logic [`InstAddrBus] icache_frontend_addr[FETCH_WIDTH] = '{1,1};
     logic [`RegBus] icache_frontend_data[FETCH_WIDTH];
 
-
-    dummy_icache #(
-        .ADDR_WIDTH(`RegWidth),
-        .DATA_WIDTH(`RegWidth)
-    ) u_dummy_icache (
-        .clk(clk),
-        .rst(rst),
-
-        // <-> Frontend
-        .flush(backend_flush),
-        .raddr_1_i (frontend_icache_addr[0]),
-        .raddr_2_i (frontend_icache_addr[1]),
-        .stallreq_o(icache_frontend_stallreq),
-        .rvalid_1_o(icache_frontend_valid[0]),
-        .rvalid_2_o(icache_frontend_valid[1]),
-        .raddr_1_o (icache_frontend_addr[0]),
-        .raddr_2_o (icache_frontend_addr[1]),
-        .rdata_1_o (icache_frontend_data[0]),
-        .rdata_2_o (icache_frontend_data[1]),
-
-        // <-> AXI Controller
-        .axi_addr_o(axi_addr),
-        .axi_data_i(axi_data),
-        .axi_busy_i(axi_busy)
-    );
+    logic [31:0] tmp_pc, tmp_pc_plus4;
+    assign tmp_pc_plus4 = tmp_pc + 4;
+    always_ff @( posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            tmp_pc <= 32'h1c000000;
+        end else if (icache_frontend_valid[0]) begin
+            tmp_pc <= tmp_pc+8;
+        end
+    end
+    
+    
+    icache u_icache(
+       .clk          (clk          ),
+       .rst          (rst          ),
+       .rreq_1_i     (1'b1),
+       .raddr_1_i    (tmp_pc),
+       .rvalid_1_o   (icache_frontend_valid[0]),
+       .rdata_1_o    (icache_frontend_data[0]),
+       .rreq_2_i     (1'b1),
+       .raddr_2_i    (tmp_pc_plus4),
+       .rvalid_2_o   (icache_frontend_valid[1]),
+       .rdata_2_o    (icache_frontend_data[1]),
+       .axi_addr_o   (icache_axi_addr),
+       .axi_rreq_o   (icache_axi_rreq),
+       .axi_rdy_i    (axi_icache_rdy),
+       .axi_rvalid_i (axi_icache_rvalid),
+       .axi_rlast_i  (),
+       .axi_data_i   (axi_icache_data)
+   );
+    
 
     // Frontend <-> Instruction Buffer
     logic ib_frontend_stallreq;
@@ -223,7 +234,7 @@ module cpu_top (
         // <-> ICache
         .icache_read_addr_o(frontend_icache_addr),  // -> ICache
         .icache_stallreq_i(icache_frontend_stallreq),  // <- ICache, I$ cannot accept more addr requests
-        .icache_read_valid_i(icache_frontend_valid),  // <- ICache
+        .icache_read_valid_i(),  // <- ICache
         .icache_read_addr_i(icache_frontend_addr),  // <- ICache
         .icache_read_data_i(icache_frontend_data),  // <- ICache
 
