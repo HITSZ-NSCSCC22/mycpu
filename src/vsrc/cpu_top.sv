@@ -118,19 +118,13 @@ module cpu_top (
 
         // <-> ICache
         .inst_cpu_addr_i(axi_addr),
-        .inst_cpu_ce_i(axi_addr != 0),  // FIXME: ce should not be used as valid?
-        .inst_cpu_sel_i(4'b1111),
         .inst_cpu_data_o(axi_data),
-        .inst_stallreq(axi_busy),
-        .inst_id(4'b0000),  // Read Instruction only, TODO: move this from AXI to cache
+        .inst_id(4'b0000),  // Read Instruction only
 
         // <-> MEM Stage
         .data_cpu_addr_i(data_axi_addr),
-        .data_cpu_ce_i(data_axi_addr != 0),  // FIXME: ce should not be used as valid?
-        .data_cpu_we_i(data_axi_we),  // FIXME: Write enable
         .data_cpu_sel_i(data_axi_sel),
         .data_cpu_data_o(axi_mem_data),
-        .data_stallreq(data_axi_busy),
         .data_id(4'b0001),
         .dcache_rd_type_i(3'b000), // For [31:0]
         .dcache_wr_type_i(3'b000), 
