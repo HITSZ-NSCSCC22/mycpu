@@ -56,6 +56,22 @@ module icache #(
 
     generate
         for (genvar i = 0; i < NWAY; i++) begin : tag_bram
+
+`ifdef BRAM_IP
+            bram_icache_tag_ram u_bram (
+                .clka (clk),
+                .clkb (clk),
+                .wea  (tag_bram_we[i][0]),
+                .web  (tag_bram_we[i][1]),
+                .dina (tag_bram_wdata[i][0]),
+                .addra(tag_bram_addr[i][0]),
+                .douta(tag_bram_rdata[i][0]),
+                .dinb (tag_bram_wdata[i][1]),
+                .addrb(tag_bram_addr[i][1]),
+                .doutb(tag_bram_rdata[i][1])
+            );
+`else
+
             bram #(
                 .DATA_WIDTH     (TAG_BRAM_WIDTH),
                 .DATA_DEPTH_EXP2(10)
@@ -70,10 +86,25 @@ module icache #(
                 .addrb(tag_bram_addr[i][1]),
                 .doutb(tag_bram_rdata[i][1])
             );
+`endif
         end
     endgenerate
     generate
         for (genvar i = 0; i < NWAY; i++) begin : data_bram
+`ifdef BRAM_IP
+            bram_icache_data_ram u_bram (
+                .clka (clk),
+                .clkb (clk),
+                .wea  (data_bram_we[i][0]),
+                .web  (data_bram_we[i][1]),
+                .dina (data_bram_wdata[i][0]),
+                .addra(data_bram_addr[i][0]),
+                .douta(data_bram_rdata[i][0]),
+                .dinb (data_bram_wdata[i][1]),
+                .addrb(data_bram_addr[i][1]),
+                .doutb(data_bram_rdata[i][1])
+            );
+`else
             bram #(
                 .DATA_WIDTH     (128),
                 .DATA_DEPTH_EXP2(10)
@@ -88,6 +119,7 @@ module icache #(
                 .addrb(data_bram_addr[i][1]),
                 .doutb(data_bram_rdata[i][1])
             );
+`endif
         end
     endgenerate
 
