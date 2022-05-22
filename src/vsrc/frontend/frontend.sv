@@ -79,19 +79,32 @@ module frontend #(
         .FETCH_WIDTH(4),
         .QUEUE_SIZE (4)
     ) u_ftq (
-        .clk             (clk),
-        .rst             (rst),
+        .clk(clk),
+        .rst(rst),
+
+        // Flush
+        .backend_flush_i(backend_flush_i),
+
+        // <-> BPU
         .bpu_i           (bpu_ftq_block),
         .bpu_queue_full_o(ftq_full),
+
+        // <-> Backend
         .backend_commit_i(backend_commit_i),
-        .ifu_o           (ftq_ifu_block),
-        .ifu_accept_i    (ifu_ftq_accept)
+
+        // <-> IFU
+        .ifu_o       (ftq_ifu_block),
+        .ifu_accept_i(ifu_ftq_accept)
     );
 
 
     ifu u_ifu (
-        .clk            (clk),
-        .rst            (rst),
+        .clk(clk),
+        .rst(rst),
+
+        // Flush
+        .flush_i(backend_flush_i),
+
         .ftq_i          (ftq_ifu_block),
         .ftq_accept_o   (ifu_ftq_accept),
         .icache_rreq_o  (icache_read_req_o),

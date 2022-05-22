@@ -154,10 +154,10 @@ module icache #(
     logic rreq_1_delay1, rreq_2_delay1;
     logic [ADDR_WIDTH-1:0] raddr_1_delay1, raddr_2_delay1;
     always_ff @(posedge clk) begin
-        rreq_1_delay1  <= rreq_1_i;
-        rreq_2_delay1  <= rreq_2_i;
-        raddr_1_delay1 <= raddr_1_i;
-        raddr_2_delay1 <= raddr_2_i;
+        rreq_1_delay1 <= rreq_1_i;
+        rreq_2_delay1 <= rreq_2_i;
+        if (rreq_1_i) raddr_1_delay1 <= raddr_1_i;
+        if (rreq_2_i) raddr_2_delay1 <= raddr_2_i;
     end
 
 
@@ -277,13 +277,13 @@ module icache #(
                 // write this way
                 if (state == REFILL_1_WAIT && axi_rvalid_i) begin
                     tag_bram_we[i][0] = 1;
-                    tag_bram_wdata[i][0] = {1'b1, raddr_1_i[31:12]};
+                    tag_bram_wdata[i][0] = {1'b1, raddr_1_delay1[31:12]};
                     data_bram_we[i][0] = 1;
                     data_bram_wdata[i][0] = axi_data_i;
                 end
                 if (state == REFILL_2_WAIT && axi_rvalid_i) begin
                     tag_bram_we[i][1] = 1;
-                    tag_bram_wdata[i][1] = {1'b1, raddr_1_i[31:12]};
+                    tag_bram_wdata[i][1] = {1'b1, raddr_2_delay1[31:12]};
                     data_bram_we[i][1] = 1;
                     data_bram_wdata[i][1] = axi_data_i;
                 end

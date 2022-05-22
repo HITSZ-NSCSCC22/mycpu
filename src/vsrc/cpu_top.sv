@@ -752,7 +752,7 @@ module cpu_top (
         .clock         (aclk),
         .coreid        (0),                             // only one core, so always 0
         .index         (0),                             // commit channel index
-        // .valid         (difftest_commit_info_delay1[0].valid),  // 1 means valid
+        .valid         (difftest_commit_info_delay1[0].valid),  // 1 means valid
         .pc            (difftest_commit_info_delay1[0].pc),
         .instr         (difftest_commit_info_delay1[0].instr),
         .skip          (0),                             // not sure meaning, but keep 0 for now
@@ -771,7 +771,7 @@ module cpu_top (
         .coreid        (0),                             // only one core, so always 0
         .index         (1),                             // commit channel index
         .skip          (0),                             // not sure meaning, but keep 0 for now
-        // .valid         (difftest_commit_info_delay1[1].valid),  // 1 means valid
+        .valid         (difftest_commit_info_delay1[1].valid),  // 1 means valid
         .pc            (difftest_commit_info_delay1[1].pc),
         .instr         (difftest_commit_info_delay1[1].instr),
         .is_TLBFILL    (),

@@ -11,6 +11,9 @@ module ifu #(
     input logic clk,
     input logic rst,
 
+    // Flush
+    input flush_i,
+
     // <-> Fetch Target Queue
     input ftq_ifu_t ftq_i,
     output logic ftq_accept_o,  // In current cycle
@@ -50,6 +53,17 @@ module ifu #(
         end
     end
 
+    // Flush state
+    logic is_flushing;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            is_flushing <= 0;
+        end else if (flush_i) begin
+            is_flushing <= 1;
+        end else if (icache_rvalid_i[0] | icache_rvalid_i[1]) begin
+            is_flushing <= 0;
+        end
+    end
 
     // P1 
     // Cacheline returned
@@ -60,6 +74,8 @@ module ifu #(
     always_comb begin
         if (ftq_i.is_cross_cacheline) icache_result_valid = icache_rvalid_i[0] & icache_rvalid_i[1];
         else icache_result_valid = icache_rvalid_i[0];
+
+        if (is_flushing) icache_result_valid = 0;
     end
 
     // FTQ input 
@@ -68,6 +84,8 @@ module ifu #(
     logic [ADDR_WIDTH-1:0] debug_p0_pc = ftq_i.start_pc;  // DEBUG
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
+            current_fetch_block <= 0;
+        end else if (flush_i) begin
             current_fetch_block <= 0;
         end else begin
             current_fetch_block <= ftq_i;

@@ -8,6 +8,9 @@ module ftq #(
     input logic clk,
     input logic rst,
 
+    // <-> Frontend
+    input logic backend_flush_i,
+
     // <-> BPU
     input bpu_ftq_t bpu_i,
     output logic bpu_queue_full_o,
@@ -53,6 +56,12 @@ module ftq #(
             if (backend_commit_i) comm_ptr <= comm_ptr + 1;
             if (ifu_accept_i) ifu_ptr <= ifu_ptr + 1;
             if (bpu_i.valid) bpu_ptr <= bpu_ptr + 1;
+
+            // If backend redirect triggered, back to comm_ptr
+            if (backend_flush_i) begin
+                ifu_ptr <= comm_ptr;
+                bpu_ptr <= comm_ptr;
+            end
         end
     end
 
@@ -62,6 +71,9 @@ module ftq #(
         next_FTQ = FTQ;
         if (backend_commit_i) next_FTQ[comm_ptr] = 0;
         if (bpu_i.valid) next_FTQ[bpu_ptr] = bpu_i;
+
+        // If backend redirect triggered, clear FTQ
+        if (backend_flush_i) next_FTQ = 0;
     end
 
     // Output
