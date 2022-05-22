@@ -5,6 +5,7 @@
 
 typedef struct packed {
     bit valid;
+    bit is_last_in_block;  // Mark the last instruction in basic block
     bit [`InstAddrBus] pc;
     bit [`InstBus] instr;
 

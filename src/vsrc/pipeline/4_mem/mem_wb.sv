@@ -13,7 +13,10 @@ module mem_wb (
     input logic flush,
 
     // load store relate difftest
-    output wb_ctrl wb_ctrl_signal
+    output wb_ctrl wb_ctrl_signal,
+
+    // <-> Frontend
+    output logic is_last_in_block
 );
 
     // For observability
@@ -22,33 +25,15 @@ module mem_wb (
 
     always @(posedge clk) begin
         if (rst == `RstEnable) begin
-            wb_ctrl_signal.valid <= 1'b0;
-            wb_ctrl_signal.aluop <= 8'b0;
-            wb_ctrl_signal.wb_reg_o.waddr    <= `NOPRegAddr;
-            wb_ctrl_signal.wb_reg_o.we  <= `WriteDisable;
-            wb_ctrl_signal.wb_reg_o.wdata <= `ZeroWord;
-            wb_ctrl_signal.wb_reg_o.pc <= `ZeroWord;
-            wb_ctrl_signal.llbit_o.we <= 1'b0;
-            wb_ctrl_signal.llbit_o.value <= 1'b0;
-            wb_ctrl_signal.excp <= 1'b0;
-            wb_ctrl_signal.excp_num <= 16'b0;
-            wb_ctrl_signal.fetch_flush <= 1'b0;
-            wb_ctrl_signal.csr_signal_o <= 47'b0;
-            wb_ctrl_signal.diff_commit_o.instr <= `ZeroWord;
-            wb_ctrl_signal.diff_commit_o.pc <= `ZeroWord;
-            wb_ctrl_signal.diff_commit_o.valid <= `InstInvalid;
-            wb_ctrl_signal.diff_commit_o.inst_ld_en <= 8'b0;
-            wb_ctrl_signal.diff_commit_o.inst_st_en <= 8'b0;
-            wb_ctrl_signal.diff_commit_o.ld_paddr <= `ZeroWord;
-            wb_ctrl_signal.diff_commit_o.ld_vaddr <= `ZeroWord;
-            wb_ctrl_signal.diff_commit_o.st_paddr <= `ZeroWord;
-            wb_ctrl_signal.diff_commit_o.st_vaddr <= `ZeroWord;
-            wb_ctrl_signal.diff_commit_o.st_data <= `ZeroWord;
+            wb_ctrl_signal   <= 0;
+            is_last_in_block <= 0;
         end else if (stall == `Stop) begin
             wb_ctrl_signal.diff_commit_o.instr <= `ZeroWord;
             wb_ctrl_signal.diff_commit_o.pc <= `ZeroWord;
             wb_ctrl_signal.diff_commit_o.valid <= `InstInvalid;
+            is_last_in_block <= 0;
         end else begin
+            is_last_in_block <= mem_signal_o.instr_info.is_last_in_block;
             wb_ctrl_signal.valid <= 1'b1;
             wb_ctrl_signal.aluop <= mem_signal_o.aluop;
             wb_ctrl_signal.wb_reg_o.waddr    <= mem_signal_o.waddr;

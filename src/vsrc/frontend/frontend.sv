@@ -25,6 +25,7 @@ module frontend #(
     input branch_update_info_t branch_update_info_i,
     input logic [ADDR_WIDTH-1:0] backend_next_pc_i,
     input logic backend_flush_i,
+    input logic backend_commit_i,
 
     // <-> Instruction buffer
     input logic instr_buffer_stallreq_i,
@@ -82,7 +83,7 @@ module frontend #(
         .rst             (rst),
         .bpu_i           (bpu_ftq_block),
         .bpu_queue_full_o(ftq_full),
-        .backend_commit_i(),
+        .backend_commit_i(backend_commit_i),
         .ifu_o           (ftq_ifu_block),
         .ifu_accept_i    (ifu_ftq_accept)
     );

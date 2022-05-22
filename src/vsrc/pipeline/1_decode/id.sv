@@ -45,6 +45,8 @@ module id (
     assign pc_i = instr_buffer_i.valid ? instr_buffer_i.pc : `ZeroWord;
     logic [`InstBus] inst_i;
     assign inst_i = instr_buffer_i.valid ? instr_buffer_i.instr : `ZeroWord;
+    logic is_last_in_block;
+    assign is_last_in_block = instr_buffer_i.valid ? instr_buffer_i.is_last_in_block : 0;
 
     logic instr_break, instr_syscall, kernel_instr;
     assign kernel_instr = dispatch_o.aluop == `EXE_CSRRD_OP | dispatch_o.aluop == `EXE_CSRWR_OP | dispatch_o.aluop == `EXE_CSRXCHG_OP |
@@ -163,8 +165,10 @@ module id (
     // Generate imm, using OR
     logic [`RegBus] imm;
     assign dispatch_o.use_imm = (imm != 0) && !(dispatch_o.aluop == `EXE_ST_B_OP | dispatch_o.aluop == `EXE_ST_H_OP |
-                                dispatch_o.aluop == `EXE_ST_W_OP | dispatch_o.aluop == `EXE_CSRRD_OP | dispatch_o.aluop == `EXE_CSRWR_OP
-                                | dispatch_o.aluop == `EXE_CSRRD_OP | dispatch_o.aluop == `EXE_CSRXCHG_OP);  // HACK: works for now
+                                dispatch_o.aluop == `EXE_ST_W_OP | dispatch_o.aluop == `EXE_CSRRD_OP | dispatch_o.aluop ==
+        `EXE_CSRWR_OP
+        | dispatch_o.aluop == `EXE_CSRRD_OP | dispatch_o.aluop == `EXE_CSRXCHG_OP)
+            ;  // HACK: works for now
     assign dispatch_o.imm = imm;
     always_comb begin
         imm = 0;
@@ -208,6 +212,7 @@ module id (
     assign dispatch_o.instr_info.valid = instr_valid;
     assign dispatch_o.instr_info.pc = pc_i;
     assign dispatch_o.instr_info.instr = inst_i;
+    assign dispatch_o.instr_info.is_last_in_block = is_last_in_block;
 
 
     // TODO: add explanation
@@ -216,15 +221,13 @@ module id (
     logic excp;
     logic [8:0] excp_num;
 
-    assign dispatch_o.refetch = (dispatch_o.aluop == `EXE_TLBFILL_OP || dispatch_o.aluop == `EXE_TLBRD_OP || dispatch_o.aluop == `EXE_TLBWR_OP || dispatch_o.aluop == `EXE_TLBSRCH_OP || dispatch_o.aluop == `EXE_ERTN_OP || dispatch_o.aluop == `EXE_INVTLB_OP) ; 
+    assign dispatch_o.refetch = (dispatch_o.aluop == `EXE_TLBFILL_OP || dispatch_o.aluop == `EXE_TLBRD_OP || dispatch_o.aluop == `EXE_TLBWR_OP || dispatch_o.aluop == `EXE_TLBSRCH_OP || dispatch_o.aluop == `EXE_ERTN_OP || dispatch_o.aluop == `EXE_INVTLB_OP) ;
 
     assign excp_ine = !(instr_valid == `InstInvalid) && !instr_buffer_i.valid;
     assign excp_ipe = kernel_instr && (csr_plv == 2'b11);
 
     assign excp = excp_ipe | instr_syscall | instr_break | excp_i | excp_ine | has_int;
-    assign excp_num  = {
-        excp_ipe, excp_ine, instr_break, instr_syscall, excp_num_i, has_int
-    };
+    assign excp_num = {excp_ipe, excp_ine, instr_break, instr_syscall, excp_num_i, has_int};
     assign dispatch_o.excp = excp;
     assign dispatch_o.excp_num = excp_num;
 

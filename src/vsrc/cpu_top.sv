@@ -220,6 +220,7 @@ module cpu_top (
 
     // Frontend <-> Backend 
     logic backend_flush;
+    logic [1:0] is_last_in_block; // <- WB, suggest whether last instr in basic block is committed
 
     // All frontend structures
     frontend u_frontend (
@@ -236,6 +237,7 @@ module cpu_top (
         .branch_update_info_i(),              // branch update signals, <- EXE Stage, unused
         .backend_next_pc_i   (next_pc),       // backend PC, <- pc_gen
         .backend_flush_i     (backend_flush), // backend flush, usually come with next_pc
+        .backend_commit_i (is_last_in_block[0] | is_last_in_block[1]),
 
         // <-> Instruction Buffer
         .instr_buffer_stallreq_i(ib_frontend_stallreq),   // instruction buffer is full
@@ -551,7 +553,10 @@ module cpu_top (
                 .flush(flush),
 
                 //to ctrl
-                .wb_ctrl_signal(wb_ctrl_signal[i])
+                .wb_ctrl_signal(wb_ctrl_signal[i]),
+
+                // -> Frontend
+                .is_last_in_block(is_last_in_block[i])
             );
         end
     endgenerate

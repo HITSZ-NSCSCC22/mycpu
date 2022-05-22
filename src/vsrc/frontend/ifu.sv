@@ -85,10 +85,20 @@ module ifu #(
             end
         end else begin
             for (integer i = 0; i < FETCH_WIDTH; i++) begin
+                // Default
+                instr_buffer_o[i].is_last_in_block <= 0;
+
                 if (i < current_fetch_block.length && ~stallreq_i && icache_result_valid) begin
-                    instr_buffer_o[i].valid <= 1;
-                    instr_buffer_o[i].pc <= current_fetch_block.start_pc + i * 4;  // Instr is 4 bytes long
-                    instr_buffer_o[i].instr <= cacheline_0[current_fetch_block.start_pc[3:2]+i];
+                    if (i == current_fetch_block.length - 1) begin
+                        instr_buffer_o[i].valid <= 1;
+                        instr_buffer_o[i].is_last_in_block <= 1;
+                        instr_buffer_o[i].pc <= current_fetch_block.start_pc + i * 4;  // Instr is 4 bytes long
+                        instr_buffer_o[i].instr <= cacheline_0[current_fetch_block.start_pc[3:2]+i];
+                    end else begin
+                        instr_buffer_o[i].valid <= 1;
+                        instr_buffer_o[i].pc <= current_fetch_block.start_pc + i * 4;  // Instr is 4 bytes long
+                        instr_buffer_o[i].instr <= cacheline_0[current_fetch_block.start_pc[3:2]+i];
+                    end
                 end else begin
                     instr_buffer_o[i] <= 0;
                 end
