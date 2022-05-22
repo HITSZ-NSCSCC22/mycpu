@@ -403,10 +403,12 @@ module cpu_top (
     logic disable_cache;
     logic [1:0] branch_flag;
 
-    assign backend_flush = excp_flush | ertn_flush | branch_flag[0] | branch_flag[1];
+    assign backend_flush = excp_flush | ertn_flush | ((branch_flag[0] | branch_flag[1]) & ~stall[2]);
 
-    assign next_pc = branch_flag[0] ? branch_target_address[0] : 
-                     branch_flag[1] ? branch_target_address[1] :
+    // If ex is stalling, means that the branch flag maybe invalid and waiting for the right data
+    // so no jumping if ex is stalling
+    assign next_pc = branch_flag[0] & ~stall[2] ? branch_target_address[0] : 
+                     branch_flag[1] & ~stall[2] ? branch_target_address[1] :
                      (excp_flush && !excp_tlbrefill) ? csr_eentry :
                      (excp_flush && excp_tlbrefill) ? csr_tlbrentry :
                      ertn_flush ? csr_era : `ZeroWord;
