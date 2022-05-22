@@ -281,8 +281,8 @@ module cpu_top (
             id u_id (
                 .instr_buffer_i(ib_backend_instr_info[i]),
                 // FIXME: excp info, currently unused
-                .excp_i        (),
-                .excp_num_i    (),
+                .excp_i        (0),
+                .excp_num_i    (4'b0),
 
                 // -> Dispatch
                 .dispatch_o(id_id_dispatch[i]),
@@ -624,11 +624,12 @@ module cpu_top (
         .csr_w_o_1(csr_w_o[1]),
 
         // -> Difftest
+        .excp_instr(excp_instr),
         .commit_0(difftest_commit_info[0]),
         .commit_1(difftest_commit_info[1])
     );
     
-
+    logic [`InstBus] excp_instr;
     logic [13:0] dispatch_csr_read_addr;
     logic [`RegBus] dispatch_csr_data;
 
@@ -742,6 +743,20 @@ module cpu_top (
         debug1_wb_rf_wnum <= reg_o[1].waddr;
         `endif
     end
+
+    logic excp_flush_commit;
+    logic ertn_flush_commit;
+    logic [`RegBus]excp_pc_commit;
+    logic [5:0] csr_ecode_commit;
+    logic [`InstBus] excp_instr_commit;
+
+    always_ff @(posedge clk) begin 
+        excp_flush_commit <= excp_flush;
+        ertn_flush_commit <= ertn_flush;
+        excp_pc_commit <= csr_era_i;
+        csr_ecode_commit <= csr_ecode_i;
+        excp_instr_commit <= excp_instr;
+    end
     // difftest dpi-c
 `ifdef SIMU  // SIMU is defined in chiplab run_func/makefile
     DifftestInstrCommit difftest_instr_commit_0 (  
@@ -801,6 +816,18 @@ module cpu_top (
         .paddr              (debug_commit_ld_paddr),
         .vaddr              (debug_commit_ld_paddr)
     );*/
+
+
+    //DifftestExcpEvent DifftestExcpEvent(
+    //    .clock              (aclk),
+    //    .coreid             (0),
+    //    .excp_valid         (excp_flush_commit),
+    //    .eret               (ertn_flush_commit),
+    //    .intrNo             (u_cs_reg.csr_estat[12:2]),
+    //    .cause              (csr_ecode_commit),
+    //    .exceptionPC        (excp_pc_commit),
+    //    .exceptionInst      (excp_instr_commit)
+    //);
 
     DifftestCSRRegState difftest_csr_state (
         .clock    (aclk),

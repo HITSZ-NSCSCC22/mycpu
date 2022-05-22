@@ -37,6 +37,7 @@ module ctrl (
     output csr_write_signal csr_w_o_1,
 
     //difftest-commit
+    output [`InstBus] excp_instr,
     output diff_commit commit_0,
     output diff_commit commit_1
 );
@@ -77,13 +78,13 @@ module ctrl (
 
     logic excp;
     logic [15:0] excp_num;
-    logic [`RegBus] pc, error_va;
+    logic [`RegBus] pc,error_va;
     assign excp = wb_i_1.excp | wb_i_2.excp;
     assign csr_era = pc;
     //异常处理，优先处理第一条流水线的异常
-    assign {excp_num, pc, error_va} = 
-            wb_i_1.excp ? {wb_i_1.excp_num, wb_i_1.wb_reg_o.pc, wb_i_1.wb_reg_o.wdata} :
-            wb_i_2.excp ? {wb_i_2.excp_num, wb_i_2.wb_reg_o.pc, wb_i_2.wb_reg_o.wdata} : 0;
+    assign {excp_num, pc, excp_instr, error_va} = 
+            wb_i_1.excp ? {wb_i_1.excp_num, wb_i_1.wb_reg_o.pc,wb_i_1.diff_commit_o.instr, wb_i_1.wb_reg_o.wdata} :
+            wb_i_2.excp ? {wb_i_2.excp_num, wb_i_2.wb_reg_o.pc,wb_i_2.diff_commit_o.instr, wb_i_2.wb_reg_o.wdata} : 0;
 
     assign {csr_ecode,va_error, bad_va, csr_esubcode, excp_tlbrefill,excp_tlb, excp_tlb_vppn} = 
     excp_num[0] ? {`ECODE_INT ,1'b0, 32'b0 , 9'b0 , 1'b0, 1'b0, 19'b0} :
