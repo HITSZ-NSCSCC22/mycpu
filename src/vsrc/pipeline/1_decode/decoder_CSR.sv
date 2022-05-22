@@ -24,6 +24,7 @@ module decoder_CSR #(
     output logic [$clog2(GPR_NUM)*2-1:0] reg_read_addr_o,
 
     // Generate imm
+    output logic use_imm,
     output logic [DATA_WIDTH-1:0] imm_o,
 
     // GPR write
@@ -57,6 +58,7 @@ module decoder_CSR #(
         reg_write_addr_o = rd;
         reg_read_valid_o = 2'b00;
         reg_read_addr_o = 10'b0;
+        use_imm = 1'b0;
         imm_o = {18'b0, csr_num};
         case (instr[31:24])
             `EXE_SPECIAL: begin

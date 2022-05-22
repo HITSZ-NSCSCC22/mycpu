@@ -23,12 +23,14 @@ module decoder_2R #(
     // TLB instructions do not modify GPR
 
     // TLB instructions do not use ALU
+    output logic use_imm,
     output logic [ALU_OP_WIDTH-1:0] aluop_o
 
 );
 
     logic [DATA_WIDTH-1:0] instr;
     assign instr = instr_info_i.instr;
+    assign use_imm = 1'b0;
 
     always_comb begin
         case (instr[31:10])

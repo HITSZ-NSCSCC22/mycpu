@@ -25,6 +25,7 @@ module decoder_2RI16 #(
 
     // Generate imm
     // sext.w(imm_16) << 2
+    output logic use_imm,
     output logic [DATA_WIDTH-1:0] imm_o,
 
     // GPR write
@@ -58,6 +59,7 @@ module decoder_2RI16 #(
         reg_write_addr_o = 0;
         reg_read_valid_o = 2'b11;
         reg_read_addr_o = {rd, rj};
+        use_imm = 1'b0;
         imm_o = {{14{imm_16[15]}}, imm_16, 2'b0};
         case (instr[31:26])
             `EXE_JIRL: begin

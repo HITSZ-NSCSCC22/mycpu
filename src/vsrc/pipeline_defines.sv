@@ -44,7 +44,6 @@ typedef struct packed {
     logic [`AluSelBus] alusel;
     logic [`RegAddrBus] reg_write_addr;
     logic reg_write_valid;
-    logic [5:0] branch_com_result;
 
     logic [`RegBus]  csr_reg_data;
     csr_write_signal csr_signal;

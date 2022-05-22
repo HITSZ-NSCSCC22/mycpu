@@ -246,27 +246,27 @@ module ex (
                     branch_target_address = reg1_i + imm;
                 end
                 `EXE_BEQ_OP: begin
-                    if (dispatch_i.branch_com_result[0]) branch_flag = 1'b1;
+                    if (oprand1 == oprand2) branch_flag = 1'b1;
                     branch_target_address = inst_pc_i + imm;
                 end
                 `EXE_BNE_OP: begin
-                    if (dispatch_i.branch_com_result[1]) branch_flag = 1'b1;
+                    if (oprand1 != oprand2) branch_flag = 1'b1;
                     branch_target_address = inst_pc_i + imm;
                 end
                 `EXE_BLT_OP: begin
-                    if (dispatch_i.branch_com_result[2]) branch_flag = 1'b1;
+                    if ({~oprand1[31],oprand1[30:0]} < {~oprand2[31],oprand2[30:0]}) branch_flag = 1'b1;
                     branch_target_address = inst_pc_i + imm;
                 end
                 `EXE_BGE_OP: begin
-                    if (dispatch_i.branch_com_result[3]) branch_flag = 1'b1;
+                    if ({~oprand1[31],oprand1[30:0]} >= {~oprand2[31],oprand2[30:0]}) branch_flag = 1'b1;
                     branch_target_address = inst_pc_i + imm;
                 end
                 `EXE_BLTU_OP: begin
-                    if (dispatch_i.branch_com_result[4]) branch_flag = 1'b1;
+                    if (oprand1 < oprand2) branch_flag = 1'b1;
                     branch_target_address = inst_pc_i + imm;
                 end
                 `EXE_BGEU_OP: begin
-                    if (dispatch_i.branch_com_result[5]) branch_flag = 1'b1;
+                    if (oprand1 >= oprand2) branch_flag = 1'b1;
                     branch_target_address = inst_pc_i + imm;
                 end
                 default: begin

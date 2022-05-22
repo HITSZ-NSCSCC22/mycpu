@@ -22,6 +22,7 @@ module decoder_I26 #(
 
     // Generate imm
     // sext.w(imm_16) << 2
+    output logic use_imm,
     output logic [DATA_WIDTH-1:0] imm_o,
 
     // GPR write
@@ -48,6 +49,7 @@ module decoder_I26 #(
         decode_result_valid_o = 1;
         reg_write_valid_o = 0;
         reg_write_addr_o = 0;
+        use_imm = 1'b0;
         imm_o = {{4{imm_26[25]}}, imm_26, 2'b0};
         case (instr[31:26])
             `EXE_B: begin

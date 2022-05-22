@@ -24,6 +24,7 @@ module decoder_2RI12 #(
     output logic [$clog2(GPR_NUM)*2-1:0] reg_read_addr_o,
 
     // Generate imm
+    output logic use_imm,
     output logic [DATA_WIDTH-1:0] imm_o,
 
     // GPR write
@@ -57,6 +58,7 @@ module decoder_2RI12 #(
         reg_write_addr_o = rd;
         reg_read_valid_o = 2'b01;
         reg_read_addr_o = {5'b0, rj};
+        use_imm = 1'b1;
         imm_o = 0;
         case (instr[31:22])
             `EXE_SLTI: begin

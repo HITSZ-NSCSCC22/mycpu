@@ -29,6 +29,8 @@ module decoder_3R #(
     output logic reg_write_valid_o,
     output logic [$clog2(GPR_NUM)-1:0] reg_write_addr_o,
 
+    //not use imm
+    output logic use_imm,
 
     // ALU info
     output logic [ ALU_OP_WIDTH-1:0] aluop_o,
@@ -55,6 +57,7 @@ module decoder_3R #(
         reg_write_addr_o = rd;
         reg_read_valid_o = 2'b11;
         reg_read_addr_o = {rk, rj};
+        use_imm = 1'b0;
         instr_break = 0;
         instr_syscall = 0;
         // Default

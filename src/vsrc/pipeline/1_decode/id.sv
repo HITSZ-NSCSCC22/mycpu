@@ -68,6 +68,7 @@ module id (
     decoder_2R u_decoder_2R (
         .instr_info_i         (instr_buffer_i),
         .decode_result_valid_o(sub_decoder_valid[0]),
+        .use_imm              (sub_decoder_use_imm[0]),
         .aluop_o              (sub_decoder_aluop[0])
     );
     decoder_3R u_decoder_3R (
@@ -77,6 +78,7 @@ module id (
         .reg_read_addr_o      (sub_decoder_reg_read_addr[1]),
         .reg_write_valid_o    (sub_decoder_reg_write_valid[1]),
         .reg_write_addr_o     (sub_decoder_reg_write_addr[1]),
+        .use_imm              (sub_decoder_use_imm[1]),
         .aluop_o              (sub_decoder_aluop[1]),
         .alusel_o             (sub_decoder_alusel[1]),
         .instr_break          (instr_break),
@@ -87,6 +89,7 @@ module id (
         .decode_result_valid_o(sub_decoder_valid[2]),
         .reg_read_valid_o     (sub_decoder_reg_read_valid[2]),
         .reg_read_addr_o      (sub_decoder_reg_read_addr[2]),
+        .use_imm              (sub_decoder_use_imm[2]),
         .imm_o                (sub_decoder_imm[2]),
         .reg_write_valid_o    (sub_decoder_reg_write_valid[2]),
         .reg_write_addr_o     (sub_decoder_reg_write_addr[2]),
@@ -98,6 +101,7 @@ module id (
         .decode_result_valid_o(sub_decoder_valid[3]),
         .reg_read_valid_o     (sub_decoder_reg_read_valid[3]),
         .reg_read_addr_o      (sub_decoder_reg_read_addr[3]),
+        .use_imm              (sub_decoder_use_imm[3]),
         .imm_o                (sub_decoder_imm[3]),
         .reg_write_valid_o    (sub_decoder_reg_write_valid[3]),
         .reg_write_addr_o     (sub_decoder_reg_write_addr[3]),
@@ -109,6 +113,7 @@ module id (
         .decode_result_valid_o(sub_decoder_valid[4]),
         .reg_read_valid_o     (sub_decoder_reg_read_valid[4]),
         .reg_read_addr_o      (sub_decoder_reg_read_addr[4]),
+        .use_imm              (sub_decoder_use_imm[4]),
         .imm_o                (sub_decoder_imm[4]),
         .reg_write_valid_o    (sub_decoder_reg_write_valid[4]),
         .reg_write_addr_o     (sub_decoder_reg_write_addr[4]),
@@ -121,6 +126,7 @@ module id (
         .decode_result_valid_o(sub_decoder_valid[5]),
         .reg_read_valid_o     (sub_decoder_reg_read_valid[5]),
         .reg_read_addr_o      (sub_decoder_reg_read_addr[5]),
+        .use_imm              (sub_decoder_use_imm[5]),
         .imm_o                (sub_decoder_imm[5]),
         .reg_write_valid_o    (sub_decoder_reg_write_valid[5]),
         .reg_write_addr_o     (sub_decoder_reg_write_addr[5]),
@@ -132,6 +138,7 @@ module id (
         .decode_result_valid_o(sub_decoder_valid[6]),
         .reg_read_valid_o     (sub_decoder_reg_read_valid[6]),
         .reg_read_addr_o      (sub_decoder_reg_read_addr[6]),
+        .use_imm              (sub_decoder_use_imm[6]),
         .imm_o                (sub_decoder_imm[6]),
         .reg_write_valid_o    (sub_decoder_reg_write_valid[6]),
         .reg_write_addr_o     (sub_decoder_reg_write_addr[6]),
@@ -143,6 +150,7 @@ module id (
         .decode_result_valid_o(sub_decoder_valid[7]),
         .imm_o                (sub_decoder_imm[7]),
         .reg_write_valid_o    (sub_decoder_reg_write_valid[7]),
+        .use_imm              (sub_decoder_use_imm[7]),
         .reg_write_addr_o     (sub_decoder_reg_write_addr[7]),
         .aluop_o              (sub_decoder_aluop[7]),
         .alusel_o             (sub_decoder_alusel[7])
@@ -152,6 +160,7 @@ module id (
         .decode_result_valid_o(sub_decoder_valid[8]),
         .reg_read_valid_o     (sub_decoder_reg_read_valid[8]),
         .reg_read_addr_o      (sub_decoder_reg_read_addr[8]),
+        .use_imm              (sub_decoder_use_imm[8]),
         .imm_o                (sub_decoder_imm[8]),
         .reg_write_valid_o    (sub_decoder_reg_write_valid[8]),
         .reg_write_addr_o     (sub_decoder_reg_write_addr[8]),
@@ -161,14 +170,16 @@ module id (
     // Sub-decoder END
 
     // Generate imm, using OR
+    logic use_imm;
     logic [`RegBus] imm;
-    assign dispatch_o.use_imm = (imm != 0) && !(dispatch_o.aluop == `EXE_ST_B_OP | dispatch_o.aluop == `EXE_ST_H_OP |
-                                dispatch_o.aluop == `EXE_ST_W_OP | dispatch_o.aluop == `EXE_CSRRD_OP | dispatch_o.aluop == `EXE_CSRWR_OP
-                                | dispatch_o.aluop == `EXE_CSRRD_OP | dispatch_o.aluop == `EXE_CSRXCHG_OP);  // HACK: works for now
+    logic sub_decoder_use_imm[9];
+    assign dispatch_o.use_imm = use_imm;
     assign dispatch_o.imm = imm;
     always_comb begin
+        use_imm = 0;
         imm = 0;
         for (integer i = 0; i < SUB_DECODER_NUM; i++) begin
+            use_imm = use_imm | sub_decoder_use_imm[i];
             imm = imm | sub_decoder_imm[i];
         end
     end

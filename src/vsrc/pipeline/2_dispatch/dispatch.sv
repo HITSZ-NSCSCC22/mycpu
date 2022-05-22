@@ -174,12 +174,6 @@ module dispatch #(
                     exe_o[i].oprand2 <= id_i[i].use_imm ? id_i[i].imm : oprand2[i];
 
                     exe_o[i].imm <= id_i[i].imm;
-                    exe_o[i].branch_com_result[0] <= oprand1[i] == oprand2[i];
-                    exe_o[i].branch_com_result[1] <= oprand1[i] != oprand2[i];
-                    exe_o[i].branch_com_result[2] <= ({~oprand1[i][31],oprand1[i][30:0]} < {~oprand2[i][31],oprand2[i][30:0]});
-                    exe_o[i].branch_com_result[3] <= ({~oprand1[i][31],oprand1[i][30:0]} >= {~oprand2[i][31],oprand2[i][30:0]});
-                    exe_o[i].branch_com_result[4] <= oprand1[i] < oprand2[i];
-                    exe_o[i].branch_com_result[5] <= oprand1[i] >= oprand2[i];
 
                     exe_o[i].excp <= id_i[i].excp;
                     exe_o[i].excp_num <= id_i[i].excp_num;
