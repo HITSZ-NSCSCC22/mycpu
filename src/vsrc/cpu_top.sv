@@ -188,28 +188,22 @@ module cpu_top (
     logic [1:0]icache_frontend_valid;
     logic [1:0][127:0] icache_frontend_data; // Cacheline is 128b
 
-    logic [31:0] tmp_pc, tmp_pc_plus4;
-    assign tmp_pc_plus4 = tmp_pc + 4;
-    always_ff @( posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            tmp_pc <= 32'h1c000000;
-        end else if (icache_frontend_valid[0]) begin
-            tmp_pc <= tmp_pc+8;
-        end
-    end
-    
-    
     icache u_icache(
        .clk          (clk          ),
        .rst          (rst          ),
-       .rreq_1_i     (1'b1),
-       .raddr_1_i    (tmp_pc),
+       
+       // Port A
+       .rreq_1_i     (frontend_icache_rreq[0]),
+       .raddr_1_i    (frontend_icache_addr[0]),
        .rvalid_1_o   (icache_frontend_valid[0]),
        .rdata_1_o    (icache_frontend_data[0]),
-       .rreq_2_i     (1'b1),
-       .raddr_2_i    (tmp_pc_plus4),
+       // Port B
+       .rreq_2_i     (frontend_icache_rreq[1]),
+       .raddr_2_i    (frontend_icache_addr[1]),
        .rvalid_2_o   (icache_frontend_valid[1]),
        .rdata_2_o    (icache_frontend_data[1]),
+
+       // <-> AXI Controller
        .axi_addr_o   (icache_axi_addr),
        .axi_rreq_o   (icache_axi_rreq),
        .axi_rdy_i    (axi_icache_rdy),

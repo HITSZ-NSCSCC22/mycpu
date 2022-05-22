@@ -54,7 +54,7 @@ module frontend #(
         end else if (instr_buffer_stallreq_i || ftq_full) begin
             next_pc = pc;
         end else begin
-            next_pc = pc + 8;
+            next_pc = pc + FETCH_WIDTH * 4;
         end
     end
 

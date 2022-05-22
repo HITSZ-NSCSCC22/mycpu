@@ -36,12 +36,19 @@ module ifu #(
     assign ftq_accept_o = accept_ftq_input;
 
     // P0
-
+    logic ftq_input_valid = ftq_i.valid;
     // Send addr to ICache
-    assign icache_rreq_o[0] = 1;
-    assign icache_rreq_o[1] = ftq_i.is_cross_cacheline ? 1 : 0;
-    assign icache_raddr_o[0] = ftq_i.start_pc;
-    assign icache_raddr_o[1] = ftq_i.is_cross_cacheline ? ftq_i.start_pc + 16 : 0; // TODO: remove magic number
+    always_comb begin
+        if (ftq_input_valid) begin
+            icache_rreq_o[0] = 1;
+            icache_rreq_o[1] = ftq_i.is_cross_cacheline ? 1 : 0;
+            icache_raddr_o[0] = ftq_i.start_pc;
+            icache_raddr_o[1] = ftq_i.is_cross_cacheline ? ftq_i.start_pc + 16 : 0; // TODO: remove magic number
+        end else begin
+            icache_rreq_o  = 0;
+            icache_raddr_o = 0;
+        end
+    end
 
 
     // P1 
@@ -58,10 +65,11 @@ module ifu #(
     // FTQ input 
     ftq_ifu_t current_fetch_block;
     logic [ADDR_WIDTH-1:0] debug_p1_pc = current_fetch_block.start_pc;  // DEBUG
+    logic [ADDR_WIDTH-1:0] debug_p0_pc = ftq_i.start_pc;  // DEBUG
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             current_fetch_block <= 0;
-        end else if (accept_ftq_input) begin
+        end else begin
             current_fetch_block <= ftq_i;
         end
     end
@@ -72,7 +80,7 @@ module ifu #(
     // Send instr info to IB
     always_ff @(posedge clk or negedge rst_n) begin
         for (integer i = 0; i < FETCH_WIDTH; i++) begin
-            if (i < current_fetch_block.length && ~stallreq_i) begin
+            if (i < current_fetch_block.length && ~stallreq_i && icache_result_valid) begin
                 instr_buffer_o[i].valid <= 1;
                 instr_buffer_o[i].pc <= current_fetch_block.start_pc + i * 4;  // Instr is 4 bytes long
                 instr_buffer_o[i].instr <= cacheline_0[current_fetch_block.start_pc[3:2]+i];

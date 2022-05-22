@@ -164,8 +164,8 @@ module icache #(
     logic [NWAY-1:0][1:0] tag_hit;
     always_comb begin
         for (integer i = 0; i < NWAY; i++) begin
-            tag_hit[i][0] = tag_bram_rdata[i][0][19:0] == raddr_1_delay1[ADDR_WIDTH-1:ADDR_WIDTH-20];
-            tag_hit[i][1] = tag_bram_rdata[i][1][19:0] == raddr_2_delay1[ADDR_WIDTH-1:ADDR_WIDTH-20];
+            tag_hit[i][0] = tag_bram_rdata[i][0][19:0] == raddr_1_delay1[ADDR_WIDTH-1:ADDR_WIDTH-20] && tag_bram_rdata[i][0][20];
+            tag_hit[i][1] = tag_bram_rdata[i][1][19:0] == raddr_2_delay1[ADDR_WIDTH-1:ADDR_WIDTH-20] && tag_bram_rdata[i][1][20];
         end
     end
 

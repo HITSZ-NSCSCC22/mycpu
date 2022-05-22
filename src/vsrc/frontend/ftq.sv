@@ -66,10 +66,10 @@ module ftq #(
 
     // Output
     // -> IFU
-    assign ifu_o.valid = FTQ[ifu_ptr].valid;
-    assign ifu_o.is_cross_cacheline = FTQ[ifu_ptr].is_cross_cacheline;
-    assign ifu_o.start_pc = FTQ[ifu_ptr].start_pc;
-    assign ifu_o.length = FTQ[ifu_ptr].length;
+    assign ifu_o.valid = FTQ[ifu_ptr+ifu_accept_i].valid;
+    assign ifu_o.is_cross_cacheline = FTQ[ifu_ptr+ifu_accept_i].is_cross_cacheline;
+    assign ifu_o.start_pc = FTQ[ifu_ptr+ifu_accept_i].start_pc;
+    assign ifu_o.length = FTQ[ifu_ptr+ifu_accept_i].length;
 
     // -> BPU
     logic [$clog2(QUEUE_SIZE)-1:0] bpu_ptr_plus1;  // Limit the bit width
