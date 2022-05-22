@@ -766,7 +766,7 @@ module cpu_top (
         .valid         (difftest_commit_info_delay1[0].valid),  // 1 means valid
         .pc            (difftest_commit_info_delay1[0].pc),
         .instr         (difftest_commit_info_delay1[0].instr),
-        .skip          (0),                             // not sure meaning, but keep 0 for now
+        .skip          (0),                             // not implemented in CHIPLAB, keep 0 
         .is_TLBFILL    (),
         .TLBFILL_index (),
         .is_CNTinst    (),
@@ -781,7 +781,7 @@ module cpu_top (
         .clock         (aclk),
         .coreid        (0),                             // only one core, so always 0
         .index         (1),                             // commit channel index
-        .skip          (0),                             // not sure meaning, but keep 0 for now
+        .skip          (0),                             
         .valid         (difftest_commit_info_delay1[1].valid),  // 1 means valid
         .pc            (difftest_commit_info_delay1[1].pc),
         .instr         (difftest_commit_info_delay1[1].instr),
@@ -796,7 +796,7 @@ module cpu_top (
         .csr_data      ()
     );
 
-    DifftestStoreEvent DifftestStoreEvent(
+    DifftestStoreEvent difftest_store_event(
         .clock              (aclk),
         .coreid             (0),
         .index              (0),
@@ -818,16 +818,16 @@ module cpu_top (
     );*/
 
 
-    //DifftestExcpEvent DifftestExcpEvent(
-    //    .clock              (aclk),
-    //    .coreid             (0),
-    //    .excp_valid         (excp_flush_commit),
-    //    .eret               (ertn_flush_commit),
-    //    .intrNo             (u_cs_reg.csr_estat[12:2]),
-    //    .cause              (csr_ecode_commit),
-    //    .exceptionPC        (excp_pc_commit),
-    //    .exceptionInst      (excp_instr_commit)
-    //);
+    DifftestExcpEvent difftest_excp_event(
+       .clock              (aclk),
+       .coreid             (0),
+       .excp_valid         (excp_flush_commit),
+       .eret               (ertn_flush_commit),
+       .intrNo             (u_cs_reg.csr_estat[12:2]),
+       .cause              (csr_ecode_commit),
+       .exceptionPC        (excp_pc_commit),
+       .exceptionInst      (excp_instr_commit)
+    );
 
     DifftestCSRRegState difftest_csr_state (
         .clock    (aclk),

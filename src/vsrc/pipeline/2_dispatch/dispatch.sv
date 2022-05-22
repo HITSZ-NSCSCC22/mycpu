@@ -91,7 +91,7 @@ module dispatch #(
             do_we_issue = 2'b01;
         end else if (is_both_mem_instr) begin
             do_we_issue = 2'b01;
-        end else if (aluop_i[1] == `EXE_ERTN_OP) begin
+        end else if (aluop_i[1] == `EXE_ERTN_OP || aluop_i[1] == `EXE_SYSCALL_OP || aluop_i[1] == `EXE_BREAK_OP) begin
             do_we_issue = 2'b01;
         end else begin
             do_we_issue = 2'b11;  // No data dependecies, can be issued
@@ -152,10 +152,10 @@ module dispatch #(
             always_ff @(posedge clk or negedge rst_n) begin : dispatch_ff
                 if (!rst_n) begin
                     exe_o[i] <= 0;
-                end else if (flush) begin
-                    exe_o[i] <= 0;
                 end else if (stall) begin
                     // Do nothing, hold output
+                end else if (flush) begin
+                    exe_o[i] <= 0;
                 end else if (issue_valid[i]) begin
 
                     // Pass through to EXE 

@@ -66,8 +66,12 @@ module ctrl (
     end
 
     //提交difftest
-    assign commit_0 = wb_i_1.diff_commit_o;
-    assign commit_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP) ? 0 : wb_i_2.diff_commit_o;
+    always_comb begin
+        commit_0 = wb_i_1.diff_commit_o;
+        if (wb_i_1.excp) commit_0.valid = 0;
+        commit_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP) ? 0 : wb_i_2.diff_commit_o;
+        if (wb_i_2.excp) commit_1.valid = 0;
+    end
 
     //写入寄存器堆
     assign reg_o_0 = wb_i_1.wb_reg_o;
@@ -78,7 +82,7 @@ module ctrl (
 
     logic excp;
     logic [15:0] excp_num;
-    logic [`RegBus] pc,error_va;
+    logic [`RegBus] pc, error_va;
     assign excp = wb_i_1.excp | wb_i_2.excp;
     assign csr_era = pc;
     //异常处理，优先处理第一条流水线的异常

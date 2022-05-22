@@ -192,18 +192,18 @@ module cs_reg (
                  {32{raddr == `DMW0}}    & csr_dmw0    |
                  {32{raddr == `DMW1}}    & csr_dmw1    ;
 
-assign eentry_out   = csr_eentry;
-assign era_out      = csr_era;
-assign timer_64_o = timer_64 + {{32{csr_cntc[31]}}, csr_cntc};
-assign tid_o      = csr_tid;
-assign llbit_o    = llbit;
-assign asid_out     = csr_asid[`TLB_ASID];
-assign vppn_o     = (we && waddr == `TLBEHI) ? wdata[`VPPN] : csr_tlbehi[`VPPN];
-assign tlbehi_out   = csr_tlbehi;
-assign tlbelo0_out  = csr_tlbelo0;
-assign tlbelo1_out  = csr_tlbelo1;
-assign tlbidx_out   = csr_tlbidx;
-assign rand_index   = timer_64[4:0];
+    assign eentry_out = csr_eentry;
+    assign era_out = csr_era;
+    assign timer_64_o = timer_64 + {{32{csr_cntc[31]}}, csr_cntc};
+    assign tid_o = csr_tid;
+    assign llbit_o = llbit;
+    assign asid_out = csr_asid[`TLB_ASID];
+    assign vppn_o = (we && waddr == `TLBEHI) ? wdata[`VPPN] : csr_tlbehi[`VPPN];
+    assign tlbehi_out = csr_tlbehi;
+    assign tlbelo0_out = csr_tlbelo0;
+    assign tlbelo1_out = csr_tlbelo1;
+    assign tlbidx_out = csr_tlbidx;
+    assign rand_index = timer_64[4:0];
 
 
     //crmd
@@ -321,12 +321,10 @@ assign rand_index   = timer_64[4:0];
     always @(posedge clk) begin
         if (we && waddr == `TCFG) begin
             csr_tval <= {wdata[`INITVAL], 2'b0};
-        end
-        else if (timer_en) begin
+        end else if (timer_en) begin
             if (csr_tval != 32'b0) begin
-            csr_tval <= csr_tval - 32'b1;
-            end
-            else if (csr_tval == 32'b0) begin
+                csr_tval <= csr_tval - 32'b1;
+            end else if (csr_tval == 32'b0) begin
                 csr_tval <= csr_tcfg[`PERIODIC] ? {csr_tcfg[`INITVAL], 2'b0} : 32'hffffffff;
             end
         end
@@ -412,14 +410,14 @@ assign rand_index   = timer_64[4:0];
             csr_tlbelo0[`TLB_MAT] <= tlbelo0_in[`TLB_MAT];
             csr_tlbelo0[`TLB_G]   <= tlbelo0_in[`TLB_G];
             csr_tlbelo0[`TLB_PPN] <= tlbelo0_in[`TLB_PPN];
-        end else if(tlbrd_invalid_wr_en) begin
+        end else if (tlbrd_invalid_wr_en) begin
             csr_tlbelo0[`TLB_V]   <= 1'b0;
             csr_tlbelo0[`TLB_D]   <= 1'b0;
             csr_tlbelo0[`TLB_PLV] <= 2'b0;
             csr_tlbelo0[`TLB_MAT] <= 2'b0;
             csr_tlbelo0[`TLB_G]   <= 1'b0;
             csr_tlbelo0[`TLB_PPN] <= 24'b0;
-    end
+        end
     end
 
     //tlbelo1
@@ -557,7 +555,7 @@ assign rand_index   = timer_64[4:0];
         end
     end
 
-    //tval
+    //ticlr
     always @(posedge clk) begin
         if (rst) csr_ticlr <= 32'b0;
     end
@@ -566,8 +564,7 @@ assign rand_index   = timer_64[4:0];
     always @(posedge clk) begin
         if (rst) begin
             timer_64 <= 64'b0;
-        end
-        else begin
+        end else begin
             timer_64 <= timer_64 + 1'b1;
         end
     end
