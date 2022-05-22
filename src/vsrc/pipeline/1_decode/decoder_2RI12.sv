@@ -92,21 +92,25 @@ module decoder_2RI12 #(
                 imm_o    = {20'b0, imm_12};  // Zero Extension
             end
             `EXE_LD_B: begin
+                use_imm = 1'b0;
                 aluop_o  = `EXE_LD_B_OP;
                 alusel_o = `EXE_RES_LOAD_STORE;
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
             end
             `EXE_LD_H: begin
+                use_imm = 1'b0;
                 aluop_o  = `EXE_LD_H_OP;
                 alusel_o = `EXE_RES_LOAD_STORE;
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
             end
             `EXE_LD_W: begin
+                use_imm = 1'b0;
                 aluop_o  = `EXE_LD_W_OP;
                 alusel_o = `EXE_RES_LOAD_STORE;
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
             end
             `EXE_ST_B: begin
+                use_imm = 1'b0;
                 reg_write_valid_o = 0;
                 reg_write_addr_o = 0;
                 aluop_o  = `EXE_ST_B_OP;
@@ -117,6 +121,7 @@ module decoder_2RI12 #(
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
             end
             `EXE_ST_H: begin
+                use_imm = 1'b0;
                 reg_write_valid_o = 0;
                 reg_write_addr_o = 0;
                 aluop_o  = `EXE_ST_H_OP;
@@ -127,6 +132,7 @@ module decoder_2RI12 #(
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
             end
             `EXE_ST_W: begin
+                use_imm = 1'b0;
                 reg_write_valid_o = 0;
                 reg_write_addr_o = 0;
                 aluop_o  = `EXE_ST_W_OP;
@@ -137,22 +143,26 @@ module decoder_2RI12 #(
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
             end
             `EXE_LD_BU: begin
+                use_imm = 1'b0;
                 aluop_o  = `EXE_LD_BU_OP;
                 alusel_o = `EXE_RES_LOAD_STORE;
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
             end
             `EXE_LD_HU: begin
+                use_imm = 1'b0;
                 aluop_o  = `EXE_LD_HU_OP;
                 alusel_o = `EXE_RES_LOAD_STORE;
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
             end
             `EXE_PRELD: begin
+                use_imm = 1'b0;
                 reg_write_valid_o = 0;
                 reg_write_addr_o = 0;
                 aluop_o = `EXE_NOP_OP;
                 alusel_o = `EXE_RES_NOP;
             end
             default: begin
+                use_imm = 1'b0;
                 decode_result_valid_o = 0;
                 reg_write_valid_o = 0;
                 reg_write_addr_o = 0;

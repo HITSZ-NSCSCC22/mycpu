@@ -62,6 +62,7 @@ module id (
     logic sub_decoder_reg_write_valid[SUB_DECODER_NUM];
     logic [`RegAddrBus] sub_decoder_reg_write_addr[SUB_DECODER_NUM];
     logic [`RegBus] sub_decoder_imm[SUB_DECODER_NUM];
+    logic sub_decoder_use_imm[SUB_DECODER_NUM];
 
     // Sub-decoders in following order:
     // 2R, 3R, 2RI8, 2RI12, 2RI16, I26, Special
@@ -172,7 +173,6 @@ module id (
     // Generate imm, using OR
     logic use_imm;
     logic [`RegBus] imm;
-    logic sub_decoder_use_imm[9];
     assign dispatch_o.use_imm = use_imm;
     assign dispatch_o.imm = imm;
     always_comb begin
@@ -227,15 +227,13 @@ module id (
     logic excp;
     logic [8:0] excp_num;
 
-    assign dispatch_o.refetch = (dispatch_o.aluop == `EXE_TLBFILL_OP || dispatch_o.aluop == `EXE_TLBRD_OP || dispatch_o.aluop == `EXE_TLBWR_OP || dispatch_o.aluop == `EXE_TLBSRCH_OP || dispatch_o.aluop == `EXE_ERTN_OP || dispatch_o.aluop == `EXE_INVTLB_OP) ; 
+    assign dispatch_o.refetch = (dispatch_o.aluop == `EXE_TLBFILL_OP || dispatch_o.aluop == `EXE_TLBRD_OP || dispatch_o.aluop == `EXE_TLBWR_OP || dispatch_o.aluop == `EXE_TLBSRCH_OP || dispatch_o.aluop == `EXE_ERTN_OP || dispatch_o.aluop == `EXE_INVTLB_OP) ;
 
     assign excp_ine = !(instr_valid == `InstInvalid) && !instr_buffer_i.valid;
     assign excp_ipe = kernel_instr && (csr_plv == 2'b11);
 
     assign excp = excp_ipe | instr_syscall | instr_break | excp_i | excp_ine | has_int;
-    assign excp_num  = {
-        excp_ipe, excp_ine, instr_break, instr_syscall, excp_num_i, has_int
-    };
+    assign excp_num = {excp_ipe, excp_ine, instr_break, instr_syscall, excp_num_i, has_int};
     assign dispatch_o.excp = excp;
     assign dispatch_o.excp_num = excp_num;
 

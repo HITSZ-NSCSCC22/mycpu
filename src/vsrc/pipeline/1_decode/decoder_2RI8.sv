@@ -74,6 +74,7 @@ module decoder_2RI8 #(
                 alusel_o = `EXE_RES_SHIFT;
             end
             default: begin
+                use_imm = 1'b0;
                 decode_result_valid_o = 0;
                 aluop_o = 0;
                 alusel_o = 0;

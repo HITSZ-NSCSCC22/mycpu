@@ -70,6 +70,7 @@ module decoder_1RI20 #(
                 alusel_o = `EXE_RES_MOVE;
             end
             default: begin
+                use_imm = 1'b0;
                 decode_result_valid_o = 0;
                 reg_write_valid_o = 0;
                 reg_write_addr_o = 0;

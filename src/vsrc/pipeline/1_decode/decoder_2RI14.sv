@@ -78,6 +78,7 @@ module decoder_2RI14 #(
                 reg_read_addr_o = {5'b0, rj};
             end
             default: begin
+                use_imm = 1'b0;
                 decode_result_valid_o = 0;
                 aluop_o = `EXE_NOP_OP;
                 alusel_o = `EXE_RES_NOP;
