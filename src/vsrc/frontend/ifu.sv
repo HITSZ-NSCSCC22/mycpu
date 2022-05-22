@@ -79,13 +79,19 @@ module ifu #(
     // P2
     // Send instr info to IB
     always_ff @(posedge clk or negedge rst_n) begin
-        for (integer i = 0; i < FETCH_WIDTH; i++) begin
-            if (i < current_fetch_block.length && ~stallreq_i && icache_result_valid) begin
-                instr_buffer_o[i].valid <= 1;
-                instr_buffer_o[i].pc <= current_fetch_block.start_pc + i * 4;  // Instr is 4 bytes long
-                instr_buffer_o[i].instr <= cacheline_0[current_fetch_block.start_pc[3:2]+i];
-            end else begin
+        if (!rst_n) begin
+            for (integer i = 0; i < FETCH_WIDTH; i++) begin
                 instr_buffer_o[i] <= 0;
+            end
+        end else begin
+            for (integer i = 0; i < FETCH_WIDTH; i++) begin
+                if (i < current_fetch_block.length && ~stallreq_i && icache_result_valid) begin
+                    instr_buffer_o[i].valid <= 1;
+                    instr_buffer_o[i].pc <= current_fetch_block.start_pc + i * 4;  // Instr is 4 bytes long
+                    instr_buffer_o[i].instr <= cacheline_0[current_fetch_block.start_pc[3:2]+i];
+                end else begin
+                    instr_buffer_o[i] <= 0;
+                end
             end
         end
     end
