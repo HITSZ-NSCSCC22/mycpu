@@ -78,10 +78,10 @@ module axi_master (
 
 );
     reg write_wait_enable;
-    reg [`DATA] inst_buffer;
+    reg [`Data] inst_buffer;
 
     //read and write data stall
-    reg [`DATA] data_buffer;
+    reg [`Data] data_buffer;
 
     reg [3:0] inst_r_state;
     reg [3:0] data_r_state;
