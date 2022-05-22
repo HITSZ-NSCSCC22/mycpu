@@ -1,18 +1,24 @@
 `include "instr_info.sv"
+`include "frontend/frontend_defines.sv"
+
+`include "frontend/ftq.sv"
+`include "frontend/ifu.sv"
+
 module frontend #(
-    parameter FETCH_WIDTH = 2,
-    parameter ADDR_WIDTH  = 32,
-    parameter DATA_WIDTH  = 32
+    parameter FETCH_WIDTH = 4,
+    parameter ADDR_WIDTH = 32,
+    parameter DATA_WIDTH = 32,
+    parameter CACHELINE_WIDTH = 128
 ) (
     input logic clk,
     input logic rst,
 
     // <-> ICache
-    output logic [ADDR_WIDTH-1:0] icache_read_addr_o[FETCH_WIDTH],
-    input logic icache_stallreq_i,  // ICache cannot accept more addr input
-    input logic icache_read_valid_i[FETCH_WIDTH],
-    input logic [ADDR_WIDTH-1:0] icache_read_addr_i[FETCH_WIDTH],
-    input logic [DATA_WIDTH-1:0] icache_read_data_i[FETCH_WIDTH],
+    // ICache is fixed dual port
+    output logic [1:0] icache_read_req_o,
+    output logic [1:0][ADDR_WIDTH-1:0] icache_read_addr_o,
+    input logic [1:0] icache_read_valid_i,
+    input logic [1:0][CACHELINE_WIDTH-1:0] icache_read_data_i,
 
 
     // <-> Backend
@@ -40,72 +46,61 @@ module frontend #(
         end
     end
 
+    logic ftq_full;
+
     always_comb begin : next_pc_comb
         if (backend_flush_i) begin
             next_pc = backend_next_pc_i;
-        end else if (instr_buffer_stallreq_i) begin
-            next_pc = pc;
-        end else if (icache_stallreq_i) begin
+        end else if (instr_buffer_stallreq_i || ftq_full) begin
             next_pc = pc;
         end else begin
             next_pc = pc + 8;
         end
     end
 
-    // ICache read_addr_o
-    always_comb begin : icache_read_addr_o_comb
-        for (integer i = 0; i < FETCH_WIDTH; i++) begin
-            icache_read_addr_o[i] = pc + i * 4;
+    // BPU
+    bpu_ftq_t bpu_ftq_block;
+    always_comb begin
+        if (~ftq_full) begin
+            bpu_ftq_block.start_pc = pc;
+            bpu_ftq_block.valid = 1;
+            bpu_ftq_block.length = 4;
+            bpu_ftq_block.is_cross_cacheline = 0;
+        end else begin
+            bpu_ftq_block = 0;
         end
     end
 
-    typedef struct packed {
-        bit valid;
-        bit [ADDR_WIDTH-1:0] pc;
-        bit [DATA_WIDTH-1:0] instr;
-    } icache_resp_t;
-    icache_resp_t icache_resp_buffer[FETCH_WIDTH];
-    always_ff @(posedge clk or negedge rst_n) begin : icache_resp_buffer_ff
-        if (!rst_n || icache_resp_ready) begin
-            for (integer i = 0; i < FETCH_WIDTH; i++) begin
-                icache_resp_buffer[i] <= 0;
-            end
-        end else begin
-            for (integer i = 0; i < FETCH_WIDTH; i++) begin
-                if (icache_read_valid_i[i]) begin
-                    icache_resp_buffer[i].valid <= 1;
-                    icache_resp_buffer[i].pc <= icache_read_addr_i[i];
-                    icache_resp_buffer[i].instr <= icache_read_data_i[i];
-                end
-            end
-        end
-    end
-    logic icache_resp_ready;  // 1 if all the instr in icache_resp_buffer is valid
-    always_comb begin : icache_resp_ready_comb
-        icache_resp_ready = 1;
-        for (integer i = 0; i < FETCH_WIDTH; i++) begin
-            icache_resp_ready = icache_resp_ready & icache_resp_buffer[i].valid;
-        end
-    end
+    ftq_ifu_t ftq_ifu_block;
+    logic ifu_ftq_accept;
 
-    always_ff @(posedge clk or negedge rst_n) begin : instr_buffer_o_ff
-        if (!rst_n || backend_flush_i) begin
-            for (integer i = 0; i < FETCH_WIDTH; i++) begin
-                instr_buffer_o[i] <= 0;
-            end
-        end else begin
-            // Keep 0 for most of the time
-            for (integer i = 0; i < FETCH_WIDTH; i++) begin
-                instr_buffer_o[i] <= 0;
-            end
-            if (icache_resp_ready && !instr_buffer_stallreq_i) begin
-                for (integer i = 0; i < FETCH_WIDTH; i++) begin
-                    instr_buffer_o[i].valid <= 1;
-                    instr_buffer_o[i].pc <= icache_resp_buffer[i].pc;
-                    instr_buffer_o[i].instr <= icache_resp_buffer[i].instr;
-                end
-            end
-        end
-    end
+    ftq #(
+        .FETCH_WIDTH(4),
+        .QUEUE_SIZE (4)
+    ) u_ftq (
+        .clk             (clk),
+        .rst             (rst),
+        .bpu_i           (bpu_ftq_block),
+        .bpu_queue_full_o(ftq_full),
+        .backend_commit_i(),
+        .ifu_o           (ftq_ifu_block),
+        .ifu_accept_i    (ifu_ftq_accept)
+    );
+
+
+    ifu u_ifu (
+        .clk            (clk),
+        .rst            (rst),
+        .ftq_i          (ftq_ifu_block),
+        .ftq_accept_o   (ifu_ftq_accept),
+        .icache_rreq_o  (icache_read_req_o),
+        .icache_raddr_o (icache_read_addr_o),
+        .icache_rvalid_i(icache_read_valid_i),
+        .icache_rdata_i (icache_read_data_i),
+        .stallreq_i     (instr_buffer_stallreq_i),
+        .instr_buffer_o (instr_buffer_o)
+    );
+
+
 
 endmodule

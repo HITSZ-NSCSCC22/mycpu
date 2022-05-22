@@ -176,16 +176,17 @@ module cpu_top (
         .s_bready(bready)
     );
 
-    // FETCH_WIDTH is 2
-    localparam FETCH_WIDTH = 2;
+    // FETCH_WIDTH is 4
+    localparam FETCH_WIDTH = 4;
+
     // Frontend -> ICache
-    logic [`InstAddrBus] frontend_icache_addr[FETCH_WIDTH];
+    logic [1:0] frontend_icache_rreq;
+    logic [1:0][`InstAddrBus] frontend_icache_addr;
 
     // ICache -> Frontend
     logic icache_frontend_stallreq;
-    logic icache_frontend_valid[FETCH_WIDTH];
-    logic [`InstAddrBus] icache_frontend_addr[FETCH_WIDTH] = '{1,1};
-    logic [`RegBus] icache_frontend_data[FETCH_WIDTH];
+    logic [1:0]icache_frontend_valid;
+    logic [1:0][127:0] icache_frontend_data; // Cacheline is 128b
 
     logic [31:0] tmp_pc, tmp_pc_plus4;
     assign tmp_pc_plus4 = tmp_pc + 4;
@@ -233,9 +234,8 @@ module cpu_top (
 
         // <-> ICache
         .icache_read_addr_o(frontend_icache_addr),  // -> ICache
-        .icache_stallreq_i(icache_frontend_stallreq),  // <- ICache, I$ cannot accept more addr requests
-        .icache_read_valid_i(),  // <- ICache
-        .icache_read_addr_i(icache_frontend_addr),  // <- ICache
+        .icache_read_req_o(frontend_icache_rreq),
+        .icache_read_valid_i(icache_frontend_valid),  // <- ICache
         .icache_read_data_i(icache_frontend_data),  // <- ICache
 
         // <-> Backend
@@ -753,7 +753,7 @@ module cpu_top (
         .clock         (aclk),
         .coreid        (0),                             // only one core, so always 0
         .index         (0),                             // commit channel index
-        .valid         (difftest_commit_info_delay1[0].valid),  // 1 means valid
+        // .valid         (difftest_commit_info_delay1[0].valid),  // 1 means valid
         .pc            (difftest_commit_info_delay1[0].pc),
         .instr         (difftest_commit_info_delay1[0].instr),
         .skip          (0),                             // not sure meaning, but keep 0 for now
@@ -772,7 +772,7 @@ module cpu_top (
         .coreid        (0),                             // only one core, so always 0
         .index         (1),                             // commit channel index
         .skip          (0),                             // not sure meaning, but keep 0 for now
-        .valid         (difftest_commit_info_delay1[1].valid),  // 1 means valid
+        // .valid         (difftest_commit_info_delay1[1].valid),  // 1 means valid
         .pc            (difftest_commit_info_delay1[1].pc),
         .instr         (difftest_commit_info_delay1[1].instr),
         .is_TLBFILL    (),

@@ -1,4 +1,4 @@
-
+`include "defines.sv"
 `include "frontend/frontend_defines.sv"
 
 module ftq #(
@@ -24,13 +24,21 @@ module ftq #(
     logic rst_n;
     assign rst_n = ~rst;
 
-
+    // QUEUE data structure
     ftq_block_t [QUEUE_SIZE-1:0] FTQ, next_FTQ;
     always_ff @(posedge clk or negedge rst_n) begin
         if (~rst_n) begin
             FTQ <= 0;
         end else begin
             FTQ <= next_FTQ;
+        end
+    end
+
+    // DEBUG signal
+    logic [`InstAddrBus] debug_queue_pc[QUEUE_SIZE];
+    always_comb begin
+        for (integer i = 0; i < QUEUE_SIZE; i++) begin
+            debug_queue_pc[i] = FTQ[i].start_pc;
         end
     end
 
@@ -64,7 +72,9 @@ module ftq #(
     assign ifu_o.length = FTQ[ifu_ptr].length;
 
     // -> BPU
-    assign bpu_queue_full_o = (bpu_ptr == comm_ptr - 1);
+    logic [$clog2(QUEUE_SIZE)-1:0] bpu_ptr_plus1;  // Limit the bit width
+    assign bpu_ptr_plus1 = bpu_ptr + 1;
+    assign bpu_queue_full_o = (bpu_ptr_plus1 == comm_ptr);
 
 
 endmodule

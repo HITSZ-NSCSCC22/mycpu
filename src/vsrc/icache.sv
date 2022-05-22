@@ -5,8 +5,7 @@ module icache #(
     parameter NSET = 256,
     parameter NWAY = 2,
     parameter CACHELINE_WIDTH = 128,
-    parameter ADDR_WIDTH = 32,
-    parameter DATA_WIDTH = 32
+    parameter ADDR_WIDTH = 32
 ) (
     input logic clk,
     input logic rst,
@@ -15,13 +14,13 @@ module icache #(
     input logic rreq_1_i,
     input logic [ADDR_WIDTH-1:0] raddr_1_i,
     output logic rvalid_1_o,
-    output logic [DATA_WIDTH-1:0] rdata_1_o,
+    output logic [CACHELINE_WIDTH-1:0] rdata_1_o,
 
     // Read port 2
     input logic rreq_2_i,
     input logic [ADDR_WIDTH-1:0] raddr_2_i,
     output logic rvalid_2_o,
-    output logic [DATA_WIDTH-1:0] rdata_2_o,
+    output logic [CACHELINE_WIDTH-1:0] rdata_2_o,
 
     // <-> AXI Controller
     output logic [ADDR_WIDTH-1:0] axi_addr_o,
@@ -171,26 +170,6 @@ module icache #(
     end
 
     // Generate read output
-    logic [1:0] offset_1, offset_2;
-    assign offset_1 = raddr_1_delay1[3:2];
-    assign offset_2 = raddr_2_delay1[3:2];
-    logic [NWAY-1:0][1:0][DATA_WIDTH-1:0] data_inside_cacheline;
-    always_comb begin
-        for (integer i = 0; i < NWAY; i++) begin
-            case (offset_1)
-                2'b00: data_inside_cacheline[i][0] = data_bram_rdata[i][0][31:0];
-                2'b01: data_inside_cacheline[i][0] = data_bram_rdata[i][0][63:32];
-                2'b10: data_inside_cacheline[i][0] = data_bram_rdata[i][0][95:64];
-                2'b11: data_inside_cacheline[i][0] = data_bram_rdata[i][0][127:96];
-            endcase
-            case (offset_2)
-                2'b00: data_inside_cacheline[i][1] = data_bram_rdata[i][1][31:0];
-                2'b01: data_inside_cacheline[i][1] = data_bram_rdata[i][1][63:32];
-                2'b10: data_inside_cacheline[i][1] = data_bram_rdata[i][1][95:64];
-                2'b11: data_inside_cacheline[i][1] = data_bram_rdata[i][1][127:96];
-            endcase
-        end
-    end
     always_comb begin
         rvalid_1_o = 0;
         rdata_1_o  = 0;
@@ -199,11 +178,11 @@ module icache #(
         for (integer i = 0; i < NWAY; i++) begin
             if (tag_hit[i][0]) begin
                 rvalid_1_o = 1;
-                rdata_1_o  = data_inside_cacheline[i][0];
+                rdata_1_o  = data_bram_rdata[i][0];
             end
             if (tag_hit[i][1]) begin
                 rvalid_2_o = 1;
-                rdata_2_o  = data_inside_cacheline[i][1];
+                rdata_2_o  = data_bram_rdata[i][1];
             end
         end
     end
