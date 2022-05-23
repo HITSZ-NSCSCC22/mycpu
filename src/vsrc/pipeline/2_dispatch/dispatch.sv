@@ -54,10 +54,10 @@ module dispatch #(
     assign aluop_i[0] = id_i[0].aluop;
     assign aluop_i[1] = id_i[1].aluop;
 
-    logic csr_op[2];
+    logic csr_op[2],is_both_csr_write;
     assign csr_op[0] = aluop_i[0] == `EXE_CSRWR_OP | aluop_i[0] == `EXE_CSRRD_OP | aluop_i[0] == `EXE_CSRXCHG_OP;
     assign csr_op[1] = aluop_i[1] == `EXE_CSRWR_OP | id_i[1].aluop == `EXE_CSRRD_OP | id_i[1].aluop == `EXE_CSRXCHG_OP;
-
+    assign is_both_csr_write = csr_op[0] & csr_op[1];
 
     //assume two csr write instr not come together
     //assign csr_read_addr = id_i[0].imm[13:0] | id_i[1].imm[13:0];
@@ -90,6 +90,8 @@ module dispatch #(
             // Only P0 is issued
             do_we_issue = 2'b01;
         end else if (is_both_mem_instr) begin
+            do_we_issue = 2'b01;
+        end else if(is_both_csr_write)begin
             do_we_issue = 2'b01;
         end else if (aluop_i[1] == `EXE_ERTN_OP || aluop_i[1] == `EXE_SYSCALL_OP || aluop_i[1] == `EXE_BREAK_OP) begin
             do_we_issue = 2'b01;
