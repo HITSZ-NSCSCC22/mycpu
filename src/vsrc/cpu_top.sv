@@ -280,9 +280,6 @@ module cpu_top (
         for (genvar i = 0; i < 2; i++) begin : id
             id u_id (
                 .instr_buffer_i(ib_backend_instr_info[i]),
-                // FIXME: excp info, currently unused
-                .excp_i        (0),
-                .excp_num_i    (4'b0),
 
                 // -> Dispatch
                 .dispatch_o(id_id_dispatch[i]),
@@ -368,15 +365,10 @@ module cpu_top (
     logic excp_flush;
     logic ertn_flush;
     logic [31:0] csr_era_i;
-    logic [31:0] wb_csr_era[2];
     logic [8:0] csr_esubcode_i;
-    logic [8:0] wb_csr_esubcode[2];
     logic [5:0] csr_ecode_i;
-    logic [5:0] wb_csr_ecode[2];
     logic va_error_i;
-    logic wb_va_error[2];
     logic [31:0] bad_va_i;
-    logic [31:0] wb_bad_va[2];
     logic tlbsrch_en;
     logic tlbsrch_found;
     logic [4:0] tlbsrch_index;
@@ -819,6 +811,15 @@ module cpu_top (
         .vaddr              (debug_commit_ld_paddr)
     );*/
 
+    DifftestTrapEvent DifftestTrapEvent(
+        .clock              (aclk),
+        .coreid             (0),
+        .valid              (),
+        .code               (),
+        .pc                 (),
+        .cycleCnt           (),
+        .instrCnt           ()
+    );
 
     DifftestExcpEvent difftest_excp_event(
        .clock              (aclk),

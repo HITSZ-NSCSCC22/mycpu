@@ -29,9 +29,6 @@ module id (
     // <- Instruction Buffer
     input instr_buffer_info_t instr_buffer_i,
 
-    input logic excp_i,
-    input logic [3:0] excp_num_i,
-
     // -> Dispatch
     output id_dispatch_struct dispatch_o,
 
@@ -232,8 +229,8 @@ module id (
     assign excp_ine = !(instr_valid == `InstInvalid) && !instr_buffer_i.valid;
     assign excp_ipe = kernel_instr && (csr_plv == 2'b11);
 
-    assign excp = excp_ipe | instr_syscall | instr_break | excp_i | excp_ine | has_int;
-    assign excp_num = {excp_ipe, excp_ine, instr_break, instr_syscall, excp_num_i, has_int};
+    assign excp = excp_ipe | instr_syscall | instr_break | instr_buffer_i.excp | excp_ine | has_int;
+    assign excp_num = {excp_ipe, excp_ine, instr_break, instr_syscall, instr_buffer_i.excp_num, has_int};
     assign dispatch_o.excp = excp;
     assign dispatch_o.excp_num = excp_num;
 

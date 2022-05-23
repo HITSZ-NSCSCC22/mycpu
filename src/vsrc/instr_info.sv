@@ -14,6 +14,10 @@ typedef struct packed {
     bit [2:0] bpu_ctr_bits;
     bit [2:0] bpu_provider_id;
     bit [13:0] bpu_provider_query_index;
+
+    //excp
+    logic excp;
+    logic [3:0] excp_num;
 } instr_buffer_info_t;
 
 typedef struct packed {
