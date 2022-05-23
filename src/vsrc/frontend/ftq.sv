@@ -10,6 +10,7 @@ module ftq #(
 
     // <-> Frontend
     input logic backend_flush_i,
+    input logic instr_buffer_stallreq_i,
 
     // <-> BPU
     input bpu_ftq_t bpu_i,
@@ -54,8 +55,8 @@ module ftq #(
             comm_ptr <= 0;
         end else begin
             if (backend_commit_i) comm_ptr <= comm_ptr + 1;
-            if (ifu_accept_i) ifu_ptr <= ifu_ptr + 1;
-            if (bpu_i.valid) bpu_ptr <= bpu_ptr + 1;
+            if (ifu_accept_i & ~instr_buffer_stallreq_i) ifu_ptr <= ifu_ptr + 1;
+            if (bpu_i.valid & ~instr_buffer_stallreq_i) bpu_ptr <= bpu_ptr + 1;
 
             // If backend redirect triggered, back to comm_ptr
             if (backend_flush_i) begin

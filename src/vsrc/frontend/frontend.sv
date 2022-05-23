@@ -52,7 +52,7 @@ module frontend #(
     always_comb begin : next_pc_comb
         if (backend_flush_i) begin
             next_pc = backend_next_pc_i;
-        end else if (instr_buffer_stallreq_i || ftq_full) begin
+        end else if (ftq_full) begin
             next_pc = pc;
         end else begin
             next_pc = pc + FETCH_WIDTH * 4;
@@ -85,6 +85,9 @@ module frontend #(
         // Flush
         .backend_flush_i(backend_flush_i),
 
+        // <-> Frontend
+        .instr_buffer_stallreq_i(instr_buffer_stallreq_i),
+
         // <-> BPU
         .bpu_i           (bpu_ftq_block),
         .bpu_queue_full_o(ftq_full),
@@ -98,6 +101,8 @@ module frontend #(
     );
 
 
+    instr_buffer_info_t ifu_instr_output[FETCH_WIDTH];
+    assign instr_buffer_o = instr_buffer_stallreq_i ? '{FETCH_WIDTH{0}} : ifu_instr_output;
     ifu u_ifu (
         .clk(clk),
         .rst(rst),
@@ -112,7 +117,9 @@ module frontend #(
         .icache_rvalid_i(icache_read_valid_i),
         .icache_rdata_i (icache_read_data_i),
         .stallreq_i     (instr_buffer_stallreq_i),
-        .instr_buffer_o (instr_buffer_o)
+
+        // <-> Frontend
+        .instr_buffer_o(ifu_instr_output)
     );
 
 

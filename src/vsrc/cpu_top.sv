@@ -184,7 +184,6 @@ module cpu_top (
     logic [1:0][`InstAddrBus] frontend_icache_addr;
 
     // ICache -> Frontend
-    logic icache_frontend_stallreq;
     logic [1:0]icache_frontend_valid;
     logic [1:0][127:0] icache_frontend_data; // Cacheline is 128b
 
