@@ -66,7 +66,7 @@ module frontend #(
             bpu_ftq_block.start_pc = pc;
             bpu_ftq_block.valid = 1;
             bpu_ftq_block.length = 4;
-            bpu_ftq_block.is_cross_cacheline = 0;
+            bpu_ftq_block.is_cross_cacheline = (pc[3:2] != 2'b00);
         end else begin
             bpu_ftq_block = 0;
         end

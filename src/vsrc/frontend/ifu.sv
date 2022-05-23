@@ -45,8 +45,8 @@ module ifu #(
         if (ftq_input_valid) begin
             icache_rreq_o[0] = 1;
             icache_rreq_o[1] = ftq_i.is_cross_cacheline ? 1 : 0;
-            icache_raddr_o[0] = ftq_i.start_pc;
-            icache_raddr_o[1] = ftq_i.is_cross_cacheline ? ftq_i.start_pc + 16 : 0; // TODO: remove magic number
+            icache_raddr_o[0] = {ftq_i.start_pc[ADDR_WIDTH-1:4], 4'b0};
+            icache_raddr_o[1] = ftq_i.is_cross_cacheline ? {ftq_i.start_pc[ADDR_WIDTH-1:4], 4'b0} + 16 : 0; // TODO: remove magic number
         end else begin
             icache_rreq_o  = 0;
             icache_raddr_o = 0;
@@ -66,19 +66,7 @@ module ifu #(
     end
 
     // P1 
-    // Cacheline returned
-    logic [FETCH_WIDTH-1:0][DATA_WIDTH-1:0] cacheline_0, cacheline_1;
-    assign cacheline_0 = icache_rdata_i[0];
-    assign cacheline_1 = icache_rdata_i[1];
-    logic icache_result_valid;
-    always_comb begin
-        if (ftq_i.is_cross_cacheline) icache_result_valid = icache_rvalid_i[0] & icache_rvalid_i[1];
-        else icache_result_valid = icache_rvalid_i[0];
-
-        if (is_flushing) icache_result_valid = 0;
-    end
-
-    // FTQ input 
+    // FTQ input pass to P1
     ftq_ifu_t current_fetch_block;
     logic [ADDR_WIDTH-1:0] debug_p1_pc = current_fetch_block.start_pc;  // DEBUG
     logic [ADDR_WIDTH-1:0] debug_p0_pc = ftq_i.start_pc;  // DEBUG
@@ -91,11 +79,26 @@ module ifu #(
             current_fetch_block <= ftq_i;
         end
     end
+    // Cacheline returned
+    logic [FETCH_WIDTH-1:0][DATA_WIDTH-1:0] cacheline_0, cacheline_1;
+    assign cacheline_0 = icache_rdata_i[0];
+    assign cacheline_1 = icache_rdata_i[1];
+    logic icache_result_valid;
+    always_comb begin
+        if (current_fetch_block.is_cross_cacheline)
+            icache_result_valid = icache_rvalid_i[0] & icache_rvalid_i[1];
+        else icache_result_valid = icache_rvalid_i[0];
+
+        if (is_flushing) icache_result_valid = 0;
+    end
+
     // If last req to icache is valid, then accept another ftq input
     assign accept_ftq_input = icache_result_valid;
 
     // P2
     // Send instr info to IB
+    logic [FETCH_WIDTH*2-1:0][DATA_WIDTH-1:0] cacheline_combined;
+    assign cacheline_combined = {cacheline_1, cacheline_0};
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             for (integer i = 0; i < FETCH_WIDTH; i++) begin
@@ -111,11 +114,11 @@ module ifu #(
                         instr_buffer_o[i].valid <= 1;
                         instr_buffer_o[i].is_last_in_block <= 1;
                         instr_buffer_o[i].pc <= current_fetch_block.start_pc + i * 4;  // Instr is 4 bytes long
-                        instr_buffer_o[i].instr <= cacheline_0[current_fetch_block.start_pc[3:2]+i];
+                        instr_buffer_o[i].instr <= cacheline_combined[current_fetch_block.start_pc[3:2]+i];
                     end else begin
                         instr_buffer_o[i].valid <= 1;
                         instr_buffer_o[i].pc <= current_fetch_block.start_pc + i * 4;  // Instr is 4 bytes long
-                        instr_buffer_o[i].instr <= cacheline_0[current_fetch_block.start_pc[3:2]+i];
+                        instr_buffer_o[i].instr <= cacheline_combined[current_fetch_block.start_pc[3:2]+i];
                     end
                 end else begin
                     instr_buffer_o[i] <= 0;
