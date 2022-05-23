@@ -129,7 +129,7 @@ module ifu #(
                 // Default
                 instr_buffer_o[i].is_last_in_block <= 0;
 
-                if (i < current_fetch_block.length && ~stallreq_i && icache_result_valid) begin
+                if (i < current_fetch_block.length && ~stallreq_i && icache_result_valid && ~is_flushing && ~flush_i) begin
                     if (i == current_fetch_block.length - 1) begin
                         instr_buffer_o[i].valid <= 1;
                         instr_buffer_o[i].is_last_in_block <= 1;
