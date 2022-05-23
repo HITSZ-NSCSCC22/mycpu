@@ -59,8 +59,8 @@ module ftq #(
 
             // If backend redirect triggered, back to comm_ptr
             if (backend_flush_i) begin
-                ifu_ptr <= comm_ptr;
-                bpu_ptr <= comm_ptr;
+                ifu_ptr <= comm_ptr + 1;
+                bpu_ptr <= comm_ptr + 1;
             end
         end
     end

@@ -125,7 +125,10 @@ module icache #(
     // Cache addr 
     always_comb begin : cache_addr_gen
         for (integer i = 0; i < NWAY; i++) begin
-            if (rreq_1_i) begin
+            if (tag_bram_we[i][0]) begin
+                tag_bram_addr[i][0]  = raddr_1_delay1[11:4];
+                data_bram_addr[i][0] = raddr_1_delay1[11:4];
+            end else if (rreq_1_i) begin
                 tag_bram_addr[i][0]  = raddr_1_i[11:4];
                 data_bram_addr[i][0] = raddr_1_i[11:4];
             end else begin  // TODO: write
@@ -134,7 +137,10 @@ module icache #(
             end
         end
         for (integer i = 0; i < NWAY; i++) begin
-            if (rreq_2_i) begin
+            if (tag_bram_we[i][1]) begin
+                tag_bram_addr[i][1]  = raddr_2_delay1[11:4];
+                data_bram_addr[i][1] = raddr_2_delay1[11:4];
+            end else if (rreq_2_i) begin
                 tag_bram_addr[i][1]  = raddr_2_i[11:4];
                 data_bram_addr[i][1] = raddr_2_i[11:4];
             end else begin
@@ -156,8 +162,8 @@ module icache #(
     always_ff @(posedge clk) begin
         rreq_1_delay1 <= rreq_1_i;
         rreq_2_delay1 <= rreq_2_i;
-        if (rreq_1_i) raddr_1_delay1 <= raddr_1_i;
-        if (rreq_2_i) raddr_2_delay1 <= raddr_2_i;
+        if (rreq_1_i & (rvalid_1 | state == IDLE)) raddr_1_delay1 <= raddr_1_i;
+        if (rreq_2_i & (rvalid_2 | state == IDLE)) raddr_2_delay1 <= raddr_2_i;
     end
 
 
@@ -169,20 +175,23 @@ module icache #(
         end
     end
 
+    logic rvalid_1, rvalid_2;
+    assign rvalid_1_o = rvalid_1 && (rreq_1_delay1 || state == REFILL_1_WAIT);
+    assign rvalid_2_o = rvalid_2 && (rreq_2_delay1 || state == REFILL_2_WAIT);
     // Generate read output
     always_comb begin
-        rvalid_1_o = 0;
-        rdata_1_o  = 0;
-        rvalid_2_o = 0;
-        rdata_2_o  = 0;
+        rvalid_1  = 0;
+        rdata_1_o = 0;
+        rvalid_2  = 0;
+        rdata_2_o = 0;
         for (integer i = 0; i < NWAY; i++) begin
             if (tag_hit[i][0]) begin
-                rvalid_1_o = 1;
-                rdata_1_o  = data_bram_rdata[i][0];
+                rvalid_1  = 1;
+                rdata_1_o = data_bram_rdata[i][0];
             end
             if (tag_hit[i][1]) begin
-                rvalid_2_o = 1;
-                rdata_2_o  = data_bram_rdata[i][1];
+                rvalid_2  = 1;
+                rdata_2_o = data_bram_rdata[i][1];
             end
         end
     end
@@ -226,15 +235,17 @@ module icache #(
                 else next_state = REFILL_2_REQ;
             end
             REFILL_1_WAIT: begin
-                if (rvalid_1_o) begin
-                    if (miss_2) next_state = REFILL_2_REQ;
-                    else next_state = IDLE;
+                if (rvalid_1) begin
+                    // if (miss_2) next_state = REFILL_2_REQ;
+                    // else 
+                    next_state = IDLE;
                 end else next_state = REFILL_1_WAIT;
             end
             REFILL_2_WAIT: begin
-                if (rvalid_2_o) begin
-                    if (miss_1) next_state = REFILL_1_REQ;
-                    else next_state = IDLE;
+                if (rvalid_2) begin
+                    // if (miss_1) next_state = REFILL_1_REQ;
+                    // else 
+                    next_state = IDLE;
                 end else next_state = REFILL_2_WAIT;
             end
             default: begin

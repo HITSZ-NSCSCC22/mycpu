@@ -55,13 +55,33 @@ module ifu #(
 
     // Flush state
     logic is_flushing;
+    logic [1:0] flushing_rvalid;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (~rst_n) begin
+            flushing_rvalid <= 0;
+        end else if (flush_i) begin
+            flushing_rvalid <= 0;
+        end else begin
+            if (icache_rvalid_i[0]) flushing_rvalid[0] <= 1;
+            if (icache_rvalid_i[1]) flushing_rvalid[1] <= 1;
+        end
+    end
+    logic last_rreq_cross_cacheline;
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             is_flushing <= 0;
+            last_rreq_cross_cacheline <= 0;
         end else if (flush_i) begin
             is_flushing <= 1;
-        end else if (icache_rvalid_i[0] | icache_rvalid_i[1]) begin
+            last_rreq_cross_cacheline <= current_fetch_block.is_cross_cacheline;
+        end else if (last_rreq_cross_cacheline) begin
+            if ((icache_rvalid_i | flushing_rvalid) == 2'b11) begin
+                is_flushing <= 0;
+                last_rreq_cross_cacheline <= 0;
+            end
+        end else if (icache_rvalid_i[0] == 1) begin
             is_flushing <= 0;
+            last_rreq_cross_cacheline <= 0;
         end
     end
 
