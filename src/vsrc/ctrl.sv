@@ -27,6 +27,7 @@ module ctrl (
     output logic excp_tlbrefill,
     output logic excp_tlb,
     output logic [18:0] excp_tlb_vppn,
+    output logic tlbrd_en,
 
     //regfile-write
     output wb_reg reg_o_0,
@@ -48,6 +49,7 @@ module ctrl (
     logic [`AluOpBus] aluop, aluop_1;
     assign aluop = wb_i_1.aluop;
     assign aluop_1 = wb_i_2.aluop;
+    assign tlbrd_en = wb_i_1.aluop == `EXE_TLBRD_OP | wb_i_2.aluop == `EXE_TLBRD_OP;
 
     assign ex_mem_flush_o[1] = ex_branch_flag_i[0];
     assign ex_mem_flush_o[0] = 0;

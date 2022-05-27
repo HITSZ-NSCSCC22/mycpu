@@ -93,16 +93,16 @@ assign read_signal_o.tlbidx   = {!r_port.e, 1'b0, r_port.ps, 24'b0}; //note do n
 assign read_signal_o.asid     = r_port.asid;
 
 tlb_entry tlb_entry(
-    .clk            (clk            ),
+    .clk            (clk),
     // search port 0
-    .s0_fetch       (inst_i.fetch     ),
-    .s0_vppn        (s0_vppn        ),
-    .s0_odd_page    (s0_odd_page    ),
-    .s0_asid        (asid           ),
+    .s0_fetch       (inst_i.fetch),
+    .s0_vppn        (s0_vppn),
+    .s0_odd_page    (s0_odd_page),
+    .s0_asid        (asid),
     .s0_found       (inst_o.tlb_found ),
     .s0_index       (),
-    .s0_ps          (s0_ps          ),
-    .s0_ppn         (s0_ppn         ),
+    .s0_ps          (s0_ps),
+    .s0_ppn         (s0_ppn),
     .s0_v           (inst_o.tlb_v     ),
     .s0_d           (inst_o.tlb_d     ),
     .s0_mat         (inst_o.tlb_mat   ),

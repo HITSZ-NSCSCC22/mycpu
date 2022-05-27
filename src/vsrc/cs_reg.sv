@@ -151,7 +151,6 @@ module cs_reg (
     assign tlbrd_valid_wr_en = tlbrd_en && !tlbidx_in[`NE];
     assign tlbrd_invalid_wr_en = tlbrd_en && tlbidx_in[`NE];
 
-
     assign dmw0_out = we == 1'b1 && waddr == `DMW0 ? wdata : csr_dmw0;
     assign dmw1_out = we == 1'b1 && waddr == `DMW1 ? wdata : csr_dmw1;
 
@@ -376,10 +375,11 @@ module cs_reg (
             end else begin
                 csr_tlbidx[`NE] <= 1'b1;
             end
-        end else if (tlbrd_en && !tlbidx_in[`NE]) begin
+        end else if (tlbrd_valid_wr_en) begin
             csr_tlbidx[`PS] <= tlbidx_in[`PS];
             csr_tlbidx[`NE] <= tlbidx_in[`NE];
-        end else if (tlbrd_en && tlbidx_in[`NE]) begin
+        end else if (tlbrd_invalid_wr_en) begin
+            csr_tlbidx[`PS] <= 6'b0;
             csr_tlbidx[`NE] <= tlbidx_in[`NE];
         end
     end

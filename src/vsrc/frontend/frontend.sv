@@ -28,22 +28,22 @@ module frontend #(
     // <- CSR
     input logic csr_pg,
     input logic csr_da,
-    input logic [31:0] csr_dmw0,
-    input logic [31:0] csr_dmw1,
-    input logic [1:0]  csr_plv,
-    input logic [1:0]  csr_datf,
+    input logic [31:0]csr_dmw0,
+    input logic [31:0]csr_dmw1,
+    input logic [1:0]csr_plv,
+    input logic [1:0]csr_datf,
     input logic disable_cache,
 
     // <-> TLB
-    output logic[31:0]inst_addr,
+    output logic [31:0] inst_addr,
     output logic inst_addr_trans_en,
     output logic dmw0_en,
     output logic dmw1_en,
-    input logic  inst_tlb_found,
-    input logic  inst_tlb_v,
-    input logic  inst_tlb_d,
-    input logic [1:0]inst_tlb_mat,
-    input logic [1:0]inst_tlb_plv      
+    input logic inst_tlb_found,
+    input logic inst_tlb_v,
+    input logic inst_tlb_d,
+    input logic [1:0] inst_tlb_mat,
+    input logic [1:0] inst_tlb_plv 
 
 );
 

@@ -240,7 +240,27 @@ module cpu_top (
 
         // <-> Instruction Buffer
         .instr_buffer_stallreq_i(ib_frontend_stallreq),   // instruction buffer is full
-        .instr_buffer_o         (frontend_ib_instr_info)  // -> IB
+        .instr_buffer_o         (frontend_ib_instr_info),  // -> IB
+
+        // <- CSR
+        .csr_pg(csr_pg),
+        .csr_da(csr_da),
+        .csr_dmw0(csr_dmw0),
+        .csr_dmw1(csr_dmw1),
+        .csr_plv(csr_plv),
+        .csr_datf(csr_datf),
+        .disable_cache(),
+
+        // <-> TLB
+        .inst_addr(tlb_inst_i.vaddr),
+        .inst_addr_trans_en(inst_addr_trans_en),
+        .dmw0_en(tlb_inst_i.dmw0_en),
+        .dmw1_en(tlb_inst_i.dmw1_en),
+        .inst_tlb_found(tlb_inst_o.tlb_found),
+        .inst_tlb_v(tlb_inst_o.tlb_v),
+        .inst_tlb_d(tlb_inst_o.tlb_d),
+        .inst_tlb_mat(tlb_inst_o.tlb_mat),
+        .inst_tlb_plv(tlb_inst_o.tlb_plv)
     );
 
     instr_buffer_info_t ib_backend_instr_info[2];  // IB -> ID
@@ -583,6 +603,8 @@ module cpu_top (
 
     csr_write_signal  csr_w_o[2];
 
+    logic tlbrd_en;
+
     ctrl u_ctrl(
         .rst(rst),
         .wb_i_1(wb_ctrl_signal[0]),
@@ -611,6 +633,7 @@ module cpu_top (
         .excp_tlbrefill(excp_tlbrefill),
         .excp_tlb(excp_tlb),
         .excp_tlb_vppn(excp_tlb_vppn),
+        .tlbrd_en(tlbrd_en),
 
         .reg_o_0(reg_o[0]),
         .reg_o_1(reg_o[1]),
@@ -672,7 +695,7 @@ module cpu_top (
         .datf_out(csr_datf),
         .datm_out(csr_datm),
         .ecode_out(tlb_write_signal_i.ecode),
-        .tlbrd_en(),
+        .tlbrd_en(tlbrd_en),
         .tlbehi_in(tlb_read_signal_o.tlbehi),
         .tlbelo0_in(tlb_read_signal_o.tlbelo0),
         .tlbelo1_in(tlb_read_signal_o.tlbelo1),
