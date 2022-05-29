@@ -54,7 +54,7 @@ module dispatch #(
     assign aluop_i[0] = id_i[0].aluop;
     assign aluop_i[1] = id_i[1].aluop;
 
-    assign stallreq = aluop_i == `EXE_TLBRD_OP;
+    //assign stallreq = aluop_i == `EXE_TLBRD_OP;
 
     logic csr_op[2],is_both_csr_write;
     assign csr_op[0] = aluop_i[0] == `EXE_CSRWR_OP | aluop_i[0] == `EXE_CSRRD_OP | aluop_i[0] == `EXE_CSRXCHG_OP;
@@ -96,6 +96,8 @@ module dispatch #(
         end else if(is_both_csr_write)begin
             do_we_issue = 2'b01;
         end else if (aluop_i[1] == `EXE_ERTN_OP || aluop_i[1] == `EXE_SYSCALL_OP || aluop_i[1] == `EXE_BREAK_OP) begin
+            do_we_issue = 2'b01;
+        end else if (aluop_i[1] == `EXE_TLBRD_OP || aluop_i[1] == `EXE_TLBSRCH_OP) begin
             do_we_issue = 2'b01;
         end else begin
             do_we_issue = 2'b11;  // No data dependecies, can be issued

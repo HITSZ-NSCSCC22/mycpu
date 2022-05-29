@@ -427,7 +427,7 @@ module cpu_top (
 
 
     ex_mem_struct ex_signal_o[2];
-
+    logic [1:0] tlb_stallreq;
 
     // EXE Stage
     logic [1:0] ex_stallreq;
@@ -445,6 +445,7 @@ module cpu_top (
                 .ex_o(ex_signal_o[i]),
 
                 .stallreq(ex_stallreq[i]),
+                .tlb_stallreq(tlb_stallreq[i]),
 
                 .branch_flag(branch_flag[i]),
                 .branch_target_address(branch_target_address[i]),
@@ -613,6 +614,7 @@ module cpu_top (
         // <- EX
     	.ex_branch_flag_i (branch_flag),
         .ex_stallreq_i (ex_stallreq),
+        .tlb_stallreq(tlb_stallreq),
 
         .stallreq_from_dispatch(stallreq_from_dispatch),
         .mem_stallreq_i(mem_stallreq),
@@ -634,6 +636,10 @@ module cpu_top (
         .excp_tlb(excp_tlb),
         .excp_tlb_vppn(excp_tlb_vppn),
         .tlbrd_en(tlbrd_en),
+
+        .tlbwr_en(tlb_write_signal_i.tlbwr_en),
+        .tlbsrch_en(tlbsrch_en),
+        .tlbfill_en(tlb_write_signal_i.tlbfill_en),
 
         .reg_o_0(reg_o[0]),
         .reg_o_1(reg_o[1]),

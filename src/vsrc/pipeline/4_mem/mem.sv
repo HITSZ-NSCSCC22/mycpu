@@ -12,7 +12,7 @@ module mem (
     output mem_axi_struct signal_axi_o,
 
     // -> Ctrl
-    output stallreq,
+    output logic stallreq,
 
     // <- AXI Controller
     input logic axi_busy_i,

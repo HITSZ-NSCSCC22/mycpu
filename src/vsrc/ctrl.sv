@@ -6,6 +6,7 @@ module ctrl (
     input wb_ctrl wb_i_2,
     input logic [1:0] ex_branch_flag_i,
     input logic [1:0] ex_stallreq_i,
+    input logic [1:0] tlb_stallreq,
     input logic stallreq_from_dispatch,
     input logic [1:0] mem_stallreq_i,
     output logic excp_flush,
@@ -29,6 +30,10 @@ module ctrl (
     output logic [18:0] excp_tlb_vppn,
     output logic tlbrd_en,
 
+    output logic tlbwr_en,
+    output logic tlbsrch_en,
+    output logic tlbfill_en,
+
     //regfile-write
     output wb_reg reg_o_0,
     output wb_reg reg_o_1,
@@ -50,6 +55,9 @@ module ctrl (
     assign aluop = wb_i_1.aluop;
     assign aluop_1 = wb_i_2.aluop;
     assign tlbrd_en = wb_i_1.aluop == `EXE_TLBRD_OP | wb_i_2.aluop == `EXE_TLBRD_OP;
+    assign tlbwr_en = wb_i_1.aluop == `EXE_TLBWR_OP | wb_i_2.aluop == `EXE_TLBWR_OP;
+    assign tlbsrch_en = wb_i_1.aluop == `EXE_TLBSRCH_OP | wb_i_2.aluop == `EXE_TLBSRCH_OP;
+    assign tlbfill_en = wb_i_1.aluop == `EXE_TLBFILL_OP | wb_i_2.aluop == `EXE_TLBFILL_OP;
 
     assign ex_mem_flush_o[1] = ex_branch_flag_i[0];
     assign ex_mem_flush_o[0] = 0;
@@ -64,6 +72,7 @@ module ctrl (
         else if (ex_stallreq_i[0] | ex_stallreq_i[1]) stall = 5'b11110;
         else if (mem_stallreq_i[0] | mem_stallreq_i[1]) stall = 5'b11110;
         else if (stallreq_from_dispatch) stall = 5'b11100;
+        //else if (tlb_stallreq[0] | tlb_stallreq[1]) stall = 5'b11000;
         else stall = 5'b00000;
     end
 

@@ -22,6 +22,7 @@ module ex (
 
     // Multi-cycle ALU stallreq
     output logic stallreq,
+    output logic tlb_stallreq,
 
     output logic branch_flag,
     output logic [`RegBus] branch_target_address,
@@ -207,6 +208,7 @@ module ex (
 
 
     assign stallreq = muldiv_op & ~muldiv_finished;
+    assign tlb_stallreq = aluop_i == `EXE_TLBRD_OP | aluop_i == `EXE_TLBSRCH_OP;
 
     always @(*) begin
         if (rst == `RstEnable) begin
