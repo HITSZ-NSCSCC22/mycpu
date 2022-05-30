@@ -138,7 +138,7 @@ module cpu_top (
         .dcache_rd_req_i(dcache_axi_rreq),
         .dcache_rd_type_i(3'b000), // For [31:0]
         .dcache_rd_rdy_o(axi_dcache_rd_rdy),
-        .dcache_ret_valid_o(axi_icache_rvalid),
+        .dcache_ret_valid_o(axi_dcache_rvalid),
         .dcache_ret_last_o(), // same as ICache
         .dcache_wr_req_i(dcache_axi_wreq),
         .dcache_wr_type_i(3'b000), 
