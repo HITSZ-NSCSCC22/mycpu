@@ -36,7 +36,7 @@ module dcache (
     input wire [3:0] offset,  //地址的offset域addr[3:0]
     input wire [3:0] wstrb,  //写字节使能信号
     input wire [31:0] wdata,  //写数据
-    output reg           addr_ok,             //该次请求的地址传输OK，读：地址被接收；写：地址和数据别接收
+    output reg           addr_ok,             //该次请求的地址传输OK，读：地址被接收；写：地址和数据被接收
     output reg           data_ok,             //该次请求的数据传输Ok，读：数据返回；写：数据写入完成
     output reg [31:0] rdata,  //读Cache的结果
 
@@ -87,7 +87,7 @@ module dcache (
     parameter BlockMSB = 127;
     parameter BlockLSB = 0;
 
-    reg [149:0] cache_data[0:511];
+    reg [511:0][149:0] cache_data;
     reg [2:0] wr_state, wr_next_state;
     reg         hit;
     reg         hit1;

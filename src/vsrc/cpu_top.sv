@@ -98,20 +98,23 @@ module cpu_top (
     logic [`RegBus] icache_axi_addr;
 
     // MEM <-> AXI Controller
-    // TODO: replace with DCache
-    logic data_axi_we;
-    logic [`DataAddrBus] data_axi_addr;
-    logic [`RegBus] data_axi_data;
+    logic dcache_axi_rreq; // Read handshake
+    logic axi_dcache_rd_rdy;
+    logic axi_dcache_rvalid;
+    logic dcache_axi_wreq; // Write handshake
+    logic axi_dcache_wr_rdy;
+    logic [`DataAddrBus] dcache_axi_raddr;
+    logic [`DataAddrBus] dcache_axi_waddr;
+    logic [`DataAddrBus] dcache_axi_addr;
+    assign dcache_axi_addr = dcache_axi_rreq ? dcache_axi_raddr : dcache_axi_wreq ? dcache_axi_waddr : 0;
+    logic [127:0] axi_dcache_data;
+    logic [127:0] dcache_axi_data;
     logic [`RegBus] axi_mem_data;
     logic data_axi_busy;
     logic [3:0] data_axi_sel; // Byte selection
 
     mem_axi_struct mem_axi_signal[2];
 
-    assign data_axi_we = mem_axi_signal[0].we | mem_axi_signal[1].we;
-    assign data_axi_addr = mem_axi_signal[0].ce ? mem_axi_signal[0].addr : mem_axi_signal[1].ce ? mem_axi_signal[1].addr : 32'b0;
-    assign data_axi_data = mem_axi_signal[0].ce ? mem_axi_signal[0].data : mem_axi_signal[1].ce ? mem_axi_signal[1].data : 32'b0;
-    assign data_axi_sel = mem_axi_signal[0].ce ? mem_axi_signal[0].sel : mem_axi_signal[1].ce ? mem_axi_signal[1].sel : 4'b0;
 
     axi_master u_axi_master (
         .aclk   (aclk),
@@ -125,16 +128,22 @@ module cpu_top (
         .icache_rd_req_i(icache_axi_rreq),
         .icache_rd_rdy_o(axi_icache_rdy),
         .icache_ret_valid_o(axi_icache_rvalid),
-        .icache_ret_last_o(),
+        .icache_ret_last_o(), // Used in burst transfer, currently unused
 
-        // <-> MEM Stage
-        .data_cpu_addr_i(data_axi_addr),
+        // <-> DCache
+        .data_cpu_addr_i(dcache_axi_addr),
         .data_cpu_sel_i(data_axi_sel),
-        .data_cpu_data_o(axi_mem_data),
+        .data_cpu_data_o(axi_dcache_data),
         .data_id(4'b0001),
+        .dcache_rd_req_i(dcache_axi_rreq),
         .dcache_rd_type_i(3'b000), // For [31:0]
+        .dcache_rd_rdy_o(axi_dcache_rd_rdy),
+        .dcache_ret_valid_o(axi_icache_rvalid),
+        .dcache_ret_last_o(), // same as ICache
+        .dcache_wr_req_i(dcache_axi_wreq),
         .dcache_wr_type_i(3'b000), 
-        .dcache_wr_data({{96{1'b0}},data_axi_data}),
+        .dcache_wr_data(dcache_axi_data),
+        .dcache_wr_rdy(axi_dcache_rd_rdy),
 
 
         // External AXI signals
@@ -175,6 +184,39 @@ module cpu_top (
         .s_bvalid(bvalid),
         .s_bready(bready)
     );
+
+    dcache u_dcache(
+    	.clk       (clk       ),
+        .rst       (rst       ),
+
+        .valid     (),
+        .op        (),
+        .uncache   (),
+        .index     (),
+        .tag       (),
+        .offset    (),
+        .wstrb     (),
+        .wdata     (),
+        .addr_ok   (),
+        .data_ok   (),
+        .rdata     (),
+
+        // <-> AXI Controller
+        .rd_req    (dcache_axi_rreq),
+        .rd_type   (),
+        .rd_addr   (dcache_axi_raddr),
+        .rd_rdy    (axi_dcache_rd_rdy),
+        .ret_valid (axi_dcache_rvalid),
+        .ret_last  (),
+        .ret_data  (axi_dcache_data),
+        .wr_req    (dcache_axi_wreq),
+        .wr_type   (),
+        .wr_addr   (dcache_axi_waddr),
+        .wr_wstrb  (),
+        .wr_data   (dcache_axi_data),
+        .wr_rdy    (axi_dcache_wr_rdy)
+    );
+    
 
     // FETCH_WIDTH is 4
     localparam FETCH_WIDTH = 4;
