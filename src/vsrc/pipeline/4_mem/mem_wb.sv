@@ -33,7 +33,10 @@ module mem_wb (
             wb_ctrl_signal.excp <= 1'b0;
             wb_ctrl_signal.excp_num <= 16'b0;
             wb_ctrl_signal.fetch_flush <= 1'b0;
+            wb_ctrl_signal.data_tlb_found <= 1'b0;
+            wb_ctrl_signal.data_tlb_index <= 5'b0;
             wb_ctrl_signal.csr_signal_o <= 47'b0;
+            wb_ctrl_signal.inv_i <= 0;
             wb_ctrl_signal.diff_commit_o.instr <= `ZeroWord;
             wb_ctrl_signal.diff_commit_o.pc <= `ZeroWord;
             wb_ctrl_signal.diff_commit_o.valid <= `InstInvalid;
@@ -60,7 +63,10 @@ module mem_wb (
             wb_ctrl_signal.excp <= mem_signal_o.excp;
             wb_ctrl_signal.excp_num <= mem_signal_o.excp_num;
             wb_ctrl_signal.fetch_flush <= mem_signal_o.refetch;
+            wb_ctrl_signal.data_tlb_found <= mem_signal_o.tlb_found;
+            wb_ctrl_signal.data_tlb_index <= mem_signal_o.tlb_index;
             wb_ctrl_signal.csr_signal_o <= mem_signal_o.csr_signal;
+            wb_ctrl_signal.inv_i <= mem_signal_o.inv_i;
             wb_ctrl_signal.diff_commit_o.pc <= mem_signal_o.instr_info.pc;
             wb_ctrl_signal.diff_commit_o.valid <= mem_signal_o.instr_info.valid;
             wb_ctrl_signal.diff_commit_o.instr <= mem_signal_o.instr_info.instr;

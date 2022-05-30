@@ -635,7 +635,11 @@ module cpu_top (
         .excp_tlbrefill(excp_tlbrefill),
         .excp_tlb(excp_tlb),
         .excp_tlb_vppn(excp_tlb_vppn),
+        .tlbsrch_found(tlbsrch_found),
+        .tlbsrch_index(tlbsrch_index),
         .tlbrd_en(tlbrd_en),
+
+        .inv_o(tlb_inv_signal_i),
 
         .tlbwr_en(tlb_write_signal_i.tlbwr_en),
         .tlbsrch_en(tlbsrch_en),

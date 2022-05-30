@@ -74,6 +74,8 @@ typedef struct packed {
     logic excp;
     logic [9:0] excp_num;
     logic refetch;
+
+    tlb_inv_in_struct inv_i;
 } ex_mem_struct;
 
 // MEM stage data forwarding
@@ -103,6 +105,11 @@ typedef struct packed {
     logic excp;
     logic [15:0] excp_num;
     logic refetch;
+
+    logic tlb_found;
+    logic [4:0] tlb_index;
+
+    tlb_inv_in_struct inv_i;
 } mem_wb_struct;
 
 typedef struct packed {
@@ -148,6 +155,9 @@ typedef struct packed {
     logic excp;
     logic [15:0] excp_num;
     logic fetch_flush;
+    logic data_tlb_found;
+    tlb_inv_in_struct inv_i;
+    logic [4:0] data_tlb_index;
     csr_write_signal csr_signal_o;
     diff_commit diff_commit_o;
 } wb_ctrl;

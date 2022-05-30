@@ -22,10 +22,10 @@ module tlb
     //invtlb 
     input tlb_inv_in_struct inv_signal_i,
     //from csr
-    input logic [31:0]          csr_dmw0             ,
-    input logic [31:0]          csr_dmw1             ,
-    input logic                  csr_da               ,
-    input logic                  csr_pg               
+    input logic [31:0] csr_dmw0 ,
+    input logic [31:0] csr_dmw1,
+    input logic csr_da,
+    input logic csr_pg               
 );
 
 logic [18:0] s0_vppn     ;

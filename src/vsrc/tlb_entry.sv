@@ -132,40 +132,22 @@ generate
     for (i = 0; i < TLBNUM; i = i + 1) 
         begin: invalid_tlb_entry 
             always @(posedge clk) begin
-                if (we && (w_index == i)) begin
-                    tlb_e[i] <= write_port.e;
-                end
+                if (we && (w_index == i)) tlb_e[i] <= write_port.e;
                 else if (inv_i.en) begin
-                    if (inv_i.op == 5'd0 || inv_i.op == 5'd1) begin
+                    if (inv_i.op == 5'd0 || inv_i.op == 5'd1) 
                         tlb_e[i] <= 1'b0;
-                    end
-                    else if (inv_i.op == 5'd2) begin
-                        if (tlb_g[i]) begin
+                    else if (inv_i.op == 5'd2 && tlb_g[i])
+                        tlb_e[i] <= 1'b0;
+                    else if (inv_i.op == 5'd3 && !tlb_g[i]) 
+                        tlb_e[i] <= 1'b0;
+                    else if (inv_i.op == 5'd4 && !tlb_g[i] && (tlb_asid[i] == inv_i.asid))
+                        tlb_e[i] <= 1'b0;
+                    else if (inv_i.op == 5'd5 && !tlb_g[i] && (tlb_asid[i] == inv_i.asid) && 
+                           ((tlb_ps[i] == 6'd12) ? (tlb_vppn[i] == inv_i.vpn) : (tlb_vppn[i][18:10] == inv_i.vpn[18:10])))
                             tlb_e[i] <= 1'b0;
-                        end
-                    end
-                    else if (inv_i.op == 5'd3) begin
-                        if (!tlb_g[i]) begin
+                    else if (inv_i.op == 5'd6 && (tlb_g[i] || (tlb_asid[i] == inv_i.asid)) && 
+                           ((tlb_ps[i] == 6'd12) ? (tlb_vppn[i] == inv_i.vpn) : (tlb_vppn[i][18:10] == inv_i.vpn[18:10])))
                             tlb_e[i] <= 1'b0;
-                        end
-                    end
-                    else if (inv_i.op == 5'd4) begin
-                        if (!tlb_g[i] && (tlb_asid[i] == inv_i.asid)) begin
-                            tlb_e[i] <= 1'b0;
-                        end
-                    end
-                    else if (inv_i.op == 5'd5) begin
-                        if (!tlb_g[i] && (tlb_asid[i] == inv_i.asid) && 
-                           ((tlb_ps[i] == 6'd12) ? (tlb_vppn[i] == inv_i.vpn) : (tlb_vppn[i][18:10] == inv_i.vpn[18:10]))) begin
-                            tlb_e[i] <= 1'b0;
-                        end
-                    end
-                    else if (inv_i.op == 5'd6) begin
-                        if ((tlb_g[i] || (tlb_asid[i] == inv_i.asid)) && 
-                           ((tlb_ps[i] == 6'd12) ? (tlb_vppn[i] == inv_i.vpn) : (tlb_vppn[i][18:10] == inv_i.vpn[18:10]))) begin
-                            tlb_e[i] <= 1'b0;
-                        end
-                    end
                 end
             end
         end 
