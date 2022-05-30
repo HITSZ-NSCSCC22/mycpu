@@ -109,12 +109,9 @@ module cpu_top (
     assign dcache_axi_addr = dcache_axi_rreq ? dcache_axi_raddr : dcache_axi_wreq ? dcache_axi_waddr : 0;
     logic [127:0] axi_dcache_data;
     logic [127:0] dcache_axi_data;
-    logic [`RegBus] axi_mem_data;
+    logic [`RegBus] cache_mem_data;
     logic data_axi_busy;
     logic [3:0] data_axi_sel; // Byte selection
-
-    mem_axi_struct mem_axi_signal[2];
-
 
     axi_master u_axi_master (
         .aclk   (aclk),
@@ -185,21 +182,32 @@ module cpu_top (
         .s_bready(bready)
     );
 
+    mem_cache_struct mem_cache_signal[2];
+    logic mem_cache_we,mem_cache_ce;
+    logic [3:0] mem_cache_sel;
+    logic [31:0] mem_cache_addr,mem_cache_data;
+    
+    assign mem_cache_ce = mem_cache_signal[0].ce | mem_cache_signal[1].ce;
+    assign mem_cache_we = mem_cache_signal[0].we | mem_cache_signal[1].we;
+    assign mem_cache_sel = mem_cache_signal[0].we ? mem_cache_signal[0].sel : mem_cache_signal[0].we ? mem_cache_signal[1].sel : 0;
+    assign mem_cache_addr = mem_cache_signal[0].we ? mem_cache_signal[0].addr : mem_cache_signal[0].we ? mem_cache_signal[1].addr : 0;
+    assign mem_cache_data = mem_cache_signal[0].we ? mem_cache_signal[0].data : mem_cache_signal[0].we ? mem_cache_signal[1].data : 0;
+   
     dcache u_dcache(
     	.clk       (clk       ),
         .rst       (rst       ),
 
-        .valid     (),
-        .op        (),
-        .uncache   (),
-        .index     (),
-        .tag       (),
-        .offset    (),
-        .wstrb     (),
-        .wdata     (),
+        .valid     (mem_cache_ce),
+        .op        (mem_cache_we),
+        .uncache   (1'b0),
+        .index     (mem_cache_addr[11:4]),
+        .tag       (tlb_data_o.tag),
+        .offset    (mem_cache_addr[3:0]),
+        .wstrb     (mem_cache_sel),
+        .wdata     (mem_cache_data),
         .addr_ok   (),
         .data_ok   (),
-        .rdata     (),
+        .rdata     (cache_mem_data),
 
         // <-> AXI Controller
         .rd_req    (dcache_axi_rreq),
@@ -541,11 +549,11 @@ module cpu_top (
                 .signal_o(mem_signal_o[i]),
 
                 // -> AXI Controller
-                .signal_axi_o(mem_axi_signal[i]),
+                .signal_cache_o(mem_cache_signal[i]),
 
                 // <- AXI Controller
                 .axi_busy_i(data_axi_busy),
-                .mem_data_i(axi_mem_data),
+                .mem_data_i(cache_mem_data),
 
                 // -> Ctrl
                 .stallreq(mem_stallreq[i]),

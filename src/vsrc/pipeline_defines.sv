@@ -112,7 +112,7 @@ typedef struct packed {
     logic [3:0] sel;
     logic [`DataAddrBus] addr;
     logic [`RegBus] data;
-} mem_axi_struct;
+} mem_cache_struct;
 
 typedef struct packed {
     logic we;
