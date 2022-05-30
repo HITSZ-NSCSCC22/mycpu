@@ -73,7 +73,7 @@ module ifu #(
             last_rreq_cross_cacheline <= 0;
         end else if (flush_i) begin
             is_flushing <= 1;
-            last_rreq_cross_cacheline <= current_fetch_block.is_cross_cacheline;
+            last_rreq_cross_cacheline <= current_fetch_block.is_cross_cacheline & ftq_input_valid;
         end else if (last_rreq_cross_cacheline) begin
             if ((icache_rvalid_i | flushing_rvalid) == 2'b11) begin
                 is_flushing <= 0;
