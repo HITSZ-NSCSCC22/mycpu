@@ -124,6 +124,8 @@ module ifu #(
             for (integer i = 0; i < FETCH_WIDTH; i++) begin
                 instr_buffer_o[i] <= 0;
             end
+        end else if (stallreq_i) begin
+            // Hold output
         end else begin
             for (integer i = 0; i < FETCH_WIDTH; i++) begin
                 // Default

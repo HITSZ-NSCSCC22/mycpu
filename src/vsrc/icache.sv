@@ -260,11 +260,19 @@ module icache #(
         axi_rreq_o = 0;
         axi_addr_o = 0;
         case (state)
-            REFILL_1_REQ, REFILL_1_WAIT: begin
+            REFILL_1_REQ: begin
+                axi_rreq_o = 1;
+                axi_addr_o = raddr_1_i;
+            end
+            REFILL_1_WAIT: begin
                 axi_rreq_o = 1;
                 axi_addr_o = raddr_1_delay1;
             end
-            REFILL_2_REQ, REFILL_2_WAIT: begin
+            REFILL_2_REQ: begin
+                axi_rreq_o = 1;
+                axi_addr_o = raddr_2_i;
+            end
+            REFILL_2_WAIT: begin
                 axi_rreq_o = 1;
                 axi_addr_o = raddr_2_delay1;
             end
