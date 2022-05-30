@@ -31,10 +31,6 @@ module ifu #(
     output instr_buffer_info_t instr_buffer_o[FETCH_WIDTH]
 );
 
-    // Reset signal
-    logic rst_n;
-    assign rst_n = ~rst;
-
     logic accept_ftq_input;
     assign ftq_accept_o = accept_ftq_input;
 
@@ -42,7 +38,8 @@ module ifu #(
     logic ftq_input_valid = ftq_i.valid;
     // Send addr to ICache
     always_comb begin
-        if (ftq_input_valid) begin
+        if (ftq_input_valid & ~is_flushing) begin
+            // Send rreq to ICache if FTQ input is valid and not in flushing state
             icache_rreq_o[0] = 1;
             icache_rreq_o[1] = ftq_i.is_cross_cacheline ? 1 : 0;
             icache_raddr_o[0] = {ftq_i.start_pc[ADDR_WIDTH-1:4], 4'b0};
@@ -56,8 +53,8 @@ module ifu #(
     // Flush state
     logic is_flushing;
     logic [1:0] flushing_rvalid;
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (~rst_n) begin
+    always_ff @(posedge clk) begin
+        if (rst) begin
             flushing_rvalid <= 0;
         end else if (flush_i) begin
             flushing_rvalid <= 0;
@@ -67,11 +64,16 @@ module ifu #(
         end
     end
     logic last_rreq_cross_cacheline;
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    always_ff @(posedge clk) begin
+        if (rst) begin
             is_flushing <= 0;
             last_rreq_cross_cacheline <= 0;
-        end else if (flush_i) begin
+        end else if (flush_i & current_fetch_block.valid & ~icache_result_valid) begin
+            // Enter a flushing state to wait for ICache return
+            // This state means a rreq is on-the-fly
+            // So require the following condition: 
+            // 1. ICache does not return valid in P1
+            // 2. RREQ is sent to ICache
             is_flushing <= 1;
             last_rreq_cross_cacheline <= current_fetch_block.is_cross_cacheline & ftq_input_valid;
         end else if (last_rreq_cross_cacheline) begin
@@ -90,8 +92,8 @@ module ifu #(
     ftq_ifu_t current_fetch_block;
     logic [ADDR_WIDTH-1:0] debug_p1_pc = current_fetch_block.start_pc;  // DEBUG
     logic [ADDR_WIDTH-1:0] debug_p0_pc = ftq_i.start_pc;  // DEBUG
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    always_ff @(posedge clk) begin
+        if (rst) begin
             current_fetch_block <= 0;
         end else if (flush_i) begin
             current_fetch_block <= 0;
@@ -112,15 +114,17 @@ module ifu #(
         if (is_flushing) icache_result_valid = 0;
     end
 
-    // If last req to icache is valid, then accept another ftq input
-    assign accept_ftq_input = icache_result_valid;
+    // If last req to icache is valid
+    // and not in a flushing state
+    // then accept another ftq input
+    assign accept_ftq_input = icache_result_valid & ~is_flushing;
 
     // P2
     // Send instr info to IB
     logic [FETCH_WIDTH*2-1:0][DATA_WIDTH-1:0] cacheline_combined;
     assign cacheline_combined = {cacheline_1, cacheline_0};
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    always_ff @(posedge clk) begin
+        if (rst) begin
             for (integer i = 0; i < FETCH_WIDTH; i++) begin
                 instr_buffer_o[i] <= 0;
             end
