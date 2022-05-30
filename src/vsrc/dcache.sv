@@ -5,7 +5,7 @@
 // 
 // Create Date: 2022/04/21 17:24:48
 // Design Name: 
-// Module Name: cache
+// Module Name: dcache
 // Project Name: 
 // Target Devices: 
 // Tool Versions: 
@@ -23,9 +23,10 @@
 //V、D、Tag、Data=1+1+20+128=150
 
 
-module cache (
+module dcache (
     input wire clk,
     input wire rst,
+
     //cache与CPU流水线的交互接
     input wire valid,  //表明请求有效
     input wire op,  // 1:write 0: read
@@ -64,12 +65,15 @@ module cache (
     //MISS：Cache模块当前处理的操作Cache缺失，且正在等待AXI总线的wr_rdy信号
     //REPLACE：待替换的Cache行已经从Cache中读出，且正在等待AXI总线的rd_rdy信号
     //REFILL：Cache缺失的访存请求已发出，准备/正在将缺失的Cache行数据写入Cache中
-    parameter IDLE = 0;
-    parameter LOOKUP = 1;
-    parameter MISS = 2;
-    parameter REPLACE = 3;
-    parameter REFILL = 4;
-    parameter WRITE = 5;
+    enum int {
+        IDLE,
+        LOOKUP,
+        MISS,
+        REPLACE,
+        REFILL,
+        WRITE
+    }
+        state, next_state;
     //Write Buffer状态机包括两个状态
     //IDLE: Write Buffer状态机当前没有待写的数据
     //WRITE: 将待写的数据写入Cache中。在主状态机处于LOOKUP状态且发现Store操作命中Cache是，触发Write Buffer状态机进入Write状态
@@ -84,7 +88,6 @@ module cache (
     parameter BlockLSB = 0;
 
     reg [149:0] cache_data[0:511];
-    reg [2:0] state, next_state;
     reg [2:0] wr_state, wr_next_state;
     reg         hit;
     reg         hit1;
@@ -146,10 +149,9 @@ module cache (
 
 
     //读写访问Cache的执行过程
-    integer i;
     //初始化cache
     initial begin
-        for (i = 0; i < 512; i = i + 1) cache_data[i] = 150'd0;
+        for (integer i = 0; i < 512; i = i + 1) cache_data[i] = 0;
     end
 
 
@@ -159,34 +161,38 @@ module cache (
     end
 
     //state change
-    always @(*) begin
+    always_comb begin
         case (state)
-            IDLE:
-            if (!cpu_req_valid || (cpu_req_valid && hit_conflict)) next_state = IDLE;
-            else next_state = LOOKUP;
-            LOOKUP:
-            if ((hit && !cpu_req_valid) || (hit && (cpu_req_valid && hit_conflict)))  //若hit
-                next_state = IDLE;
-            else if (hit && cpu_req_valid) next_state = LOOKUP;
-            else if (!hit) begin
-                next_state = MISS;
-
+            IDLE: begin
+                if (!cpu_req_valid || (cpu_req_valid && hit_conflict)) next_state = IDLE;
+                else next_state = LOOKUP;
             end
-            MISS:
-            if (cpu_wr_rdy == 0) next_state = MISS;
-            else if (cpu_wr_rdy == 1) next_state = REPLACE;
-            REPLACE:
-            if (cpu_rd_rdy == 0) next_state = REPLACE;
-            else next_state = REFILL;
-            REFILL:
-            if (cpu_ret_valid == 1 && cpu_ret_last == 1) next_state = IDLE;
-            else next_state = REFILL;
-
+            LOOKUP: begin
+                if ((hit && !cpu_req_valid) || (hit && (cpu_req_valid && hit_conflict)))  //若hit
+                    next_state = IDLE;
+                else if (hit && cpu_req_valid) next_state = LOOKUP;
+                else if (!hit) begin
+                    next_state = MISS;
+                end
+            end
+            MISS: begin
+                if (cpu_wr_rdy == 0) next_state = MISS;
+                else if (cpu_wr_rdy == 1) next_state = REPLACE;
+            end
+            REPLACE: begin
+                if (cpu_rd_rdy == 0) next_state = REPLACE;
+                else next_state = REFILL;
+            end
+            REFILL: begin
+                if (cpu_ret_valid == 1 && cpu_ret_last == 1) next_state = IDLE;
+                else next_state = REFILL;
+            end
             default: next_state = IDLE;
         endcase
     end
+
     reg wr_buffer;
-    //Write BUffer state change
+    //Write buffer state change
     always @(*) begin
         case (wr_state)
             IDLE:
@@ -303,8 +309,8 @@ module cache (
             //			end
             rd_addr = {cpu_req_tag[19:0], cpu_req_index[7:0], cpu_req_offset};
             rd_type = 3'b000;
-            addr_ok = 1'b1;
-            data_ok <= 1'b1;
+            // addr_ok = 1'b1;
+            // data_ok <= 1'b1;
         end else if (state == REPLACE) begin
             //将被替换行的Cache数据写入主存中
             if (wr_rdy) begin
