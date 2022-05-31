@@ -110,7 +110,7 @@ module cpu_top (
     logic [127:0] axi_dcache_data;
     logic [127:0] dcache_axi_data;
     logic [`RegBus] cache_mem_data;
-    logic data_axi_busy;
+    logic mem_data_ok,mem_addr_ok;
     logic [3:0] data_axi_sel; // Byte selection
 
     axi_master u_axi_master (
@@ -200,13 +200,13 @@ module cpu_top (
         .valid     (mem_cache_ce),
         .op        (mem_cache_we),
         .uncache   (1'b0),
-        .index     (mem_cache_addr[11:4]),
+        .index     (tlb_data_o.index),
         .tag       (tlb_data_o.tag),
-        .offset    (mem_cache_addr[3:0]),
+        .offset    (tlb_data_o.offset),
         .wstrb     (mem_cache_sel),
         .wdata     (mem_cache_data),
-        .addr_ok   (),
-        .data_ok   (),
+        .addr_ok   (mem_addr_ok),
+        .data_ok   (mem_data_ok),
         .rdata     (cache_mem_data),
 
         // <-> AXI Controller
@@ -418,15 +418,10 @@ module cpu_top (
     logic excp_flush;
     logic ertn_flush;
     logic [31:0] csr_era_i;
-    logic [31:0] wb_csr_era[2];
     logic [8:0] csr_esubcode_i;
-    logic [8:0] wb_csr_esubcode[2];
     logic [5:0] csr_ecode_i;
-    logic [5:0] wb_csr_ecode[2];
     logic va_error_i;
-    logic wb_va_error[2];
     logic [31:0] bad_va_i;
-    logic [31:0] wb_bad_va[2];
     logic tlbsrch_en;
     logic tlbsrch_found;
     logic [4:0] tlbsrch_index;
@@ -538,7 +533,7 @@ module cpu_top (
     assign csr_mem_signal = {csr_pg,csr_da,csr_dmw0,csr_dmw1,csr_plv,csr_datm};
     //assign tlb_mem_signal = {data_tlb_found,data_tlb_index,data_tlb_v,data_tlb_d,data_tlb_mat,data_tlb_plv};
 
-    logic wb_LLbit_we_i[2],wb_LLbit_value_i[2];
+    logic wb_LLbit_we_i[2],wb_LLbit_value_i[2],data_fetch;
     generate
         for (genvar i = 0; i < 2; i++) begin : mem
             mem u_mem (
@@ -548,11 +543,13 @@ module cpu_top (
 
                 .signal_o(mem_signal_o[i]),
 
-                // -> AXI Controller
+                // -> cache 
                 .signal_cache_o(mem_cache_signal[i]),
 
                 // <- AXI Controller
-                .axi_busy_i(data_axi_busy),
+                .addr_ok(mem_addr_ok),
+                .data_ok(mem_data_ok),
+                .data_fetch(data_fetch),
                 .mem_data_i(cache_mem_data),
 
                 // -> Ctrl
@@ -564,20 +561,11 @@ module cpu_top (
                 .LLbit_we_o(mem_wb_LLbit_we[i]),
                 .LLbit_value_o(mem_wb_LLbit_value[i]),
 
-                .csr_mem_signal(csr_mem_signal),
-                .disable_cache(1'b0),
-
                 // Data forward
                 // -> Dispatch
                 // -> EX
-                .mem_data_forward_o(mem_data_forward[i]),
+                .mem_data_forward_o(mem_data_forward[i])
 
-                .data_addr_trans_en(mem_data_addr_trans_en[i]),
-                .dmw0_en(mem_data_dmw0_en[i]),
-                .dmw1_en(mem_data_dmw1_en[i]),
-                .cacop_op_mode_di(cacop_op_mode_di[i]),
-
-                .tlb_mem_signal(tlb_mem_signal)
             );
         end
 
@@ -600,6 +588,17 @@ module cpu_top (
                 .mem_LLbit_value(mem_wb_LLbit_value[i]),
 
                 .flush(flush),
+
+                .csr_mem_signal(csr_mem_signal),
+                .disable_cache(1'b0),
+
+                //<- tlb
+                .data_addr_trans_en(mem_data_addr_trans_en[i]),
+                .dmw0_en(mem_data_dmw0_en[i]),
+                .dmw1_en(mem_data_dmw1_en[i]),
+                .cacop_op_mode_di(cacop_op_mode_di[i]),
+                //-> tlb
+                .tlb_mem_signal(tlb_mem_signal),
 
                 //to ctrl
                 .wb_ctrl_signal(wb_ctrl_signal[i]),
@@ -741,6 +740,8 @@ module cpu_top (
     assign data_addr_trans_en = mem_data_addr_trans_en[0] | mem_data_addr_trans_en[1];
     assign tlb_data_i.dmw0_en = mem_data_dmw0_en[0] | mem_data_dmw0_en[1];
     assign tlb_data_i.dmw1_en = mem_data_dmw1_en[0] | mem_data_dmw1_en[1];
+    assign tlb_data_i.vaddr = mem_cache_addr;
+    assign tlb_data_i.fetch = data_fetch;
 
     inst_tlb_struct tlb_inst_i;
     tlb_inst_struct tlb_inst_o;
