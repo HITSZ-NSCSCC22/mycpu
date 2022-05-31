@@ -31,14 +31,14 @@ module ifu #(
     output instr_buffer_info_t instr_buffer_o[FETCH_WIDTH]
 );
 
-    logic accept_ftq_input;
-    assign ftq_accept_o = accept_ftq_input;
-
-    // P0
-    logic ftq_input_valid = ftq_i.valid;
-    // Send addr to ICache
+    // P0 //////////////////////////////////////////////////////////////////////////////
+    logic p0_send_rreq;
+    // Condition when to send rreq to ICache, see doc for detail
+    assign p0_send_rreq = ftq_i.valid & ~is_flushing & ~stallreq_i & ~p1_stallreq;
+    assign ftq_accept_o = p0_send_rreq;
+    // Send read req to ICache
     always_comb begin
-        if (ftq_input_valid & ~is_flushing) begin
+        if (p0_send_rreq) begin
             // Send rreq to ICache if FTQ input is valid and not in flushing state
             icache_rreq_o[0] = 1;
             icache_rreq_o[1] = ftq_i.is_cross_cacheline ? 1 : 0;
@@ -50,79 +50,76 @@ module ifu #(
         end
     end
 
+
+    // P1 //////////////////////////////////////////////////////////////////////////////
     // Flush state
-    logic is_flushing;
-    logic [1:0] flushing_rvalid;
+    logic is_flushing_r, is_flushing;
+    assign is_flushing = is_flushing_r | flush_i;
     always_ff @(posedge clk) begin
         if (rst) begin
-            flushing_rvalid <= 0;
-        end else if (flush_i) begin
-            flushing_rvalid <= 0;
-        end else begin
-            if (icache_rvalid_i[0]) flushing_rvalid[0] <= 1;
-            if (icache_rvalid_i[1]) flushing_rvalid[1] <= 1;
+            is_flushing_r <= 0;
+        end else if (flush_i & p1_read_transaction.valid & ~p1_read_done) begin
+            is_flushing_r <= 1;
+        end else if (p1_read_done) begin
+            is_flushing_r <= 0;
         end
     end
-    logic last_rreq_cross_cacheline;
+
+    // P1 data structure
+    typedef struct packed {
+        logic valid;
+        logic [`InstAddrBus] start_pc;
+        logic is_cross_cacheline;
+        logic [$clog2(`FETCH_WIDTH+1)-1:0] length;
+        logic [1:0] icache_rvalid_r;
+        logic [1:0][CACHELINE_WIDTH-1:0] icache_rdata_r;
+    } read_transaction_t;
+    read_transaction_t p1_read_transaction;
+
+    logic p1_read_done;  // Read done is same cycle as ICache return valid
+    assign p1_read_done = p1_read_transaction.is_cross_cacheline ?
+    (icache_rvalid_i[0] | p1_read_transaction.icache_rvalid_r[0]) & (icache_rvalid_i[1]| p1_read_transaction.icache_rvalid_r[1]) :
+    (icache_rvalid_i[0] | p1_read_transaction.icache_rvalid_r[0]);
+    logic p1_stallreq;
+    assign p1_stallreq = p1_read_transaction.valid & ~p1_read_done;
     always_ff @(posedge clk) begin
         if (rst) begin
-            is_flushing <= 0;
-            last_rreq_cross_cacheline <= 0;
-        end else if (flush_i & current_fetch_block.valid & ~icache_result_valid) begin
-            // Enter a flushing state to wait for ICache return
-            // This state means a rreq is on-the-fly
-            // So require the following condition: 
-            // 1. ICache does not return valid in P1
-            // 2. RREQ is sent to ICache
-            is_flushing <= 1;
-            last_rreq_cross_cacheline <= current_fetch_block.is_cross_cacheline & ftq_input_valid;
-        end else if (last_rreq_cross_cacheline) begin
-            if ((icache_rvalid_i | flushing_rvalid) == 2'b11) begin
-                is_flushing <= 0;
-                last_rreq_cross_cacheline <= 0;
+            p1_read_transaction <= 0;
+        end else if (p0_send_rreq) begin
+            p1_read_transaction.valid <= 1;
+            p1_read_transaction.start_pc <= ftq_i.start_pc;
+            p1_read_transaction.is_cross_cacheline <= ftq_i.is_cross_cacheline;
+            p1_read_transaction.length <= ftq_i.length;
+            p1_read_transaction.icache_rvalid_r <= 0;
+            p1_read_transaction.icache_rdata_r <= 0;
+        end else if (p1_read_done & ~stallreq_i) begin
+            // Reset if done and not stalling
+            p1_read_transaction <= 0;
+        end else begin
+            if (icache_rvalid_i[0]) begin
+                p1_read_transaction.icache_rvalid_r[0] <= 1;
+                p1_read_transaction.icache_rdata_r[0]  <= icache_rdata_i[0];
             end
-        end else if (icache_rvalid_i[0] == 1) begin
-            is_flushing <= 0;
-            last_rreq_cross_cacheline <= 0;
+            if (icache_rvalid_i[1]) begin
+                p1_read_transaction.icache_rvalid_r[1] <= 1;
+                p1_read_transaction.icache_rdata_r[1]  <= icache_rdata_i[1];
+            end
         end
     end
 
-    // P1 
-    // FTQ input pass to P1
-    ftq_ifu_t current_fetch_block;
-    logic [ADDR_WIDTH-1:0] debug_p1_pc = current_fetch_block.start_pc;  // DEBUG
+    // P1 debug, for observability
+    logic [ADDR_WIDTH-1:0] debug_p1_pc = p1_read_transaction.start_pc;  // DEBUG
     logic [ADDR_WIDTH-1:0] debug_p0_pc = ftq_i.start_pc;  // DEBUG
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            current_fetch_block <= 0;
-        end else if (flush_i) begin
-            current_fetch_block <= 0;
-        end else begin
-            current_fetch_block <= ftq_i;
-        end
-    end
-    // Cacheline returned
-    logic [FETCH_WIDTH-1:0][DATA_WIDTH-1:0] cacheline_0, cacheline_1;
-    assign cacheline_0 = icache_rdata_i[0];
-    assign cacheline_1 = icache_rdata_i[1];
-    logic icache_result_valid;
-    always_comb begin
-        if (current_fetch_block.is_cross_cacheline)
-            icache_result_valid = icache_rvalid_i[0] & icache_rvalid_i[1];
-        else icache_result_valid = icache_rvalid_i[0];
+    logic [1:0] debug_p1_rvalid_r = p1_read_transaction.icache_rvalid_r;
 
-        if (is_flushing) icache_result_valid = 0;
-    end
 
-    // If last req to icache is valid
-    // and not in a flushing state
-    // then accept another ftq input
-    assign accept_ftq_input = icache_result_valid & ~is_flushing;
-
-    // P2
+    // P2 //////////////////////////////////////////////////////////////////////////////////
     // Send instr info to IB
-    logic [FETCH_WIDTH*2-1:0][DATA_WIDTH-1:0] cacheline_combined;
-    assign cacheline_combined = {cacheline_1, cacheline_0};
+    logic [FETCH_WIDTH*2-1:0][DATA_WIDTH-1:0] cacheline_combined; // Same cycle as ICache return
+    assign cacheline_combined = {
+        icache_rvalid_i[1] ? icache_rdata_i[1] : p1_read_transaction.icache_rdata_r[1],
+        icache_rvalid_i[0] ? icache_rdata_i[0] : p1_read_transaction.icache_rdata_r[0]
+    };
     always_ff @(posedge clk) begin
         if (rst) begin
             for (integer i = 0; i < FETCH_WIDTH; i++) begin
@@ -130,25 +127,29 @@ module ifu #(
             end
         end else if (stallreq_i) begin
             // Hold output
-        end else begin
+        end else if (p1_read_done & ~is_flushing) begin
             for (integer i = 0; i < FETCH_WIDTH; i++) begin
                 // Default
                 instr_buffer_o[i].is_last_in_block <= 0;
 
-                if (i < current_fetch_block.length && ~stallreq_i && icache_result_valid && ~is_flushing && ~flush_i) begin
-                    if (i == current_fetch_block.length - 1) begin
+                if (i < p1_read_transaction.length) begin
+                    if (i == p1_read_transaction.length - 1) begin
                         instr_buffer_o[i].valid <= 1;
                         instr_buffer_o[i].is_last_in_block <= 1;
-                        instr_buffer_o[i].pc <= current_fetch_block.start_pc + i * 4;  // Instr is 4 bytes long
-                        instr_buffer_o[i].instr <= cacheline_combined[current_fetch_block.start_pc[3:2]+i];
+                        instr_buffer_o[i].pc <= p1_read_transaction.start_pc + i * 4;  // Instr is 4 bytes long
+                        instr_buffer_o[i].instr <= cacheline_combined[p1_read_transaction.start_pc[3:2]+i];
                     end else begin
                         instr_buffer_o[i].valid <= 1;
-                        instr_buffer_o[i].pc <= current_fetch_block.start_pc + i * 4;  // Instr is 4 bytes long
-                        instr_buffer_o[i].instr <= cacheline_combined[current_fetch_block.start_pc[3:2]+i];
+                        instr_buffer_o[i].pc <= p1_read_transaction.start_pc + i * 4;  // Instr is 4 bytes long
+                        instr_buffer_o[i].instr <= cacheline_combined[p1_read_transaction.start_pc[3:2]+i];
                     end
                 end else begin
                     instr_buffer_o[i] <= 0;
                 end
+            end
+        end else begin
+            for (integer i = 0; i < FETCH_WIDTH; i++) begin
+                instr_buffer_o[i] <= 0;
             end
         end
     end

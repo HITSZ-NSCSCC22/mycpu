@@ -31,11 +31,6 @@ module icache #(
     input logic [CACHELINE_WIDTH-1:0] axi_data_i
 );
 
-    // Reset signal
-    logic rst_n;
-    assign rst_n = ~rst;
-
-
     /////////////////////////////////////////////////
     // PO, query BRAM
     ////////////////////////////////////////////////
@@ -122,24 +117,24 @@ module icache #(
         end
     endgenerate
 
-    // Cache addr 
-    always_comb begin : cache_addr_gen
+    // BRAM index gen
+    always_comb begin : bram_addr_gen
         for (integer i = 0; i < NWAY; i++) begin
-            if (tag_bram_we[i][0]) begin
-                tag_bram_addr[i][0]  = raddr_1_delay1[11:4];
-                data_bram_addr[i][0] = raddr_1_delay1[11:4];
+            if (miss_1 | (state == REFILL_1_WAIT & ~rvalid_1)) begin
+                tag_bram_addr[i][0]  = p1_raddr_1[11:4];
+                data_bram_addr[i][0] = p1_raddr_1[11:4];
             end else if (rreq_1_i) begin
                 tag_bram_addr[i][0]  = raddr_1_i[11:4];
                 data_bram_addr[i][0] = raddr_1_i[11:4];
-            end else begin  // TODO: write
+            end else begin
                 tag_bram_addr[i][0]  = 0;
                 data_bram_addr[i][0] = 0;
             end
         end
         for (integer i = 0; i < NWAY; i++) begin
-            if (tag_bram_we[i][1]) begin
-                tag_bram_addr[i][1]  = raddr_2_delay1[11:4];
-                data_bram_addr[i][1] = raddr_2_delay1[11:4];
+            if (miss_2 | (state == REFILL_2_WAIT & ~rvalid_2)) begin
+                tag_bram_addr[i][1]  = p1_raddr_2[11:4];
+                data_bram_addr[i][1] = p1_raddr_2[11:4];
             end else if (rreq_2_i) begin
                 tag_bram_addr[i][1]  = raddr_2_i[11:4];
                 data_bram_addr[i][1] = raddr_2_i[11:4];
@@ -157,27 +152,31 @@ module icache #(
     ///////////////////////////////////////////////////
 
     // Input reg
-    logic rreq_1_delay1, rreq_2_delay1;
-    logic [ADDR_WIDTH-1:0] raddr_1_delay1, raddr_2_delay1;
+    logic p1_rreq_1, p1_rreq_2;
+    logic [ADDR_WIDTH-1:0] p1_raddr_1, p1_raddr_2;
     always_ff @(posedge clk) begin
-        rreq_1_delay1 <= rreq_1_i;
-        rreq_2_delay1 <= rreq_2_i;
-        if (rreq_1_i & (rvalid_1 | state == IDLE)) raddr_1_delay1 <= raddr_1_i;
-        if (rreq_2_i & (rvalid_2 | state == IDLE)) raddr_2_delay1 <= raddr_2_i;
+        if (rvalid_1_o | ~p1_rreq_1) begin
+            p1_rreq_1  <= rreq_1_i;
+            p1_raddr_1 <= raddr_1_i;
+        end
+        if (rvalid_2_o | ~p1_rreq_2) begin
+            p1_rreq_2  <= rreq_2_i;
+            p1_raddr_2 <= raddr_2_i;
+        end
     end
 
 
     logic [NWAY-1:0][1:0] tag_hit;
     always_comb begin
         for (integer i = 0; i < NWAY; i++) begin
-            tag_hit[i][0] = tag_bram_rdata[i][0][19:0] == raddr_1_delay1[ADDR_WIDTH-1:ADDR_WIDTH-20] && tag_bram_rdata[i][0][20];
-            tag_hit[i][1] = tag_bram_rdata[i][1][19:0] == raddr_2_delay1[ADDR_WIDTH-1:ADDR_WIDTH-20] && tag_bram_rdata[i][1][20];
+            tag_hit[i][0] = tag_bram_rdata[i][0][19:0] == p1_raddr_1[ADDR_WIDTH-1:ADDR_WIDTH-20] && tag_bram_rdata[i][0][20];
+            tag_hit[i][1] = tag_bram_rdata[i][1][19:0] == p1_raddr_2[ADDR_WIDTH-1:ADDR_WIDTH-20] && tag_bram_rdata[i][1][20];
         end
     end
 
     logic rvalid_1, rvalid_2;
-    assign rvalid_1_o = rvalid_1 && (rreq_1_delay1 || state == REFILL_1_WAIT);
-    assign rvalid_2_o = rvalid_2 && (rreq_2_delay1 || state == REFILL_2_WAIT);
+    assign rvalid_1_o = rvalid_1 && p1_rreq_1;
+    assign rvalid_2_o = rvalid_2 && p1_rreq_2;
     // Generate read output
     always_comb begin
         rvalid_1  = 0;
@@ -206,8 +205,8 @@ module icache #(
         REFILL_2_WAIT
     }
         state, next_state;
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    always_ff @(posedge clk) begin
+        if (rst) begin
             state <= IDLE;
         end else begin
             state <= next_state;
@@ -215,9 +214,34 @@ module icache #(
     end
 
 
-    logic miss_1, miss_2;
-    assign miss_1 = rreq_1_delay1 & ~rvalid_1_o;
-    assign miss_2 = rreq_2_delay1 & ~rvalid_2_o;
+    logic miss_1_pulse, miss_2_pulse, miss_1_r, miss_2_r, miss_1, miss_2;
+    assign miss_1_pulse = p1_rreq_1 & ~rvalid_1 & (state == IDLE);
+    assign miss_2_pulse = p1_rreq_2 & ~rvalid_2 & (state == IDLE);
+    assign miss_1 = miss_1_pulse | miss_1_r;
+    assign miss_2 = miss_2_pulse | miss_2_r;
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            miss_1_r <= 0;
+            miss_2_r <= 0;
+        end else begin
+            case (state)
+                IDLE: begin
+                    miss_1_r <= miss_1_pulse;
+                    miss_2_r <= miss_2_pulse;
+                end
+                REFILL_1_WAIT: begin
+                    if (axi_rvalid_i) miss_1_r <= 0;
+                end
+                REFILL_2_WAIT: begin
+                    if (axi_rvalid_i) miss_2_r <= 0;
+                end
+                default: begin
+                end
+            endcase
+        end
+    end
+
+
 
     always_comb begin : transition_comb
         case (state)
@@ -236,15 +260,12 @@ module icache #(
             end
             REFILL_1_WAIT: begin
                 if (rvalid_1) begin
-                    // if (miss_2) next_state = REFILL_2_REQ;
-                    // else 
-                    next_state = IDLE;
+                    if (miss_2) next_state = REFILL_2_REQ;
+                    else next_state = IDLE;
                 end else next_state = REFILL_1_WAIT;
             end
             REFILL_2_WAIT: begin
                 if (rvalid_2) begin
-                    // if (miss_1) next_state = REFILL_1_REQ;
-                    // else 
                     next_state = IDLE;
                 end else next_state = REFILL_2_WAIT;
             end
@@ -254,29 +275,20 @@ module icache #(
         endcase
     end
 
-    // State machine output
+    // Read request to AXI Controller
     always_comb begin
-        // Default value 
-        axi_rreq_o = 0;
-        axi_addr_o = 0;
         case (state)
-            REFILL_1_REQ: begin
-                axi_rreq_o = 1;
-                axi_addr_o = raddr_1_i;
+            REFILL_1_REQ, REFILL_1_WAIT: begin
+                axi_rreq_o = miss_1 ? 1 : 0;
+                axi_addr_o = miss_1 ? p1_raddr_1 : 0;
             end
-            REFILL_1_WAIT: begin
-                axi_rreq_o = 1;
-                axi_addr_o = raddr_1_delay1;
-            end
-            REFILL_2_REQ: begin
-                axi_rreq_o = 1;
-                axi_addr_o = raddr_2_i;
-            end
-            REFILL_2_WAIT: begin
-                axi_rreq_o = 1;
-                axi_addr_o = raddr_2_delay1;
+            REFILL_2_REQ, REFILL_2_WAIT: begin
+                axi_rreq_o = miss_2 ? 1 : 0;
+                axi_addr_o = miss_2 ? p1_raddr_2 : 0;
             end
             default: begin
+                axi_rreq_o = 0;
+                axi_addr_o = 0;
             end
         endcase
     end
@@ -296,13 +308,13 @@ module icache #(
                 // write this way
                 if (state == REFILL_1_WAIT && axi_rvalid_i) begin
                     tag_bram_we[i][0] = 1;
-                    tag_bram_wdata[i][0] = {1'b1, raddr_1_delay1[31:12]};
+                    tag_bram_wdata[i][0] = {1'b1, p1_raddr_1[31:12]};
                     data_bram_we[i][0] = 1;
                     data_bram_wdata[i][0] = axi_data_i;
                 end
                 if (state == REFILL_2_WAIT && axi_rvalid_i) begin
                     tag_bram_we[i][1] = 1;
-                    tag_bram_wdata[i][1] = {1'b1, raddr_2_delay1[31:12]};
+                    tag_bram_wdata[i][1] = {1'b1, p1_raddr_2[31:12]};
                     data_bram_we[i][1] = 1;
                     data_bram_wdata[i][1] = axi_data_i;
                 end
