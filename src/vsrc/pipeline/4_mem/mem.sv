@@ -14,31 +14,21 @@ module mem (
     // -> Ctrl
     output stallreq,
 
-    // <- AXI Controller
-    input logic axi_busy_i,
+    // <- cache
+    input logic addr_ok,
+    input logic data_ok,
     input logic [`RegBus] mem_data_i,
+
+    output data_fetch,
 
     input logic LLbit_i,
     input logic wb_LLbit_we_i,
     input logic wb_LLbit_value_i,
 
-    //from csr 
-    input csr_to_mem_struct csr_mem_signal,
-    input logic disable_cache,
-
     // Data forward
     // -> Dispatch
     // -> EX
     output mem_data_forward_t mem_data_forward_o,
-
-    //to addr trans 
-    output logic data_addr_trans_en,
-    output logic dmw0_en,
-    output logic dmw1_en,
-    output logic cacop_op_mode_di,
-
-    //tlb 
-    input tlb_to_mem_struct tlb_mem_signal,
 
     output reg LLbit_we_o,
     output reg LLbit_value_o
@@ -49,14 +39,6 @@ module mem (
     logic access_mem;
     logic mem_store_op;
     logic mem_load_op;
-    logic excp_adem;
-    logic pg_mode;
-    logic da_mode;
-    logic excp_tlbr;
-    logic excp_pil;
-    logic excp_pis;
-    logic excp_pme;
-    logic excp_ppi;
 
     logic [`InstAddrBus] debug_pc_i;
     assign debug_pc_i = signal_i.instr_info.pc;
@@ -75,9 +57,11 @@ module mem (
     assign excp_i = signal_i.excp;
     assign excp_num_i = signal_i.excp_num;
 
+    assign data_fetch = addr_ok | aluop_i == `EXE_TLBSRCH_OP;
+
     assign access_mem = mem_load_op || mem_store_op;
 
-    assign stallreq = axi_busy_i & (mem_load_op | mem_store_op);
+    assign stallreq = !data_ok & (mem_load_op | mem_store_op);
     assign mem_load_op = aluop_i == `EXE_LD_B_OP || aluop_i == `EXE_LD_BU_OP || aluop_i == `EXE_LD_H_OP || aluop_i == `EXE_LD_HU_OP ||
                        aluop_i == `EXE_LD_W_OP || aluop_i == `EXE_LL_OP;
 
@@ -105,28 +89,11 @@ module mem (
     assign signal_o.load_addr = mem_load_op ? mem_addr : 0;
     assign signal_o.store_addr = mem_store_op ? mem_addr : 0;
 
-    //addr dmw trans
-    assign dmw0_en = ((csr_mem_signal.csr_dmw0[`PLV0] && csr_mem_signal.csr_plv == 2'd0) || (csr_mem_signal.csr_dmw0[`PLV3] && csr_mem_signal.csr_plv == 2'd3)) && (signal_i.wdata[31:29] == csr_mem_signal.csr_dmw0[`VSEG]);
-    assign dmw1_en = ((csr_mem_signal.csr_dmw1[`PLV0] && csr_mem_signal.csr_plv == 2'd0) || (csr_mem_signal.csr_dmw1[`PLV3] && csr_mem_signal.csr_plv == 2'd3)) && (signal_i.wdata[31:29] == csr_mem_signal.csr_dmw1[`VSEG]);
-
-    assign pg_mode = !csr_mem_signal.csr_da && csr_mem_signal.csr_pg;
-    assign da_mode = csr_mem_signal.csr_da && !csr_mem_signal.csr_pg;
-
-    assign data_addr_trans_en = pg_mode && !dmw0_en && !dmw1_en && !cacop_op_mode_di;
-
     // Data forward
     assign mem_data_forward_o = {mem_load_op, signal_o.wreg, signal_o.waddr, signal_o.wdata};
 
-    assign excp_tlbr = access_mem && !tlb_mem_signal.data_tlb_found && data_addr_trans_en;
-    assign excp_pil  = mem_load_op  && !tlb_mem_signal.data_tlb_v && data_addr_trans_en;  //cache will generate pil exception??
-    assign excp_pis = mem_store_op && !tlb_mem_signal.data_tlb_v && data_addr_trans_en;
-    assign excp_ppi = access_mem && tlb_mem_signal.data_tlb_v && (csr_mem_signal.csr_plv > tlb_mem_signal.data_tlb_plv) && data_addr_trans_en;
-    assign excp_pme  = mem_store_op && tlb_mem_signal.data_tlb_v && (csr_mem_signal.csr_plv <= tlb_mem_signal.data_tlb_plv) && !tlb_mem_signal.data_tlb_d && data_addr_trans_en;
-
-    assign signal_o.excp = excp_tlbr || excp_pil || excp_pis || excp_ppi || excp_pme || excp_adem || excp_i;
-    assign signal_o.excp_num = {
-        excp_pil, excp_pis, excp_ppi, excp_pme, excp_tlbr, excp_adem, excp_num_i
-    };
+    assign signal_o.excp = excp_i;
+    assign signal_o.excp_num = excp_num_i;
     assign signal_o.refetch = signal_i.refetch;
 
     always @(*) begin
