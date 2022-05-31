@@ -75,10 +75,7 @@ module frontend #(
     ftq_ifu_t ftq_ifu_block;
     logic ifu_ftq_accept;
 
-    ftq #(
-        .FETCH_WIDTH(4),
-        .QUEUE_SIZE (4)
-    ) u_ftq (
+    ftq u_ftq (
         .clk(clk),
         .rst(rst),
 
