@@ -156,7 +156,7 @@ module dcache (
 
 
     always @(posedge clk, posedge rst) begin
-        if (!rst) state <= IDLE;
+        if (rst) state <= IDLE;
         else state <= next_state;
     end
 
