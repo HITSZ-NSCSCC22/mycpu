@@ -83,4 +83,7 @@ git checkout -b <branch_name>
 
 > 引用和致谢
 
+[cva5](https://github.com/openhwgroup/cva5) 项目和 Eric Matthews
+
 - [乘除法器](https://github.com/risclite/rv32m-multiplier-and-divider)
+- [参数化的LFSR](https://github.com/openhwgroup/cva5/blob/master/core/lfsr.sv)

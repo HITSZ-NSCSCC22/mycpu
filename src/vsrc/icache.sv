@@ -1,5 +1,6 @@
 
 `include "utils/bram.sv"
+`include "utils/lfsr.sv"
 
 module icache #(
     parameter NSET = 256,
@@ -295,9 +296,14 @@ module icache #(
 
     // Refill write BRAM
     logic random_r;
-    always_ff @(posedge clk) begin
-        random_r <= ~random_r;
-    end
+    lfsr #(
+        .WIDTH(1),
+    ) u_lfsr (
+        .clk  (clk),
+        .rst  (rst),
+        .en   (1'b1),
+        .value(random_r)
+    );
     always_comb begin
         for (integer i = 0; i < NWAY; i++) begin
             tag_bram_we[i] = 0;
