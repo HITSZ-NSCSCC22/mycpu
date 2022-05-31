@@ -24,18 +24,18 @@
 
 
 module dcache (
-    input logic  clk,
-    input logic  rst,
+    input logic clk,
+    input logic rst,
 
     //cache与CPU流水线的交互接
-    input logic  valid,  //表明请求有效
-    input logic  op,  // 1:write 0: read
-    input logic  uncache,  //标志uncache指令，高位有效
-    input logic  [7:0] index,  // 地址的index域(addr[11:4])
-    input logic  [19:0] tag,  //从TLB查到的pfn形成的tag
-    input logic  [3:0] offset,  //地址的offset域addr[3:0]
-    input logic  [3:0] wstrb,  //写字节使能信号
-    input logic  [31:0] wdata,  //写数据
+    input logic valid,  //表明请求有效
+    input logic op,  // 1:write 0: read
+    input logic uncache,  //标志uncache指令，高位有效
+    input logic [7:0] index,  // 地址的index域(addr[11:4])
+    input logic [19:0] tag,  //从TLB查到的pfn形成的tag
+    input logic [3:0] offset,  //地址的offset域addr[3:0]
+    input logic [3:0] wstrb,  //写字节使能信号
+    input logic [31:0] wdata,  //写数据
     output logic addr_ok,             //该次请求的地址传输OK，读：地址被接收；写：地址和数据被接收
     output logic data_ok,             //该次请求的数据传输Ok，读：数据返回；写：数据写入完成
     output logic [31:0] rdata,  //读Cache的结果
@@ -44,16 +44,16 @@ module dcache (
     output logic rd_req,  //读请求有效信号。高电平有效
     output logic[3:0]    rd_type,              //读请求类型：3'b000: 字节；3'b001: 半字；3'b010: 字；3'b100：Cache行
     output logic [31:0] rd_addr,  //读请求起始地址
-    input logic  rd_rdy,  //读请求能否被接收的握手信号。高电平有效
-    input logic  ret_valid,  //返回数据有效。高电平有效。
-    input logic  ret_last,  //返回数据是一次读请求对应的最后一个返回数据
-    input logic  [31:0] ret_data,  //读返回数据
+    input logic rd_rdy,  //读请求能否被接收的握手信号。高电平有效
+    input logic ret_valid,  //返回数据有效。高电平有效。
+    input logic ret_last,  //返回数据是一次读请求对应的最后一个返回数据
+    input logic [31:0] ret_data,  //读返回数据
     output logic wr_req,  //写请求有效信号。高电平有效
     output logic[2:0]    wr_type,              //写请求类型：3'b000: 字节；3'b001: 半字；3'b010: 字；3'b100：Cache行
     output logic [31:0] wr_addr,  //写请求起始地址
     output logic[3:0]    wr_wstrb,             //写操作的字节掩码。仅在写请求类型为：3'b000: 字节；3'b001: 半字；3'b010：字的情况下才有意义
     output logic [127:0] wr_data,  //写数据
-    input logic  wr_rdy  //写请求能否被接受的握手信号。具体见p2234.
+    input logic wr_rdy  //写请求能否被接受的握手信号。具体见p2234.
 
 
     //还需对类SRAM-AXI转接桥模块进行调整，随后确定实现
@@ -89,29 +89,29 @@ module dcache (
 
     logic [511:0][149:0] cache_data;
     logic [2:0] wr_state, wr_next_state;
-    logic         hit;
-    logic         hit1;
-    logic         hit2;
-    logic         way;  //若hit，则way无意义，若miss，则way表示分配的那一路
-    logic         write_op;  //hit write 执行标志，高电平有效
-    logic         miss_way_r;  //缺失路的写使能
+    logic        hit;
+    logic        hit1;
+    logic        hit2;
+    logic        way;  //若hit，则way无意义，若miss，则way表示分配的那一路
+    logic        write_op;  //hit write 执行标志，高电平有效
+    logic        miss_way_r;  //缺失路的写使能
 
     //虚地址共32位，[31:12]为Tag，[11:4]为Cache组索引index, [3:0]:offset,Cache行内偏移
-    logic  [ 7:0] cpu_req_index;
-    logic  [19:0] cpu_req_tag;
-    logic  [ 3:0] cpu_req_offset;
+    logic [ 7:0] cpu_req_index;
+    logic [19:0] cpu_req_tag;
+    logic [ 3:0] cpu_req_offset;
 
     //wire cpu_req_uncache;
-    logic         cpu_req_valid;
-    logic         cpu_req_op;
-    logic  [ 3:0] cpu_req_wstrb;
-    logic  [31:0] cpu_req_wdata;
+    logic        cpu_req_valid;
+    logic        cpu_req_op;
+    logic [ 3:0] cpu_req_wstrb;
+    logic [31:0] cpu_req_wdata;
 
-    logic         cpu_rd_rdy;
-    logic         cpu_wr_rdy;
-    logic         cpu_ret_valid;
-    logic         cpu_ret_last;
-    logic  [31:0] cpu_ret_data;
+    logic        cpu_rd_rdy;
+    logic        cpu_wr_rdy;
+    logic        cpu_ret_valid;
+    logic        cpu_ret_last;
+    logic [31:0] cpu_ret_data;
 
     ////虚地址共32位，[31:12]为Tag，[11:4]为Cache组索引index, [3:0]:offset,Cache行内偏移
     //logic [7:0]cpu_req_index;
@@ -131,7 +131,7 @@ module dcache (
     //logic[31:0] cpu_ret_data;
 
     //hit write 冲突 高位有效
-    logic         hit_conflict = 0;
+    logic        hit_conflict = 0;
 
     assign cpu_req_valid = valid;
     assign cpu_req_op = op;
@@ -155,7 +155,7 @@ module dcache (
     end
 
 
-    always @(posedge clk, posedge rst) begin
+    always @(posedge clk) begin
         if (rst) state <= IDLE;
         else state <= next_state;
     end
@@ -338,20 +338,20 @@ module dcache (
                 cache_data[2*cpu_req_index+way][149:128] = {2'b10, cpu_req_tag};
                 cache_data[2*cpu_req_index+way][rt_offset*32+:32] = ret_data;
                 if (ret_last) begin
-                    rt_offset = 0;
+                    // rt_offset = 0;
                     rd_req = 1'b0;
-                    rdata = cache_data[2*cpu_req_index+way][cpu_req_index*8+:32];
+                    rdata  = cache_data[2*cpu_req_index+way][cpu_req_index*8+:32];
                 end
             end
             if (cpu_req_op == 1) begin
                 cache_data[2*cpu_req_index+way][149:128] = {2'b11, cpu_req_tag};
                 cache_data[2*cpu_req_index+way][rt_offset*8+:32] = ret_data;
                 if (ret_last) begin
-                    rt_offset = 0;
+                    // rt_offset = 0;
                     cache_data[2*cpu_req_index+way][cpu_req_index*8+:32] = cpu_req_wdata;
                 end
             end
-            rt_offset = rt_offset + 1;
+            // rt_offset = rt_offset + 1;
         end
     end
 

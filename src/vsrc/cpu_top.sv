@@ -9,6 +9,7 @@
 `include "frontend/frontend.sv"
 `include "instr_buffer.sv"
 `include "icache.sv"
+`include "dcache.sv"
 `include "ctrl.sv"
 `include "pipeline_defines.sv"
 `include "pipeline/1_decode/id.sv"
@@ -140,7 +141,7 @@ module cpu_top (
         .dcache_wr_req_i(dcache_axi_wreq),
         .dcache_wr_type_i(3'b000), 
         .dcache_wr_data(dcache_axi_data),
-        .dcache_wr_rdy(axi_dcache_rd_rdy),
+        .dcache_wr_rdy(axi_dcache_wr_rdy),
 
 
         // External AXI signals
