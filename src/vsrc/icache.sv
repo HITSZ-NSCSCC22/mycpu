@@ -295,9 +295,9 @@ module icache #(
     end
 
     // Refill write BRAM
-    logic random_r;
+    logic [2:0] random_r;
     lfsr #(
-        .WIDTH(1),
+        .WIDTH(3)
     ) u_lfsr (
         .clk  (clk),
         .rst  (rst),
@@ -310,7 +310,7 @@ module icache #(
             tag_bram_wdata[i] = 0;
             data_bram_we[i] = 0;
             data_bram_wdata[i] = 0;
-            if (i[0] == random_r) begin
+            if (i[0] == random_r[0]) begin
                 // write this way
                 if (state == REFILL_1_WAIT && axi_rvalid_i) begin
                     tag_bram_we[i][0] = 1;
