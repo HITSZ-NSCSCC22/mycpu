@@ -76,7 +76,7 @@ module dcache (
         state, next_state;
     //Write Buffer状态机包括两个状态
     //IDLE: Write Buffer状态机当前没有待写的数据
-    //WRITE: 将待写的数据写入Cache中。在主状态机处于LOOKUP状态且发现Store操作命中Cache是，触发Write Buffer状态机进入Write状态
+    //WRITE: 将待写的数据写入Cache中。在主状态机处于LOOKUP状态且发现Store操作命中Cache时，触发Write Buffer状态机进入Write状态
     //同时Write Buffer会寄存Store要写入的Index、路号、offset、写使能(写32位数据里的那些字节)和写数据。
 
 
@@ -88,7 +88,7 @@ module dcache (
     parameter BlockLSB = 0;
 
     logic [511:0][149:0] cache_data;
-    logic [2:0] wr_state, wr_next_state;
+    logic [31:0] wr_state, wr_next_state;
     logic        hit;
     logic        hit1;
     logic        hit2;
@@ -215,7 +215,7 @@ module dcache (
     //hit1
     always @(*) begin
         if (state == LOOKUP)
-            if(cache_data[2*cpu_req_index][V]==1'b1&&cache_data[2*cpu_req_index][TagMSB:TagLSB]==cpu_req_tag)begin
+            if(cache_data[2*cpu_req_index][V]==1'b1&&cache_data[2*cpu_req_index][TagMSB:TagLSB] == cpu_req_tag)begin
                 hit1 = 1'b1;
                 if (cpu_req_op == 1) begin
                     if (index == cpu_req_index && tag == cpu_req_tag) begin
@@ -228,7 +228,7 @@ module dcache (
     //hit2
     always @(*) begin
         if (state == LOOKUP)
-            if(cache_data[2*cpu_req_index+1][V]==1'b1&&cache_data[2*cpu_req_index+1][TagMSB:TagLSB]==cpu_req_tag)begin
+            if(cache_data[2*cpu_req_index+1][V]==1'b1&&cache_data[2*cpu_req_index+1][TagMSB:TagLSB] == cpu_req_tag)begin
                 hit2 = 1'b1;
                 if (cpu_req_op == 1) begin
                     if (index == cpu_req_index && tag == cpu_req_tag) begin
@@ -262,7 +262,7 @@ module dcache (
                 end
             end
 
-        else if(wr_state==WRITE && hit)                                     //write hit
+        else if(wr_state == WRITE && hit)                                     //write hit
         begin
                 addr_ok <= 1'b1;
                 data_ok <= 1'b1;
