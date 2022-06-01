@@ -43,7 +43,7 @@ module dummy_dcache (
         state, next_state;
 
     always_ff @(posedge clk) begin
-        if (rst) state <= 0;
+        if (rst) state <= IDLE;
         else state <= next_state;
     end
 
@@ -95,9 +95,9 @@ module dummy_dcache (
 
     //delay wr_rdy one cycle
     logic reg_wr_rdy;
-    always_ff @(posedge clk)begin
-        if(rst) reg_wr_rdy<=0;
-        else reg_wr_rdy<=wr_rdy;
+    always_ff @(posedge clk) begin
+        if (rst) reg_wr_rdy <= 0;
+        else reg_wr_rdy <= wr_rdy;
     end
 
     assign rd_type = 3'b010;  // word
