@@ -59,7 +59,7 @@ module cpu_top (
     // write data
     output [ 3:0] wid,
     output [127:0] wdata,
-    output [ 3:0] wstrb,
+    output [ 15:0] wstrb,
     output        wlast,
     output        wvalid,
     input         wready,
@@ -130,7 +130,7 @@ module cpu_top (
 
         // <-> DCache
         .data_cpu_addr_i(dcache_axi_addr),
-        .data_cpu_sel_i(data_axi_sel),
+        .data_cpu_sel_i(16'hffff),
         .data_cpu_data_o(axi_dcache_data),
         .data_id(4'b0001),
         .dcache_rd_req_i(dcache_axi_rreq),

@@ -156,15 +156,15 @@ module dummy_dcache (
             end
             WRITE_REQ: begin
                 if (wr_rdy) begin
-                    wr_req   = 1;
-                    wr_addr  = wr_addr_r;
-                    wr_data  = {wr_rd_data_r[127:32], wdata};
-                    // case (wr_addr_r[3:2])
-                    //     2'b00: wr_data = {wr_rd_data_r[127:32], wdata};
-                    //     2'b01: wr_data = {wr_rd_data_r[127:64], wdata, wr_rd_data_r[31:0]};
-                    //     2'b10: wr_data = {wr_rd_data_r[127:96], wdata, wr_rd_data_r[63:0]};
-                    //     2'b11: wr_data = {wdata, wr_rd_data_r[95:0]};
-                    // endcase
+                    wr_req  = 1;
+                    wr_addr = wr_addr_r;
+                    wr_data = {wr_rd_data_r[127:32], wdata};
+                    case (wr_addr_r[3:2])
+                        2'b00: wr_data = {wr_rd_data_r[127:32], wdata};
+                        2'b01: wr_data = {wr_rd_data_r[127:64], wdata, wr_rd_data_r[31:0]};
+                        2'b10: wr_data = {wr_rd_data_r[127:96], wdata, wr_rd_data_r[63:0]};
+                        2'b11: wr_data = {wdata, wr_rd_data_r[95:0]};
+                    endcase
                     wr_wstrb = wstrb;
                 end
             end

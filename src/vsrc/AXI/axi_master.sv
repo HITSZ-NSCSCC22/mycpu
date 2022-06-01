@@ -15,7 +15,7 @@ module axi_master (
 
     //data
     input wire [`ADDR] data_cpu_addr_i,
-    input wire [3:0] data_cpu_sel_i,
+    input wire [15:0] data_cpu_sel_i,
     output reg [`Data] data_cpu_data_o,
     input wire [3:0] data_id,  //决定是读数据还是取指令
     input wire [2:0] dcache_rd_type_i,  // dacache read type
@@ -65,7 +65,7 @@ module axi_master (
     //w
     output wire [`ID] s_wid,
     output reg [`Data] s_wdata,
-    output wire [3:0] s_wstrb,  //字节选通位和sel差不多
+    output wire [15:0] s_wstrb,  //字节选通位和sel差不多
     output reg s_wlast,
     output reg s_wvalid,
     input wire s_wready,
