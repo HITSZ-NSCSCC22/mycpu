@@ -65,17 +65,17 @@ module frontend #(
     // assign dmw1_en = ((csr_dmw1[`PLV0] && csr_plv == 2'd0) || (csr_dmw1[`PLV3] && csr_plv == 2'd3)) && (pc[31:29] == csr_dmw1[`VSEG]);
 
     //excp
-    logic excp_tlbr, excp_pif, excp_ppi, excp_adef;
-    assign excp_tlbr = !inst_tlb_found && inst_addr_trans_en;
-    assign excp_pif = !inst_tlb_v && inst_addr_trans_en;
-    assign excp_ppi = (csr_plv > inst_tlb_plv) && inst_addr_trans_en;
-    assign excp_adef = (pc[0] || pc[1]) | (pc[31] && (csr_plv == 2'd3) && inst_addr_trans_en);
+    // logic excp_tlbr, excp_pif, excp_ppi, excp_adef;
+    // assign excp_tlbr = !inst_tlb_found && inst_addr_trans_en;
+    // assign excp_pif = !inst_tlb_v && inst_addr_trans_en;
+    // assign excp_ppi = (csr_plv > inst_tlb_plv) && inst_addr_trans_en;
+    // assign excp_adef = (pc[0] || pc[1]) | (pc[31] && (csr_plv == 2'd3) && inst_addr_trans_en);
 
-    assign instr_buffer_o[0].excp = excp_tlbr | excp_pif | excp_ppi | excp_adef;
-    assign instr_buffer_o[0].excp_num = {excp_ppi, excp_pif, excp_tlbr, excp_adef};
+    // assign instr_buffer_o[0].excp = excp_tlbr | excp_pif | excp_ppi | excp_adef;
+    // assign instr_buffer_o[0].excp_num = {excp_ppi, excp_pif, excp_tlbr, excp_adef};
 
-    assign instr_buffer_o[1].excp = excp_tlbr | excp_pif | excp_ppi | excp_adef;
-    assign instr_buffer_o[1].excp_num = {excp_ppi, excp_pif, excp_tlbr, excp_adef};
+    // assign instr_buffer_o[1].excp = excp_tlbr | excp_pif | excp_ppi | excp_adef;
+    // assign instr_buffer_o[1].excp_num = {excp_ppi, excp_pif, excp_tlbr, excp_adef};
 
     logic [ADDR_WIDTH-1:0] pc, next_pc;
 
