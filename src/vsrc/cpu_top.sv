@@ -112,7 +112,7 @@ module cpu_top (
     logic [127:0] dcache_axi_data;
     logic [`RegBus] cache_mem_data;
     logic mem_data_ok,mem_addr_ok;
-    logic [3:0] data_axi_sel; // Byte selection
+    logic [15:0] dcache_axi_wstrb; // Byte selection
 
     axi_master u_axi_master (
         .aclk   (aclk),
@@ -130,7 +130,7 @@ module cpu_top (
 
         // <-> DCache
         .data_cpu_addr_i(dcache_axi_addr),
-        .data_cpu_sel_i(16'hffff),
+        .data_cpu_sel_i(dcache_axi_wstrb),
         .data_cpu_data_o(axi_dcache_data),
         .data_id(4'b0001),
         .dcache_rd_req_i(dcache_axi_rreq),
@@ -221,7 +221,7 @@ module cpu_top (
         .wr_req    (dcache_axi_wreq),
         .wr_type   (),
         .wr_addr   (dcache_axi_waddr),
-        .wr_wstrb  (),
+        .wr_wstrb  (dcache_axi_wstrb),
         .wr_data   (dcache_axi_data),
         .wr_rdy    (axi_dcache_wr_rdy)
     );

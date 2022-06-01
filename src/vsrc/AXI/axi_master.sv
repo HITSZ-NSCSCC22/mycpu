@@ -490,6 +490,7 @@ module axi_master (
 
 
     //write
+    reg [15:0] write_wstrb_buffer;
     reg [`BurstData] write_buffer;
 
 
@@ -554,9 +555,11 @@ module axi_master (
             s_awsize <= 0;
 
             s_awvalid <= 0;
+            s_wstrb <= 0;
             s_wdata <= 0;
             s_wvalid <= 0;
             s_bready <= 0;
+            write_wstrb_buffer <= 0;
             write_buffer <= 0;
             s_wlast <= 0;
         end else begin
@@ -570,20 +573,23 @@ module axi_master (
                         s_awsize <= 3'b100;
 
                         s_awvalid <= 1;
+                        s_wstrb <= 0;
                         s_wdata <= 0;
                         s_wvalid <= 0;
                         s_bready <= 0;
+                        write_wstrb_buffer <= data_cpu_sel_i;
                         write_buffer <= dcache_wr_data;
                         s_wlast <= 0;
                     end else begin
                         w_state <= w_state;
                         s_awaddr <= 0;
                         s_awsize <= 0;
-
                         s_awvalid <= 0;
+                        s_wstrb <= 0;
                         s_wdata <= 0;
                         s_wvalid <= 0;
                         s_bready <= 0;
+                        write_wstrb_buffer <= 0;
                         write_buffer <= 0;
                         s_wlast <= 0;
                     end
@@ -599,6 +605,7 @@ module axi_master (
                         s_awvalid <= 0;
                         s_wvalid <= 1;
                         s_bready <= 1;
+                        s_wstrb <= write_wstrb_buffer;
                         s_wdata <= write_buffer;
                         write_buffer <= {{32{1'b0}}, write_buffer[127:32]};
 
@@ -612,6 +619,7 @@ module axi_master (
                         s_awvalid <= s_awvalid;
                         s_wvalid <= s_wvalid;
                         s_bready <= s_bready;
+                        s_wstrb <= 0;
                         s_wdata <= 0;
                         write_buffer <= write_buffer;
                         s_wlast <= s_wlast;
@@ -623,14 +631,17 @@ module axi_master (
                     if (s_wvalid && s_wready) begin
                         if (cnt == s_awlen) begin
                             w_state <= `W_RESP;
+                            s_wstrb <= 0;
                             s_wdata <= 0;
                             s_wvalid <= 0;
+                            write_wstrb_buffer <= 0;
                             write_buffer <= 0;
                             s_wlast <= 0;
                         end else begin
-                            w_state <= w_state;
-                            s_wdata <= write_buffer[31:0];
-                            write_buffer <= {{32{1'b0}}, write_buffer[127:32]};
+                            w_state  <= w_state;
+                            s_wstrb  <= write_wstrb_buffer;
+                            s_wdata  <= write_buffer;
+                            // write_buffer <= {{32{1'b0}}, write_buffer[127:32]};
                             s_wvalid <= 1;
                             if (cnt == s_awlen - 1) s_wlast <= 1;
                             else s_wlast <= 0;
@@ -674,7 +685,6 @@ module axi_master (
     assign s_awcache = 0;
     assign s_awprot = 0;
     assign s_wid = 0;
-    assign s_wstrb = data_cpu_sel_i;
 
     //set axi signal
     assign s_arid = inst_s_arid | data_s_arid;

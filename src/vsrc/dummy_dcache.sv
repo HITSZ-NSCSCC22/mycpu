@@ -26,7 +26,7 @@ module dummy_dcache (
     output logic wr_req,  //写请求有效信号。高电平有效
     output logic [2:0] wr_type,              //写请求类型：3'b000: 字节；3'b001: 半字；3'b010: 字；3'b100：Cache行
     output logic [31:0] wr_addr,  //写请求起始地址
-    output logic [3:0] wr_wstrb,             //写操作的字节掩码。仅在写请求类型为：3'b000: 字节；3'b001: 半字；3'b010：字的情况下才有意义
+    output logic [15:0] wr_wstrb,  //写操作的字节掩码。16bits for AXI128
     output logic [127:0] wr_data,  //写数据
     input logic wr_rdy  //写请求能否被接受的握手信号。具体见p2234.
 
@@ -38,8 +38,6 @@ module dummy_dcache (
         IDLE,
         READ_REQ,
         READ_WAIT,
-        WRITE_READ_REQ,
-        WRITE_READ_WAIT,
         WRITE_REQ
     }
         state, next_state;
@@ -54,8 +52,7 @@ module dummy_dcache (
         case (state)
             IDLE: begin
                 if (valid) begin
-                    if (op)
-                        next_state = WRITE_READ_REQ; // First read 128b, swap 32b, and then write 128b
+                    if (op) next_state = WRITE_REQ;
                     else next_state = READ_REQ;
                 end else next_state = IDLE;
             end
@@ -66,14 +63,6 @@ module dummy_dcache (
             READ_WAIT: begin
                 if (ret_valid) next_state = IDLE;  // If return valid, back to IDLE
                 else next_state = READ_WAIT;
-            end
-            WRITE_READ_REQ: begin
-                if (rd_rdy) next_state = WRITE_READ_WAIT;
-                else next_state = WRITE_READ_REQ;
-            end
-            WRITE_READ_WAIT: begin
-                if (ret_valid) next_state = WRITE_REQ;
-                else next_state = WRITE_READ_WAIT;
             end
             WRITE_REQ: begin
                 if (wr_rdy)
@@ -90,8 +79,7 @@ module dummy_dcache (
     assign cpu_addr = {tag, index, offset};
 
     logic rd_req_r;
-    logic [31:0] rd_addr_r, wr_addr_r;
-    logic [127:0] wr_rd_data_r;
+    logic [31:0] rd_addr_r;
 
     // Handshake with AXI
     always_ff @(posedge clk) begin
@@ -99,25 +87,7 @@ module dummy_dcache (
             READ_REQ: begin
                 if (rd_rdy) begin
                     rd_req_r  <= 1;
-                    rd_addr_r <= cpu_addr;
-                end
-            end
-            READ_WAIT: begin
-                if (ret_valid) begin
-                    rd_req_r  <= 0;
-                    rd_addr_r <= 0;
-                end
-            end
-            WRITE_READ_REQ: begin
-                if (rd_rdy) begin
-                    rd_req_r  <= 1;
-                    rd_addr_r <= cpu_addr;
-                end
-                wr_addr_r <= cpu_addr;
-            end
-            WRITE_READ_WAIT: begin
-                if (ret_valid) begin
-                    wr_rd_data_r <= ret_data;
+                    rd_addr_r <= {cpu_addr[31:4], 4'b0};  // Keep addr aligned
                 end
             end
         endcase
@@ -137,35 +107,36 @@ module dummy_dcache (
             READ_REQ: begin
                 if (rd_rdy) begin
                     rd_req  = 1;
-                    rd_addr = cpu_addr;
+                    rd_addr = {cpu_addr[31:4], 4'b0};  // Keep addr aligned
                 end
             end
             READ_WAIT: begin
                 rd_req  = rd_req_r;
                 rd_addr = rd_addr_r;
             end
-            WRITE_READ_REQ: begin
-                if (rd_rdy) begin
-                    rd_req  = 1;
-                    rd_addr = cpu_addr;
-                end
-            end
-            WRITE_READ_WAIT: begin
-                rd_req  = rd_req_r;
-                rd_addr = rd_addr_r;
-            end
             WRITE_REQ: begin
                 if (wr_rdy) begin
                     wr_req  = 1;
-                    wr_addr = wr_addr_r;
-                    wr_data = {wr_rd_data_r[127:32], wdata};
-                    case (wr_addr_r[3:2])
-                        2'b00: wr_data = {wr_rd_data_r[127:32], wdata};
-                        2'b01: wr_data = {wr_rd_data_r[127:64], wdata, wr_rd_data_r[31:0]};
-                        2'b10: wr_data = {wr_rd_data_r[127:96], wdata, wr_rd_data_r[63:0]};
-                        2'b11: wr_data = {wdata, wr_rd_data_r[95:0]};
+                    // wr_addr = cpu_addr;
+                    wr_addr = {cpu_addr[31:4], 4'b0};  // Keep addr aligned
+                    case (cpu_addr[3:2])
+                        2'b00: begin
+                            wr_data  = {{96{1'b0}}, wdata};
+                            wr_wstrb = {12'b0, wstrb};
+                        end
+                        2'b01: begin
+                            wr_data  = {{64{1'b0}}, wdata, {32{1'b0}}};
+                            wr_wstrb = {8'b0, wstrb, 4'b0};
+                        end
+                        2'b10: begin
+                            wr_data  = {32'b0, wdata, {64{1'b0}}};
+                            wr_wstrb = {4'b0, wstrb, 8'b0};
+                        end
+                        2'b11: begin
+                            wr_data  = {wdata, {96{1'b0}}};
+                            wr_wstrb = {wstrb, 12'b0};
+                        end
                     endcase
-                    wr_wstrb = wstrb;
                 end
             end
         endcase
@@ -181,7 +152,7 @@ module dummy_dcache (
                 if (ret_valid) begin
                     addr_ok = 1;
                     data_ok = 1;
-                    rdata   = ret_data[rd_addr_r[3:2]*32+:32];
+                    rdata   = ret_data[cpu_addr[3:2]*32+:32];
                 end
             end
             WRITE_REQ: begin
