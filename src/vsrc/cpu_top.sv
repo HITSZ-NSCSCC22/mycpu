@@ -9,7 +9,7 @@
 `include "frontend/frontend.sv"
 `include "instr_buffer.sv"
 `include "icache.sv"
-`include "dcache.sv"
+`include "dummy_dcache.sv"
 `include "ctrl.sv"
 `include "pipeline_defines.sv"
 `include "pipeline/1_decode/id.sv"
@@ -191,19 +191,19 @@ module cpu_top (
     assign mem_cache_ce = mem_cache_signal[0].ce | mem_cache_signal[1].ce;
     assign mem_cache_we = mem_cache_signal[0].we | mem_cache_signal[1].we;
     assign mem_cache_sel = mem_cache_signal[0].we ? mem_cache_signal[0].sel : mem_cache_signal[0].we ? mem_cache_signal[1].sel : 0;
-    assign mem_cache_addr = mem_cache_signal[0].we ? mem_cache_signal[0].addr : mem_cache_signal[0].we ? mem_cache_signal[1].addr : 0;
+    assign mem_cache_addr = mem_cache_signal[0].addr;
     assign mem_cache_data = mem_cache_signal[0].we ? mem_cache_signal[0].data : mem_cache_signal[0].we ? mem_cache_signal[1].data : 0;
    
-    dcache u_dcache(
+    dummy_dcache u_dcache(
     	.clk       (clk       ),
         .rst       (rst       ),
 
         .valid     (mem_cache_ce),
         .op        (mem_cache_we),
         .uncache   (1'b0),
-        .index     (tlb_data_o.index),
-        .tag       (tlb_data_o.tag),
-        .offset    (tlb_data_o.offset),
+        .index     (mem_cache_addr[11:4]),
+        .tag       (mem_cache_addr[31:12]),
+        .offset    (mem_cache_addr[3:0]),
         .wstrb     (mem_cache_sel),
         .wdata     (mem_cache_data),
         .addr_ok   (mem_addr_ok),

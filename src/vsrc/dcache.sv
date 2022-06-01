@@ -73,7 +73,7 @@ module dcache (
         REFILL,
         WRITE
     }
-        state, next_state;
+        state, next_state, wr_state, wr_next_state;
     //Write Buffer状态机包括两个状态
     //IDLE: Write Buffer状态机当前没有待写的数据
     //WRITE: 将待写的数据写入Cache中。在主状态机处于LOOKUP状态且发现Store操作命中Cache时，触发Write Buffer状态机进入Write状态
@@ -88,30 +88,29 @@ module dcache (
     parameter BlockLSB = 0;
 
     logic [511:0][149:0] cache_data;
-    logic [31:0] wr_state, wr_next_state;
-    logic        hit;
-    logic        hit1;
-    logic        hit2;
-    logic        way;  //若hit，则way无意义，若miss，则way表示分配的那一路
-    logic        write_op;  //hit write 执行标志，高电平有效
-    logic        miss_way_r;  //缺失路的写使能
+    logic                hit1;
+    logic                hit2;
+    logic                hit;
+    logic                way;  //若hit，则way无意义，若miss，则way表示分配的那一路
+    logic                write_op;  //hit write 执行标志，高电平有效
+    logic                miss_way_r;  //缺失路的写使能
 
     //虚地址共32位，[31:12]为Tag，[11:4]为Cache组索引index, [3:0]:offset,Cache行内偏移
-    logic [ 7:0] cpu_req_index;
-    logic [19:0] cpu_req_tag;
-    logic [ 3:0] cpu_req_offset;
+    logic [  7:0]        cpu_req_index;
+    logic [ 19:0]        cpu_req_tag;
+    logic [  3:0]        cpu_req_offset;
 
     //wire cpu_req_uncache;
-    logic        cpu_req_valid;
-    logic        cpu_req_op;
-    logic [ 3:0] cpu_req_wstrb;
-    logic [31:0] cpu_req_wdata;
+    logic                cpu_req_valid;
+    logic                cpu_req_op;
+    logic [  3:0]        cpu_req_wstrb;
+    logic [ 31:0]        cpu_req_wdata;
 
-    logic        cpu_rd_rdy;
-    logic        cpu_wr_rdy;
-    logic        cpu_ret_valid;
-    logic        cpu_ret_last;
-    logic [31:0] cpu_ret_data;
+    logic                cpu_rd_rdy;
+    logic                cpu_wr_rdy;
+    logic                cpu_ret_valid;
+    logic                cpu_ret_last;
+    logic [ 31:0]        cpu_ret_data;
 
     ////虚地址共32位，[31:12]为Tag，[11:4]为Cache组索引index, [3:0]:offset,Cache行内偏移
     //logic [7:0]cpu_req_index;
@@ -131,7 +130,7 @@ module dcache (
     //logic[31:0] cpu_ret_data;
 
     //hit write 冲突 高位有效
-    logic        hit_conflict = 0;
+    logic                hit_conflict = 0;
 
     assign cpu_req_valid = valid;
     assign cpu_req_op = op;
@@ -155,9 +154,14 @@ module dcache (
     end
 
 
-    always @(posedge clk) begin
-        if (rst) state <= IDLE;
-        else state <= next_state;
+    always_ff @(posedge clk) begin : state_ff
+        if (rst) begin
+            state <= IDLE;
+            wr_state <= IDLE;
+        end else begin
+            state <= next_state;
+            wr_state <= wr_next_state;
+        end
     end
 
     //state change
@@ -168,10 +172,14 @@ module dcache (
                 else next_state = LOOKUP;
             end
             LOOKUP: begin
-                if ((hit && !cpu_req_valid) || (hit && (cpu_req_valid && hit_conflict)))  //若hit
+                if ((hit && !cpu_req_valid) || (hit && (cpu_req_valid && hit_conflict))) begin
+                    // Read hit or Write hit
                     next_state = IDLE;
-                else if (hit && cpu_req_valid) next_state = LOOKUP;
-                else if (!hit) begin
+                end else if (hit && cpu_req_valid) begin
+                    // Hit and have request
+                    next_state = LOOKUP;
+                end else if (!hit) begin
+                    // Anything miss enters miss state
                     next_state = MISS;
                 end
             end
@@ -193,7 +201,7 @@ module dcache (
 
     logic wr_buffer;
     //Write buffer state change
-    always @(*) begin
+    always_comb begin
         case (wr_state)
             IDLE:
             if (hit && cpu_req_op && cpu_req_valid) begin
@@ -237,15 +245,6 @@ module dcache (
                 end
             end else hit2 = 1'b0;
         else hit2 = 1'b0;
-    end
-    //hit
-    always @(*) begin
-        if (state == LOOKUP) begin
-            hit = hit1 || hit2;
-            if (hit && cpu_req_op) begin
-                wr_state = WRITE;
-            end
-        end else hit = 1'b0;
     end
 
 
