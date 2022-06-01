@@ -65,7 +65,7 @@ module axi_master (
     //w
     output wire [`ID] s_wid,
     output reg [`Data] s_wdata,
-    output wire [15:0] s_wstrb,  //字节选通位和sel差不多
+    output reg [15:0] s_wstrb,  //字节选通位和sel差不多
     output reg s_wlast,
     output reg s_wvalid,
     input wire s_wready,
