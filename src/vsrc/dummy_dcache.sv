@@ -22,7 +22,7 @@ module dummy_dcache (
     input logic rd_rdy,  //读请求能否被接收的握手信号。高电平有效
     input logic ret_valid,  //返回数据有效。高电平有效。
     input logic ret_last,  //返回数据是一次读请求对应的最后一个返回数据
-    input logic [31:0] ret_data,  //读返回数据
+    input logic [127:0] ret_data,  //读返回数据
     output logic wr_req,  //写请求有效信号。高电平有效
     output logic [2:0] wr_type,              //写请求类型：3'b000: 字节；3'b001: 半字；3'b010: 字；3'b100：Cache行
     output logic [31:0] wr_addr,  //写请求起始地址
@@ -38,6 +38,8 @@ module dummy_dcache (
         IDLE,
         READ_REQ,
         READ_WAIT,
+        WRITE_READ_REQ,
+        WRITE_READ_WAIT,
         WRITE_REQ
     }
         state, next_state;
@@ -52,7 +54,8 @@ module dummy_dcache (
         case (state)
             IDLE: begin
                 if (valid) begin
-                    if (op) next_state = WRITE_REQ;
+                    if (op)
+                        next_state = WRITE_READ_REQ; // First read 128b, swap 32b, and then write 128b
                     else next_state = READ_REQ;
                 end else next_state = IDLE;
             end
@@ -63,6 +66,14 @@ module dummy_dcache (
             READ_WAIT: begin
                 if (ret_valid) next_state = IDLE;  // If return valid, back to IDLE
                 else next_state = READ_WAIT;
+            end
+            WRITE_READ_REQ: begin
+                if (rd_rdy) next_state = WRITE_READ_WAIT;
+                else next_state = WRITE_READ_REQ;
+            end
+            WRITE_READ_WAIT: begin
+                if (ret_valid) next_state = WRITE_REQ;
+                else next_state = WRITE_READ_WAIT;
             end
             WRITE_REQ: begin
                 if (wr_rdy)
@@ -79,7 +90,8 @@ module dummy_dcache (
     assign cpu_addr = {tag, index, offset};
 
     logic rd_req_r;
-    logic [31:0] rd_addr_r;
+    logic [31:0] rd_addr_r, wr_addr_r;
+    logic [127:0] wr_rd_data_r;
 
     // Handshake with AXI
     always_ff @(posedge clk) begin
@@ -88,6 +100,24 @@ module dummy_dcache (
                 if (rd_rdy) begin
                     rd_req_r  <= 1;
                     rd_addr_r <= cpu_addr;
+                end
+            end
+            READ_WAIT: begin
+                if (ret_valid) begin
+                    rd_req_r  <= 0;
+                    rd_addr_r <= 0;
+                end
+            end
+            WRITE_READ_REQ: begin
+                if (rd_rdy) begin
+                    rd_req_r  <= 1;
+                    rd_addr_r <= cpu_addr;
+                end
+                wr_addr_r <= cpu_addr;
+            end
+            WRITE_READ_WAIT: begin
+                if (ret_valid) begin
+                    wr_rd_data_r <= ret_data;
                 end
             end
         endcase
@@ -114,11 +144,27 @@ module dummy_dcache (
                 rd_req  = rd_req_r;
                 rd_addr = rd_addr_r;
             end
+            WRITE_READ_REQ: begin
+                if (rd_rdy) begin
+                    rd_req  = 1;
+                    rd_addr = cpu_addr;
+                end
+            end
+            WRITE_READ_WAIT: begin
+                rd_req  = rd_req_r;
+                rd_addr = rd_addr_r;
+            end
             WRITE_REQ: begin
                 if (wr_rdy) begin
                     wr_req   = 1;
-                    wr_addr  = cpu_addr;
-                    wr_data  = {{96{1'b0}}, wdata};
+                    wr_addr  = wr_addr_r;
+                    wr_data  = {wr_rd_data_r[127:32], wdata};
+                    // case (wr_addr_r[3:2])
+                    //     2'b00: wr_data = {wr_rd_data_r[127:32], wdata};
+                    //     2'b01: wr_data = {wr_rd_data_r[127:64], wdata, wr_rd_data_r[31:0]};
+                    //     2'b10: wr_data = {wr_rd_data_r[127:96], wdata, wr_rd_data_r[63:0]};
+                    //     2'b11: wr_data = {wdata, wr_rd_data_r[95:0]};
+                    // endcase
                     wr_wstrb = wstrb;
                 end
             end
@@ -135,7 +181,7 @@ module dummy_dcache (
                 if (ret_valid) begin
                     addr_ok = 1;
                     data_ok = 1;
-                    rdata   = ret_data;
+                    rdata   = ret_data[rd_addr_r[3:2]*32+:32];
                 end
             end
             WRITE_REQ: begin
