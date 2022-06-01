@@ -103,7 +103,7 @@ typedef struct packed {
     logic [`RegBus] store_data;
 
     logic excp;
-    logic [15:0] excp_num;
+    logic [9:0] excp_num;
     logic refetch;
 
     logic tlb_found;
@@ -118,7 +118,8 @@ typedef struct packed {
     logic [3:0] sel;
     logic [`DataAddrBus] addr;
     logic [`RegBus] data;
-} mem_axi_struct;
+    logic uncache_en;
+} mem_cache_struct;
 
 typedef struct packed {
     logic we;

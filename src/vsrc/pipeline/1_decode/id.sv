@@ -42,6 +42,8 @@ module id (
     assign pc_i = instr_buffer_i.valid ? instr_buffer_i.pc : `ZeroWord;
     logic [`InstBus] inst_i;
     assign inst_i = instr_buffer_i.valid ? instr_buffer_i.instr : `ZeroWord;
+    logic is_last_in_block;
+    assign is_last_in_block = instr_buffer_i.valid ? instr_buffer_i.is_last_in_block : 0;
 
     logic instr_break, instr_syscall, kernel_instr;
     assign kernel_instr = dispatch_o.aluop == `EXE_CSRRD_OP | dispatch_o.aluop == `EXE_CSRWR_OP | dispatch_o.aluop == `EXE_CSRXCHG_OP |
@@ -216,6 +218,7 @@ module id (
     assign dispatch_o.instr_info.valid = instr_valid;
     assign dispatch_o.instr_info.pc = pc_i;
     assign dispatch_o.instr_info.instr = inst_i;
+    assign dispatch_o.instr_info.is_last_in_block = is_last_in_block;
 
 
     // TODO: add explanation
@@ -230,7 +233,9 @@ module id (
     assign excp_ipe = kernel_instr && (csr_plv == 2'b11);
 
     assign excp = excp_ipe | instr_syscall | instr_break | instr_buffer_i.excp | excp_ine | has_int;
-    assign excp_num = {excp_ipe, excp_ine, instr_break, instr_syscall, instr_buffer_i.excp_num, has_int};
+    assign excp_num = {
+        excp_ipe, excp_ine, instr_break, instr_syscall, instr_buffer_i.excp_num, has_int
+    };
     assign dispatch_o.excp = excp;
     assign dispatch_o.excp_num = excp_num;
 

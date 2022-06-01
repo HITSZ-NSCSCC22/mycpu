@@ -7,7 +7,7 @@
 `define Lock 1:0
 `define Cache 3:0
 `define Prot 2:0
-`define Data 31:0
+`define Data 127:0
 `define Resp 1:0
 `define BurstData 127:0
 

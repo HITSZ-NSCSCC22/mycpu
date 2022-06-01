@@ -8,7 +8,8 @@
 `include "AXI/axi_master.sv"
 `include "frontend/frontend.sv"
 `include "instr_buffer.sv"
-`include "dummy_icache.sv"
+`include "icache.sv"
+`include "dummy_dcache.sv"
 `include "ctrl.sv"
 `include "pipeline_defines.sv"
 `include "pipeline/1_decode/id.sv"
@@ -39,7 +40,7 @@ module cpu_top (
     input         arready,
     // read back
     input  [ 3:0] rid,
-    input  [31:0] rdata,
+    input  [127:0] rdata,
     input  [ 1:0] rresp,
     input         rlast,
     input         rvalid,
@@ -57,8 +58,8 @@ module cpu_top (
     input         awready,
     // write data
     output [ 3:0] wid,
-    output [31:0] wdata,
-    output [ 3:0] wstrb,
+    output [127:0] wdata,
+    output [ 15:0] wstrb,
     output        wlast,
     output        wvalid,
     input         wready,
@@ -92,49 +93,55 @@ module cpu_top (
     assign rst   = ~rst_n;
 
     // ICache <-> AXI Controller
-    logic axi_busy;
-    logic [`RegBus] axi_data;
-    logic [`RegBus] axi_addr;
+    logic icache_axi_rreq;
+    logic axi_icache_rdy, axi_icache_rvalid;
+    logic [127:0] axi_icache_data; // 128b
+    logic [`RegBus] icache_axi_addr;
 
     // MEM <-> AXI Controller
-    // TODO: replace with DCache
-    logic data_axi_we;
-    logic [`DataAddrBus] data_axi_addr;
-    logic [`RegBus] data_axi_data;
-    logic [`RegBus] axi_mem_data;
-    logic data_axi_busy;
-    logic [3:0] data_axi_sel; // Byte selection
-
-    mem_axi_struct mem_axi_signal[2];
-
-    assign data_axi_we = mem_axi_signal[0].we | mem_axi_signal[1].we;
-    assign data_axi_addr = mem_axi_signal[0].ce ? mem_axi_signal[0].addr : mem_axi_signal[1].ce ? mem_axi_signal[1].addr : 32'b0;
-    assign data_axi_data = mem_axi_signal[0].ce ? mem_axi_signal[0].data : mem_axi_signal[1].ce ? mem_axi_signal[1].data : 32'b0;
-    assign data_axi_sel = mem_axi_signal[0].ce ? mem_axi_signal[0].sel : mem_axi_signal[1].ce ? mem_axi_signal[1].sel : 4'b0;
+    logic dcache_axi_rreq; // Read handshake
+    logic axi_dcache_rd_rdy;
+    logic axi_dcache_rvalid;
+    logic dcache_axi_wreq; // Write handshake
+    logic axi_dcache_wr_rdy;
+    logic [`DataAddrBus] dcache_axi_raddr;
+    logic [`DataAddrBus] dcache_axi_waddr;
+    logic [`DataAddrBus] dcache_axi_addr;
+    assign dcache_axi_addr = dcache_axi_rreq ? dcache_axi_raddr : dcache_axi_wreq ? dcache_axi_waddr : 0;
+    logic [127:0] axi_dcache_data;
+    logic [127:0] dcache_axi_data;
+    logic [`RegBus] cache_mem_data;
+    logic mem_data_ok,mem_addr_ok;
+    logic [15:0] dcache_axi_wstrb; // Byte selection
 
     axi_master u_axi_master (
         .aclk   (aclk),
         .aresetn(aresetn),
 
         // <-> ICache
-        .inst_cpu_addr_i(axi_addr),
-        .inst_cpu_ce_i(axi_addr != 0),  // FIXME: ce should not be used as valid?
-        .inst_cpu_sel_i(4'b1111),
-        .inst_cpu_data_o(axi_data),
-        .inst_stallreq(axi_busy),
-        .inst_id(4'b0000),  // Read Instruction only, TODO: move this from AXI to cache
+        .inst_cpu_addr_i(icache_axi_addr),
+        .inst_cpu_data_o(axi_icache_data),
+        .inst_id(4'b0000),  // Read Instruction only
+        .icache_rd_type_i(3'b000), // Read 128b for 1 time
+        .icache_rd_req_i(icache_axi_rreq),
+        .icache_rd_rdy_o(axi_icache_rdy),
+        .icache_ret_valid_o(axi_icache_rvalid),
+        .icache_ret_last_o(), // Used in burst transfer, currently unused
 
-        // <-> MEM Stage
-        .data_cpu_addr_i(data_axi_addr),
-        .data_cpu_ce_i(data_axi_addr != 0),  // FIXME: ce should not be used as valid?
-        .data_cpu_we_i(data_axi_we),  // FIXME: Write enable
-        .data_cpu_sel_i(data_axi_sel),
-        .data_cpu_data_o(axi_mem_data),
-        .data_stallreq(data_axi_busy),
+        // <-> DCache
+        .data_cpu_addr_i(dcache_axi_addr),
+        .data_cpu_sel_i(dcache_axi_wstrb),
+        .data_cpu_data_o(axi_dcache_data),
         .data_id(4'b0001),
+        .dcache_rd_req_i(dcache_axi_rreq),
         .dcache_rd_type_i(3'b000), // For [31:0]
+        .dcache_rd_rdy_o(axi_dcache_rd_rdy),
+        .dcache_ret_valid_o(axi_dcache_rvalid),
+        .dcache_ret_last_o(), // same as ICache
+        .dcache_wr_req_i(dcache_axi_wreq),
         .dcache_wr_type_i(3'b000), 
-        .dcache_wr_data({{96{1'b0}},data_axi_data}),
+        .dcache_wr_data(dcache_axi_data),
+        .dcache_wr_rdy(axi_dcache_wr_rdy),
 
 
         // External AXI signals
@@ -176,42 +183,85 @@ module cpu_top (
         .s_bready(bready)
     );
 
-    // FETCH_WIDTH is 2
-    localparam FETCH_WIDTH = 2;
-    // Frontend -> ICache
-    logic [`InstAddrBus] frontend_icache_addr[FETCH_WIDTH];
+    mem_cache_struct mem_cache_signal[2];
+    logic mem_cache_we,mem_cache_ce;
+    logic [3:0] mem_cache_sel;
+    logic [31:0] mem_cache_addr,mem_cache_data;
+    
+    assign mem_cache_ce = mem_cache_signal[0].ce | mem_cache_signal[1].ce;
+    assign mem_cache_we = mem_cache_signal[0].we | mem_cache_signal[1].we;
+    assign mem_cache_sel = mem_cache_signal[0].we ? mem_cache_signal[0].sel : mem_cache_signal[1].we ? mem_cache_signal[1].sel : 0;
+    assign mem_cache_addr = mem_cache_signal[0].addr | mem_cache_signal[1].addr;
+    assign mem_cache_data = mem_cache_signal[0].we ? mem_cache_signal[0].data : mem_cache_signal[1].we ? mem_cache_signal[1].data : 0;
+   
+    dummy_dcache u_dcache(
+    	.clk       (clk       ),
+        .rst       (rst       ),
 
-    // ICache -> Frontend
-    logic icache_frontend_stallreq;
-    logic icache_frontend_valid[FETCH_WIDTH];
-    logic [`InstAddrBus] icache_frontend_addr[FETCH_WIDTH];
-    logic [`RegBus] icache_frontend_data[FETCH_WIDTH];
-
-
-    dummy_icache #(
-        .ADDR_WIDTH(`RegWidth),
-        .DATA_WIDTH(`RegWidth)
-    ) u_dummy_icache (
-        .clk(clk),
-        .rst(rst),
-
-        // <-> Frontend
-        .flush(backend_flush),
-        .raddr_1_i (frontend_icache_addr[0]),
-        .raddr_2_i (frontend_icache_addr[1]),
-        .stallreq_o(icache_frontend_stallreq),
-        .rvalid_1_o(icache_frontend_valid[0]),
-        .rvalid_2_o(icache_frontend_valid[1]),
-        .raddr_1_o (icache_frontend_addr[0]),
-        .raddr_2_o (icache_frontend_addr[1]),
-        .rdata_1_o (icache_frontend_data[0]),
-        .rdata_2_o (icache_frontend_data[1]),
+        .valid     (mem_cache_ce),
+        .op        (mem_cache_we),
+        .uncache   (1'b0),
+        .index     (mem_cache_addr[11:4]),
+        .tag       (mem_cache_addr[31:12]),
+        .offset    (mem_cache_addr[3:0]),
+        .wstrb     (mem_cache_sel),
+        .wdata     (mem_cache_data),
+        .addr_ok   (mem_addr_ok),
+        .data_ok   (mem_data_ok),
+        .rdata     (cache_mem_data),
 
         // <-> AXI Controller
-        .axi_addr_o(axi_addr),
-        .axi_data_i(axi_data),
-        .axi_busy_i(axi_busy)
+        .rd_req    (dcache_axi_rreq),
+        .rd_type   (),
+        .rd_addr   (dcache_axi_raddr),
+        .rd_rdy    (axi_dcache_rd_rdy),
+        .ret_valid (axi_dcache_rvalid),
+        .ret_last  (),
+        .ret_data  (axi_dcache_data),
+        .wr_req    (dcache_axi_wreq),
+        .wr_type   (),
+        .wr_addr   (dcache_axi_waddr),
+        .wr_wstrb  (dcache_axi_wstrb),
+        .wr_data   (dcache_axi_data),
+        .wr_rdy    (axi_dcache_wr_rdy)
     );
+    
+
+    // FETCH_WIDTH is 4
+    localparam FETCH_WIDTH = 4;
+
+    // Frontend -> ICache
+    logic [1:0] frontend_icache_rreq;
+    logic [1:0][`InstAddrBus] frontend_icache_addr;
+
+    // ICache -> Frontend
+    logic [1:0]icache_frontend_valid;
+    logic [1:0][127:0] icache_frontend_data; // Cacheline is 128b
+
+    icache u_icache(
+       .clk          (clk          ),
+       .rst          (rst          ),
+       
+       // Port A
+       .rreq_1_i     (frontend_icache_rreq[0]),
+       .raddr_1_i    (frontend_icache_addr[0]),
+       .rvalid_1_o   (icache_frontend_valid[0]),
+       .rdata_1_o    (icache_frontend_data[0]),
+       // Port B
+       .rreq_2_i     (frontend_icache_rreq[1]),
+       .raddr_2_i    (frontend_icache_addr[1]),
+       .rvalid_2_o   (icache_frontend_valid[1]),
+       .rdata_2_o    (icache_frontend_data[1]),
+
+       // <-> AXI Controller
+       .axi_addr_o   (icache_axi_addr),
+       .axi_rreq_o   (icache_axi_rreq),
+       .axi_rdy_i    (axi_icache_rdy),
+       .axi_rvalid_i (axi_icache_rvalid),
+       .axi_rlast_i  (),
+       .axi_data_i   (axi_icache_data)
+   );
+    
 
     // Frontend <-> Instruction Buffer
     logic ib_frontend_stallreq;
@@ -220,6 +270,7 @@ module cpu_top (
 
     // Frontend <-> Backend 
     logic backend_flush;
+    logic [1:0] is_last_in_block; // <- WB, suggest whether last instr in basic block is committed
 
     // All frontend structures
     frontend u_frontend (
@@ -228,15 +279,15 @@ module cpu_top (
 
         // <-> ICache
         .icache_read_addr_o(frontend_icache_addr),  // -> ICache
-        .icache_stallreq_i(icache_frontend_stallreq),  // <- ICache, I$ cannot accept more addr requests
+        .icache_read_req_o(frontend_icache_rreq),
         .icache_read_valid_i(icache_frontend_valid),  // <- ICache
-        .icache_read_addr_i(icache_frontend_addr),  // <- ICache
         .icache_read_data_i(icache_frontend_data),  // <- ICache
 
         // <-> Backend
         .branch_update_info_i(),              // branch update signals, <- EXE Stage, unused
         .backend_next_pc_i   (next_pc),       // backend PC, <- pc_gen
         .backend_flush_i     (backend_flush), // backend flush, usually come with next_pc
+        .backend_commit_i (is_last_in_block[0] | is_last_in_block[1]),
 
         // <-> Instruction Buffer
         .instr_buffer_stallreq_i(ib_frontend_stallreq),   // instruction buffer is full
@@ -503,7 +554,7 @@ module cpu_top (
     assign csr_mem_signal = {csr_pg,csr_da,csr_dmw0,csr_dmw1,csr_plv,csr_datm};
     //assign tlb_mem_signal = {data_tlb_found,data_tlb_index,data_tlb_v,data_tlb_d,data_tlb_mat,data_tlb_plv};
 
-    logic wb_LLbit_we_i[2],wb_LLbit_value_i[2];
+    logic wb_LLbit_we_i[2],wb_LLbit_value_i[2],data_fetch;
     generate
         for (genvar i = 0; i < 2; i++) begin : mem
             mem u_mem (
@@ -513,12 +564,14 @@ module cpu_top (
 
                 .signal_o(mem_signal_o[i]),
 
-                // -> AXI Controller
-                .signal_axi_o(mem_axi_signal[i]),
+                // -> cache 
+                .signal_cache_o(mem_cache_signal[i]),
 
                 // <- AXI Controller
-                .axi_busy_i(data_axi_busy),
-                .mem_data_i(axi_mem_data),
+                .addr_ok(mem_addr_ok),
+                .data_ok(mem_data_ok),
+                .data_fetch(data_fetch),
+                .mem_data_i(cache_mem_data),
 
                 // -> Ctrl
                 .stallreq(mem_stallreq[i]),
@@ -529,20 +582,11 @@ module cpu_top (
                 .LLbit_we_o(mem_wb_LLbit_we[i]),
                 .LLbit_value_o(mem_wb_LLbit_value[i]),
 
-                .csr_mem_signal(csr_mem_signal),
-                .disable_cache(1'b0),
-
                 // Data forward
                 // -> Dispatch
                 // -> EX
-                .mem_data_forward_o(mem_data_forward[i]),
+                .mem_data_forward_o(mem_data_forward[i])
 
-                .data_addr_trans_en(mem_data_addr_trans_en[i]),
-                .dmw0_en(mem_data_dmw0_en[i]),
-                .dmw1_en(mem_data_dmw1_en[i]),
-                .cacop_op_mode_di(cacop_op_mode_di[i]),
-
-                .tlb_mem_signal(tlb_mem_signal)
             );
         end
 
@@ -566,8 +610,22 @@ module cpu_top (
 
                 .flush(flush),
 
+                .csr_mem_signal(csr_mem_signal),
+                .disable_cache(1'b0),
+
+                //<- tlb
+                .data_addr_trans_en(mem_data_addr_trans_en[i]),
+                .dmw0_en(mem_data_dmw0_en[i]),
+                .dmw1_en(mem_data_dmw1_en[i]),
+                .cacop_op_mode_di(cacop_op_mode_di[i]),
+                //-> tlb
+                .tlb_mem_signal(tlb_mem_signal),
+
                 //to ctrl
-                .wb_ctrl_signal(wb_ctrl_signal[i])
+                .wb_ctrl_signal(wb_ctrl_signal[i]),
+
+                // -> Frontend
+                .is_last_in_block(is_last_in_block[i])
             );
         end
     endgenerate
@@ -716,6 +774,8 @@ module cpu_top (
     assign data_addr_trans_en = mem_data_addr_trans_en[0] | mem_data_addr_trans_en[1];
     assign tlb_data_i.dmw0_en = mem_data_dmw0_en[0] | mem_data_dmw0_en[1];
     assign tlb_data_i.dmw1_en = mem_data_dmw1_en[0] | mem_data_dmw1_en[1];
+    assign tlb_data_i.vaddr = mem_cache_addr;
+    assign tlb_data_i.fetch = data_fetch;
 
     inst_tlb_struct tlb_inst_i;
     tlb_inst_struct tlb_inst_o;

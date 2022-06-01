@@ -25,12 +25,13 @@ module instr_buffer #(
 
     instr_buffer_info_t buffer_queue[BUFFER_SIZE], next_buffer_queue[BUFFER_SIZE];
 
-    logic [$clog2(BUFFER_SIZE)-1:0] read_ptr, write_ptr, write_ptr_plus_2;
+    logic [$clog2(BUFFER_SIZE)-1:0] read_ptr, write_ptr;
 
     // Workaround, verilator seems to extend {write_ptr + 2} to more bits
     // we want a loopback counter, so declare a fixed width to get around
-    assign write_ptr_plus_2 = write_ptr + 2;
-    assign frontend_stallreq_o = (write_ptr_plus_2 == read_ptr);
+    logic [$clog2(BUFFER_SIZE)-1:0] buffer_clearance;
+    assign buffer_clearance = read_ptr - write_ptr;
+    assign frontend_stallreq_o = (buffer_clearance <= 4 && buffer_clearance != 0);
 
     // State transition
     always_ff @(posedge clk or negedge rst_n) begin : buffer_queue_ff
