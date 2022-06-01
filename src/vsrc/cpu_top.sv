@@ -190,9 +190,9 @@ module cpu_top (
     
     assign mem_cache_ce = mem_cache_signal[0].ce | mem_cache_signal[1].ce;
     assign mem_cache_we = mem_cache_signal[0].we | mem_cache_signal[1].we;
-    assign mem_cache_sel = mem_cache_signal[0].we ? mem_cache_signal[0].sel : mem_cache_signal[0].we ? mem_cache_signal[1].sel : 0;
-    assign mem_cache_addr = mem_cache_signal[0].addr;
-    assign mem_cache_data = mem_cache_signal[0].we ? mem_cache_signal[0].data : mem_cache_signal[0].we ? mem_cache_signal[1].data : 0;
+    assign mem_cache_sel = mem_cache_signal[0].we ? mem_cache_signal[0].sel : mem_cache_signal[1].we ? mem_cache_signal[1].sel : 0;
+    assign mem_cache_addr = mem_cache_signal[0].addr | mem_cache_signal[1].addr;
+    assign mem_cache_data = mem_cache_signal[0].we ? mem_cache_signal[0].data : mem_cache_signal[1].we ? mem_cache_signal[1].data : 0;
    
     dummy_dcache u_dcache(
     	.clk       (clk       ),
