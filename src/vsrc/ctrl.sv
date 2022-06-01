@@ -69,8 +69,8 @@ module ctrl (
     assign tlbsrch_index = wb_i_1.data_tlb_index | wb_i_2.data_tlb_index;
     assign inv_o = wb_i_1.inv_i | wb_i_2.inv_i;
 
-    assign ex_mem_flush_o[1] = ex_branch_flag_i[0];
-    assign ex_mem_flush_o[0] = 0;
+    assign ex_mem_flush_o[1] = ex_branch_flag_i[0] | ertn_flush | excp_flush;
+    assign ex_mem_flush_o[0] = ertn_flush | excp_flush;
     assign excp_flush = excp;
     assign ertn_flush = wb_i_1.aluop == `EXE_ERTN_OP | wb_i_2.aluop == `EXE_ERTN_OP;
     assign fetch_flush = 0;
@@ -83,7 +83,8 @@ module ctrl (
         else if (mem_stallreq_i[0] | mem_stallreq_i[1]) stall = 5'b11110;
         else if (stallreq_from_dispatch) stall = 5'b11100;
         //else if (tlb_stallreq[0] | tlb_stallreq[1]) stall = 5'b11000;
-        else stall = 5'b00000;
+        else
+            stall = 5'b00000;
     end
 
     //提交difftest

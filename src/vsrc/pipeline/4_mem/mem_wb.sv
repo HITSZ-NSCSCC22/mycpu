@@ -72,6 +72,9 @@ module mem_wb (
         if (rst == `RstEnable) begin
             wb_ctrl_signal   <= 0;
             is_last_in_block <= 0;
+        end else if (flush) begin
+            wb_ctrl_signal   <= 0;
+            is_last_in_block <= 0;
         end else if (stall == `Stop) begin
             wb_ctrl_signal.diff_commit_o.instr <= `ZeroWord;
             wb_ctrl_signal.diff_commit_o.pc <= `ZeroWord;

@@ -4,6 +4,10 @@
 `include "defines.sv"
 
 typedef struct packed {
+    //excp
+    logic excp;
+    logic [3:0] excp_num;
+
     bit valid;
     bit is_last_in_block;  // Mark the last instruction in basic block
     bit [`InstAddrBus] pc;
@@ -16,9 +20,6 @@ typedef struct packed {
     bit [2:0] bpu_provider_id;
     bit [13:0] bpu_provider_query_index;
 
-    //excp
-    logic excp;
-    logic [3:0] excp_num;
 } instr_buffer_info_t;
 
 typedef struct packed {
