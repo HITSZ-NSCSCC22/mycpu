@@ -215,7 +215,7 @@ module id (
 
 
     // Generate output
-    assign dispatch_o.instr_info.valid = instr_valid;
+    assign dispatch_o.instr_info.valid = instr_valid | excp;
     assign dispatch_o.instr_info.pc = pc_i;
     assign dispatch_o.instr_info.instr = inst_i;
     assign dispatch_o.instr_info.is_last_in_block = is_last_in_block;

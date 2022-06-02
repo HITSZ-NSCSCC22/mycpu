@@ -1,4 +1,4 @@
-`include "defines.sv"
+`include "pipeline_defines.sv"
 `include "instr_info.sv"
 `include "frontend/frontend_defines.sv"
 
@@ -59,23 +59,23 @@ module frontend #(
     assign rst_n = ~rst;
 
     //addr trans TODO:修改dmw的赋值(还不确定双发射情况下pc的赋值方式)
-    // assign inst_addr = pc;
-    // assign inst_addr_trans_en = csr_pg && !csr_da && !dmw0_en && !dmw1_en;
-    // assign dmw0_en = ((csr_dmw0[`PLV0] && csr_plv == 2'd0) || (csr_dmw0[`PLV3] && csr_plv == 2'd3)) && (pc[31:29] == csr_dmw0[`VSEG]);
-    // assign dmw1_en = ((csr_dmw1[`PLV0] && csr_plv == 2'd0) || (csr_dmw1[`PLV3] && csr_plv == 2'd3)) && (pc[31:29] == csr_dmw1[`VSEG]);
+    assign inst_addr = pc;
+    assign inst_addr_trans_en = csr_pg && !csr_da && !dmw0_en && !dmw1_en;
+    assign dmw0_en = ((csr_dmw0[`PLV0] && csr_plv == 2'd0) || (csr_dmw0[`PLV3] && csr_plv == 2'd3)) && (pc[31:29] == csr_dmw0[`VSEG]);
+    assign dmw1_en = ((csr_dmw1[`PLV0] && csr_plv == 2'd0) || (csr_dmw1[`PLV3] && csr_plv == 2'd3)) && (pc[31:29] == csr_dmw1[`VSEG]);
 
     //excp
-    // logic excp_tlbr, excp_pif, excp_ppi, excp_adef;
-    // assign excp_tlbr = !inst_tlb_found && inst_addr_trans_en;
-    // assign excp_pif = !inst_tlb_v && inst_addr_trans_en;
-    // assign excp_ppi = (csr_plv > inst_tlb_plv) && inst_addr_trans_en;
-    // assign excp_adef = (pc[0] || pc[1]) | (pc[31] && (csr_plv == 2'd3) && inst_addr_trans_en);
+    logic excp_tlbr, excp_pif, excp_ppi, excp_adef;
+    assign excp_tlbr = !inst_tlb_found && inst_addr_trans_en;
+    assign excp_pif = !inst_tlb_v && inst_addr_trans_en;
+    assign excp_ppi = (csr_plv > inst_tlb_plv) && inst_addr_trans_en;
+    assign excp_adef = (pc[0] || pc[1]) | (pc[31] && (csr_plv == 2'd3) && inst_addr_trans_en);
 
-    // assign instr_buffer_o[0].excp = excp_tlbr | excp_pif | excp_ppi | excp_adef;
-    // assign instr_buffer_o[0].excp_num = {excp_ppi, excp_pif, excp_tlbr, excp_adef};
+    assign instr_buffer_o[0].excp = excp_tlbr | excp_pif | excp_ppi | excp_adef;
+    assign instr_buffer_o[0].excp_num = {excp_ppi, excp_pif, excp_tlbr, excp_adef};
 
-    // assign instr_buffer_o[1].excp = excp_tlbr | excp_pif | excp_ppi | excp_adef;
-    // assign instr_buffer_o[1].excp_num = {excp_ppi, excp_pif, excp_tlbr, excp_adef};
+    assign instr_buffer_o[1].excp = excp_tlbr | excp_pif | excp_ppi | excp_adef;
+    assign instr_buffer_o[1].excp_num = {excp_ppi, excp_pif, excp_tlbr, excp_adef};
 
     logic [ADDR_WIDTH-1:0] pc, next_pc;
 

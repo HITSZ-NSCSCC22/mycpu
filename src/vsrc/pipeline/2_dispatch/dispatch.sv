@@ -187,7 +187,7 @@ module dispatch #(
 
                     exe_o[i].csr_signal.we <= csr_op[i] && aluop_i[i] != `EXE_CSRRD_OP;
                     exe_o[i].csr_signal.addr <= id_i[i].imm[13:0];
-                    exe_o[i].csr_signal.data <= oprand1[0];
+                    exe_o[i].csr_signal.data <= oprand1[i];
                     exe_o[i].csr_reg_data <= csr_data;
                 end else begin
                     // Cannot be issued, so do not issue,just issue the excp
