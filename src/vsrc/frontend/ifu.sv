@@ -60,7 +60,7 @@ module ifu #(
     always_ff @(posedge clk) begin : is_flushing_ff
         if (rst) begin
             is_flushing_r <= 0;
-        end else if (flush_i & p1_read_transaction.valid & ~p1_read_done) begin
+        end else if (flush_i & p1_read_transaction.valid & (~p1_read_done | stallreq_i)) begin
             // Enter a flusing state if flush_i and read transaction on-the-fly
             is_flushing_r <= 1;
         end else if (p1_read_done) begin
