@@ -59,7 +59,7 @@ module dispatch #(
     //assign stallreq = aluop_i == `EXE_TLBRD_OP;
     //判断待发射的两条指令里面有无特权指令,如有有就拉高is_pri_instr,把信号传给ctrl就行阻塞
     logic pri_op[2];
-    assign is_pri_instr = pri_op[0];
+    assign is_pri_instr = pri_op[0] & do_we_issue[0] & ~stall & ~flush;
     assign pri_op[0] = aluop_i[0] == `EXE_CSRWR_OP | aluop_i[0] == `EXE_CSRRD_OP | aluop_i[0] == `EXE_CSRXCHG_OP |
                        aluop_i[0] == `EXE_SYSCALL_OP | aluop_i[0] == `EXE_BREAK_OP | aluop_i[0] == `EXE_ERTN_OP |
                        aluop_i[0] == `EXE_TLBRD_OP | aluop_i[0] == `EXE_TLBWR_OP | aluop_i[0] == `EXE_TLBSRCH_OP |
@@ -97,10 +97,20 @@ module dispatch #(
     end
     assign ib_accept_o = stall ? 0 :do_we_issue & {id_i[1].instr_info.valid, id_i[0].instr_info.valid};
 
+
+    // DEBUG signal
+    logic [`InstAddrBus] debug_pc[DECODE_WIDTH];
+    always_comb begin
+        for (integer i = 0; i < DECODE_WIDTH; i++) begin
+            debug_pc[i] = id_i[i].instr_info.pc;
+        end
+    end
+
     // Stall
     always_comb begin
-        if (block) do_we_issue = 2'b00;
-        if (id_i[1].reg_read_addr[0] == id_i[0].reg_write_addr && id_i[1].reg_read_valid[0] && id_i[0].reg_write_valid) begin
+        if (block) begin
+            do_we_issue = 2'b00;
+        end else if (id_i[1].reg_read_addr[0] == id_i[0].reg_write_addr && id_i[1].reg_read_valid[0] && id_i[0].reg_write_valid) begin
             // If P1 instr read reg1 && P0 instr write reg && reg addr is the same
             // Only P0 is issued
             do_we_issue = 2'b01;
@@ -108,7 +118,7 @@ module dispatch #(
             // If P1 instr read reg2 && P0 instr write reg && reg addr is the same
             // Only P0 is issued
             do_we_issue = 2'b01;
-        end else if (is_both_mem_instr | pri_op[1]) begin
+        end else if (is_both_mem_instr | pri_op[0] | pri_op[1]) begin
             do_we_issue = 2'b01;
         end else if (is_both_csr_write) begin
             do_we_issue = 2'b01;

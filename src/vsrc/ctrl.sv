@@ -1,5 +1,6 @@
 `include "pipeline_defines.sv"
 module ctrl (
+    input logic clk,
     input logic rst,
 
     input wb_ctrl wb_i_1,
@@ -16,7 +17,7 @@ module ctrl (
     // Stall request to each stage
     output logic [4:0] stall,  // from 4->0 {ex_mem, dispatch_ex, id_dispatch, _}
 
-    input logic  is_pri_instr,
+    input logic is_pri_instr,
     output logic pri_stall,   //当特权指令发射时把此信号拉高,提交后拉低,确保特权指令后没有其它指令
 
     output logic [1:0] ex_mem_flush_o,
@@ -106,14 +107,13 @@ module ctrl (
                        aluop == `EXE_CACOP_OP ;
 
     //特权阻塞信号
-    always_comb begin 
-        if(rst) pri_stall = 0;
+    always_ff @(posedge clk) begin
+        if (rst) pri_stall <= 0;
         //发射阶段发射特权信号,拉高阻塞信号,阻塞前端,不再传指令
-        else if(is_pri_instr) pri_stall = 1;
+        else if (is_pri_instr) pri_stall <= 1;
         //提交阶段,若提交的是特权指令,把阻塞信号拉低,开始发射
-        else if(pri_commit)pri_stall = 0;
+        else if (pri_commit) pri_stall <= 0;
         //其余时刻保持当前状态
-        else pri_stall = pri_stall;
     end
 
     //提交difftest

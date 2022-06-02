@@ -668,7 +668,10 @@ module cpu_top (
     logic tlbrd_en;
 
     ctrl u_ctrl(
+        .clk(clk),
         .rst(rst),
+
+        // <- WB
         .wb_i_1(wb_ctrl_signal[0]),
         .wb_i_2(wb_ctrl_signal[1]),
 
