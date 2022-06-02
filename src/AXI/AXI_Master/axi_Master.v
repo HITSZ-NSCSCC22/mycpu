@@ -29,7 +29,7 @@ module axi_Master (
     input wire [`BurstData]dcache_wr_data,//data from dcache
     input wire dcache_wr_req_i,//write enable signal
     output reg dcache_wr_rdy,//write can receive
-    
+    output reg write_ok,
     //Slave
 
     //ar
@@ -108,77 +108,51 @@ module axi_Master (
 /**
 **read state machine for fetch instruction 
 **/
-    //改变输出
-    always @(*)
-    begin
-        if(!aresetn)begin
-            inst_cpu_data_o=0;
-            is_fetching_inst=0;
-            icache_rd_rdy_o=1;
-            icache_ret_valid_o=0;
-            icache_ret_last_o=0;
-        end 
-        else
-        begin
-            case(inst_r_state)
-                `R_FREE:begin
-                            if(icache_rd_req_i)
-                            begin
-                                inst_cpu_data_o=0;
-                                is_fetching_inst=0;
 
-                                icache_rd_rdy_o=1;
-                                icache_ret_valid_o=0;
-                                icache_ret_last_o=0;
-                            end
-                            else
-                            begin
-                                inst_cpu_data_o=0;
-                                is_fetching_inst=0;
-
-                                icache_rd_rdy_o=1;
-                                icache_ret_valid_o=0;
-                                icache_ret_last_o=0;
-                            end
-                        end
-                `R_ADDR:begin
-                    inst_cpu_data_o=0;
-                    is_fetching_inst=1;
-
-                    icache_rd_rdy_o=0;
-                    icache_ret_valid_o=0;
-                    icache_ret_last_o=0;
+     always @(posedge aclk) begin
+        if (!aresetn) begin
+            inst_cpu_data_o <= 0;
+            icache_rd_rdy_o <= 1;
+            icache_ret_valid_o <= 0;
+            icache_ret_last_o <= 0;
+        end else begin
+            case (inst_r_state)
+                `R_FREE: begin
+                        inst_cpu_data_o <= 0;
+                        icache_rd_rdy_o <= 1;
+                        icache_ret_valid_o <= 0;
+                        icache_ret_last_o <= 0;
+                end
+                `R_ADDR: begin
+                    inst_cpu_data_o <= 0;
+                    icache_rd_rdy_o <= 0;
+                    icache_ret_valid_o <= 0;
+                    icache_ret_last_o <= 0;
+                end
+                `R_DATA: begin
+                    if (s_rvalid && s_rlast && s_rid[0] == 0) begin
+                        inst_cpu_data_o <= s_rdata;
+                        icache_rd_rdy_o <= 1;
+                        icache_ret_valid_o <= 1;
+                        icache_ret_last_o <= 1;
+                    end else if (s_rvalid && s_rready && s_rid[0] == 0) begin
+                        inst_cpu_data_o <= s_rdata;
+                        icache_rd_rdy_o <= 0;
+                        icache_ret_valid_o <= 1;
+                        icache_ret_last_o <= 0;
+                    end else begin
+                        inst_cpu_data_o <= 0;
+                        icache_rd_rdy_o <= 0;
+                        icache_ret_valid_o <= 0;
+                        icache_ret_last_o <= 0;
                     end
-                `R_DATA:begin
-                            if(s_rvalid&&s_rlast&&s_rid[0]==0)
-                            begin
-                               inst_cpu_data_o=s_rdata;
-                               is_fetching_inst=0;
-
-                               icache_rd_rdy_o=1;
-                               icache_ret_valid_o=1;
-                               icache_ret_last_o=1;
-                            end
-                            else if(s_rvalid&&s_rready&&s_rid[0]==0)
-                            begin
-                                inst_cpu_data_o=s_rdata;
-                                is_fetching_inst=1;
-
-                                icache_rd_rdy_o=0;
-                                icache_ret_valid_o=1;
-                                icache_ret_last_o=0;
-                            end
-                            else
-                            begin
-                                inst_cpu_data_o=0;
-                                is_fetching_inst=1;
-                                icache_rd_rdy_o=0;
-                                icache_ret_valid_o=0;
-                                icache_ret_last_o=0;
-                            end       
-                        end
-                default:begin
-                        end
+                end
+                default: begin
+                        inst_cpu_data_o <= 0;
+                        icache_rd_rdy_o <= 0;
+                        icache_ret_valid_o <= 0;
+                        icache_ret_last_o <= 0;
+                end
             endcase
         end
     end
@@ -196,8 +170,8 @@ module axi_Master (
             inst_buffer<=0;
             inst_s_arlen<=0;
             inst_s_rready<=0;
-
             inst_s_arvalid<=0;
+            is_fetching_inst<=0;
         end
         else
         begin
@@ -217,7 +191,7 @@ module axi_Master (
                             inst_s_rready<=0;
 
                             inst_s_arvalid<=1;
-                        
+                            is_fetching_inst<=1;
                         end
                         else if((icache_rd_req_i)&&(dcache_rd_req_i))//fetch inst and fetch data
                         begin
@@ -233,6 +207,7 @@ module axi_Master (
                                 inst_s_rready<=0;
 
                                 inst_s_arvalid<=1;
+                                is_fetching_inst<=1;
                             end
                             else
                             begin
@@ -245,6 +220,7 @@ module axi_Master (
                                 inst_s_rready<=0;
 
                                 inst_s_arvalid<=0;
+                                is_fetching_inst<=0;
                             end
                         end
                         else
@@ -258,6 +234,7 @@ module axi_Master (
                             inst_s_rready<=0;
 
                             inst_s_arvalid<=0;
+                            is_fetching_inst<=0;
                         end
                     end
                     else
@@ -271,6 +248,7 @@ module axi_Master (
                             inst_s_rready<=0;
 
                             inst_s_arvalid<=0;
+                            is_fetching_inst<=0;
                     end
                     
                 end
@@ -287,7 +265,8 @@ module axi_Master (
                                 inst_buffer<=0;
                                 inst_s_arlen<=0;
                                 inst_s_rready<=1;
-                                inst_s_arvalid<=0;           
+                                inst_s_arvalid<=0;
+                                is_fetching_inst<=1;           
                         
                     end
                     else
@@ -301,7 +280,7 @@ module axi_Master (
                         inst_s_rready<=inst_s_rready;
 
                         inst_s_arvalid<=inst_s_arvalid;
-
+                        is_fetching_inst<=1;
                     end
 
                 
@@ -319,6 +298,7 @@ module axi_Master (
                             inst_s_araddr<=0;
                             inst_s_arsize<=0;
                             inst_s_arlen<=0;
+                            is_fetching_inst<=0;
                     end
                     else
                     begin
@@ -330,11 +310,19 @@ module axi_Master (
                         inst_s_araddr<=inst_s_araddr;
                         inst_s_arsize<=inst_s_arsize;
                         inst_s_arlen<=0;
+                        is_fetching_inst<=1;
                     end
                 end
                 default:
                 begin
-                    
+                        inst_r_state  <= `R_FREE;
+                        inst_buffer   <= 0;
+                        inst_s_rready <= 0;
+                        inst_s_arid   <= 0;
+                        inst_s_araddr <= 0;
+                        inst_s_arsize <= 0;
+                        inst_s_arlen  <= 0;
+                        is_fetching_inst<=0;
                 end
 
             endcase
@@ -357,65 +345,50 @@ module axi_Master (
 **read state machine for fetch data
 **/
 
-    //改变输出
-    always @(*)
-    begin
-        if(!aresetn)begin
-            data_cpu_data_o=0;
-            dcache_rd_rdy_o=1;
-            dcache_ret_valid_o=0;
-            dcache_ret_last_o=0;
-        end 
-        else
-        begin
-            case(data_r_state)
-                `R_FREE:begin
-                            if(dcache_rd_req_i)
-                            begin
-                                data_cpu_data_o=0;
-                                dcache_rd_rdy_o=1;
-                                dcache_ret_valid_o=0;
-                                dcache_ret_last_o=0;
-                            end
-                            else
-                            begin
-                                data_cpu_data_o=0;
-                                dcache_rd_rdy_o=1;
-                                dcache_ret_valid_o=0;
-                                dcache_ret_last_o=0;
-                            end
-                        end
-                `R_ADDR:begin
-                    data_cpu_data_o=0;
-                    dcache_rd_rdy_o=0;
-                    dcache_ret_valid_o=0;
-                    dcache_ret_last_o=0;
+    always @(posedge aclk) begin
+        if (!aresetn) begin
+            data_cpu_data_o <= 0;
+            dcache_rd_rdy_o <= 1;
+            dcache_ret_valid_o <= 0;
+            dcache_ret_last_o <= 0;
+        end else begin
+            case (data_r_state)
+                `R_FREE: begin
+                        data_cpu_data_o <= 0;
+                        dcache_rd_rdy_o <= 1;
+                        dcache_ret_valid_o <= 0;
+                        dcache_ret_last_o <= 0;
+                end
+                `R_ADDR: begin
+                    data_cpu_data_o <= 0;
+                    dcache_rd_rdy_o <= 0;
+                    dcache_ret_valid_o <= 0;
+                    dcache_ret_last_o <= 0;
+                end
+                `R_DATA: begin
+                    if (s_rvalid && s_rlast && s_rid[0] == 1) begin
+                        data_cpu_data_o <= s_rdata;
+                        dcache_rd_rdy_o <= 1;
+                        dcache_ret_valid_o <= 1;
+                        dcache_ret_last_o <= 1;
+                    end else if (s_rvalid && s_rready && s_rid[0] == 1) begin
+                        data_cpu_data_o <= s_rdata;
+                        dcache_rd_rdy_o <= 0;
+                        dcache_ret_valid_o <= 1;
+                        dcache_ret_last_o <= 0;
+                    end else begin
+                        data_cpu_data_o <= 0;
+                        dcache_rd_rdy_o <= 0;
+                        dcache_ret_valid_o <= 0;
+                        dcache_ret_last_o <= 0;
                     end
-                `R_DATA:begin
-                            if(s_rvalid&&s_rlast&&s_rid[0]==1)
-                            begin
-                               data_cpu_data_o=s_rdata;
-                               dcache_rd_rdy_o=1;
-                               dcache_ret_valid_o=1;
-                               dcache_ret_last_o=1;
-                            end
-                            else if(s_rvalid&&s_rready&&s_rid[0]==1)
-                            begin
-                                data_cpu_data_o=s_rdata;
-                                dcache_rd_rdy_o=0;
-                                dcache_ret_valid_o=1;
-                                dcache_ret_last_o=0;
-                            end
-                            else
-                            begin
-                                data_cpu_data_o=0;
-                                dcache_rd_rdy_o=0;
-                                dcache_ret_valid_o=0;
-                                dcache_ret_last_o=0;
-                            end       
-                        end
-                default:begin
-                        end
+                end
+                default: begin
+                        data_cpu_data_o <= 0;
+                        dcache_rd_rdy_o <= 0;
+                        dcache_ret_valid_o <= 0;
+                        dcache_ret_last_o <= 0;
+                end
             endcase
         end
     end
@@ -528,7 +501,13 @@ module axi_Master (
 
                 default:
                 begin
-                    
+                        data_r_state  <= `R_FREE;
+                        data_buffer   <= 0;
+                        data_s_rready <= 0;
+                        data_s_arid   <= 0;
+                        data_s_araddr <= 0;
+                        data_s_arsize <= 0;
+                        data_s_arlen  <= 0;
                 end
 
             endcase
@@ -572,7 +551,7 @@ module axi_Master (
         if(!aresetn)   
         begin
             write_wait_enable=0;
-            dcache_wr_rdy=1;
+            // dcache_wr_rdy=1;
         end
         else
         begin
@@ -581,37 +560,70 @@ module axi_Master (
                     if(dcache_wr_req_i)    
                     begin
                         write_wait_enable=1;
-                        dcache_wr_rdy=1;
+                        // dcache_wr_rdy=1;
                     end
                     else 
                     begin
                         write_wait_enable=0;
-                        dcache_wr_rdy=1;
+                        // dcache_wr_rdy=1;
                     end
                 end
                 `W_ADDR,`W_DATA:
                 begin
                     write_wait_enable=1;
-                    dcache_wr_rdy=0;
+                    // dcache_wr_rdy=0;
                 end
                 `W_RESP:begin
                             if(s_bvalid&&s_bready)  
                             begin
                                 write_wait_enable=0;
-                                dcache_wr_rdy=1;
+                                // dcache_wr_rdy=1;
                             end
                             else 
                             begin
                                 write_wait_enable=1;
-                                dcache_wr_rdy=0;
+                                // dcache_wr_rdy=0;
                             end
                         end
                 default:
                 begin
+                    write_wait_enable = 0;
                 end
             endcase
         end 
         
+    end
+
+            //signal to cache
+        always @(posedge aclk) begin
+        if (!aresetn) begin
+            dcache_wr_rdy <= 1;
+            write_ok<=0;
+        end else begin
+            case (w_state)
+                `W_FREE: begin
+                        dcache_wr_rdy <= 1;
+                        write_ok<=0;
+                end
+                `W_ADDR, `W_DATA: begin
+                    dcache_wr_rdy <= 0;
+                    write_ok<=0;
+                end
+                `W_RESP: begin
+                    if (s_bvalid && s_bready) begin
+                        dcache_wr_rdy <= 1;
+                        write_ok<=1;
+                    end else begin
+                        dcache_wr_rdy <= 0;
+                        write_ok<=0;
+                    end
+                end
+                default: begin
+                        dcache_wr_rdy <= 0;
+                        write_ok<=0;
+                end
+            endcase
+        end
     end
 
     always @(posedge aclk) begin
