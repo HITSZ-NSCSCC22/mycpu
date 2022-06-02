@@ -215,7 +215,9 @@ module id (
 
 
     // Generate output
-    assign dispatch_o.instr_info.valid = instr_valid | excp;
+    //对valid进行特判:如果存在无效指令,也要发射出去,以便让ctrl处理异常
+    //目前暂时是对取指地址异常进行特判
+    assign dispatch_o.instr_info.valid = instr_valid | excp_num == 9'h01E;
     assign dispatch_o.instr_info.pc = pc_i;
     assign dispatch_o.instr_info.instr = inst_i;
     assign dispatch_o.instr_info.is_last_in_block = is_last_in_block;
