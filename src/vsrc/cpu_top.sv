@@ -369,7 +369,7 @@ module cpu_top (
     id_dispatch u_id_dispatch (
         .clk       (clk),
         .rst       (rst),
-        .stall     (stall[1] | pri_stall),
+        .stall     (stall[1]),
         .flush     (backend_flush), // FIXME: does not carefully designed
         .id_i      (id_id_dispatch),
         .dispatch_o(id_dispatch_dispatch)
@@ -397,8 +397,10 @@ module cpu_top (
         // <- ID
         .id_i(id_dispatch_dispatch),
 
+        // <-> Ctrl
         .is_pri_instr(is_pri_instr),
         .stallreq(stallreq_from_dispatch),
+        .block(pri_stall),
         .stall(stall[2]),
         .flush(backend_flush),
 

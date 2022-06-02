@@ -16,6 +16,7 @@ module dispatch #(
     output logic is_pri_instr,
     output logic stallreq,
     input  logic stall,
+    input  logic block,
     input  logic flush,
 
     // <-> Regfile, wire
@@ -58,7 +59,7 @@ module dispatch #(
     //assign stallreq = aluop_i == `EXE_TLBRD_OP;
     //判断待发射的两条指令里面有无特权指令,如有有就拉高is_pri_instr,把信号传给ctrl就行阻塞
     logic pri_op[2];
-    assign is_pri_instr = pri_op[0] | pri_op[1];
+    assign is_pri_instr = pri_op[0];
     assign pri_op[0] = aluop_i[0] == `EXE_CSRWR_OP | aluop_i[0] == `EXE_CSRRD_OP | aluop_i[0] == `EXE_CSRXCHG_OP |
                        aluop_i[0] == `EXE_SYSCALL_OP | aluop_i[0] == `EXE_BREAK_OP | aluop_i[0] == `EXE_ERTN_OP |
                        aluop_i[0] == `EXE_TLBRD_OP | aluop_i[0] == `EXE_TLBWR_OP | aluop_i[0] == `EXE_TLBSRCH_OP |
@@ -71,7 +72,7 @@ module dispatch #(
                        aluop_i[1] == `EXE_TLBFILL_OP | aluop_i[1] == `EXE_IDLE_OP | aluop_i[1] == `EXE_INVTLB_OP |
                        aluop_i[1] == `EXE_CACOP_OP ;
 
-    logic csr_op[2],is_both_csr_write;
+    logic csr_op[2], is_both_csr_write;
     assign csr_op[0] = aluop_i[0] == `EXE_CSRWR_OP | aluop_i[0] == `EXE_CSRRD_OP | aluop_i[0] == `EXE_CSRXCHG_OP;
     assign csr_op[1] = aluop_i[1] == `EXE_CSRWR_OP | id_i[1].aluop == `EXE_CSRRD_OP | id_i[1].aluop == `EXE_CSRXCHG_OP;
     assign is_both_csr_write = csr_op[0] & csr_op[1];
@@ -98,6 +99,7 @@ module dispatch #(
 
     // Stall
     always_comb begin
+        if (block) do_we_issue = 2'b00;
         if (id_i[1].reg_read_addr[0] == id_i[0].reg_write_addr && id_i[1].reg_read_valid[0] && id_i[0].reg_write_valid) begin
             // If P1 instr read reg1 && P0 instr write reg && reg addr is the same
             // Only P0 is issued
@@ -106,9 +108,9 @@ module dispatch #(
             // If P1 instr read reg2 && P0 instr write reg && reg addr is the same
             // Only P0 is issued
             do_we_issue = 2'b01;
-        end else if (is_both_mem_instr) begin
+        end else if (is_both_mem_instr | pri_op[1]) begin
             do_we_issue = 2'b01;
-        end else if(is_both_csr_write)begin
+        end else if (is_both_csr_write) begin
             do_we_issue = 2'b01;
         end else if (aluop_i[1] == `EXE_ERTN_OP || aluop_i[1] == `EXE_SYSCALL_OP || aluop_i[1] == `EXE_BREAK_OP) begin
             do_we_issue = 2'b01;
@@ -206,7 +208,7 @@ module dispatch #(
                     exe_o[i].csr_reg_data <= csr_data;
                 end else begin
                     // Cannot be issued, so do not issue,just issue the excp
-                    exe_o[i] <= 0;//.excp <= id_i[i].excp;
+                    exe_o[i] <= 0;  //.excp <= id_i[i].excp;
                     //exe_o[i].excp_num <= id_i[i].excp_num; 
                 end
             end
