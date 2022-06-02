@@ -526,7 +526,6 @@ module axi_master (
     always @(*) begin
         if (!aresetn) begin
             write_wait_enable = 0;
-            dcache_wr_rdy = 1;
         end else begin
             case (w_state)
                 `W_FREE: begin
