@@ -93,12 +93,6 @@ module dummy_dcache (
         endcase
     end
 
-    //delay wr_rdy one cycle
-    logic reg_wr_rdy;
-    always_ff @(posedge clk)begin
-        if(rst) reg_wr_rdy<=0;
-        else reg_wr_rdy<=wr_rdy;
-    end
 
     assign rd_type = 3'b010;  // word
     assign wr_type = 3'b010;  // word
@@ -123,7 +117,7 @@ module dummy_dcache (
                 rd_addr = rd_addr_r;
             end
             WRITE_REQ: begin
-                if (reg_wr_rdy) begin
+                if (wr_rdy) begin
                     wr_req  = 1;
                     wr_addr = {cpu_addr[31:4], 4'b0};  // Keep addr aligned
                     case (cpu_addr[3:2])
@@ -163,7 +157,7 @@ module dummy_dcache (
                 end
             end
             WRITE_REQ: begin
-                if (reg_wr_rdy) begin
+                if (wr_rdy) begin
                     addr_ok = 1;
                     data_ok = 1;
                 end
