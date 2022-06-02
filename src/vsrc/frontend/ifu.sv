@@ -134,9 +134,13 @@ module ifu #(
             for (integer i = 0; i < FETCH_WIDTH; i++) begin
                 instr_buffer_o[i] <= 0;
             end
+        end else if (is_flushing) begin
+            for (integer i = 0; i < FETCH_WIDTH; i++) begin
+                instr_buffer_o[i] <= 0;
+            end
         end else if (stallreq_i) begin
             // Hold output
-        end else if (p1_read_done & ~is_flushing) begin
+        end else if (p1_read_done) begin
             // If p1 read done, pass data to IB
             // However, if p1 read done comes from flushing, do not pass down to IB
             for (integer i = 0; i < FETCH_WIDTH; i++) begin
