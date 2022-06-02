@@ -13,6 +13,7 @@ module dispatch #(
     input id_dispatch_struct [DECODE_WIDTH-1:0] id_i,
 
     // <- Ctrl
+    output logic is_pri_instr,
     output logic stallreq,
     input  logic stall,
     input  logic flush,
@@ -55,6 +56,20 @@ module dispatch #(
     assign aluop_i[1] = id_i[1].aluop;
 
     //assign stallreq = aluop_i == `EXE_TLBRD_OP;
+    //判断待发射的两条指令里面有无特权指令,如有有就拉高is_pri_instr,把信号传给ctrl就行阻塞
+    logic pri_op[2];
+    assign is_pri_instr = pri_op[0] | pri_op[1];
+    assign pri_op[0] = aluop_i[0] == `EXE_CSRWR_OP | aluop_i[0] == `EXE_CSRRD_OP | aluop_i[0] == `EXE_CSRXCHG_OP |
+                       aluop_i[0] == `EXE_SYSCALL_OP | aluop_i[0] == `EXE_BREAK_OP | aluop_i[0] == `EXE_ERTN_OP |
+                       aluop_i[0] == `EXE_TLBRD_OP | aluop_i[0] == `EXE_TLBWR_OP | aluop_i[0] == `EXE_TLBSRCH_OP |
+                       aluop_i[0] == `EXE_TLBFILL_OP | aluop_i[0] == `EXE_IDLE_OP | aluop_i[0] == `EXE_INVTLB_OP |
+                       aluop_i[0] == `EXE_CACOP_OP ;
+
+    assign pri_op[1] = aluop_i[1] == `EXE_CSRWR_OP | aluop_i[1] == `EXE_CSRRD_OP | aluop_i[1] == `EXE_CSRXCHG_OP |
+                       aluop_i[1] == `EXE_SYSCALL_OP | aluop_i[1] == `EXE_BREAK_OP | aluop_i[1] == `EXE_ERTN_OP |
+                       aluop_i[1] == `EXE_TLBRD_OP | aluop_i[1] == `EXE_TLBWR_OP | aluop_i[1] == `EXE_TLBSRCH_OP |
+                       aluop_i[1] == `EXE_TLBFILL_OP | aluop_i[1] == `EXE_IDLE_OP | aluop_i[1] == `EXE_INVTLB_OP |
+                       aluop_i[1] == `EXE_CACOP_OP ;
 
     logic csr_op[2],is_both_csr_write;
     assign csr_op[0] = aluop_i[0] == `EXE_CSRWR_OP | aluop_i[0] == `EXE_CSRRD_OP | aluop_i[0] == `EXE_CSRXCHG_OP;

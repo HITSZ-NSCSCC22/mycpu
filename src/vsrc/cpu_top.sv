@@ -369,7 +369,7 @@ module cpu_top (
     id_dispatch u_id_dispatch (
         .clk       (clk),
         .rst       (rst),
-        .stall     (stall[1]),
+        .stall     (stall[1] | pri_stall),
         .flush     (backend_flush), // FIXME: does not carefully designed
         .id_i      (id_id_dispatch),
         .dispatch_o(id_dispatch_dispatch)
@@ -382,7 +382,7 @@ module cpu_top (
     ex_dispatch_struct [1:0] ex_data_forward;
     mem_data_forward_t [1:0] mem_data_forward;
 
-    logic stallreq_from_dispatch;
+    logic stallreq_from_dispatch,is_pri_instr,pri_stall;
 
 
     // Dispatch Stage, Sequential logic
@@ -397,6 +397,7 @@ module cpu_top (
         // <- ID
         .id_i(id_dispatch_dispatch),
 
+        .is_pri_instr(is_pri_instr),
         .stallreq(stallreq_from_dispatch),
         .stall(stall[2]),
         .flush(backend_flush),
@@ -682,6 +683,8 @@ module cpu_top (
         .fetch_flush(fetch_flush),
 
         .stall(stall),
+        .is_pri_instr(is_pri_instr),
+        .pri_stall(pri_stall),
         .ex_mem_flush_o(ex_mem_flush),
         .flush(flush),
 

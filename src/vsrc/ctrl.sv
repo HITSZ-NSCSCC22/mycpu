@@ -16,6 +16,9 @@ module ctrl (
     // Stall request to each stage
     output logic [4:0] stall,  // from 4->0 {ex_mem, dispatch_ex, id_dispatch, _}
 
+    input logic  is_pri_instr,
+    output logic pri_stall,   //当特权指令发射时把此信号拉高,提交后拉低,确保特权指令后没有其它指令
+
     output logic [1:0] ex_mem_flush_o,
     output logic flush,
 
@@ -92,6 +95,25 @@ module ctrl (
         //else if (tlb_stallreq[0] | tlb_stallreq[1]) stall = 5'b11000;
         else
             stall = 5'b00000;
+    end
+
+    //判断提交的是否为特权指令,因为特权后不发射其它指令,故必然出现在第一条流水线
+    logic pri_commit;
+    assign pri_commit = aluop == `EXE_CSRWR_OP | aluop == `EXE_CSRRD_OP | aluop == `EXE_CSRXCHG_OP |
+                       aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_ERTN_OP |
+                       aluop == `EXE_TLBRD_OP | aluop == `EXE_TLBWR_OP | aluop == `EXE_TLBSRCH_OP |
+                       aluop == `EXE_TLBFILL_OP | aluop == `EXE_IDLE_OP | aluop == `EXE_INVTLB_OP |
+                       aluop == `EXE_CACOP_OP ;
+
+    //特权阻塞信号
+    always_comb begin 
+        if(rst) pri_stall = 0;
+        //发射阶段发射特权信号,拉高阻塞信号,阻塞前端,不再传指令
+        else if(is_pri_instr) pri_stall = 1;
+        //提交阶段,若提交的是特权指令,把阻塞信号拉低,开始发射
+        else if(pri_commit)pri_stall = 0;
+        //其余时刻保持当前状态
+        else pri_stall = pri_stall;
     end
 
     //提交difftest

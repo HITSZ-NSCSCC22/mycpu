@@ -105,8 +105,6 @@
 `define TLBRPRMD 14'h8f
 `define DMW0 14'h180
 `define DMW1 14'h181
-`define DMW2 14'h182
-`define DMW3 14'h183
 `define BRK 14'h100
 `define DISABLE_CACHE 14'h101
 
