@@ -29,14 +29,14 @@ module decoder_2R #(
 );
 
     logic [DATA_WIDTH-1:0] instr;
-    assign instr = instr_info_i.instr;
+    assign instr   = instr_info_i.instr;
     assign use_imm = 1'b0;
 
     always_comb begin
         case (instr[31:10])
             `EXE_TLBWR: begin
                 decode_result_valid_o = 1;
-                aluop_o               = `EXE_TLBFILL_OP;
+                aluop_o               = `EXE_TLBWR_OP;
             end
             `EXE_TLBFILL: begin
                 decode_result_valid_o = 1;
