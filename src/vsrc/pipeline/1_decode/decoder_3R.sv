@@ -29,8 +29,9 @@ module decoder_3R #(
     output logic reg_write_valid_o,
     output logic [$clog2(GPR_NUM)-1:0] reg_write_addr_o,
 
-    //not use imm
+    // Only invtlb used imm
     output logic use_imm,
+    output logic [DATA_WIDTH-1:0] imm_o,
 
     // ALU info
     output logic [ ALU_OP_WIDTH-1:0] aluop_o,
@@ -58,6 +59,7 @@ module decoder_3R #(
         reg_read_valid_o = 2'b11;
         reg_read_addr_o = {rk, rj};
         use_imm = 1'b0;
+        imm_o = 0;
         instr_break = 0;
         instr_syscall = 0;
         // Default
@@ -166,9 +168,13 @@ module decoder_3R #(
                 alusel_o = `EXE_RES_NOP;
             end
             `EXE_INVTLB: begin
-                // FIXME: not implemented now, TLB related
-                aluop_o  = `EXE_INVTLB_OP;
+                aluop_o = `EXE_INVTLB_OP;
                 alusel_o = `EXE_RES_NOP;
+                // instr[4:0] as imm, not reg id
+                use_imm = 1;
+                imm_o = {27'b0, instr[4:0]};
+                reg_write_valid_o = 0;
+                reg_write_addr_o = 0;
             end
             default: begin  // Means no match in the current decoder
                 decode_result_valid_o = 0;

@@ -79,6 +79,7 @@ module id (
         .reg_write_valid_o    (sub_decoder_reg_write_valid[1]),
         .reg_write_addr_o     (sub_decoder_reg_write_addr[1]),
         .use_imm              (sub_decoder_use_imm[1]),
+        .imm_o                (sub_decoder_imm[1]),
         .aluop_o              (sub_decoder_aluop[1]),
         .alusel_o             (sub_decoder_alusel[1]),
         .instr_break          (instr_break),
