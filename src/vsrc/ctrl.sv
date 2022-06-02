@@ -69,7 +69,11 @@ module ctrl (
     assign tlbsrch_index = wb_i_1.data_tlb_index | wb_i_2.data_tlb_index;
     assign inv_o = wb_i_1.inv_i | wb_i_2.inv_i;
 
+    //flush sign 
+
+    //第二条流水线冲刷:当第一条流水线的指令发生跳转时,或是发生异常和ertn指令时进行冲刷
     assign ex_mem_flush_o[1] = ex_branch_flag_i[0] | ertn_flush | excp_flush;
+    //第一条流水线冲刷:发生异常和ertn指令时进行冲刷
     assign ex_mem_flush_o[0] = ertn_flush | excp_flush;
     assign excp_flush = excp;
     assign ertn_flush = wb_i_1.aluop == `EXE_ERTN_OP | wb_i_2.aluop == `EXE_ERTN_OP;
@@ -79,8 +83,11 @@ module ctrl (
     //暂停处理
     always_comb begin
         if (rst) stall = 5'b00000;
+        //执行阶段的暂停请求:进行乘除法时请求暂停,此时将译码和发射阶段阻塞
         else if (ex_stallreq_i[0] | ex_stallreq_i[1]) stall = 5'b11110;
+        //访存阶段的暂停请求:进行访存操作时请求暂停,此时将译码和发射阶段阻塞
         else if (mem_stallreq_i[0] | mem_stallreq_i[1]) stall = 5'b11110;
+        //发射阶段的暂停请求:原本用于tlbrd指令的请求暂停,但是会出现bug,目前已经弃用
         else if (stallreq_from_dispatch) stall = 5'b11100;
         //else if (tlb_stallreq[0] | tlb_stallreq[1]) stall = 5'b11000;
         else
