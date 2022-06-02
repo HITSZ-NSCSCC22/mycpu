@@ -62,12 +62,13 @@ module tlb (
     assign s0_vppn = inst_i.vaddr[31:13];
     assign s0_odd_page = inst_i.vaddr[12];
 
-    assign s1_vppn = data_i.vaddr[31:13];
+    assign s1_vppn = data_i.vaddr[31:13] | write_signal_i.tlbehi[`VPPN];
     assign s1_odd_page = data_i.vaddr[12];
 
     //trans write port sig
     assign we = write_signal_i.tlbfill_en || write_signal_i.tlbwr_en;
     assign w_index = ({5{write_signal_i.tlbfill_en}} & write_signal_i.rand_index) | ({5{write_signal_i.tlbwr_en}} & write_signal_i.tlbidx[`INDEX]);
+    assign w_port.asid = asid;
     assign w_port.vppn = write_signal_i.tlbehi[`VPPN];
     assign w_port.g = write_signal_i.tlbelo0[`TLB_G] && write_signal_i.tlbelo1[`TLB_G];
     assign w_port.ps = write_signal_i.tlbidx[`PS];

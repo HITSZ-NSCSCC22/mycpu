@@ -83,10 +83,14 @@ module tlb_entry (
 
     always_comb begin
         for (integer j = 0; j < 32; j++) begin
-            {s0_index, s0_ps, s0_ppn, s0_v, s0_d, s0_mat, s0_plv} = {37{match0[j] & s0_odd_page_buffer[j] }} & {5'd0, tlb_ps[j], tlb_ppn1[j], tlb_v1[j], tlb_d1[j], tlb_mat1[j], tlb_plv1[j]} |
-                                                                {37{match0[j] & ~s0_odd_page_buffer[j] }} & {5'd0, tlb_ps[j], tlb_ppn0[j], tlb_v0[j], tlb_d0[j], tlb_mat0[j], tlb_plv0[j]};
-            {s1_index, s1_ps, s1_ppn, s1_v, s1_d, s1_mat, s1_plv} = {37{match1[j] & s1_odd_page_buffer[j] }} & {5'd0, tlb_ps[j], tlb_ppn1[j], tlb_v1[j], tlb_d1[j], tlb_mat1[j], tlb_plv1[j]} |
-                                                                {37{match1[j] & ~s1_odd_page_buffer[j] }} & {5'd0, tlb_ps[j], tlb_ppn0[j], tlb_v0[j], tlb_d0[j], tlb_mat0[j], tlb_plv0[j]};
+            if (match0[j]) begin
+                {s0_index, s0_ps, s0_ppn, s0_v, s0_d, s0_mat, s0_plv} = {37{s0_odd_page_buffer[j] }} & {j[4:0], tlb_ps[j], tlb_ppn1[j], tlb_v1[j], tlb_d1[j], tlb_mat1[j], tlb_plv1[j]} |
+                                                                {37{~s0_odd_page_buffer[j] }} & {j[4:0], tlb_ps[j], tlb_ppn0[j], tlb_v0[j], tlb_d0[j], tlb_mat0[j], tlb_plv0[j]};
+            end
+            if (match1[j]) begin
+                {s1_index, s1_ps, s1_ppn, s1_v, s1_d, s1_mat, s1_plv} = {37{s1_odd_page_buffer[j] }} & {j[4:0], tlb_ps[j], tlb_ppn1[j], tlb_v1[j], tlb_d1[j], tlb_mat1[j], tlb_plv1[j]} |
+                                                                {37{~s1_odd_page_buffer[j] }} & {j[4:0], tlb_ps[j], tlb_ppn0[j], tlb_v0[j], tlb_d0[j], tlb_mat0[j], tlb_plv0[j]};
+            end
         end
     end
 

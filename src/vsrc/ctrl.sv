@@ -1,4 +1,6 @@
 `include "pipeline_defines.sv"
+`include "tlb_defines.sv"
+
 module ctrl (
     input logic clk,
     input logic rst,
@@ -40,6 +42,8 @@ module ctrl (
     output logic tlbsrch_en,
     output logic tlbfill_en,
 
+    input tlb_to_mem_struct tlbsrch_result_i,
+
     //invtlb signal to tlb
     output tlb_inv_in_struct inv_o,
 
@@ -69,8 +73,8 @@ module ctrl (
     assign tlbwr_en = wb_i_1.aluop == `EXE_TLBWR_OP | wb_i_2.aluop == `EXE_TLBWR_OP;
     assign tlbsrch_en = wb_i_1.aluop == `EXE_TLBSRCH_OP | wb_i_2.aluop == `EXE_TLBSRCH_OP;
     assign tlbfill_en = wb_i_1.aluop == `EXE_TLBFILL_OP | wb_i_2.aluop == `EXE_TLBFILL_OP;
-    assign tlbsrch_found = wb_i_1.data_tlb_found | wb_i_2.data_tlb_found;
-    assign tlbsrch_index = wb_i_1.data_tlb_index | wb_i_2.data_tlb_index;
+    assign tlbsrch_found = wb_i_1.data_tlb_found | wb_i_2.data_tlb_found | tlbsrch_result_i.data_tlb_found;
+    assign tlbsrch_index = wb_i_1.data_tlb_index | wb_i_2.data_tlb_index | tlbsrch_result_i.data_tlb_index;
     assign inv_o = wb_i_1.inv_i | wb_i_2.inv_i;
 
     //flush sign 

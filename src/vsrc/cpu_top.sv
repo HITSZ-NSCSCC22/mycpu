@@ -711,6 +711,9 @@ module cpu_top (
         .tlbsrch_en(tlbsrch_en),
         .tlbfill_en(tlb_write_signal_i.tlbfill_en),
 
+        // <- TLB
+        .tlbsrch_result_i(tlb_mem_signal),
+
         .reg_o_0(reg_o[0]),
         .reg_o_1(reg_o[1]),
         .csr_w_o_0(csr_w_o[0]),
