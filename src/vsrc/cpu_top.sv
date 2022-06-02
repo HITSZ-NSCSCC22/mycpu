@@ -498,7 +498,7 @@ module cpu_top (
                 .stallreq(ex_stallreq[i]),
                 .tlb_stallreq(tlb_stallreq[i]),
 
-                .branch_flag(branch_flag[i]),
+                .branch_flag_o(branch_flag[i]),
                 .branch_target_address(branch_target_address[i]),
 
                 .ex_data_forward(ex_data_forward[i])
@@ -670,7 +670,7 @@ module cpu_top (
         .wb_i_2(wb_ctrl_signal[1]),
 
         // <- EX
-    	.ex_branch_flag_i (branch_flag),
+    	.ex_branch_flag_i (stall[2] ? 0: branch_flag),
         .ex_stallreq_i (ex_stallreq),
         .tlb_stallreq(tlb_stallreq),
 

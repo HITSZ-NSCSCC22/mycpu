@@ -24,7 +24,7 @@ module ex (
     output logic stallreq,
     output logic tlb_stallreq,
 
-    output logic branch_flag,
+    output logic branch_flag_o,
     output logic [`RegBus] branch_target_address,
 
     output ex_dispatch_struct ex_data_forward
@@ -230,6 +230,11 @@ module ex (
         end
     end
 
+
+    // means do we branch under current condition
+    // however, this signal is not accurate because maybe waiting for load or other stalling condition
+    logic branch_flag;
+    assign branch_flag_o = branch_flag;
     always @(*) begin
         if (rst == `RstEnable) begin
             branch_flag = 1'b0;
@@ -305,7 +310,7 @@ module ex (
         ex_o.instr_info = stallreq ? 0 : dispatch_i.instr_info;
         ex_o.waddr = wd_i;
         ex_o.wreg = wreg_i;
-        ex_o.inv_i = aluop_i == `EXE_INVTLB_OP ? {1'b1,oprand1[9:0],oprand2[18:0],wd_i} : 0;
+        ex_o.inv_i = aluop_i == `EXE_INVTLB_OP ? {1'b1, oprand1[9:0], oprand2[18:0], wd_i} : 0;
         case (alusel_i)
             `EXE_RES_LOGIC: begin
                 ex_o.wdata = logicout;
