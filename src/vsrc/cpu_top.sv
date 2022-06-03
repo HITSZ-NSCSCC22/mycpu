@@ -122,7 +122,7 @@ module cpu_top (
         .inst_cpu_addr_i(icache_axi_addr),
         .inst_cpu_data_o(axi_icache_data),
         .inst_id(4'b0000),  // Read Instruction only
-        .icache_rd_type_i(3'b000), // Read 128b for 1 time
+        .icache_rd_type_i(3'b100), // Read 128b for 1 time
         .icache_rd_req_i(icache_axi_rreq),
         .icache_rd_rdy_o(axi_icache_rdy),
         .icache_ret_valid_o(axi_icache_rvalid),
@@ -134,12 +134,12 @@ module cpu_top (
         .data_cpu_data_o(axi_dcache_data),
         .data_id(4'b0001),
         .dcache_rd_req_i(dcache_axi_rreq),
-        .dcache_rd_type_i(3'b000), // For [31:0]
+        .dcache_rd_type_i(3'b100), // For [31:0]
         .dcache_rd_rdy_o(axi_dcache_rd_rdy),
         .dcache_ret_valid_o(axi_dcache_rvalid),
         .dcache_ret_last_o(), // same as ICache
         .dcache_wr_req_i(dcache_axi_wreq),
-        .dcache_wr_type_i(3'b000), 
+        .dcache_wr_type_i(3'b100), 
         .dcache_wr_data(dcache_axi_data),
         .dcache_wr_rdy(axi_dcache_wr_rdy),
 
