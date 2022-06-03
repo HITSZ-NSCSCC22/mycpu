@@ -125,31 +125,6 @@ module axi_master (
     /**
 **read state machine for fetch instruction 
 **/
-    //改变输出
-    // always @(*) begin
-    //     if (!aresetn) begin
-    //         is_fetching_inst = 0;
-    //     end else begin
-    //         case (inst_r_state)
-    //             `R_FREE: begin
-    //                     is_fetching_inst = 0;
-    //             end
-    //             `R_ADDR: begin
-    //                 is_fetching_inst = 1;
-    //             end
-    //             `R_DATA: begin
-    //                 if (s_rvalid && s_rlast && s_rid[0] == 0) begin
-    //                     is_fetching_inst = 0;
-    //                 end else begin
-    //                     is_fetching_inst = 1;
-    //                 end
-    //             end
-    //             default: begin
-    //                 is_fetching_inst=0;
-    //             end
-    //         endcase
-    //     end
-    // end
 
     //signal to icache
     always @(posedge aclk) begin
@@ -743,8 +718,6 @@ module axi_master (
             endcase
         end
     end
-
-
 
     //set default
     //aw
