@@ -967,7 +967,7 @@ module cpu_top (
         .tcfg     (u_cs_reg.csr_tcfg),
         .tval     (u_cs_reg.csr_tval),
         .ticlr    (u_cs_reg.csr_ticlr),
-        .llbctl   (u_cs_reg.csr_llbctl),
+        .llbctl   ({u_cs_reg.csr_llbctl[31:1], u_cs_reg.llbit}),
         .dmw0     (u_cs_reg.csr_dmw0),
         .dmw1     (u_cs_reg.csr_dmw1)
     );
