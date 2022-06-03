@@ -69,7 +69,7 @@ module mem (
 
     assign stallreq = !data_ok & (mem_load_op | mem_store_op);
     assign mem_load_op = aluop_i == `EXE_LD_B_OP || aluop_i == `EXE_LD_BU_OP || aluop_i == `EXE_LD_H_OP || aluop_i == `EXE_LD_HU_OP ||
-                       aluop_i == `EXE_LD_W_OP || aluop_i == `EXE_LL_OP;
+                       aluop_i == `EXE_LD_W_OP || aluop_i == `EXE_LL_OP || aluop_i == `EXE_SC_OP;
 
     assign mem_store_op = aluop_i == `EXE_ST_B_OP || aluop_i == `EXE_ST_H_OP || aluop_i == `EXE_ST_W_OP || aluop_i == `EXE_SC_OP;
 
@@ -310,6 +310,7 @@ module mem (
                         signal_o.wreg = `WriteEnable;
                         signal_cache_o.ce = `ChipEnable;
                         signal_cache_o.data = reg2_i;
+                        signal_o.store_data = reg2_i;
                         signal_cache_o.sel = 4'b1111;
                         LLbit_we_o = 1'b1;
                         LLbit_value_o = 1'b0;

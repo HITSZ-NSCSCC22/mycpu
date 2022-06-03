@@ -82,8 +82,9 @@ module dispatch #(
     //assign csr_read_addr = id_i[0].imm[13:0] | id_i[1].imm[13:0];
     assign csr_read_addr = csr_op[0] ? id_i[0].imm[13:0] : csr_op[1] ? id_i[1].imm[13:0] : 14'b0;
 
+    // Force most branch, mem, privilege instr to issue only 1 instr per cycle
     logic is_both_mem_instr;
-    assign is_both_mem_instr = alusel_i[0] == `EXE_RES_LOAD_STORE | alusel_i[1] == `EXE_RES_LOAD_STORE;
+    assign is_both_mem_instr = alusel_i[0] == `EXE_RES_LOAD_STORE | alusel_i[1] == `EXE_RES_LOAD_STORE | aluop_i[0] == `EXE_LL_OP | aluop_i[1] == `EXE_LL_OP | aluop_i[0] == `EXE_SC_OP | aluop_i[1] == `EXE_SC_OP | alusel_i[0] == `EXE_RES_JUMP | alusel_i[1] == `EXE_RES_JUMP;
 
     // Dispatch flag
     logic [EXE_STAGE_WIDTH-1:0] do_we_issue;

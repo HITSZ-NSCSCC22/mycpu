@@ -67,7 +67,7 @@ module mem_wb (
     assign da_mode = csr_mem_signal.csr_da && !csr_mem_signal.csr_pg;
 
     // Addr translate mode for DCache, pull down if instr is invalid
-    assign data_addr_trans_en = pg_mode && !dmw0_en && !dmw1_en && !cacop_op_mode_di && mem_signal_o.instr_info.valid;
+    assign data_addr_trans_en = access_mem && pg_mode && !dmw0_en && !dmw1_en && !cacop_op_mode_di && mem_signal_o.instr_info.valid;
 
     assign excp_adem = 0;
     assign excp_tlbr = access_mem && !tlb_mem_signal.data_tlb_found && data_addr_trans_en;
