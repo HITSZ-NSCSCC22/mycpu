@@ -92,11 +92,12 @@ module ex (
     assign ex_o.csr_signal.addr = csr_signal_i.addr;
     assign ex_o.csr_signal.data = (aluop_i ==`EXE_CSRXCHG_OP) ? ((reg1_i & reg2_i) | (~reg2_i & dispatch_i.csr_reg_data)) : csr_signal_i.data;
 
-    logic excp_ale, excp_i;
+    logic excp_ale,excp_ine, excp_i;
     logic [9:0] excp_num;
     assign excp_ale = 1'b0;
-    assign excp_num = {excp_ale, dispatch_i.excp_num};
-    assign excp_i = dispatch_i.excp || excp_ale;
+    assign excp_ine = aluop_i == `EXE_INVTLB_OP && imm >32'd6;
+    assign excp_num = {excp_ale, dispatch_i.excp_num | {1'b0,excp_ine,7'b0}};
+    assign excp_i = dispatch_i.excp || excp_ale || excp_ine;
     assign ex_o.excp = excp_i;
     assign ex_o.excp_num = excp_num;
     assign ex_o.refetch = dispatch_i.refetch;
