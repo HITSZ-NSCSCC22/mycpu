@@ -153,7 +153,7 @@ module dummy_dcache (
                 if (ret_valid) begin
                     addr_ok = 1;
                     data_ok = 1;
-                    rdata   = ret_data[cpu_addr[3:2]*32+:32];
+                    rdata   = ret_data[rd_addr_r[3:2]*32+:32];
                 end
             end
             WRITE_REQ: begin

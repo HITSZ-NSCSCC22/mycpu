@@ -175,6 +175,7 @@ typedef struct packed {
 } csr_to_mem_struct;
 
 typedef struct packed {
+    logic [19:0] tlb_tag;
     logic data_tlb_found;
     logic [4:0] data_tlb_index;
     logic data_tlb_v;
