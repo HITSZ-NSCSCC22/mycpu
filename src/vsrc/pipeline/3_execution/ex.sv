@@ -16,6 +16,7 @@ module ex (
     input mem_data_forward_t [1:0] mem_data_forward_i,  // TODO: remove magic number
 
     input logic [18:0] csr_vppn,
+    input logic llbit,
 
     // -> MEM
     output ex_mem_struct ex_o,

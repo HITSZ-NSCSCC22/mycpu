@@ -414,6 +414,7 @@ module cpu_top (
         .regfile_reg_read_data_i (regfile_dispatch_reg_read_data),
 
         // <-> CSR
+        .llbit(LLbit_o),
         .csr_read_addr(dispatch_csr_read_addr),
         .csr_data(dispatch_csr_data),
 
@@ -667,6 +668,8 @@ module cpu_top (
 
     logic tlbrd_en;
 
+    wb_llbit llbit_i;
+
     ctrl u_ctrl(
         .clk(clk),
         .rst(rst),
@@ -704,6 +707,7 @@ module cpu_top (
         .tlbsrch_found(tlbsrch_found),
         .tlbsrch_index(tlbsrch_index),
         .tlbrd_en(tlbrd_en),
+        .llbit_signal(llbit_i),
 
         .inv_o(tlb_inv_signal_i),
 
@@ -740,8 +744,8 @@ module cpu_top (
         .write_signal_2(csr_w_o[1]),
         .raddr(dispatch_csr_read_addr),
         .rdata(dispatch_csr_data),
-        .llbit_i(wb_LLbit_value_i[0] | wb_LLbit_value_i[1]),
-        .llbit_set_i(wb_LLbit_we_i[0] | wb_LLbit_we_i[1]),
+        .llbit_i(llbit_i.value),
+        .llbit_set_i(llbit_i.we),
         .llbit_o(LLbit_o),
         .vppn_o(csr_vppn_o),
         .era_i(csr_era_i),

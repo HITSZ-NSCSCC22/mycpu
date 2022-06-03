@@ -34,6 +34,7 @@ module dispatch #(
 
     //<-> CSR
     //get wdata from csr
+    input logic llbit,
     output [13:0] csr_read_addr,
     input [`RegBus] csr_data,
 
