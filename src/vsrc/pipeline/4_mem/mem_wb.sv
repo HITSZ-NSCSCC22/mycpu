@@ -43,13 +43,15 @@ module mem_wb (
     //debug用的,无实际作用
     logic [7:0] aluop;
     assign aluop = mem_signal_o.aluop;
-    logic [2:0] wdata;
-    assign wdata = mem_signal_o.wdata[31:29];
+    logic [2:0] mem_addr;
+    assign mem_addr = mem_signal_o.mem_addr[31:29];
     logic [2:0] dmw0,dmw1;
     assign dmw0 = csr_mem_signal.csr_dmw0[`VSEG];
     assign dmw1 = csr_mem_signal.csr_dmw1[`VSEG];
     logic data_tlb_found;
     assign data_tlb_found = tlb_mem_signal.data_tlb_found;
+    logic [9:0] excp_num_test;
+    assign excp_num_test = mem_signal_o.excp_num;
 
     assign access_mem = mem_load_op || mem_store_op;
 
@@ -58,8 +60,8 @@ module mem_wb (
 
     assign mem_store_op =  mem_signal_o.aluop == `EXE_ST_B_OP ||  mem_signal_o.aluop == `EXE_ST_H_OP ||  mem_signal_o.aluop == `EXE_ST_W_OP ||  mem_signal_o.aluop == `EXE_SC_OP;
 
-    assign dmw0_en = ((csr_mem_signal.csr_dmw0[`PLV0] && csr_mem_signal.csr_plv == 2'd0) || (csr_mem_signal.csr_dmw0[`PLV3] && csr_mem_signal.csr_plv == 2'd3)) && (mem_signal_o.wdata[31:29] == csr_mem_signal.csr_dmw0[`VSEG]);
-    assign dmw1_en = ((csr_mem_signal.csr_dmw1[`PLV0] && csr_mem_signal.csr_plv == 2'd0) || (csr_mem_signal.csr_dmw1[`PLV3] && csr_mem_signal.csr_plv == 2'd3)) && (mem_signal_o.wdata[31:29] == csr_mem_signal.csr_dmw1[`VSEG]);
+    assign dmw0_en = ((csr_mem_signal.csr_dmw0[`PLV0] && csr_mem_signal.csr_plv == 2'd0) || (csr_mem_signal.csr_dmw0[`PLV3] && csr_mem_signal.csr_plv == 2'd3)) && (mem_signal_o.mem_addr[31:29] == csr_mem_signal.csr_dmw0[`VSEG]);
+    assign dmw1_en = ((csr_mem_signal.csr_dmw1[`PLV0] && csr_mem_signal.csr_plv == 2'd0) || (csr_mem_signal.csr_dmw1[`PLV3] && csr_mem_signal.csr_plv == 2'd3)) && (mem_signal_o.mem_addr[31:29] == csr_mem_signal.csr_dmw1[`VSEG]);
 
     assign pg_mode = !csr_mem_signal.csr_da && csr_mem_signal.csr_pg;
     assign da_mode = csr_mem_signal.csr_da && !csr_mem_signal.csr_pg;
@@ -106,6 +108,7 @@ module mem_wb (
             wb_ctrl_signal.llbit_o.value <= mem_LLbit_value;
             wb_ctrl_signal.excp <= excp;
             wb_ctrl_signal.excp_num <= excp_num;
+            wb_ctrl_signal.mem_addr <= mem_signal_o.mem_addr;
             wb_ctrl_signal.fetch_flush <= mem_signal_o.refetch;
             wb_ctrl_signal.data_tlb_found <= mem_signal_o.tlb_found;
             wb_ctrl_signal.data_tlb_index <= mem_signal_o.tlb_index;

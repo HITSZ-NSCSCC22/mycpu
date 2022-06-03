@@ -840,6 +840,10 @@ module cpu_top (
         `endif
     end
 
+    logic [31:0] pc_test[4];
+    assign pc_test[0] = difftest_commit_info_delay1[0].pc;
+    assign pc_test[1] = difftest_commit_info_delay1[1].pc;
+
     logic excp_flush_commit;
     logic ertn_flush_commit;
     logic [`RegBus]excp_pc_commit;

@@ -130,10 +130,10 @@ module ctrl (
 
     //写入寄存器堆
     assign reg_o_0 = wb_i_1.wb_reg_o;
-    assign reg_o_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP ) ? 0 : wb_i_2.wb_reg_o;
+    assign reg_o_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | excp) ? 0 : wb_i_2.wb_reg_o;
 
     assign csr_w_o_0 = wb_i_1.csr_signal_o;
-    assign csr_w_o_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP ) ? 0 : wb_i_2.csr_signal_o;
+    assign csr_w_o_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | excp) ? 0 : wb_i_2.csr_signal_o;
 
     logic excp;
     logic [15:0] excp_num;
@@ -142,8 +142,8 @@ module ctrl (
     assign csr_era = pc;
     //异常处理，优先处理第一条流水线的异常
     assign {excp_num, pc, excp_instr, error_va} = 
-            wb_i_1.excp ? {wb_i_1.excp_num, wb_i_1.wb_reg_o.pc,wb_i_1.diff_commit_o.instr, wb_i_1.wb_reg_o.wdata} :
-            wb_i_2.excp ? {wb_i_2.excp_num, wb_i_2.wb_reg_o.pc,wb_i_2.diff_commit_o.instr, wb_i_2.wb_reg_o.wdata} : 0;
+            wb_i_1.excp ? {wb_i_1.excp_num, wb_i_1.wb_reg_o.pc,wb_i_1.diff_commit_o.instr, wb_i_1.mem_addr} :
+            wb_i_2.excp ? {wb_i_2.excp_num, wb_i_2.wb_reg_o.pc,wb_i_2.diff_commit_o.instr, wb_i_2.mem_addr} : 0;
 
     assign {csr_ecode,va_error, bad_va, csr_esubcode, excp_tlbrefill,excp_tlb, excp_tlb_vppn} = 
     excp_num[0] ? {`ECODE_INT ,1'b0, 32'b0 , 9'b0 , 1'b0, 1'b0, 19'b0} :

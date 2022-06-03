@@ -30,12 +30,6 @@ module mem (
     // -> EX
     output mem_data_forward_t mem_data_forward_o,
 
-    //-> tlb
-    output logic data_addr_trans_en,
-    output logic dmw0_en,
-    output logic dmw1_en,
-    output logic cacop_op_mode_di,
-
     //<- tlb 
     input tlb_to_mem_struct tlb_mem_signal,
 
@@ -129,6 +123,7 @@ module mem (
             signal_o.inv_i = 0;
             signal_cache_o = 0;
             signal_o.store_data = 0;
+            signal_o.mem_addr = 0;
         end else begin
             LLbit_we_o = 1'b0;
             LLbit_value_o = 1'b0;
@@ -143,6 +138,7 @@ module mem (
             signal_o.tlb_index = tlb_mem_signal.data_tlb_index;
             signal_o.csr_signal = signal_i.csr_signal;
             signal_o.inv_i = signal_i.inv_i;
+            signal_o.mem_addr = mem_addr;
             signal_cache_o = 0;
             signal_o.store_data = 0;
             case (aluop_i)
