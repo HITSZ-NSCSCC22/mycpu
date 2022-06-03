@@ -87,7 +87,7 @@ module dummy_dcache (
             READ_REQ: begin
                 if (rd_rdy) begin
                     rd_req_r  <= 1;
-                    rd_addr_r <= {cpu_addr[31:4], 4'b0};  // Keep addr aligned
+                    rd_addr_r <= cpu_addr;
                 end
             end
         endcase
@@ -109,7 +109,7 @@ module dummy_dcache (
             READ_REQ: begin
                 if (rd_rdy) begin
                     rd_req  = 1;
-                    rd_addr = {cpu_addr[31:4], 4'b0};  // Keep addr aligned
+                    rd_addr = cpu_addr;
                 end
             end
             READ_WAIT: begin
@@ -118,8 +118,8 @@ module dummy_dcache (
             end
             WRITE_REQ: begin
                 if (wr_rdy) begin
-                    wr_req  = 1;
-                    wr_addr = {cpu_addr[31:4], 4'b0};  // Keep addr aligned
+                    wr_req = 1;
+                    wr_addr = cpu_addr;  // DO NOT align addr, 128b -> 32b translate need info from addr
                     case (cpu_addr[3:2])
                         2'b00: begin
                             wr_data  = {{96{1'b0}}, wdata};

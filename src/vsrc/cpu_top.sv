@@ -902,16 +902,14 @@ module cpu_top (
         .storeData          (difftest_commit_info_delay1[0].st_data | difftest_commit_info_delay1[1].st_data)
     );
 
-    // Currently unused
-    /*
     DifftestLoadEvent DifftestLoadEvent(
         .clock              (aclk),
         .coreid             (0),
         .index              (0),
-        .valid              (debug_commit_inst_ld_en),
-        .paddr              (debug_commit_ld_paddr),
-        .vaddr              (debug_commit_ld_paddr)
-    );*/
+        .valid              (difftest_commit_info_delay1[0].inst_ld_en | difftest_commit_info_delay1[1].inst_ld_en),
+        .paddr              (difftest_commit_info_delay1[0].ld_paddr | difftest_commit_info_delay1[1].ld_paddr),
+        .vaddr              (difftest_commit_info_delay1[0].ld_vaddr | difftest_commit_info_delay1[1].ld_vaddr)
+    );
 
     DifftestTrapEvent DifftestTrapEvent(
         .clock              (aclk),
