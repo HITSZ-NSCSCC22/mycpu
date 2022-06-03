@@ -202,7 +202,7 @@ module cpu_top (
         .op        (mem_cache_we),
         .uncache   (1'b0),
         .index     (mem_cache_addr[11:4]),
-        .tag       (mem_cache_addr[31:12]),
+        .tag       (tlb_data_o.tag),
         .offset    (mem_cache_addr[3:0]),
         .wstrb     (mem_cache_sel),
         .wdata     (mem_cache_data),
@@ -551,7 +551,7 @@ module cpu_top (
 
     csr_to_mem_struct csr_mem_signal;
     tlb_to_mem_struct tlb_mem_signal;
-    assign tlb_mem_signal = {tlb_data_o.found,tlb_data_o.tlb_index,tlb_data_o.tlb_v,
+    assign tlb_mem_signal = {tlb_data_o.tag,tlb_data_o.found,tlb_data_o.tlb_index,tlb_data_o.tlb_v,
                             tlb_data_o.tlb_d,tlb_data_o.tlb_mat,tlb_data_o.tlb_plv};
 
     assign csr_mem_signal = {csr_pg,csr_da,csr_dmw0,csr_dmw1,csr_plv,csr_datm};

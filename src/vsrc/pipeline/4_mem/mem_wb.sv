@@ -64,9 +64,11 @@ module mem_wb (
         excp_pil, excp_pis, excp_ppi, excp_pme, excp_tlbr, excp_adem, mem_signal_o.excp_num
     };
 
-    // For observability
+    // DEBUG
     logic [`RegBus] debug_mem_wdata;
     assign debug_mem_wdata = mem_signal_o.wdata;
+    logic tlb_found;
+    assign tlb_found = tlb_mem_signal.data_tlb_found;
 
     always @(posedge clk) begin
         if (rst == `RstEnable) begin
@@ -102,9 +104,13 @@ module mem_wb (
             wb_ctrl_signal.diff_commit_o.instr <= mem_signal_o.instr_info.instr;
             wb_ctrl_signal.diff_commit_o.inst_ld_en <= mem_signal_o.inst_ld_en;
             wb_ctrl_signal.diff_commit_o.inst_st_en <= mem_signal_o.inst_st_en;
-            wb_ctrl_signal.diff_commit_o.ld_paddr <= mem_signal_o.load_addr;
+            wb_ctrl_signal.diff_commit_o.ld_paddr <= {
+                tlb_mem_signal.tlb_tag, mem_signal_o.load_addr[11:0]
+            };
             wb_ctrl_signal.diff_commit_o.ld_vaddr <= mem_signal_o.load_addr;
-            wb_ctrl_signal.diff_commit_o.st_paddr <= mem_signal_o.store_addr;
+            wb_ctrl_signal.diff_commit_o.st_paddr <= {
+                tlb_mem_signal.tlb_tag, mem_signal_o.store_addr[11:0]
+            };
             wb_ctrl_signal.diff_commit_o.st_vaddr <= mem_signal_o.store_addr;
             wb_ctrl_signal.diff_commit_o.st_data <= mem_signal_o.store_data;
         end
