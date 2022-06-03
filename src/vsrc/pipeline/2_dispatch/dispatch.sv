@@ -82,7 +82,7 @@ module dispatch #(
     assign csr_read_addr = csr_op[0] ? id_i[0].imm[13:0] : csr_op[1] ? id_i[1].imm[13:0] : 14'b0;
 
     logic is_both_mem_instr;
-    assign is_both_mem_instr = alusel_i[0] == `EXE_RES_LOAD_STORE && alusel_i[1] == `EXE_RES_LOAD_STORE;
+    assign is_both_mem_instr = alusel_i[0] == `EXE_RES_LOAD_STORE | alusel_i[1] == `EXE_RES_LOAD_STORE;
 
     // Dispatch flag
     logic [EXE_STAGE_WIDTH-1:0] do_we_issue;

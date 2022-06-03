@@ -129,10 +129,10 @@ module ctrl (
     end
 
     //写入寄存器堆
-    assign reg_o_0 = wb_i_1.wb_reg_o;
+    assign reg_o_0 = wb_i_1.excp ? 0 : wb_i_1.wb_reg_o;
     assign reg_o_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | excp) ? 0 : wb_i_2.wb_reg_o;
 
-    assign csr_w_o_0 = wb_i_1.csr_signal_o;
+    assign csr_w_o_0 = wb_i_1.excp ? 0 : wb_i_1.csr_signal_o;
     assign csr_w_o_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | excp) ? 0 : wb_i_2.csr_signal_o;
 
     logic excp;
