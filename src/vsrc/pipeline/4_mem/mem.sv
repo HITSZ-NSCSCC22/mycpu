@@ -44,6 +44,9 @@ module mem (
 
 );
 
+    csr_write_signal csr_test;
+    assign csr_test = signal_i.csr_signal;
+
     reg LLbit;
     logic access_mem;
     logic mem_store_op;

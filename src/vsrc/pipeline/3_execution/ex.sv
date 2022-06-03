@@ -84,8 +84,9 @@ module ex (
 
     assign ex_data_forward = {ex_o.wreg, ex_o.waddr, ex_o.wdata, ex_o.aluop};
 
-    csr_write_signal csr_signal_i;
+    csr_write_signal csr_signal_i,csr_test;
     assign csr_signal_i = dispatch_i.csr_signal;
+    assign csr_test = ex_o.csr_signal;
 
     //写入csr的数据，对csrxchg指令进行掩码处理
     assign ex_o.csr_signal.we = csr_signal_i.we;

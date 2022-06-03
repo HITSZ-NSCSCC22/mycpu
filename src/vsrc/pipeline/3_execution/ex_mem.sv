@@ -15,6 +15,9 @@ module ex_mem (
 
 );
 
+    csr_write_signal csr_test;
+    assign csr_test = mem_i.csr_signal;
+
     always @(posedge clk) begin
         if (rst == `RstEnable) begin
             mem_i <= 0;

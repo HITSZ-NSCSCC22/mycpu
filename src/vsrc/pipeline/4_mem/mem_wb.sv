@@ -32,10 +32,24 @@ module mem_wb (
     output logic is_last_in_block
 );
 
+    csr_write_signal csr_test;
+    assign csr_test = mem_signal_o.csr_signal;
+
     logic excp, pg_mode, da_mode;
     logic [15:0] excp_num;
     logic access_mem, mem_store_op, mem_load_op;
     logic excp_tlbr, excp_pil, excp_pis, excp_pme, excp_ppi, excp_adem;
+
+    //debug用的,无实际作用
+    logic [7:0] aluop;
+    assign aluop = mem_signal_o.aluop;
+    logic [2:0] wdata;
+    assign wdata = mem_signal_o.wdata[31:29];
+    logic [2:0] dmw0,dmw1;
+    assign dmw0 = csr_mem_signal.csr_dmw0[`VSEG];
+    assign dmw1 = csr_mem_signal.csr_dmw1[`VSEG];
+    logic data_tlb_found;
+    assign data_tlb_found = tlb_mem_signal.data_tlb_found;
 
     assign access_mem = mem_load_op || mem_store_op;
 

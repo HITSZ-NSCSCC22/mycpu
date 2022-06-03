@@ -495,7 +495,7 @@ module cs_reg (
     always @(posedge clk) begin
         if (rst) csr_tlbrentry[5:0] <= 6'b0;
         else if (we == 1'b1 && waddr == `TLBRENTRY)
-            csr_tlbrentry[`TLBRENTRY] <= wdata[`TLBRENTRY_PA];
+            csr_tlbrentry[`TLBRENTRY_PA] <= wdata[`TLBRENTRY_PA];
     end
 
 
