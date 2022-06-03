@@ -134,6 +134,7 @@ module cs_reg (
     end
 
     //data to pc_reg
+    assign tlbrentry_out = csr_tlbrentry;
     assign no_forward   = !excp_tlbrefill && !(eret_tlbrefill_excp && ertn_flush) && !(we == 1'b1 && waddr == `CRMD);
 
     assign pg_out = excp_tlbrefill & 1'b0  |
