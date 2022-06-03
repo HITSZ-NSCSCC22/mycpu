@@ -100,6 +100,7 @@ typedef struct packed {
     logic [7:0] inst_st_en;
     logic [`DataAddrBus] load_addr;
     logic [`DataAddrBus] store_addr;
+    logic [`DataAddrBus] mem_addr;
     logic [`RegBus] store_data;
 
     logic excp;
@@ -157,6 +158,7 @@ typedef struct packed {
     logic [15:0] excp_num;
     logic fetch_flush;
     logic data_tlb_found;
+    logic [`DataAddrBus] mem_addr;
     tlb_inv_in_struct inv_i;
     logic [4:0] data_tlb_index;
     csr_write_signal csr_signal_o;
