@@ -45,7 +45,7 @@ module mem_wb (
     assign aluop = mem_signal_o.aluop;
     logic [2:0] mem_addr;
     assign mem_addr = mem_signal_o.mem_addr[31:29];
-    logic [2:0] dmw0,dmw1;
+    logic [2:0] dmw0, dmw1;
     assign dmw0 = csr_mem_signal.csr_dmw0[`VSEG];
     assign dmw1 = csr_mem_signal.csr_dmw1[`VSEG];
     logic data_tlb_found;
@@ -66,7 +66,8 @@ module mem_wb (
     assign pg_mode = !csr_mem_signal.csr_da && csr_mem_signal.csr_pg;
     assign da_mode = csr_mem_signal.csr_da && !csr_mem_signal.csr_pg;
 
-    assign data_addr_trans_en = pg_mode && !dmw0_en && !dmw1_en && !cacop_op_mode_di;
+    // Addr translate mode for DCache, pull down if instr is invalid
+    assign data_addr_trans_en = pg_mode && !dmw0_en && !dmw1_en && !cacop_op_mode_di && mem_signal_o.instr_info.valid;
 
     assign excp_adem = 0;
     assign excp_tlbr = access_mem && !tlb_mem_signal.data_tlb_found && data_addr_trans_en;
