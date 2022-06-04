@@ -63,8 +63,8 @@ module ftq #(
             // If backend redirect triggered, back to comm_ptr + 1
             // Since FTQ is cleared out, so not pending block
             if (backend_flush_i) begin
-                ifu_ptr <= comm_ptr + 1;
-                bpu_ptr <= comm_ptr + 1;
+                ifu_ptr <= comm_ptr + 1 + backend_commit_i;
+                bpu_ptr <= comm_ptr + 1 + backend_commit_i;
             end
         end
     end
