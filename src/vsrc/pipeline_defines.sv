@@ -110,6 +110,7 @@ typedef struct packed {
     logic we;
     logic ce;
     logic [3:0] sel;
+    logic [2:0] rd_type;
     logic [`DataAddrBus] addr;
     logic [`RegBus] data;
     logic uncache_en;

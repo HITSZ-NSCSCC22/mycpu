@@ -113,6 +113,7 @@ module cpu_top (
     logic [`RegBus] cache_mem_data;
     logic mem_data_ok,mem_addr_ok;
     logic [15:0] dcache_axi_wstrb; // Byte selection
+    logic [2:0] dcache_rd_type;
 
     axi_master u_axi_master (
         .aclk   (aclk),
@@ -134,7 +135,7 @@ module cpu_top (
         .data_cpu_data_o(axi_dcache_data),
         .data_id(4'b0001),
         .dcache_rd_req_i(dcache_axi_rreq),
-        .dcache_rd_type_i(3'b100), // For [31:0]
+        .dcache_rd_type_i(dcache_rd_type), // For [31:0]
         .dcache_rd_rdy_o(axi_dcache_rd_rdy),
         .dcache_ret_valid_o(axi_dcache_rvalid),
         .dcache_ret_last_o(), // same as ICache
@@ -185,12 +186,14 @@ module cpu_top (
 
     mem_cache_struct mem_cache_signal[2];
     logic mem_cache_we,mem_cache_ce;
+    logic [2:0] mem_cache_rd_type;
     logic [3:0] mem_cache_sel;
     logic [31:0] mem_cache_addr,mem_cache_data;
     
     assign mem_cache_ce = mem_cache_signal[0].ce | mem_cache_signal[1].ce;
     assign mem_cache_we = mem_cache_signal[0].we | mem_cache_signal[1].we;
     assign mem_cache_sel = mem_cache_signal[0].we ? mem_cache_signal[0].sel : mem_cache_signal[1].we ? mem_cache_signal[1].sel : 0;
+    assign mem_cache_rd_type = mem_cache_signal[0].we ? mem_cache_signal[0].rd_type : mem_cache_signal[1].we ? mem_cache_signal[1].rd_type : 0;
     assign mem_cache_addr = mem_cache_signal[0].addr | mem_cache_signal[1].addr;
     assign mem_cache_data = mem_cache_signal[0].we ? mem_cache_signal[0].data : mem_cache_signal[1].we ? mem_cache_signal[1].data : 0;
    
@@ -206,13 +209,14 @@ module cpu_top (
         .offset    (mem_cache_addr[3:0]),
         .wstrb     (mem_cache_sel),
         .wdata     (mem_cache_data),
+        .rd_type_i (mem_cache_rd_type),
         .addr_ok   (mem_addr_ok),
         .data_ok   (mem_data_ok),
         .rdata     (cache_mem_data),
 
         // <-> AXI Controller
         .rd_req    (dcache_axi_rreq),
-        .rd_type   (),
+        .rd_type   (dcache_rd_type),
         .rd_addr   (dcache_axi_raddr),
         .rd_rdy    (axi_dcache_rd_rdy),
         .ret_valid (axi_dcache_rvalid),

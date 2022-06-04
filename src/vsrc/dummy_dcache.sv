@@ -11,6 +11,7 @@ module dummy_dcache (
     input logic [3:0] offset,  //地址的offset域addr[3:0]
     input logic [3:0] wstrb,  //写字节使能信号
     input logic [31:0] wdata,  //写数据
+    input logic [2:0] rd_type_i, //读请求类型：3'b000: 字节；3'b001: 半字；3'b010: 字；3'b100：Cache行
     output logic addr_ok,             //该次请求的地址传输OK，读：地址被接收；写：地址和数据被接收
     output logic data_ok,             //该次请求的数据传输Ok，读：数据返回；写：数据写入完成
     output logic [31:0] rdata,  //读Cache的结果
@@ -94,7 +95,7 @@ module dummy_dcache (
     end
 
 
-    assign rd_type = 3'b010;  // word
+    assign rd_type = rd_type_i ;
     assign wr_type = 3'b010;  // word
     always_comb begin
         // Default signal

@@ -14,7 +14,7 @@ module mem (
     // -> Ctrl
     output stallreq,
 
-    // <- cache
+    // <-> cache
     input logic addr_ok,
     input logic data_ok,
     input logic [`RegBus] mem_data_i,
@@ -117,6 +117,7 @@ module mem (
             LLbit_value_o = 1'b0;
             signal_cache_o = 0;
             signal_o.store_data = 0;
+            signal_cache_o.rd_type = 0;
         end else begin
             LLbit_we_o = 1'b0;
             LLbit_value_o = 1'b0;
@@ -130,12 +131,14 @@ module mem (
             signal_o.csr_signal = signal_i.csr_signal;
             signal_cache_o = 0;
             signal_o.store_data = 0;
+            signal_cache_o.rd_type = 0;
             case (aluop_i)
                 `EXE_LD_B_OP: begin
                     signal_cache_o.addr = mem_addr;
                     signal_o.wreg = `WriteEnable;
                     signal_cache_o.ce = `ChipEnable;
                     signal_cache_o.sel = 4'b1111;
+                    signal_cache_o.rd_type = 0;
                     case (mem_addr[1:0])
                         2'b11: begin
                             signal_o.wdata = {{24{mem_data_i[31]}}, mem_data_i[31:24]};
@@ -162,6 +165,7 @@ module mem (
                     signal_cache_o.addr = mem_addr;
                     signal_o.wreg = `WriteEnable;
                     signal_cache_o.ce = `ChipEnable;
+                    signal_cache_o.rd_type = 3'b001;
                     case (mem_addr[1:0])
                         2'b10: begin
                             signal_o.wdata   = {{16{mem_data_i[31]}}, mem_data_i[31:16]};
@@ -184,11 +188,13 @@ module mem (
                     signal_cache_o.ce = `ChipEnable;
                     signal_cache_o.sel = 4'b1111;
                     signal_o.wdata = mem_data_i;
+                    signal_cache_o.rd_type = 3'b010;
                 end
                 `EXE_LD_BU_OP: begin
                     signal_cache_o.addr = mem_addr;
                     signal_o.wreg = `WriteEnable;
                     signal_cache_o.ce = `ChipEnable;
+                    signal_cache_o.rd_type = 3'b000;
                     case (mem_addr[1:0])
                         2'b11: begin
                             signal_o.wdata   = {{24{1'b0}}, mem_data_i[31:24]};
@@ -215,6 +221,7 @@ module mem (
                     signal_cache_o.addr = mem_addr;
                     signal_o.wreg = `WriteEnable;
                     signal_cache_o.ce = `ChipEnable;
+                   signal_cache_o. rd_type = 3'b001;
                     case (mem_addr[1:0])
                         2'b10: begin
                             signal_o.wdata   = {{16{1'b0}}, mem_data_i[31:16]};
@@ -291,6 +298,7 @@ module mem (
                     signal_o.wdata = mem_data_i;
                     LLbit_we_o = 1'b1;
                     LLbit_value_o = 1'b1;
+                    signal_cache_o.rd_type = 3'b010;
                 end
                 `EXE_SC_OP: begin
                     if (LLbit == 1'b1) begin
