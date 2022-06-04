@@ -786,15 +786,15 @@ module cpu_top (
         .asid_in(tlb_read_signal_o.asid)
     );
 
-    assign data_addr_trans_en = mem_data_addr_trans_en[0] | mem_data_addr_trans_en[1];
-    //assign tlb_data_i.dmw0_en = mem_data_dmw0_en[0] | mem_data_dmw0_en[1];
-    //assign tlb_data_i.dmw1_en = mem_data_dmw1_en[0] | mem_data_dmw1_en[1];
+    assign data_addr_trans_en = mem_data_addr_trans_en[0];
+    assign tlb_data_i.dmw0_en = mem_data_dmw0_en[0];
+    assign tlb_data_i.dmw1_en = mem_data_dmw1_en[0];
     assign tlb_data_i.vaddr = mem_cache_addr;
-    //assign tlb_data_i.fetch = data_fetch[0] | data_fetch[1];
+    assign tlb_data_i.fetch = data_fetch[0];
 
-    assign tlb_data_i.dmw0_en = mem_data_addr_trans_en[0] ? mem_data_dmw0_en[0] : mem_data_addr_trans_en[1] ? mem_data_dmw0_en[1] : 0 ;
-    assign tlb_data_i.dmw1_en = mem_data_addr_trans_en[0] ? mem_data_dmw1_en[0] : mem_data_addr_trans_en[1] ? mem_data_dmw1_en[1] : 0 ;
-    assign tlb_data_i.fetch = mem_data_addr_trans_en[0] ? data_fetch[0] : mem_data_addr_trans_en[1] ? data_fetch[1] : 0 ;
+    //assign tlb_data_i.dmw0_en = mem_data_addr_trans_en[0] ? mem_data_dmw0_en[0] : mem_data_addr_trans_en[1] ? mem_data_dmw0_en[1] : 0 ;
+    //assign tlb_data_i.dmw1_en = mem_data_addr_trans_en[0] ? mem_data_dmw1_en[0] : mem_data_addr_trans_en[1] ? mem_data_dmw1_en[1] : 0 ;
+    //assign tlb_data_i.fetch = mem_data_addr_trans_en[0] ? data_fetch[0] : mem_data_addr_trans_en[1] ? data_fetch[1] : 0 ;
 
     inst_tlb_struct tlb_inst_i;
     tlb_inst_struct tlb_inst_o;
