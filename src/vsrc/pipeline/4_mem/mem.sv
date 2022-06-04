@@ -296,7 +296,7 @@ module mem (
                 end
                 `EXE_LL_OP: begin
                     signal_cache_o.addr = mem_addr;
-                    signal_o.wreg = `WriteDisable;
+                    signal_o.wreg = `WriteEnable;
                     signal_cache_o.ce = `ChipEnable;
                     signal_cache_o.sel = 4'b1111;
                     signal_o.wdata = mem_data_i;
