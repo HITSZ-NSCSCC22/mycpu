@@ -96,13 +96,25 @@ module ex (
 
     logic excp_ale,excp_ine, excp_i;
     logic [9:0] excp_num;
-    assign excp_ale = 1'b0;
+    assign excp_ale = access_mem && ((mem_b_op & 1'b0)| (mem_h_op & ex_o.mem_addr[0])| 
+                    (!(mem_b_op | mem_h_op) & (ex_o.mem_addr[0] | ex_o.mem_addr[1]))) ;
     assign excp_ine = aluop_i == `EXE_INVTLB_OP && imm >32'd6;
     assign excp_num = {excp_ale, dispatch_i.excp_num | {1'b0,excp_ine,7'b0}};
     assign excp_i = dispatch_i.excp || excp_ale || excp_ine;
     assign ex_o.excp = excp_i;
     assign ex_o.excp_num = excp_num;
     assign ex_o.refetch = dispatch_i.refetch;
+
+    //对未对齐例外的判断
+    logic access_mem,mem_load_op,mem_store_op,mem_b_op,mem_h_op;
+    assign access_mem = mem_load_op || mem_store_op;
+
+    assign mem_load_op = aluop_i == `EXE_LD_B_OP ||  aluop_i == `EXE_LD_BU_OP ||  aluop_i == `EXE_LD_H_OP ||  aluop_i == `EXE_LD_HU_OP ||
+                        aluop_i == `EXE_LD_W_OP ||  aluop_i == `EXE_LL_OP;
+
+    assign mem_store_op =  aluop_i == `EXE_ST_B_OP ||  aluop_i == `EXE_ST_H_OP ||  aluop_i == `EXE_ST_W_OP ||  aluop_i == `EXE_SC_OP;
+    assign mem_b_op    = aluop_i == `EXE_LD_B_OP | aluop_i == `EXE_LD_BU_OP | aluop_i == `EXE_ST_B_OP;
+    assign mem_h_op    = aluop_i == `EXE_LD_H_OP | aluop_i == `EXE_LD_HU_OP | aluop_i == `EXE_ST_H_OP;
 
     always @(*) begin
         if (rst == `RstEnable) begin
