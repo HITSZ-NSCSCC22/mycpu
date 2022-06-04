@@ -135,6 +135,12 @@ module tlb (
         .inv_i      (inv_signal_i)
     );
 
+    //debug用
+    logic dmw0_en,dmw1_en,cacop_test;
+    assign dmw0 = data_i.dmw0_en;
+    assign dmw1 = data_i.dmw1_en;
+    assign cacop_test = data_i.cacop_op_mode_di;
+
     assign pg_mode = !csr_da && csr_pg;
     assign da_mode = csr_da && !csr_pg;
 
