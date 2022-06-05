@@ -35,7 +35,7 @@ module ex (
     reg [`RegBus] logicout;
     reg [`RegBus] shiftout;
     reg [`RegBus] moveout;
-    reg [`RegBus] arithout;
+    reg [63:0] arithout;
 
     // Assign input /////////////////////////////
 
@@ -85,7 +85,7 @@ module ex (
 
     assign ex_data_forward = {ex_o.wreg, ex_o.waddr, ex_o.wdata, ex_o.aluop};
 
-    csr_write_signal csr_signal_i,csr_test;
+    csr_write_signal csr_signal_i, csr_test;
     assign csr_signal_i = dispatch_i.csr_signal;
     assign csr_test = ex_o.csr_signal;
 
@@ -94,27 +94,27 @@ module ex (
     assign ex_o.csr_signal.addr = csr_signal_i.addr;
     assign ex_o.csr_signal.data = (aluop_i ==`EXE_CSRXCHG_OP) ? ((reg1_i & reg2_i) | (~reg2_i & dispatch_i.csr_reg_data)) : csr_signal_i.data;
 
-    logic excp_ale,excp_ine, excp_i;
+    logic excp_ale, excp_ine, excp_i;
     logic [9:0] excp_num;
     assign excp_ale = access_mem && ((mem_b_op & 1'b0)| (mem_h_op & ex_o.mem_addr[0])| 
                     (!(mem_b_op | mem_h_op) & (ex_o.mem_addr[0] | ex_o.mem_addr[1]))) ;
-    assign excp_ine = aluop_i == `EXE_INVTLB_OP && imm >32'd6;
-    assign excp_num = {excp_ale, dispatch_i.excp_num | {1'b0,excp_ine,7'b0}};
+    assign excp_ine = aluop_i == `EXE_INVTLB_OP && imm > 32'd6;
+    assign excp_num = {excp_ale, dispatch_i.excp_num | {1'b0, excp_ine, 7'b0}};
     assign excp_i = dispatch_i.excp || excp_ale || excp_ine;
     assign ex_o.excp = excp_i;
     assign ex_o.excp_num = excp_num;
     assign ex_o.refetch = dispatch_i.refetch;
 
     //对未对齐例外的判断
-    logic access_mem,mem_load_op,mem_store_op,mem_b_op,mem_h_op;
+    logic access_mem, mem_load_op, mem_store_op, mem_b_op, mem_h_op;
     assign access_mem = mem_load_op || mem_store_op;
 
     assign mem_load_op = aluop_i == `EXE_LD_B_OP ||  aluop_i == `EXE_LD_BU_OP ||  aluop_i == `EXE_LD_H_OP ||  aluop_i == `EXE_LD_HU_OP ||
                         aluop_i == `EXE_LD_W_OP ||  aluop_i == `EXE_LL_OP;
 
     assign mem_store_op =  aluop_i == `EXE_ST_B_OP ||  aluop_i == `EXE_ST_H_OP ||  aluop_i == `EXE_ST_W_OP ||  aluop_i == `EXE_SC_OP;
-    assign mem_b_op    = aluop_i == `EXE_LD_B_OP | aluop_i == `EXE_LD_BU_OP | aluop_i == `EXE_ST_B_OP;
-    assign mem_h_op    = aluop_i == `EXE_LD_H_OP | aluop_i == `EXE_LD_HU_OP | aluop_i == `EXE_ST_H_OP;
+    assign mem_b_op = aluop_i == `EXE_LD_B_OP | aluop_i == `EXE_LD_BU_OP | aluop_i == `EXE_ST_B_OP;
+    assign mem_h_op = aluop_i == `EXE_LD_H_OP | aluop_i == `EXE_LD_HU_OP | aluop_i == `EXE_ST_H_OP;
 
     always @(*) begin
         if (rst == `RstEnable) begin
@@ -222,7 +222,7 @@ module ex (
     );
 
 
-    assign stallreq = muldiv_op & ~muldiv_finished;
+    // assign stallreq = muldiv_op & ~muldiv_finished;
     assign tlb_stallreq = aluop_i == `EXE_TLBRD_OP | aluop_i == `EXE_TLBSRCH_OP;
 
     always @(*) begin
@@ -233,9 +233,14 @@ module ex (
                 `EXE_ADD_OP: arithout = reg1_i + reg2_i;
                 `EXE_SUB_OP: arithout = reg1_i - reg2_i;
 
-                `EXE_MUL_OP, `EXE_MULH_OP, `EXE_MULHU_OP, `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP: begin
-                    // Select result from multi-cycle divider
-                    arithout = muldiv_result;
+                `EXE_MUL_OP: arithout = $signed(reg1_i) * $signed(reg2_i);
+                `EXE_MULH_OP: arithout = ($signed(reg1_i) * $signed(reg2_i)) >> 32;
+                `EXE_MULHU_OP: arithout = ($unsigned(reg1_i) * $unsigned(reg2_i)) >> 32;
+                `EXE_DIV_OP: arithout = ($signed(reg1_i) / $signed(reg2_i));
+                `EXE_DIVU_OP: arithout = ($unsigned(reg1_i) / $unsigned(reg2_i));
+                `EXE_MODU_OP: arithout = ($unsigned(reg1_i) % $unsigned(reg2_i));
+                `EXE_MOD_OP: begin
+                    arithout = ($signed(reg1_i) % $signed(reg2_i));
                 end
                 `EXE_SLT_OP, `EXE_SLTU_OP: arithout = {31'b0, reg1_lt_reg2};
                 default: begin
