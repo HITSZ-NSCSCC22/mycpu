@@ -38,27 +38,27 @@ module tlb_entry (
     input  tlb_inv_in_struct inv_i
 );
 
-    reg [      18:0] tlb_vppn           [TLBNUM-1:0];
-    reg              tlb_e              [TLBNUM-1:0];
-    reg [       9:0] tlb_asid           [TLBNUM-1:0];
-    reg              tlb_g              [TLBNUM-1:0];
-    reg [       5:0] tlb_ps             [TLBNUM-1:0];
-    reg [      19:0] tlb_ppn0           [TLBNUM-1:0];
-    reg [       1:0] tlb_plv0           [TLBNUM-1:0];
-    reg [       1:0] tlb_mat0           [TLBNUM-1:0];
-    reg              tlb_d0             [TLBNUM-1:0];
-    reg              tlb_v0             [TLBNUM-1:0];
-    reg [      19:0] tlb_ppn1           [TLBNUM-1:0];
-    reg [       1:0] tlb_plv1           [TLBNUM-1:0];
-    reg [       1:0] tlb_mat1           [TLBNUM-1:0];
-    reg              tlb_d1             [TLBNUM-1:0];
-    reg              tlb_v1             [TLBNUM-1:0];
+    logic [18:0] tlb_vppn [TLBNUM-1:0];
+    logic tlb_e [TLBNUM-1:0];
+    logic [9:0] tlb_asid [TLBNUM-1:0];
+    logic tlb_g [TLBNUM-1:0];
+    logic [5:0] tlb_ps [TLBNUM-1:0];
+    logic [19:0] tlb_ppn0 [TLBNUM-1:0];
+    logic [1:0] tlb_plv0 [TLBNUM-1:0];
+    logic [1:0] tlb_mat0 [TLBNUM-1:0];
+    logic tlb_d0 [TLBNUM-1:0];
+    logic tlb_v0 [TLBNUM-1:0];
+    logic [19:0] tlb_ppn1 [TLBNUM-1:0];
+    logic [1:0] tlb_plv1 [TLBNUM-1:0];
+    logic [1:0] tlb_mat1 [TLBNUM-1:0];
+    logic tlb_d1 [TLBNUM-1:0];
+    logic tlb_v1 [TLBNUM-1:0];
 
-    reg [TLBNUM-1:0] match0;
-    reg [TLBNUM-1:0] match1;
+    logic [TLBNUM-1:0] match0;
+    logic [TLBNUM-1:0] match1;
 
-    reg [TLBNUM-1:0] s0_odd_page_buffer;
-    reg [TLBNUM-1:0] s1_odd_page_buffer;
+    logic [TLBNUM-1:0] s0_odd_page_buffer;
+    logic [TLBNUM-1:0] s1_odd_page_buffer;
 
     genvar i;
     generate
@@ -78,8 +78,6 @@ module tlb_entry (
 
     assign s0_found = match0 != 32'b0;  //!(!match0);
     assign s1_found = match1 != 32'b0;  //!(!match1);
-
-
 
     always_comb begin
         for (integer j = 0; j < 32; j++) begin

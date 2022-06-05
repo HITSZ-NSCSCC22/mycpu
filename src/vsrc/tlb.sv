@@ -27,31 +27,31 @@ module tlb (
     input logic csr_pg
 );
 
-    logic       [18:0] s0_vppn;
-    logic              s0_odd_page;
-    logic       [ 5:0] s0_ps;
-    logic       [19:0] s0_ppn;
+    logic [18:0] s0_vppn;
+    logic s0_odd_page;
+    logic [5:0] s0_ps;
+    logic [19:0] s0_ppn;
 
-    logic       [18:0] s1_vppn;
-    logic              s1_odd_page;
-    logic       [ 5:0] s1_ps;
-    logic       [19:0] s1_ppn;
+    logic [18:0] s1_vppn;
+    logic s1_odd_page;
+    logic [5:0] s1_ps;
+    logic [19:0] s1_ppn;
 
-    logic              we;
-    logic       [ 4:0] w_index;
-    tlb_wr_port        w_port;
+    logic  we;
+    logic  [4:0] w_index;
+    tlb_wr_port w_port;
 
 
-    logic       [ 4:0] r_index;
-    tlb_wr_port        r_port;
+    logic  [4:0] r_index;
+    tlb_wr_port r_port;
 
-    logic       [31:0] inst_vaddr_buffer;
-    logic       [31:0] data_vaddr_buffer;
-    logic       [31:0] inst_paddr;
-    logic       [31:0] data_paddr;
+    logic [31:0] inst_vaddr_buffer;
+    logic [31:0] data_vaddr_buffer;
+    logic [31:0] inst_paddr;
+    logic [31:0] data_paddr;
 
-    logic              pg_mode;
-    logic              da_mode;
+    logic pg_mode;
+    logic da_mode;
 
     always @(posedge clk) begin
         inst_vaddr_buffer <= inst_i.vaddr;
