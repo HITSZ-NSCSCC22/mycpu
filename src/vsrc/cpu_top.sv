@@ -477,7 +477,7 @@ module cpu_top (
     assign next_pc = (excp_flush && !excp_tlbrefill) ? csr_eentry :
                      (excp_flush && excp_tlbrefill) ? csr_tlbrentry :
                      ertn_flush ? csr_era :
-                     idle_flush ? idle_pc + 32'h4 : 
+                     idle_flush ? idle_pc : 
                      (branch_flag[0] & ~stall[2]) ? branch_target_address[0] : 
                      (branch_flag[1] & ~stall[2]) ? branch_target_address[1] : `ZeroWord;
 

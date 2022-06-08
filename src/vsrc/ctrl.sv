@@ -90,8 +90,8 @@ module ctrl (
     //第一条流水线冲刷:发生异常和ertn指令时进行冲刷
     assign ex_mem_flush_o[0] = ertn_flush | excp_flush;
     assign excp_flush = excp;
-    assign idle_flush = wb_i_1.aluop == `EXE_ERTN_OP ;
-    assign ertn_flush = wb_i_1.aluop == `EXE_ERTN_OP | wb_i_2.aluop == `EXE_ERTN_OP;
+    assign idle_flush = aluop == `EXE_IDLE_OP ;
+    assign ertn_flush = aluop == `EXE_ERTN_OP | wb_i_2.aluop == `EXE_ERTN_OP;
     assign fetch_flush = 0;
     assign idle_pc = wb_i_1.wb_reg_o.pc;
     assign flush = fetch_flush | excp_flush | ertn_flush;
@@ -147,7 +147,7 @@ module ctrl (
     logic [15:0] excp_num;
     logic [`RegBus] pc, error_va;
     assign excp = wb_i_1.excp | wb_i_2.excp;
-    assign csr_era = pc;
+    assign csr_era = aluop == `EXE_IDLE_OP ? pc + 32'h4 : pc;
     //异常处理，优先处理第一条流水线的异常
     assign {excp_num, pc, excp_instr, error_va} = 
             wb_i_1.excp ? {wb_i_1.excp_num, wb_i_1.wb_reg_o.pc,wb_i_1.diff_commit_o.instr, wb_i_1.mem_addr} :
