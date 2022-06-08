@@ -68,6 +68,10 @@ module id (
     decoder_2R u_decoder_2R (
         .instr_info_i         (instr_buffer_i),
         .decode_result_valid_o(sub_decoder_valid[0]),
+        .reg_read_valid_o     (sub_decoder_reg_read_valid[0]),
+        .reg_read_addr_o      (sub_decoder_reg_read_addr[0]),
+        .reg_write_valid_o    (sub_decoder_reg_write_valid[0]),
+        .reg_write_addr_o     (sub_decoder_reg_write_addr[0]),
         .use_imm              (sub_decoder_use_imm[0]),
         .aluop_o              (sub_decoder_aluop[0])
     );

@@ -18,11 +18,16 @@ module decoder_2R #(
     // 1 means valid
     output logic decode_result_valid_o,
 
-    // TLB instructions do not read GPR
+    // GPR read
+    // 1 means valid, {rj, rk}
+    output logic [1:0] reg_read_valid_o,
+    output logic [$clog2(GPR_NUM)*2-1:0] reg_read_addr_o,
 
-    // TLB instructions do not modify GPR
+    // GPR write
+    // 1 means valid, {rd}
+    output logic reg_write_valid_o,
+    output logic [$clog2(GPR_NUM)-1:0] reg_write_addr_o,
 
-    // TLB instructions do not use ALU
     output logic use_imm,
     output logic [ALU_OP_WIDTH-1:0] aluop_o
 
@@ -32,7 +37,15 @@ module decoder_2R #(
     assign instr   = instr_info_i.instr;
     assign use_imm = 1'b0;
 
+    logic [4:0] rj, rd;
+    assign rj = instr[9:5];
+    assign rd = instr[4:0];
+
     always_comb begin
+        reg_read_valid_o  = 2'b00;
+        reg_read_addr_o   = 0;
+        reg_write_valid_o = 0;
+        reg_write_addr_o  = 0;
         case (instr[31:10])
             `EXE_TLBWR: begin
                 decode_result_valid_o = 1;
@@ -56,6 +69,24 @@ module decoder_2R #(
             `EXE_ERTN: begin
                 decode_result_valid_o = 1;
                 aluop_o = `EXE_ERTN_OP;
+            end
+            `EXE_RDCNTIDV_W: begin
+                decode_result_valid_o = 1;
+                if (rd == 0) begin
+                    reg_write_valid_o = 1;
+                    reg_write_addr_o = rj;
+                    aluop_o = `EXE_RDCNTID_OP;
+                end else if (rj == 0) begin
+                    reg_write_valid_o = 1;
+                    reg_write_addr_o = rd;
+                    aluop_o = `EXE_RDCNTVL_OP;
+                end else decode_result_valid_o = 0;
+            end
+            `EXE_RDCNTVH_W: begin
+                decode_result_valid_o = 1;
+                reg_write_valid_o = 1;
+                reg_write_addr_o = rd;
+                aluop_o = `EXE_RDCNTVH_OP;
             end
             default: begin
                 decode_result_valid_o = 0;
