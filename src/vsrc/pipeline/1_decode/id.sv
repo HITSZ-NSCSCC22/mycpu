@@ -73,7 +73,8 @@ module id (
         .reg_write_valid_o    (sub_decoder_reg_write_valid[0]),
         .reg_write_addr_o     (sub_decoder_reg_write_addr[0]),
         .use_imm              (sub_decoder_use_imm[0]),
-        .aluop_o              (sub_decoder_aluop[0])
+        .aluop_o              (sub_decoder_aluop[0]),
+        .alusel_o             (sub_decoder_alusel[0])
     );
     decoder_3R u_decoder_3R (
         .instr_info_i         (instr_buffer_i),

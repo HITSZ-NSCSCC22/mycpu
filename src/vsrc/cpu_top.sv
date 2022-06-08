@@ -487,6 +487,8 @@ module cpu_top (
 
     // EXE Stage
     logic [1:0] ex_stallreq;
+    logic [63:0] csr_timer_64;
+    logic [31:0] csr_tid;
     generate
         for (genvar i = 0; i < 2; i++) begin : ex
             ex u_ex (
@@ -502,6 +504,9 @@ module cpu_top (
 
                 .stallreq(ex_stallreq[i]),
                 .tlb_stallreq(tlb_stallreq[i]),
+
+                .timer_64(csr_timer_64),
+                .tid(csr_tid),
 
                 .branch_flag_o(branch_flag[i]),
                 .branch_target_address(branch_target_address[i]),
@@ -759,8 +764,8 @@ module cpu_top (
         .llbit_o(LLbit_o),
         .vppn_o(csr_vppn_o),
         .era_i(csr_era_i),
-        .timer_64_o(),
-        .tid_o(),
+        .timer_64_o(csr_timer_64),
+        .tid_o(csr_tid),
         .plv_o(csr_plv),
         .esubcode_i(csr_esubcode_i),
         .va_error_i(va_error_i),

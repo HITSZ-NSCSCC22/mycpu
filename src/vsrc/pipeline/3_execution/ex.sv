@@ -21,6 +21,10 @@ module ex (
     // -> MEM
     output ex_mem_struct ex_o_buffer,
 
+    // <- CSR
+    input [63:0] timer_64,
+    input [31:0] tid,
+
     // Multi-cycle ALU stallreq
     output logic stallreq,
     output logic tlb_stallreq,
@@ -102,6 +106,12 @@ module ex (
     assign ex_o.csr_signal.we = csr_signal_i.we;
     assign ex_o.csr_signal.addr = csr_signal_i.addr;
     assign ex_o.csr_signal.data = (aluop_i ==`EXE_CSRXCHG_OP) ? ((reg1_i & reg2_i) | (~reg2_i & dispatch_i.csr_reg_data)) : csr_signal_i.data;
+
+    logic [`RegBus] csr_reg_data;
+    assign csr_reg_data = aluop_i == `EXE_RDCNTID_OP ? tid :
+                          aluop_i == `EXE_RDCNTVL_OP ? timer_64[31:0] :
+                          aluop_i == `EXE_RDCNTVH_OP ? timer_64[63:32] :
+                          dispatch_i.csr_reg_data;
 
     logic excp_ale, excp_ine, excp_i;
     logic [9:0] excp_num;
@@ -334,6 +344,8 @@ module ex (
             endcase
         end
     end
+    logic [31:0] wdata;
+    assign wdata = ex_o.wdata;
 
     always @(*) begin
         ex_o.instr_info = stallreq ? 0 : dispatch_i.instr_info;
@@ -357,7 +369,7 @@ module ex (
                 ex_o.wdata = inst_pc_i + 4;
             end
             `EXE_RES_CSR: begin
-                ex_o.wdata = dispatch_i.csr_reg_data;
+                ex_o.wdata = csr_reg_data;
             end
             default: begin
                 ex_o.wdata = `ZeroWord;

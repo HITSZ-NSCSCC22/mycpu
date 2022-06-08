@@ -29,7 +29,8 @@ module decoder_2R #(
     output logic [$clog2(GPR_NUM)-1:0] reg_write_addr_o,
 
     output logic use_imm,
-    output logic [ALU_OP_WIDTH-1:0] aluop_o
+    output logic [ALU_OP_WIDTH-1:0] aluop_o,
+    output logic [ALU_SEL_WIDTH-1:0] alusel_o
 
 );
 
@@ -46,6 +47,7 @@ module decoder_2R #(
         reg_read_addr_o   = 0;
         reg_write_valid_o = 0;
         reg_write_addr_o  = 0;
+        alusel_o = 0;
         case (instr[31:10])
             `EXE_TLBWR: begin
                 decode_result_valid_o = 1;
@@ -72,6 +74,7 @@ module decoder_2R #(
             end
             `EXE_RDCNTIDV_W: begin
                 decode_result_valid_o = 1;
+                alusel_o = `EXE_RES_CSR;
                 if (rd == 0) begin
                     reg_write_valid_o = 1;
                     reg_write_addr_o = rj;
@@ -87,6 +90,7 @@ module decoder_2R #(
                 reg_write_valid_o = 1;
                 reg_write_addr_o = rd;
                 aluop_o = `EXE_RDCNTVH_OP;
+                alusel_o = `EXE_RES_CSR;
             end
             default: begin
                 decode_result_valid_o = 0;
