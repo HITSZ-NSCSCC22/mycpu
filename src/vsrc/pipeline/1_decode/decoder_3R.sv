@@ -164,7 +164,7 @@ module decoder_3R #(
             end
             `EXE_IDLE, `EXE_DBAR, `EXE_IBAR: begin
                 // FIXME: not implemented now
-                aluop_o  = `EXE_NOP_OP;
+                aluop_o  = `EXE_IDLE_OP;
                 alusel_o = `EXE_RES_NOP;
             end
             `EXE_INVTLB: begin

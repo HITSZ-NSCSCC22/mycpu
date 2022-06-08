@@ -470,13 +470,14 @@ module cpu_top (
     logic disable_cache;
     logic [1:0] branch_flag;
 
-    assign backend_flush = excp_flush | ertn_flush | ((branch_flag[0] | branch_flag[1]) & ~stall[2]);
+    assign backend_flush = excp_flush | ertn_flush | idle_flush |((branch_flag[0] | branch_flag[1]) & ~stall[2]);
 
     // If ex is stalling, means that the branch flag maybe invalid and waiting for the right data
     // so no jumping if ex is stalling
     assign next_pc = (excp_flush && !excp_tlbrefill) ? csr_eentry :
                      (excp_flush && excp_tlbrefill) ? csr_tlbrentry :
                      ertn_flush ? csr_era :
+                     idle_flush ? idle_pc + 32'h4 : 
                      (branch_flag[0] & ~stall[2]) ? branch_target_address[0] : 
                      (branch_flag[1] & ~stall[2]) ? branch_target_address[1] : `ZeroWord;
 
@@ -689,6 +690,8 @@ module cpu_top (
         .excp_flush(excp_flush),
         .ertn_flush(ertn_flush),
         .fetch_flush(fetch_flush),
+        .idle_flush(idle_flush),
+        .idle_pc(idle_pc),
 
         .stall(stall),
         .is_pri_instr(is_pri_instr),

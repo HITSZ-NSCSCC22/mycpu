@@ -12,9 +12,11 @@ module ctrl (
     input logic [1:0] tlb_stallreq,
     input logic stallreq_from_dispatch,
     input logic [1:0] mem_stallreq_i,
+    output logic idle_flush,
     output logic excp_flush,
     output logic ertn_flush,
     output logic fetch_flush,
+    output logic [`InstAddrBus] idle_pc,
 
     // Stall request to each stage
     output logic [4:0] stall,  // from 4->0 {ex_mem, dispatch_ex, id_dispatch, _}
@@ -88,8 +90,10 @@ module ctrl (
     //第一条流水线冲刷:发生异常和ertn指令时进行冲刷
     assign ex_mem_flush_o[0] = ertn_flush | excp_flush;
     assign excp_flush = excp;
+    assign idle_flush = wb_i_1.aluop == `EXE_ERTN_OP ;
     assign ertn_flush = wb_i_1.aluop == `EXE_ERTN_OP | wb_i_2.aluop == `EXE_ERTN_OP;
     assign fetch_flush = 0;
+    assign idle_pc = wb_i_1.wb_reg_o.pc;
     assign flush = fetch_flush | excp_flush | ertn_flush;
 
     //暂停处理
@@ -120,7 +124,7 @@ module ctrl (
         //发射阶段发射特权信号,拉高阻塞信号,阻塞前端,不再传指令
         else if (is_pri_instr) pri_stall <= 1;
         //提交阶段,若提交的是特权指令,把阻塞信号拉低,开始发射
-        else if (pri_commit) pri_stall <= 0;
+        else if (pri_commit | excp_flush) pri_stall <= 0;
         //其余时刻保持当前状态
     end
 
@@ -128,16 +132,16 @@ module ctrl (
     always_comb begin
         commit_0 = wb_i_1.diff_commit_o;
         if (wb_i_1.excp) commit_0.valid = 0;
-        commit_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP) ? 0 : wb_i_2.diff_commit_o;
+        commit_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP) ? 0 : wb_i_2.diff_commit_o;
         if (wb_i_2.excp) commit_1.valid = 0;
     end
 
     //写入寄存器堆
     assign reg_o_0 = wb_i_1.excp ? 0 : wb_i_1.wb_reg_o;
-    assign reg_o_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | excp) ? 0 : wb_i_2.wb_reg_o;
+    assign reg_o_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | excp) ? 0 : wb_i_2.wb_reg_o;
 
     assign csr_w_o_0 = wb_i_1.excp ? 0 : wb_i_1.csr_signal_o;
-    assign csr_w_o_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | excp) ? 0 : wb_i_2.csr_signal_o;
+    assign csr_w_o_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | excp) ? 0 : wb_i_2.csr_signal_o;
 
     logic excp;
     logic [15:0] excp_num;
