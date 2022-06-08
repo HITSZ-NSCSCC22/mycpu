@@ -16,7 +16,7 @@
 `include "pipeline/1_decode/id_dispatch.sv"
 `include "pipeline/2_dispatch/dispatch.sv"
 `include "pipeline/3_execution/ex.sv"
-`include "pipeline/3_execution/ex_mem.sv"
+//`include "pipeline/3_execution/ex_mem.sv"
 `include "pipeline/4_mem/mem.sv"
 `include "pipeline/4_mem/mem_wb.sv"
 
@@ -498,7 +498,7 @@ module cpu_top (
 
                 .mem_data_forward_i(mem_data_forward),
 
-                .ex_o(ex_signal_o[i]),
+                .ex_o_buffer(ex_signal_o[i]),
 
                 .stallreq(ex_stallreq[i]),
                 .tlb_stallreq(tlb_stallreq[i]),
@@ -506,7 +506,14 @@ module cpu_top (
                 .branch_flag_o(branch_flag[i]),
                 .branch_target_address(branch_target_address[i]),
 
-                .ex_data_forward(ex_data_forward[i])
+                .ex_data_forward(ex_data_forward[i]),
+
+                .excp_flush(excp_flush),
+                .ertn_flush(ertn_flush),
+
+                // <-> Ctrl
+                .stall(stall[3]),
+                .flush(ex_mem_flush[i])
 
             );
         end
@@ -521,25 +528,25 @@ module cpu_top (
 
     ex_mem_struct mem_signal_i[2];
     logic [1:0] ex_mem_flush;
-    generate
-        for (genvar i = 0; i < 2; i++) begin : ex_mem
-            ex_mem u_ex_mem (
-                .clk(clk),
-                .rst(rst),
-                .excp_flush(excp_flush),
-                .ertn_flush(ertn_flush),
+    // generate
+    //     for (genvar i = 0; i < 2; i++) begin : ex_mem
+    //         ex_mem u_ex_mem (
+    //             .clk(clk),
+    //             .rst(rst),
+    //             .excp_flush(excp_flush),
+    //             .ertn_flush(ertn_flush),
 
-                .ex_o (ex_signal_o[i]),
-                .mem_i(mem_signal_i[i]),
+    //             .ex_o (ex_signal_o[i]),
+    //             .mem_i(mem_signal_i[i]),
 
-                // <-> Ctrl
-                .stall(stall[3]),
-                .flush(ex_mem_flush[i])
+    //             // <-> Ctrl
+    //             .stall(stall[3]),
+    //             .flush(ex_mem_flush[i])
 
-            );
-        end
+    //         );
+    //     end
 
-    endgenerate
+    // endgenerate
 
     mem_wb_struct mem_signal_o[2];
 
@@ -565,7 +572,7 @@ module cpu_top (
             mem u_mem (
                 .rst(rst),
 
-                .signal_i(mem_signal_i[i]),
+                .signal_i(ex_signal_o[i]),
 
                 .signal_o(mem_signal_o[i]),
 

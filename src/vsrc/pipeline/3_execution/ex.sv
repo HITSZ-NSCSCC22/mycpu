@@ -19,7 +19,7 @@ module ex (
     input logic llbit,
 
     // -> MEM
-    output ex_mem_struct ex_o,
+    output ex_mem_struct ex_o_buffer,
 
     // Multi-cycle ALU stallreq
     output logic stallreq,
@@ -28,7 +28,14 @@ module ex (
     output logic branch_flag_o,
     output logic [`RegBus] branch_target_address,
 
-    output ex_dispatch_struct ex_data_forward
+    output ex_dispatch_struct ex_data_forward,
+
+    input logic excp_flush,
+    input logic ertn_flush,
+
+    // Stall & flush
+    input logic stall,
+    input logic flush
 
 );
 
@@ -36,6 +43,8 @@ module ex (
     reg [`RegBus] shiftout;
     reg [`RegBus] moveout;
     reg [63:0] arithout;
+
+    ex_mem_struct ex_o;
 
     // Assign input /////////////////////////////
 
@@ -354,6 +363,19 @@ module ex (
                 ex_o.wdata = `ZeroWord;
             end
         endcase
+    end
+
+
+    always @(posedge clk) begin
+        if (rst == `RstEnable) begin
+            ex_o_buffer <= 0;
+        end else if (flush == 1'b1 || excp_flush == 1'b1 || ertn_flush == 1'b1) begin
+            ex_o_buffer <= 0;
+        end else if (stall == `Stop) begin
+            // Do nothing
+        end else begin
+            ex_o_buffer <= ex_o;
+        end
     end
 
 endmodule
