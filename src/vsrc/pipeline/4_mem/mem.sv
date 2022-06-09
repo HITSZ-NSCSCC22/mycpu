@@ -49,10 +49,13 @@ module mem (
     logic mem_store_op;
     logic mem_load_op;
 
+    // DEBUG
     logic [`InstAddrBus] debug_pc_i;
     assign debug_pc_i = signal_i.instr_info.pc;
     logic [`RegBus] debug_wdata_o;
     assign debug_wdata_o = signal_o.wdata;
+    logic debug_instr_valid;
+    assign debug_instr_valid = signal_i.instr_info.valid;
 
     logic [`AluOpBus] aluop_i;
     assign aluop_i = signal_i.aluop;

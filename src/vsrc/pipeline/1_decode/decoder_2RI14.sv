@@ -68,15 +68,18 @@ module decoder_2RI14 #(
                 reg_write_addr_o = rd;
                 reg_read_valid_o = 2'b01;
                 reg_read_addr_o = {5'b0, rj};
+                use_imm = 1'b0;
+                imm_o    = {{18{imm_14[13]}}, imm_14} << 4;  // Signed Extension and << 2
             end
             `EXE_SC_W: begin
-                use_imm = 1'b0;
                 aluop_o = `EXE_SC_OP;
                 alusel_o = `EXE_RES_MOVE;
                 reg_write_valid_o = 1;
                 reg_write_addr_o = rd;
                 reg_read_valid_o = 2'b11;
                 reg_read_addr_o = {rd, rj};
+                use_imm = 1'b0;
+                imm_o    = {{18{imm_14[13]}}, imm_14} << 4;  // Signed Extension and << 2
             end
             default: begin
                 use_imm = 1'b0;

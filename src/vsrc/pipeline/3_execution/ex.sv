@@ -93,7 +93,7 @@ module ex (
     assign debug_mem_addr_o = ex_o.mem_addr;
 
     // TODO:fix vppn select
-    assign ex_o.mem_addr = reg1_i + {{20{inst_i[21]}}, inst_i[21:10]};
+    assign ex_o.mem_addr = reg1_i + imm;
     assign ex_o.reg2 = reg2_i;
 
     assign ex_data_forward = {ex_o.wreg, ex_o.waddr, ex_o.wdata, ex_o.aluop};

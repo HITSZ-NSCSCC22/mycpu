@@ -89,6 +89,8 @@ module mem_wb (
     assign debug_mem_wdata = mem_signal_o.wdata;
     logic tlb_found;
     assign tlb_found = tlb_mem_signal.data_tlb_found;
+    logic debug_instr_valid;
+    assign debug_instr_valid = mem_signal_o.instr_info.valid;
     logic [63:0] timer_test;
     assign timer_test = mem_signal_o.timer_64;
 
