@@ -122,6 +122,7 @@ module mem_wb (
             wb_ctrl_signal.diff_commit_o.instr <= mem_signal_o.instr_info.instr;
             wb_ctrl_signal.diff_commit_o.inst_ld_en <= mem_signal_o.inst_ld_en;
             wb_ctrl_signal.diff_commit_o.inst_st_en <= mem_signal_o.inst_st_en;
+            wb_ctrl_signal.diff_commit_o.timer_64 <= mem_signal_o.timer_64;
             wb_ctrl_signal.diff_commit_o.ld_paddr <= {
                 tlb_mem_signal.tlb_tag, mem_signal_o.load_addr[11:0]
             };

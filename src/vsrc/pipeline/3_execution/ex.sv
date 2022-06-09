@@ -108,9 +108,9 @@ module ex (
     assign ex_o.csr_signal.data = (aluop_i ==`EXE_CSRXCHG_OP) ? ((reg1_i & reg2_i) | (~reg2_i & dispatch_i.csr_reg_data)) : csr_signal_i.data;
 
     logic [`RegBus] csr_reg_data;
-    assign csr_reg_data = aluop_i == `EXE_RDCNTID_OP ? 0 ://tid :
-                          aluop_i == `EXE_RDCNTVL_OP ? 0 ://timer_64[31:0] :
-                          aluop_i == `EXE_RDCNTVH_OP ? 0 ://timer_64[63:32] :
+    assign csr_reg_data = aluop_i == `EXE_RDCNTID_OP ? tid :
+                          aluop_i == `EXE_RDCNTVL_OP ? timer_64[31:0] :
+                          aluop_i == `EXE_RDCNTVH_OP ? timer_64[63:32] :
                           dispatch_i.csr_reg_data;
 
     logic excp_ale, excp_ine, excp_i;
@@ -357,6 +357,7 @@ module ex (
         ex_o.instr_info = stallreq ? 0 : dispatch_i.instr_info;
         ex_o.waddr = wd_i;
         ex_o.wreg = wreg_i;
+        ex_o.timer_64 = timer_64;
         ex_o.inv_i = aluop_i == `EXE_INVTLB_OP ? {1'b1, oprand1[9:0], oprand2[18:0], wd_i} : 0;
         case (alusel_i)
             `EXE_RES_LOGIC: begin

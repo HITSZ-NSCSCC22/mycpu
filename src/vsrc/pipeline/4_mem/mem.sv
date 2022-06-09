@@ -124,6 +124,7 @@ module mem (
             signal_cache_o = 0;
             signal_o.store_data = 0;
             signal_o.mem_addr = 0;
+            signal_o.timer_64 = 0;
         end else begin
             LLbit_we_o = 1'b0;
             LLbit_value_o = 1'b0;
@@ -139,6 +140,7 @@ module mem (
             signal_o.csr_signal = signal_i.csr_signal;
             signal_o.inv_i = signal_i.inv_i;
             signal_o.mem_addr = mem_addr;
+            signal_o.timer_64 = signal_i.timer_64;
             signal_cache_o = 0;
             signal_o.store_data = 0;
             case (aluop_i)
