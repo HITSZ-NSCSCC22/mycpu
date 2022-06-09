@@ -170,8 +170,11 @@ module decoder_3R #(
                 aluop_o  = `EXE_MODU_OP;
                 alusel_o = `EXE_RES_ARITH;
             end
-            `EXE_IDLE, `EXE_DBAR, `EXE_IBAR: begin
-                // FIXME: not implemented now
+            `EXE_IDLE: begin
+                aluop_o  = `EXE_IDLE_OP;
+                alusel_o = `EXE_RES_NOP;
+            end
+            `EXE_DBAR, `EXE_IBAR: begin
                 aluop_o  = `EXE_NOP_OP;
                 alusel_o = `EXE_RES_NOP;
             end
