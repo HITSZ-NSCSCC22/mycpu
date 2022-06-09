@@ -65,6 +65,11 @@ module decoder_1RI20 #(
                 aluop_o  = `EXE_LUI_OP;
                 alusel_o = `EXE_RES_MOVE;
             end
+            `EXE_PCADDI: begin
+                aluop_o  = `EXE_PCADD_OP;
+                alusel_o = `EXE_RES_MOVE;
+                imm_o = {{10{imm_20[19]}},imm_20,2'b0};
+            end
             `EXE_PCADDU12I: begin
                 aluop_o  = `EXE_PCADD_OP;
                 alusel_o = `EXE_RES_MOVE;

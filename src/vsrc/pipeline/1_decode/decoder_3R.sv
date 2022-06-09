@@ -122,6 +122,14 @@ module decoder_3R #(
                 aluop_o  = `EXE_XOR_OP;
                 alusel_o = `EXE_RES_LOGIC;
             end
+            `EXE_ORN: begin
+                aluop_o  = `EXE_ORN_OP;
+                alusel_o = `EXE_RES_LOGIC;
+            end
+            `EXE_ANDN: begin
+                aluop_o  = `EXE_ANDN_OP;
+                alusel_o = `EXE_RES_LOGIC;
+            end
             `EXE_SLL_W: begin
                 aluop_o  = `EXE_SLL_OP;
                 alusel_o = `EXE_RES_SHIFT;
