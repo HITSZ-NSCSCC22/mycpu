@@ -76,7 +76,7 @@ typedef struct packed {
     logic refetch;
 
     tlb_inv_in_struct inv_i;
-    logic [63:0]timer_64;
+    logic [63:0] timer_64;
 } ex_mem_struct;
 
 // MEM stage data forwarding
@@ -112,7 +112,7 @@ typedef struct packed {
     logic [4:0] tlb_index;
 
     tlb_inv_in_struct inv_i;
-    logic [63:0]timer_64;
+    logic [63:0] timer_64;
 } mem_wb_struct;
 
 typedef struct packed {
@@ -144,6 +144,7 @@ typedef struct packed {
     logic [31:0] st_paddr;
     logic [31:0] st_vaddr;
     logic [31:0] st_data;
+    logic is_CNTinst;
     logic [63:0] timer_64;
 } diff_commit;
 

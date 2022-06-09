@@ -895,7 +895,7 @@ module cpu_top (
         .skip          (0),                             // not implemented in CHIPLAB, keep 0 
         .is_TLBFILL    (),
         .TLBFILL_index (),
-        .is_CNTinst    (),
+        .is_CNTinst    (difftest_commit_info_delay1[0].is_CNTinst),
         .timer_64_value(difftest_commit_info_delay1[0].timer_64),
         .wen           (debug0_wb_rf_wen),
         .wdest         ({3'b0, debug0_wb_rf_wnum}),
@@ -913,7 +913,7 @@ module cpu_top (
         .instr         (difftest_commit_info_delay1[1].instr),
         .is_TLBFILL    (),
         .TLBFILL_index (),
-        .is_CNTinst    (),
+        .is_CNTinst    (difftest_commit_info_delay1[1].is_CNTinst),
         .timer_64_value(difftest_commit_info_delay1[1].timer_64),
         .wen           (debug1_wb_rf_wen),
         .wdest         ({3'b0, debug1_wb_rf_wnum}),
