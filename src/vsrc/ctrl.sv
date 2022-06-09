@@ -64,6 +64,10 @@ module ctrl (
     output diff_commit commit_1
 );
 
+    logic [63:0] timer_test1,timer_test2;
+    assign timer_test1 = commit_0.timer_64;
+    assign timer_test2 = commit_1.timer_64;
+
     logic valid;
     assign valid = wb_i_1.valid | wb_i_2.valid;
 

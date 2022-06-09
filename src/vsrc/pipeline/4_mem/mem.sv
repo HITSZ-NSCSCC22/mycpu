@@ -38,6 +38,9 @@ module mem (
 
 );
 
+    logic [63:0] timer_test;
+    assign timer_test = signal_i.timer_64;
+
     csr_write_signal csr_test;
     assign csr_test = signal_i.csr_signal;
 

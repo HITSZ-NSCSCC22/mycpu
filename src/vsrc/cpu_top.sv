@@ -872,6 +872,9 @@ module cpu_top (
     logic [`RegBus]excp_pc_commit;
     logic [5:0] csr_ecode_commit;
     logic [`InstBus] excp_instr_commit;
+    logic [63:0] timer_test1,timer_test2;
+    assign timer_test1 = difftest_commit_info_delay1[0].timer_64;
+    assign timer_test2 = difftest_commit_info_delay1[1].timer_64;
 
     always_ff @(posedge clk) begin 
         excp_flush_commit <= excp_flush;
