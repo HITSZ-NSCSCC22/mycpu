@@ -33,11 +33,16 @@ testbench.cpp           用于Verilator仿真，如果使用Vivado仿真，无�
 - [前端设计](doc/frontend.md)
 - [译码器设计](doc/instr_decode.md)
 - [差分测试](doc/difftest.md)
-- [AXI控制器](src/vsrc/AXI/README.md)
+- [AXI 控制器](src/vsrc/AXI/README.md)
 - [分支预测器](src/vsrc/BPU/README.md)
-- [Chiplab对接](doc/chiplab.md)
-- [Instruction Buffer设计](doc/instr_buffer.md)
+- [Chiplab 对接](doc/chiplab.md)
+- [Instruction Buffer 设计](doc/instr_buffer.md)
 - [每日一个 Verilog 小技巧](doc/verilog_tips.md)
+
+
+## 综合与下板
+
+- [IP 核配置指南](doc/IP.md)
 
 ## 代码规范
 
