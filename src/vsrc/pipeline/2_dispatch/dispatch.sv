@@ -72,7 +72,7 @@ module dispatch #(
                        aluop_i[1] == `EXE_SYSCALL_OP | aluop_i[1] == `EXE_BREAK_OP | aluop_i[1] == `EXE_ERTN_OP |
                        aluop_i[1] == `EXE_TLBRD_OP | aluop_i[1] == `EXE_TLBWR_OP | aluop_i[1] == `EXE_TLBSRCH_OP |
                        aluop_i[1] == `EXE_TLBFILL_OP | aluop_i[1] == `EXE_IDLE_OP | aluop_i[1] == `EXE_INVTLB_OP |
-                       aluop_i[0] == `EXE_RDCNTID_OP | aluop_i[0] == `EXE_RDCNTVL_OP | aluop_i[0] == `EXE_RDCNTVH_OP |
+                       aluop_i[1] == `EXE_RDCNTID_OP | aluop_i[1] == `EXE_RDCNTVL_OP | aluop_i[1] == `EXE_RDCNTVH_OP |
                        aluop_i[1] == `EXE_CACOP_OP ;
 
     logic csr_op[2], is_both_csr_write;

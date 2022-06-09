@@ -116,6 +116,7 @@ module ctrl (
                        aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_ERTN_OP |
                        aluop == `EXE_TLBRD_OP | aluop == `EXE_TLBWR_OP | aluop == `EXE_TLBSRCH_OP |
                        aluop == `EXE_TLBFILL_OP | aluop == `EXE_IDLE_OP | aluop == `EXE_INVTLB_OP |
+                       aluop == `EXE_RDCNTID_OP | aluop == `EXE_RDCNTVL_OP | aluop == `EXE_RDCNTVH_OP |
                        aluop == `EXE_CACOP_OP ;
 
     //特权阻塞信号

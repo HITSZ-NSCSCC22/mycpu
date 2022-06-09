@@ -108,9 +108,9 @@ module ex (
     assign ex_o.csr_signal.data = (aluop_i ==`EXE_CSRXCHG_OP) ? ((reg1_i & reg2_i) | (~reg2_i & dispatch_i.csr_reg_data)) : csr_signal_i.data;
 
     logic [`RegBus] csr_reg_data;
-    assign csr_reg_data = aluop_i == `EXE_RDCNTID_OP ? tid :
-                          aluop_i == `EXE_RDCNTVL_OP ? timer_64[31:0] :
-                          aluop_i == `EXE_RDCNTVH_OP ? timer_64[63:32] :
+    assign csr_reg_data = aluop_i == `EXE_RDCNTID_OP ? 0 ://tid :
+                          aluop_i == `EXE_RDCNTVL_OP ? 0 ://timer_64[31:0] :
+                          aluop_i == `EXE_RDCNTVH_OP ? 0 ://timer_64[63:32] :
                           dispatch_i.csr_reg_data;
 
     logic excp_ale, excp_ine, excp_i;
