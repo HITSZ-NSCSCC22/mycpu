@@ -46,6 +46,7 @@ module frontend #(
     output logic inst_addr_trans_en,
     output logic dmw0_en,
     output logic dmw1_en,
+    input logic [19:0] inst_tlb_tag,
     input logic inst_tlb_found,
     input logic inst_tlb_v,
     input logic inst_tlb_d,

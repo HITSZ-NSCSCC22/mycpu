@@ -307,6 +307,7 @@ module cpu_top (
         .inst_addr_trans_en(inst_addr_trans_en),
         .dmw0_en(tlb_inst_i.dmw0_en),
         .dmw1_en(tlb_inst_i.dmw1_en),
+        .inst_tlb_tag(tlb_inst_o.tag),
         .inst_tlb_found(tlb_inst_o.tlb_found),
         .inst_tlb_v(tlb_inst_o.tlb_v),
         .inst_tlb_d(tlb_inst_o.tlb_d),
