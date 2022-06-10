@@ -105,7 +105,7 @@ module ex (
     //写入csr的数据，对csrxchg指令进行掩码处理
     assign ex_o.csr_signal.we = csr_signal_i.we;
     assign ex_o.csr_signal.addr = csr_signal_i.addr;
-    assign ex_o.csr_signal.data = (aluop_i ==`EXE_CSRXCHG_OP) ? ((reg1_i & reg2_i) | (~reg2_i & dispatch_i.csr_reg_data)) : csr_signal_i.data;
+    assign ex_o.csr_signal.data = (aluop_i ==`EXE_CSRXCHG_OP) ? ((reg1_i & reg2_i) | (~reg2_i & dispatch_i.csr_reg_data)) : oprand1;
 
     logic [`RegBus] csr_reg_data;
     assign csr_reg_data = aluop_i == `EXE_RDCNTID_OP ? tid :
