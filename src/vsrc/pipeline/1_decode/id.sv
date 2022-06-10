@@ -1,7 +1,6 @@
 `include "defines.sv"
-`include "instr_info.sv"
 `include "csr_defines.sv"
-`include "pipeline_defines.sv"
+`include "core_types.sv"
 
 `include "pipeline/1_decode/decoder_2R.sv"
 `include "pipeline/1_decode/decoder_3R.sv"
@@ -23,9 +22,10 @@
 // What ID NOT DO:
 // 1. Determine whether a instruction dispatch in EXE or not
 // 2. Calculate anything, such as branch target
-// TODO: move regfile read to dispatch stage
 // 
-module id (
+module id
+    import core_types::*;
+(
     // <- Instruction Buffer
     input instr_buffer_info_t instr_buffer_i,
 

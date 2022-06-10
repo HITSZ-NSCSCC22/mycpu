@@ -1,6 +1,8 @@
-`include "instr_info.sv"
+`include "core_types.sv"
 
-module instr_buffer #(
+module instr_buffer
+    import core_types::*;
+#(
     parameter IF_WIDTH = 2,
     parameter ID_WIDTH = 2,
     parameter BUFFER_SIZE = 8
@@ -50,16 +52,16 @@ module instr_buffer #(
     logic [$clog2(ID_WIDTH):0] backend_accept_num;
     always_comb begin
         backend_accept_num = 0;
-        foreach (backend_accept_i[idx]) begin
-            backend_accept_num += backend_accept_i[idx];
+        for (integer i = 0; i < ID_WIDTH; i++) begin
+            backend_accept_num += backend_accept_i[i];
         end
     end
     // Popcnt of frontend_instr_i.[i].valid
     logic [$clog2(IF_WIDTH):0] frontend_accept_num;
     always_comb begin
         frontend_accept_num = 0;
-        foreach (frontend_instr_i[idx]) begin
-            frontend_accept_num += frontend_instr_i[idx].valid;
+        for (integer i = 0; i < IF_WIDTH; i++) begin
+            frontend_accept_num += frontend_instr_i[i].valid;
         end
     end
 
@@ -76,8 +78,8 @@ module instr_buffer #(
 
     always_comb begin : next_buffer_queue_comb  // Main shift logic
         // Default keep all entry
-        foreach (buffer_queue[idx]) begin
-            next_buffer_queue[idx] = buffer_queue[idx];
+        for (integer i = 0; i < BUFFER_SIZE; i++) begin
+            next_buffer_queue[i] = buffer_queue[i];
         end
 
         // Backend overide

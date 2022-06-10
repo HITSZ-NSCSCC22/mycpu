@@ -1,8 +1,10 @@
 `include "frontend/frontend_defines.sv"
-`include "instr_info.sv"
+`include "core_types.sv"
 
 
-module ifu #(
+module ifu
+    import core_types::*;
+#(
     parameter FETCH_WIDTH = 4,
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32,

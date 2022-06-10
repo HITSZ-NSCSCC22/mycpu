@@ -1,11 +1,13 @@
 `include "defines.sv"
-`include "instr_info.sv"
+`include "core_types.sv"
 
 // decoder_1RI20 is the decoder for 1RI20-type instructions
 // 1RI20-type {opcode[7], imm[20] , rd[5]}
 // LU12i PCADDU12i
 // all combinational circuit
-module decoder_1RI20 #(
+module decoder_1RI20
+    import core_types::*;
+#(
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32,
     parameter GPR_NUM = 32,
@@ -66,9 +68,9 @@ module decoder_1RI20 #(
                 alusel_o = `EXE_RES_MOVE;
             end
             `EXE_PCADDI: begin
-                aluop_o  = `EXE_PCADD_OP;
+                aluop_o = `EXE_PCADD_OP;
                 alusel_o = `EXE_RES_MOVE;
-                imm_o = {{10{imm_20[19]}},imm_20,2'b0};
+                imm_o = {{10{imm_20[19]}}, imm_20, 2'b0};
             end
             `EXE_PCADDU12I: begin
                 aluop_o  = `EXE_PCADD_OP;

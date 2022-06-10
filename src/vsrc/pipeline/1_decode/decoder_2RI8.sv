@@ -1,11 +1,13 @@
 `include "defines.sv"
-`include "instr_info.sv"
+`include "core_types.sv"
 
 // decoder_2RI8 is the decoder for 2RI12-type instructions
 // 2RI8-type {opcode[14], imm[8] ,rj[5], rd[5]}
 // arithmetic instructions & memory instructions
 // all combinational circuit
-module decoder_2RI8 #(
+module decoder_2RI8
+    import core_types::*;
+#(
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32,
     parameter GPR_NUM = 32,

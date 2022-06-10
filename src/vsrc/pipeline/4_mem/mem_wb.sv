@@ -1,6 +1,9 @@
-`include "pipeline_defines.sv"
+`include "core_types.sv"
 
-module mem_wb (
+module mem_wb
+    import core_types::*;
+    import csr_defines::*;
+(
     input logic clk,
     input logic rst,
     input logic stall,

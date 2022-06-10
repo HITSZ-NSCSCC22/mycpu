@@ -1,7 +1,6 @@
 `include "defines.sv"
-`include "instr_info.sv"
 `include "csr_defines.sv"
-`include "pipeline_defines.sv"
+`include "core_types.sv"
 
 // id_dispatch is a sequential logic 
 // merge all ID stage output to dispatch stage
@@ -9,7 +8,10 @@
 //  ID -> id_dispatch -> dispatch -> EXE
 // 
 
-module id_dispatch #(
+module id_dispatch
+    import core_types::*;
+    import csr_defines::*;
+#(
     parameter DECODE_WIDTH = 2
 ) (
     input logic clk,

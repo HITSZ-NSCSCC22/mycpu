@@ -1,8 +1,8 @@
-`timescale 1ns / 1ns
-
 `include "defines.sv"
 `include "csr_defines.sv"
-module cs_reg (
+module cs_reg
+    import csr_defines::*;
+(
     input logic clk,
     input logic rst,
 

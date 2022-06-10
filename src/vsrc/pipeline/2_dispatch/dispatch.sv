@@ -1,7 +1,9 @@
 
-`include "pipeline_defines.sv"
+`include "core_types.sv"
 
-module dispatch #(
+module dispatch
+    import core_types::*;
+#(
     parameter DECODE_WIDTH = 2,
     parameter EXE_STAGE_WIDTH = 2,
     parameter MEM_STAGE_WIDTH = 2

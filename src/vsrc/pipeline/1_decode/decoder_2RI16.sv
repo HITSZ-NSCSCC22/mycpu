@@ -1,11 +1,13 @@
 `include "defines.sv"
-`include "instr_info.sv"
+`include "core_types.sv"
 
 // decoder_2RI16 is the decoder for 2RI16-type instructions
 // 2RI16-type {opcode[6], imm[16] ,rj[5], rd[5]}
 // branch instructions
 // all combinational circuit
-module decoder_2RI16 #(
+module decoder_2RI16
+    import core_types::*;
+#(
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32,
     parameter GPR_NUM = 32,

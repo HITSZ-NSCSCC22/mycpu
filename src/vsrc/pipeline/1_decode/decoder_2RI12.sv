@@ -1,11 +1,13 @@
 `include "defines.sv"
-`include "instr_info.sv"
+`include "core_types.sv"
 
 // decoder_2RI12 is the decoder for 2RI12-type instructions
 // 2RI12-type {opcode[10], imm[12] ,rj[5], rd[5]}
 // arithmetic instructions & memory instructions
 // all combinational circuit
-module decoder_2RI12 #(
+module decoder_2RI12
+    import core_types::*;
+#(
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32,
     parameter GPR_NUM = 32,
@@ -161,10 +163,10 @@ module decoder_2RI12 #(
                 aluop_o = `EXE_NOP_OP;
                 alusel_o = `EXE_RES_NOP;
             end
-            `EXE_CACOP:begin
+            `EXE_CACOP: begin
                 use_imm = 1'b1;
                 aluop_o = `EXE_CACOP_OP;
-                imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
+                imm_o   = {{20{imm_12[11]}}, imm_12};  // Signed Extension
             end
             default: begin
                 use_imm = 1'b0;

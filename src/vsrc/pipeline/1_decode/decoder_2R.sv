@@ -1,11 +1,13 @@
 `include "defines.sv"
-`include "instr_info.sv"
+`include "core_types.sv"
 
 // decoder_2R is the decoder for 2R-type instructions
 // 2R-type {opcode[22], rj[5], rd[5]}
 // mainly TLB instructions
 // all combinational circuit
-module decoder_2R #(
+module decoder_2R
+    import core_types::*;
+#(
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32,
     parameter GPR_NUM = 32,
@@ -43,10 +45,10 @@ module decoder_2R #(
     assign rd = instr[4:0];
 
     always_comb begin
-        reg_read_valid_o  = 2'b00;
-        reg_read_addr_o   = 0;
+        reg_read_valid_o = 2'b00;
+        reg_read_addr_o = 0;
         reg_write_valid_o = 0;
-        reg_write_addr_o  = 0;
+        reg_write_addr_o = 0;
         alusel_o = 0;
         case (instr[31:10])
             `EXE_TLBWR: begin

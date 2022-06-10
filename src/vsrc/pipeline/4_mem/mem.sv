@@ -1,8 +1,10 @@
-`timescale 1ns / 1ns
+`include "core_types.sv"
+`include "csr_defines.sv"
 
-`include "pipeline_defines.sv"
-
-module mem (
+module mem
+    import core_types::*;
+    import csr_defines::*;
+(
     input logic rst,
 
     input ex_mem_struct signal_i,

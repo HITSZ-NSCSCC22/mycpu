@@ -1,11 +1,13 @@
 `include "defines.sv"
-`include "instr_info.sv"
+`include "core_types.sv"
 
 // decoder_I26 is the decoder for I26-type instructions
 // I26-type {opcode[6], imm[14] ,rj[5], rd[5]}
 // for B and BL instructions
 // all combinational circuit
-module decoder_I26 #(
+module decoder_I26
+    import core_types::*;
+#(
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32,
     parameter GPR_NUM = 32,

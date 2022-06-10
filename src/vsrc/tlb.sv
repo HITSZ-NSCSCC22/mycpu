@@ -1,30 +1,37 @@
 `include "defines.sv"
 `include "csr_defines.sv"
-`include "tlb_defines.sv"
+`include "tlb_types.sv"
 
-module tlb (
+
+module tlb
+    import tlb_types::*;
+(
     input logic clk,
+    // According to manual TLB do not reset by hardware
+
     input logic [9:0] asid,
-    //trans mode
-    input logic inst_addr_trans_en,
-    input logic data_addr_trans_en,
+
     //inst addr trans
-    input inst_tlb_struct inst_i,
-    output tlb_inst_struct inst_o,
+    input logic inst_addr_trans_en,
+    input inst_tlb_t inst_i,
+    output tlb_inst_t inst_o,
+
     //data addr trans
-    input data_tlb_struct data_i,
-    output tlb_data_struct data_o,
+    input logic data_addr_trans_en,
+    input data_tlb_t data_i,
+    output tlb_data_t data_o,
     //tlbwi tlbwr tlb write
     input tlb_write_in_struct write_signal_i,
     //tlbr tlb read
     output tlb_read_out_struct read_signal_o,
     //invtlb 
     input tlb_inv_in_struct inv_signal_i,
+
     //from csr
     input logic [31:0] csr_dmw0,
     input logic [31:0] csr_dmw1,
-    input logic csr_da,
-    input logic csr_pg
+    input logic csr_da,  // mmu disable, direct translate
+    input logic csr_pg  // mmu enable, enable paging
 );
 
     logic [18:0] s0_vppn;

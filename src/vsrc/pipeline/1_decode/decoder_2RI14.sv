@@ -1,11 +1,13 @@
 `include "defines.sv"
-`include "instr_info.sv"
+`include "core_types.sv"
 
 // decoder_2RI14 is the decoder for 2RI14-type instructions
 // 2RI14-type {opcode[8], imm[14] ,rj[5], rd[5]}
 // for CSR instructions 
 // all combinational circuit
-module decoder_2RI14 #(
+module decoder_2RI14
+    import core_types::*;
+#(
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32,
     parameter GPR_NUM = 32,

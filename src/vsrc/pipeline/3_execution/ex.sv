@@ -1,7 +1,11 @@
-`include "pipeline_defines.sv"
+`include "core_types.sv"
+`include "csr_defines.sv"
 `include "muldiv/mul.sv"
 
-module ex (
+module ex
+    import core_types::*;
+    import csr_defines::*;
+(
     // Pass through to multi-cycle ALU
     // DO NOT use within the module
     input logic clk,

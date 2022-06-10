@@ -1,5 +1,4 @@
 `include "defines.sv"
-`include "instr_info.sv"
 `include "regfile.sv"
 `include "csr_defines.sv"
 `include "cs_reg.sv"
@@ -11,7 +10,7 @@
 `include "icache.sv"
 `include "dummy_dcache.sv"
 `include "ctrl.sv"
-`include "pipeline_defines.sv"
+`include "core_types.sv"
 `include "pipeline/1_decode/id.sv"
 `include "pipeline/1_decode/id_dispatch.sv"
 `include "pipeline/2_dispatch/dispatch.sv"
@@ -20,7 +19,11 @@
 `include "pipeline/4_mem/mem.sv"
 `include "pipeline/4_mem/mem_wb.sv"
 
-module cpu_top (
+module cpu_top 
+    import core_types::*;
+    import csr_defines::*;
+    import tlb_types::*;
+(
     input logic aclk,
     input logic aresetn,
 
@@ -812,10 +815,10 @@ module cpu_top (
     //assign tlb_data_i.dmw1_en = mem_data_addr_trans_en[0] ? mem_data_dmw1_en[0] : mem_data_addr_trans_en[1] ? mem_data_dmw1_en[1] : 0 ;
     //assign tlb_data_i.fetch = mem_data_addr_trans_en[0] ? data_fetch[0] : mem_data_addr_trans_en[1] ? data_fetch[1] : 0 ;
 
-    inst_tlb_struct tlb_inst_i;
-    tlb_inst_struct tlb_inst_o;
-    data_tlb_struct tlb_data_i;
-    tlb_data_struct tlb_data_o;
+    inst_tlb_t tlb_inst_i;
+    tlb_inst_t tlb_inst_o;
+    data_tlb_t tlb_data_i;
+    tlb_data_t tlb_data_o;
     tlb_write_in_struct tlb_write_signal_i;
     tlb_read_out_struct tlb_read_signal_o;
     tlb_inv_in_struct tlb_inv_signal_i;

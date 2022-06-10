@@ -128,11 +128,13 @@
 `define ESUBCODE_ADEF 9'h0
 `define ESUBCODE_ADEM 9'h1
 
+package csr_defines;
 
-typedef struct packed {
-    logic we;
-    logic [13:0] addr;
-    logic [31:0] data;
-} csr_write_signal;
+    typedef struct packed {
+        logic we;
+        logic [13:0] addr;
+        logic [31:0] data;
+    } csr_write_signal;
+endpackage
 
 `endif

@@ -1,58 +1,62 @@
-`include "tlb_defines.sv"
-module tlb_entry (
-    input  logic clk,
+`include "tlb_types.sv"
+
+
+module tlb_entry
+    import tlb_types::*;
+(
+    input logic clk,
     // search port 0
-    input  logic  s0_fetch,
-    input  logic  [18:0] s0_vppn,
-    input  logic  s0_odd_page,
-    input  logic  [9:0] s0_asid,
-    output logic  s0_found,
-    output logic  [$clog2(TLBNUM)-1:0] s0_index,
-    output logic  [5:0] s0_ps,
-    output logic  [19:0] s0_ppn,
-    output logic  s0_v,
-    output logic  s0_d,
-    output logic  [1:0] s0_mat,
-    output logic  [1:0] s0_plv,
+    input logic s0_fetch,
+    input logic [18:0] s0_vppn,
+    input logic s0_odd_page,
+    input logic [9:0] s0_asid,
+    output logic s0_found,
+    output logic [$clog2(TLBNUM)-1:0] s0_index,
+    output logic [5:0] s0_ps,
+    output logic [19:0] s0_ppn,
+    output logic s0_v,
+    output logic s0_d,
+    output logic [1:0] s0_mat,
+    output logic [1:0] s0_plv,
     //search port 1
-    input  logic  s1_fetch,
-    input  logic  [18:0] s1_vppn,
-    input  logic  s1_odd_page,
-    input  logic  [9:0] s1_asid,
-    output logic  s1_found,
-    output logic  [$clog2(TLBNUM)-1:0] s1_index,
-    output logic  [5:0] s1_ps,
-    output logic  [19:0] s1_ppn,
-    output logic  s1_v,
-    output logic  s1_d,
-    output logic  [1:0] s1_mat,
-    output logic  [1:0] s1_plv,
+    input logic s1_fetch,
+    input logic [18:0] s1_vppn,
+    input logic s1_odd_page,
+    input logic [9:0] s1_asid,
+    output logic s1_found,
+    output logic [$clog2(TLBNUM)-1:0] s1_index,
+    output logic [5:0] s1_ps,
+    output logic [19:0] s1_ppn,
+    output logic s1_v,
+    output logic s1_d,
+    output logic [1:0] s1_mat,
+    output logic [1:0] s1_plv,
     // write port 
-    input  logic  we,
-    input  logic  [$clog2(TLBNUM)-1:0] w_index,
-    input  tlb_wr_port   write_port,
+    input logic we,
+    input logic [$clog2(TLBNUM)-1:0] w_index,
+    input tlb_wr_port write_port,
     // read port
-    input  logic  [$clog2(TLBNUM)-1:0] r_index,
+    input logic [$clog2(TLBNUM)-1:0] r_index,
     output tlb_wr_port read_port,
     // invalid port 
-    input  tlb_inv_in_struct inv_i
+    input tlb_inv_in_struct inv_i
 );
 
-    logic [18:0] tlb_vppn [TLBNUM-1:0];
-    logic tlb_e [TLBNUM-1:0];
-    logic [9:0] tlb_asid [TLBNUM-1:0];
-    logic tlb_g [TLBNUM-1:0];
-    logic [5:0] tlb_ps [TLBNUM-1:0];
-    logic [19:0] tlb_ppn0 [TLBNUM-1:0];
-    logic [1:0] tlb_plv0 [TLBNUM-1:0];
-    logic [1:0] tlb_mat0 [TLBNUM-1:0];
-    logic tlb_d0 [TLBNUM-1:0];
-    logic tlb_v0 [TLBNUM-1:0];
-    logic [19:0] tlb_ppn1 [TLBNUM-1:0];
-    logic [1:0] tlb_plv1 [TLBNUM-1:0];
-    logic [1:0] tlb_mat1 [TLBNUM-1:0];
-    logic tlb_d1 [TLBNUM-1:0];
-    logic tlb_v1 [TLBNUM-1:0];
+    logic [18:0] tlb_vppn[TLBNUM-1:0];
+    logic tlb_e[TLBNUM-1:0];
+    logic [9:0] tlb_asid[TLBNUM-1:0];
+    logic tlb_g[TLBNUM-1:0];
+    logic [5:0] tlb_ps[TLBNUM-1:0];
+    logic [19:0] tlb_ppn0[TLBNUM-1:0];
+    logic [1:0] tlb_plv0[TLBNUM-1:0];
+    logic [1:0] tlb_mat0[TLBNUM-1:0];
+    logic tlb_d0[TLBNUM-1:0];
+    logic tlb_v0[TLBNUM-1:0];
+    logic [19:0] tlb_ppn1[TLBNUM-1:0];
+    logic [1:0] tlb_plv1[TLBNUM-1:0];
+    logic [1:0] tlb_mat1[TLBNUM-1:0];
+    logic tlb_d1[TLBNUM-1:0];
+    logic tlb_v1[TLBNUM-1:0];
 
     logic [TLBNUM-1:0] match0;
     logic [TLBNUM-1:0] match1;

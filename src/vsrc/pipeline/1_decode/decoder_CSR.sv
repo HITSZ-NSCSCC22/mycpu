@@ -1,11 +1,13 @@
 `include "defines.sv"
-`include "instr_info.sv"
+`include "core_types.sv"
 
 // decoder_CSR is the decoder for CSR instructions
 // CSR {opcode[8], csr_num[14] ,rj[5], rd[5]}
 // CSR instructions
 // all combinational circuit
-module decoder_CSR #(
+module decoder_CSR
+    import core_types::*;
+#(
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32,
     parameter GPR_NUM = 32,

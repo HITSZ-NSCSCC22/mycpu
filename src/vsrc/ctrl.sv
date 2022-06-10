@@ -1,7 +1,13 @@
-`include "pipeline_defines.sv"
-`include "tlb_defines.sv"
+`include "core_types.sv"
+`include "tlb_types.sv"
+`include "csr_defines.sv"
 
-module ctrl (
+
+module ctrl
+    import tlb_types::*;
+    import core_types::*;
+    import csr_defines::*;
+(
     input logic clk,
     input logic rst,
 
@@ -64,7 +70,7 @@ module ctrl (
     output diff_commit commit_1
 );
 
-    logic [63:0] timer_test1,timer_test2;
+    logic [63:0] timer_test1, timer_test2;
     assign timer_test1 = commit_0.timer_64;
     assign timer_test2 = commit_1.timer_64;
 
@@ -84,7 +90,7 @@ module ctrl (
     assign tlbsrch_index = wb_i_1.data_tlb_index | wb_i_2.data_tlb_index | tlbsrch_result_i.data_tlb_index;
     assign inv_o = wb_i_1.inv_i | wb_i_2.inv_i;
 
-    assign llbit_signal.we = wb_i_1.aluop == `EXE_LL_OP | wb_i_1.aluop == `EXE_SC_OP ;
+    assign llbit_signal.we = wb_i_1.aluop == `EXE_LL_OP | wb_i_1.aluop == `EXE_SC_OP;
     assign llbit_signal.value = (wb_i_1.aluop == `EXE_LL_OP & 1'b1) | (wb_i_1.aluop == `EXE_SC_OP & 1'b0);
 
     //flush sign 
@@ -94,7 +100,7 @@ module ctrl (
     //第一条流水线冲刷:发生异常和ertn指令时进行冲刷
     assign ex_mem_flush_o[0] = ertn_flush | excp_flush;
     assign excp_flush = excp;
-    assign idle_flush = aluop == `EXE_IDLE_OP ;
+    assign idle_flush = aluop == `EXE_IDLE_OP;
     assign ertn_flush = aluop == `EXE_ERTN_OP | wb_i_2.aluop == `EXE_ERTN_OP;
     assign fetch_flush = 0;
     assign idle_pc = wb_i_1.wb_reg_o.pc;

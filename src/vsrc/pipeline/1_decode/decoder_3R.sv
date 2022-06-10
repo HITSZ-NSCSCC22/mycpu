@@ -1,12 +1,14 @@
 `include "defines.sv"
-`include "instr_info.sv"
+`include "core_types.sv"
 
 // decoder_3R is the decoder for 3R-type instructions
 // 3R-type {opcode[17], rk[5] ,rj[5], rd[5]}
 // arithmetic instructions and break and syscall
 // See also "defines.sv"
 // all combinational circuit
-module decoder_3R #(
+module decoder_3R
+    import core_types::*;
+#(
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32,
     parameter GPR_NUM = 32,
