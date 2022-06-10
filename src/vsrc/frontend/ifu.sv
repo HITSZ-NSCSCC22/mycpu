@@ -1,15 +1,14 @@
 `include "frontend/frontend_defines.sv"
 `include "core_types.sv"
+`include "core_config.sv"
+`include "tlb_types.sv"
 
 
 module ifu
     import core_types::*;
-#(
-    parameter FETCH_WIDTH = 4,
-    parameter ADDR_WIDTH = 32,
-    parameter DATA_WIDTH = 32,
-    parameter CACHELINE_WIDTH = 128  // FETCH_WIDTH and CACHELINE_WIDTH must match
-) (
+    import core_config::*;
+    import tlb_types::inst_tlb_t;
+(
     input logic clk,
     input logic rst,
 
@@ -20,12 +19,17 @@ module ifu
     input ftq_ifu_t ftq_i,
     output logic ftq_accept_o,  // In current cycle
 
+    // Addr translation related
+    // <- Frontend <- CSR regs
+    input  ifu_csr_t  csr_i,
+    // -> Frontend -> TLB
+    output inst_tlb_t tlb_o,
 
     // <-> Frontend <-> ICache
     output logic [1:0] icache_rreq_o,
     output logic [1:0][ADDR_WIDTH-1:0] icache_raddr_o,
     input logic [1:0] icache_rvalid_i,
-    input logic [1:0][CACHELINE_WIDTH-1:0] icache_rdata_i,
+    input logic [1:0][ICACHELINE_WIDTH-1:0] icache_rdata_i,
 
 
     // <-> Frontend <-> Instruction Buffer
@@ -33,13 +37,26 @@ module ifu
     output instr_buffer_info_t instr_buffer_o[FETCH_WIDTH]
 );
     /////////////////////////////////////////////////////////////////////////////////
-    // P0, send read req to ICache
+    // P0, send read req to ICache & TLB
     /////////////////////////////////////////////////////////////////////////////////
     logic p0_send_rreq;
     // Condition when to send rreq to ICache, see doc for detail
     assign p0_send_rreq = ftq_i.valid & ~is_flushing & ~stallreq_i & ~p1_stallreq;
     assign ftq_accept_o = p0_send_rreq;  // FTQ handshake, same cycle as ftq_i
-    // Send read req to ICache
+
+    // P0 PC
+    logic [ADDR_WIDTH-1:0] p0_pc = ftq_i.start_pc;
+
+    // TLB search req
+    logic dmw0_en, dmw1_en;
+    assign dmw0_en = ((csr_i.dmw0[`PLV0] && csr_i.plv == 2'd0) || (csr_i.dmw0[`PLV3] && csr_i.plv == 2'd3)) && (p0_pc[31:29] == csr_i.dmw0[`VSEG]); // Direct map window 0
+    assign dmw1_en = ((csr_i.dmw1[`PLV0] && csr_i.plv == 2'd0) || (csr_i.dmw1[`PLV3] && csr_i.plv == 2'd3)) && (p0_pc[31:29] == csr_i.dmw1[`VSEG]); // Direct map window 1
+    assign tlb_o.dmw0_en = dmw0_en;
+    assign tlb_o.dmw1_en = dmw1_en;
+    assign tlb_o.trans_en = csr_i.pg && !csr_i.da && !dmw0_en && !dmw1_en; // Not in direct map windows, enable paging
+    assign tlb_o.vaddr = p0_pc;
+
+    // Send read req to ICache & TLB
     always_comb begin
         if (p0_send_rreq) begin
             // Send rreq to ICache if FTQ input is valid and not in flushing state
@@ -47,9 +64,12 @@ module ifu
             icache_rreq_o[1] = ftq_i.is_cross_cacheline ? 1 : 0;
             icache_raddr_o[0] = {ftq_i.start_pc[ADDR_WIDTH-1:4], 4'b0};
             icache_raddr_o[1] = ftq_i.is_cross_cacheline ? {ftq_i.start_pc[ADDR_WIDTH-1:4], 4'b0} + 16 : 0; // TODO: remove magic number
+            // Send req to TLB
+            tlb_o.fetch = 1;
         end else begin
-            icache_rreq_o  = 0;
+            icache_rreq_o = 0;
             icache_raddr_o = 0;
+            tlb_o.fetch = 0;
         end
     end
 
@@ -78,7 +98,7 @@ module ifu
         logic is_cross_cacheline;
         logic [$clog2(`FETCH_WIDTH+1)-1:0] length;
         logic [1:0] icache_rvalid_r;
-        logic [1:0][CACHELINE_WIDTH-1:0] icache_rdata_r;
+        logic [1:0][ICACHELINE_WIDTH-1:0] icache_rdata_r;
     } read_transaction_t;
     read_transaction_t p1_read_transaction;
 
@@ -124,7 +144,6 @@ module ifu
 
     // P1 debug, for observability
     logic [ADDR_WIDTH-1:0] debug_p1_pc = p1_read_transaction.start_pc;  // DEBUG
-    logic [ADDR_WIDTH-1:0] debug_p0_pc = ftq_i.start_pc;  // DEBUG
     logic [1:0] debug_p1_rvalid_r = p1_read_transaction.icache_rvalid_r;
 
 

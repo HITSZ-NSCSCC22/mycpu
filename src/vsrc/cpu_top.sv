@@ -92,7 +92,7 @@ module cpu_top
     logic rst_n;
     logic rst;
     assign rst_n = aresetn;
-    assign rst   = ~rst_n;
+    assign rst   = ~aresetn;
 
     // ICache <-> AXI Controller
     logic icache_axi_rreq;
@@ -264,6 +264,8 @@ module cpu_top
        .axi_data_i   (axi_icache_data)
    );
     
+    // Frontend <-> TLB
+    inst_tlb_t frontend_tlb;
 
     // Frontend <-> Instruction Buffer
     logic ib_frontend_stallreq;
@@ -305,10 +307,7 @@ module cpu_top
         .disable_cache(),
 
         // <-> TLB
-        .inst_addr(tlb_inst_i.vaddr),
-        .inst_addr_trans_en(inst_addr_trans_en),
-        .dmw0_en(tlb_inst_i.dmw0_en),
-        .dmw1_en(tlb_inst_i.dmw1_en),
+        .tlb_o(frontend_tlb),
         .inst_tlb_tag(tlb_inst_o.tag),
         .inst_tlb_found(tlb_inst_o.tlb_found),
         .inst_tlb_v(tlb_inst_o.tlb_v),
@@ -814,7 +813,6 @@ module cpu_top
     //assign tlb_data_i.dmw1_en = mem_data_addr_trans_en[0] ? mem_data_dmw1_en[0] : mem_data_addr_trans_en[1] ? mem_data_dmw1_en[1] : 0 ;
     //assign tlb_data_i.fetch = mem_data_addr_trans_en[0] ? data_fetch[0] : mem_data_addr_trans_en[1] ? data_fetch[1] : 0 ;
 
-    inst_tlb_t tlb_inst_i;
     tlb_inst_t tlb_inst_o;
     data_tlb_t tlb_data_i;
     tlb_data_t tlb_data_o;
@@ -829,7 +827,7 @@ module cpu_top
         .inst_addr_trans_en(inst_addr_trans_en),
         .data_addr_trans_en(data_addr_trans_en),
         //inst addr trans
-        .inst_i(tlb_inst_i),
+        .inst_i(frontend_tlb),
         .inst_o(tlb_inst_o),
         //data addr trans 
         .data_i(tlb_data_i),

@@ -8,9 +8,10 @@ package tlb_types;
     // Frontend -> TLB
     typedef struct packed {
         logic fetch;
-        logic [31:0] vaddr;
+        logic trans_en;
         logic dmw0_en;
         logic dmw1_en;
+        logic [31:0] vaddr;
     } inst_tlb_t;
 
     // TLB -> Frontend

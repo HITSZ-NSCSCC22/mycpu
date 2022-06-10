@@ -1,4 +1,5 @@
 `include "core_types.sv"
+`include "core_config.sv"
 `include "frontend/frontend_defines.sv"
 
 `include "frontend/ftq.sv"
@@ -6,12 +7,9 @@
 
 module frontend
     import core_types::*;
-#(
-    parameter FETCH_WIDTH = 4,
-    parameter ADDR_WIDTH = 32,
-    parameter DATA_WIDTH = 32,
-    parameter CACHELINE_WIDTH = 128
-) (
+    import core_config::*;
+    import tlb_types::inst_tlb_t;
+(
     input logic clk,
     input logic rst,
 
@@ -20,7 +18,7 @@ module frontend
     output logic [1:0] icache_read_req_o,
     output logic [1:0][ADDR_WIDTH-1:0] icache_read_addr_o,
     input logic [1:0] icache_read_valid_i,
-    input logic [1:0][CACHELINE_WIDTH-1:0] icache_read_data_i,
+    input logic [1:0][ICACHELINE_WIDTH-1:0] icache_read_data_i,
 
 
     // <-> Backend
@@ -43,10 +41,7 @@ module frontend
     input logic disable_cache,
 
     // <-> TLB
-    output logic [31:0] inst_addr,
-    output logic inst_addr_trans_en,
-    output logic dmw0_en,
-    output logic dmw1_en,
+    output inst_tlb_t tlb_o,
     input logic [19:0] inst_tlb_tag,
     input logic inst_tlb_found,
     input logic inst_tlb_v,
@@ -60,13 +55,12 @@ module frontend
     logic rst_n;
     assign rst_n = ~rst;
 
-    //addr trans TODO:修改dmw的赋值(还不确定双发射情况下pc的赋值方式)
-    assign inst_addr = pc;
+    logic inst_addr_trans_en;
     assign inst_addr_trans_en = csr_pg && !csr_da && !dmw0_en && !dmw1_en;
     assign dmw0_en = ((csr_dmw0[`PLV0] && csr_plv == 2'd0) || (csr_dmw0[`PLV3] && csr_plv == 2'd3)) && (pc[31:29] == csr_dmw0[`VSEG]);
     assign dmw1_en = ((csr_dmw1[`PLV0] && csr_plv == 2'd0) || (csr_dmw1[`PLV3] && csr_plv == 2'd3)) && (pc[31:29] == csr_dmw1[`VSEG]);
 
-    //excp
+    // TODO: move excp to correct position
     logic excp_tlbr, excp_pif, excp_ppi, excp_adef;
     assign excp_tlbr = !inst_tlb_found && inst_addr_trans_en;
     assign excp_pif = !inst_tlb_v && inst_addr_trans_en;
@@ -149,15 +143,22 @@ module frontend
         // Flush
         .flush_i(backend_flush_i),
 
-        .ftq_i          (ftq_ifu_block),
-        .ftq_accept_o   (ifu_ftq_accept),
+        // <-> FTQ
+        .ftq_i       (ftq_ifu_block),
+        .ftq_accept_o(ifu_ftq_accept),
+
+        .csr_i(),
+        .tlb_o(tlb_o),
+
+        // <-> Frontend <-> ICache
         .icache_rreq_o  (icache_read_req_o),
         .icache_raddr_o (icache_read_addr_o),
         .icache_rvalid_i(icache_read_valid_i),
         .icache_rdata_i (icache_read_data_i),
-        .stallreq_i     (instr_buffer_stallreq_i),
 
-        // <-> Frontend
+
+        // <-> Frontend <-> Instruction Buffer
+        .stallreq_i    (instr_buffer_stallreq_i),
         .instr_buffer_o(ifu_instr_output)
     );
 
