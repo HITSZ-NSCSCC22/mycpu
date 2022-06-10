@@ -935,7 +935,7 @@ module cpu_top
         .storeData          (difftest_commit_info_delay1[0].st_data | difftest_commit_info_delay1[1].st_data)
     );
 
-    DifftestLoadEvent DifftestLoadEvent(
+    DifftestLoadEvent difftest_load_event(
         .clock              (aclk),
         .coreid             (0),
         .index              (0),
@@ -944,7 +944,7 @@ module cpu_top
         .vaddr              (difftest_commit_info_delay1[0].ld_vaddr | difftest_commit_info_delay1[1].ld_vaddr)
     );
 
-    DifftestTrapEvent DifftestTrapEvent(
+    DifftestTrapEvent difftest_trap_event(
         .clock              (aclk),
         .coreid             (0),
         .valid              (),
@@ -992,7 +992,10 @@ module cpu_top
         .tcfg     (u_cs_reg.csr_tcfg),
         .tval     (u_cs_reg.csr_tval),
         .ticlr    (u_cs_reg.csr_ticlr),
+
+        // According to example core
         .llbctl   ({u_cs_reg.csr_llbctl[31:1], u_cs_reg.llbit}),
+
         .dmw0     (u_cs_reg.csr_dmw0),
         .dmw1     (u_cs_reg.csr_dmw1)
     );
