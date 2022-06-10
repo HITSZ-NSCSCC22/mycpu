@@ -11,6 +11,7 @@
 `include "dummy_dcache.sv"
 `include "ctrl.sv"
 `include "core_types.sv"
+`include "core_config.sv"
 `include "pipeline/1_decode/id.sv"
 `include "pipeline/1_decode/id_dispatch.sv"
 `include "pipeline/2_dispatch/dispatch.sv"
@@ -20,6 +21,7 @@
 
 module cpu_top 
     import core_types::*;
+    import core_config::*;
     import csr_defines::*;
     import tlb_types::*;
 (
@@ -100,7 +102,7 @@ module cpu_top
     logic [127:0] axi_icache_data; // 128b
     logic [`RegBus] icache_axi_addr;
 
-    // MEM <-> AXI Controller
+    // DCache <-> AXI Controller
     logic dcache_axi_rreq; // Read handshake
     logic axi_dcache_rd_rdy;
     logic axi_dcache_rvalid;
@@ -110,11 +112,12 @@ module cpu_top
     logic [`DataAddrBus] dcache_axi_waddr;
     logic [`DataAddrBus] dcache_axi_addr;
     assign dcache_axi_addr = dcache_axi_rreq ? dcache_axi_raddr : dcache_axi_wreq ? dcache_axi_waddr : 0;
-    logic [127:0] axi_dcache_data;
     logic [127:0] dcache_axi_data;
+    logic [15:0] dcache_axi_wstrb; // Byte selection
+    logic [127:0] axi_dcache_data; // AXI Read result
+
     logic [`RegBus] cache_mem_data;
     logic mem_data_ok,mem_addr_ok;
-    logic [15:0] dcache_axi_wstrb; // Byte selection
 
     axi_master u_axi_master (
         .aclk   (aclk),
@@ -144,6 +147,7 @@ module cpu_top
         .dcache_wr_type_i(3'b000), 
         .dcache_wr_data(dcache_axi_data),
         .dcache_wr_rdy(axi_dcache_wr_rdy),
+        .write_ok(), // Used in conherent instructions, unused for now
 
 
         // External AXI signals
@@ -229,16 +233,13 @@ module cpu_top
     );
     
 
-    // FETCH_WIDTH is 4
-    localparam FETCH_WIDTH = 4;
-
     // Frontend -> ICache
     logic [1:0] frontend_icache_rreq;
     logic [1:0][`InstAddrBus] frontend_icache_addr;
 
     // ICache -> Frontend
     logic [1:0]icache_frontend_valid;
-    logic [1:0][127:0] icache_frontend_data; // Cacheline is 128b
+    logic [1:0][ICACHELINE_WIDTH-1:0] icache_frontend_data;
 
     icache u_icache(
        .clk          (clk          ),
