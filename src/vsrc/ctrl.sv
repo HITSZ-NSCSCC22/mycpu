@@ -90,8 +90,17 @@ module ctrl
     assign tlbsrch_index = wb_i_1.data_tlb_index | wb_i_2.data_tlb_index | tlbsrch_result_i.data_tlb_index;
     assign inv_o = wb_i_1.inv_i | wb_i_2.inv_i;
 
-    assign llbit_signal.we = wb_i_1.aluop == `EXE_LL_OP | wb_i_1.aluop == `EXE_SC_OP;
-    assign llbit_signal.value = (wb_i_1.aluop == `EXE_LL_OP & 1'b1) | (wb_i_1.aluop == `EXE_SC_OP & 1'b0);
+    //assign llbit_signal.we = wb_i_1.aluop == `EXE_LL_OP | wb_i_1.aluop == `EXE_SC_OP ;
+    //assign llbit_signal.value = (wb_i_1.aluop == `EXE_LL_OP & 1'b1) | (wb_i_1.aluop == `EXE_SC_OP & 1'b0);
+
+    always_comb begin
+        if (rst) llbit_signal = 0;
+        else if (excp) llbit_signal = 0;
+        else begin
+            llbit_signal.we = wb_i_1.aluop == `EXE_LL_OP | wb_i_1.aluop == `EXE_SC_OP;
+            llbit_signal.value = (wb_i_1.aluop == `EXE_LL_OP & 1'b1) | (wb_i_1.aluop == `EXE_SC_OP & 1'b0);
+        end
+    end
 
     //flush sign 
 

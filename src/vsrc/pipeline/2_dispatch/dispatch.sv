@@ -191,10 +191,10 @@ module dispatch
             always_ff @(posedge clk or negedge rst_n) begin : dispatch_ff
                 if (!rst_n) begin
                     exe_o[i] <= 0;
-                end else if (stall) begin
-                    // Do nothing, hold output
                 end else if (flush) begin
                     exe_o[i] <= 0;
+                end else if (stall) begin
+                    // Do nothing, hold output
                 end else if (issue_valid[i]) begin
 
                     // Pass through to EXE 

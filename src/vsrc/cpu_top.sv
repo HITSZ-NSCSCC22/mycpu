@@ -15,7 +15,6 @@
 `include "pipeline/1_decode/id_dispatch.sv"
 `include "pipeline/2_dispatch/dispatch.sv"
 `include "pipeline/3_execution/ex.sv"
-//`include "pipeline/3_execution/ex_mem.sv"
 `include "pipeline/4_mem/mem.sv"
 `include "pipeline/4_mem/mem_wb.sv"
 
