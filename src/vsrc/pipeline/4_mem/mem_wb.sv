@@ -123,8 +123,8 @@ module mem_wb
             wb_ctrl_signal.excp_num <= excp_num;
             wb_ctrl_signal.mem_addr <= mem_signal_o.mem_addr;
             wb_ctrl_signal.fetch_flush <= mem_signal_o.refetch;
-            wb_ctrl_signal.data_tlb_found <= mem_signal_o.tlb_found;
-            wb_ctrl_signal.data_tlb_index <= mem_signal_o.tlb_index;
+            wb_ctrl_signal.data_tlb_found <= tlb_mem_signal.data_tlb_found;
+            wb_ctrl_signal.data_tlb_index <= tlb_mem_signal.data_tlb_index;
             wb_ctrl_signal.csr_signal_o <= mem_signal_o.csr_signal;
             wb_ctrl_signal.inv_i <= mem_signal_o.inv_i;
             wb_ctrl_signal.diff_commit_o.pc <= mem_signal_o.instr_info.pc;
