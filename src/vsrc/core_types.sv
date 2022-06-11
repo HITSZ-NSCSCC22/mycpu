@@ -143,9 +143,6 @@ package core_types;
         logic [9:0] excp_num;
         logic refetch;
 
-        logic tlb_found;
-        logic [4:0] tlb_index;
-
         tlb_inv_in_struct inv_i;
         logic [63:0] timer_64;
     } mem_wb_struct;

@@ -527,34 +527,11 @@ module cpu_top
         end
     endgenerate
 
-
-
     logic mem_data_addr_trans_en[2];
     logic mem_data_dmw0_en[2];
     logic mem_data_dmw1_en[2];
 
-
-    ex_mem_struct mem_signal_i[2];
     logic [1:0] ex_mem_flush;
-    // generate
-    //     for (genvar i = 0; i < 2; i++) begin : ex_mem
-    //         ex_mem u_ex_mem (
-    //             .clk(clk),
-    //             .rst(rst),
-    //             .excp_flush(excp_flush),
-    //             .ertn_flush(ertn_flush),
-
-    //             .ex_o (ex_signal_o[i]),
-    //             .mem_i(mem_signal_i[i]),
-
-    //             // <-> Ctrl
-    //             .stall(stall[3]),
-    //             .flush(ex_mem_flush[i])
-
-    //         );
-    //     end
-
-    // endgenerate
 
     mem_wb_struct mem_signal_o[2];
 
@@ -809,10 +786,6 @@ module cpu_top
     assign tlb_data_i.dmw1_en = mem_data_dmw1_en[0];
     assign tlb_data_i.vaddr = mem_cache_addr;
     assign tlb_data_i.fetch = data_fetch[0];
-
-    //assign tlb_data_i.dmw0_en = mem_data_addr_trans_en[0] ? mem_data_dmw0_en[0] : mem_data_addr_trans_en[1] ? mem_data_dmw0_en[1] : 0 ;
-    //assign tlb_data_i.dmw1_en = mem_data_addr_trans_en[0] ? mem_data_dmw1_en[0] : mem_data_addr_trans_en[1] ? mem_data_dmw1_en[1] : 0 ;
-    //assign tlb_data_i.fetch = mem_data_addr_trans_en[0] ? data_fetch[0] : mem_data_addr_trans_en[1] ? data_fetch[1] : 0 ;
 
     inst_tlb_t tlb_inst_i;
     tlb_inst_t tlb_inst_o;

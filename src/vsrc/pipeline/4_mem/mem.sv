@@ -32,8 +32,6 @@ module mem
     // -> EX
     output mem_data_forward_t mem_data_forward_o,
 
-    //<- tlb 
-    input tlb_to_mem_struct tlb_mem_signal,
 
     output reg LLbit_we_o,
     output reg LLbit_value_o
@@ -126,8 +124,6 @@ module mem
             signal_o.waddr = 0;
             signal_o.csr_signal = 0;
             signal_o.aluop = 0;
-            signal_o.tlb_found = 1'b0;
-            signal_o.tlb_index = 5'b0;
             signal_o.inv_i = 0;
             signal_cache_o = 0;
             signal_o.store_data = 0;
@@ -143,8 +139,6 @@ module mem
             signal_o.waddr = signal_i.waddr;
             signal_o.wdata = signal_i.wdata;
             signal_o.aluop = aluop_i;
-            signal_o.tlb_found = tlb_mem_signal.data_tlb_found;
-            signal_o.tlb_index = tlb_mem_signal.data_tlb_index;
             signal_o.csr_signal = signal_i.csr_signal;
             signal_o.inv_i = signal_i.inv_i;
             signal_o.mem_addr = mem_addr;
