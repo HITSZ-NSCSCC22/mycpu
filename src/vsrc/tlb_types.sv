@@ -15,6 +15,7 @@ package tlb_types;
     } inst_tlb_t;
 
     // TLB -> Frontend
+    // TLB -> ICache
     typedef struct packed {
         logic [7:0] index;
         logic [19:0] tag;

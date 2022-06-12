@@ -787,7 +787,6 @@ module cpu_top
     assign tlb_data_i.vaddr = mem_cache_addr;
     assign tlb_data_i.fetch = data_fetch[0];
 
-    inst_tlb_t tlb_inst_i;
     tlb_inst_t tlb_inst_o;
     data_tlb_t tlb_data_i;
     tlb_data_t tlb_data_o;
