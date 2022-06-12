@@ -362,7 +362,7 @@ module ex
         ex_o.waddr = wd_i;
         ex_o.wreg = wreg_i;
         ex_o.timer_64 = timer_64;
-        ex_o.inv_i = aluop_i == `EXE_INVTLB_OP ? {1'b1, oprand1[9:0], oprand2[18:0], wd_i} : 0;
+        ex_o.inv_i = aluop_i == `EXE_INVTLB_OP ? {1'b1, oprand1[9:0], oprand2[31:13], imm[4:0]} : 0;
         case (alusel_i)
             `EXE_RES_LOGIC: begin
                 ex_o.wdata = logicout;

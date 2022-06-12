@@ -110,7 +110,7 @@ package core_types;
         logic [9:0] excp_num;
         logic refetch;
 
-        tlb_inv_in_struct inv_i;
+        tlb_inv_t inv_i;
         logic [63:0] timer_64;
     } ex_mem_struct;
 
@@ -143,7 +143,7 @@ package core_types;
         logic [9:0] excp_num;
         logic refetch;
 
-        tlb_inv_in_struct inv_i;
+        tlb_inv_t inv_i;
         logic [63:0] timer_64;
     } mem_wb_struct;
 
@@ -195,7 +195,7 @@ package core_types;
         logic fetch_flush;
         logic data_tlb_found;
         logic [`DataAddrBus] mem_addr;
-        tlb_inv_in_struct inv_i;
+        tlb_inv_t inv_i;
         logic [4:0] data_tlb_index;
         csr_write_signal csr_signal_o;
         diff_commit diff_commit_o;

@@ -70,7 +70,7 @@ package tlb_types;
         logic [9:0] asid;
         logic [18:0] vpn;
         logic [4:0] op;
-    } tlb_inv_in_struct;
+    } tlb_inv_t;
 
     typedef struct packed {
         logic [18:0] vppn;

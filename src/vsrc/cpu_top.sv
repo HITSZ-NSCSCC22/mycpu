@@ -793,7 +793,7 @@ module cpu_top
     tlb_data_t tlb_data_o;
     tlb_write_in_struct tlb_write_signal_i;
     tlb_read_out_struct tlb_read_signal_o;
-    tlb_inv_in_struct tlb_inv_signal_i;
+    tlb_inv_t tlb_inv_signal_i;
     
     tlb u_tlb (
         .clk               (clk),

@@ -54,7 +54,7 @@ module ctrl
     input tlb_to_mem_struct tlbsrch_result_i,
 
     //invtlb signal to tlb
-    output tlb_inv_in_struct inv_o,
+    output tlb_inv_t inv_o,
 
     //regfile-write
     output wb_reg reg_o_0,

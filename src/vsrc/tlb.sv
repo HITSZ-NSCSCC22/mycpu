@@ -22,11 +22,11 @@ module tlb
     output tlb_data_t data_o,
 
     //tlbwi tlbwr tlb write
-    input  tlb_write_in_struct write_signal_i,
+    input tlb_write_in_struct write_signal_i,
     // TLB read, return on same cycle
     output tlb_read_out_struct read_signal_o,
     //invtlb 
-    input  tlb_inv_in_struct   inv_signal_i,
+    input tlb_inv_t inv_signal_i,
 
     //from csr
     input logic [31:0] csr_dmw0,

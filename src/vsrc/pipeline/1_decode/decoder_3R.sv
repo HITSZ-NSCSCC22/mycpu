@@ -184,7 +184,7 @@ module decoder_3R
                 aluop_o = `EXE_INVTLB_OP;
                 alusel_o = `EXE_RES_NOP;
                 // instr[4:0] as imm, not reg id
-                use_imm = 1;
+                use_imm = 0;
                 imm_o = {27'b0, instr[4:0]};
                 reg_write_valid_o = 0;
                 reg_write_addr_o = 0;
