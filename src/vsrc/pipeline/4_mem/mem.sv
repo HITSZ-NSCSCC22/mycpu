@@ -69,7 +69,8 @@ module mem
     assign excp_i = signal_i.excp;
     assign excp_num_i = signal_i.excp_num;
 
-    assign data_fetch = addr_ok | aluop_i == `EXE_TLBSRCH_OP;
+    // Send request to TLB, so result can be used in WB
+    assign data_fetch = access_mem | aluop_i == `EXE_TLBSRCH_OP;
 
     assign access_mem = mem_load_op || mem_store_op;
 
