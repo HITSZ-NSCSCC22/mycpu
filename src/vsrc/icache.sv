@@ -219,7 +219,7 @@ module icache
         end
     end
 
-
+    // Generate miss signal
     logic miss_1_pulse, miss_2_pulse, miss_1_r, miss_2_r, miss_1, miss_2;
     assign miss_1_pulse = p1_rreq_1 & ~rvalid_1 & (state == IDLE);
     assign miss_2_pulse = p1_rreq_2 & ~rvalid_2 & (state == IDLE);
@@ -247,6 +247,15 @@ module icache
         end
     end
 
+    // Store TLB input
+    tlb_inst_t p1_tlb;
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            p1_tlb <= 0;
+        end else if (miss_1_pulse | miss_2_pulse) begin
+            p1_tlb <= tlb_i;
+        end
+    end
 
 
     always_comb begin : transition_comb
@@ -287,11 +296,11 @@ module icache
         case (state)
             REFILL_1_REQ, REFILL_1_WAIT: begin
                 axi_rreq_o = miss_1 ? 1 : 0;
-                axi_addr_o = miss_1 ? {tlb_i.tag, p1_raddr_1[11:0]} : 0;
+                axi_addr_o = miss_1 ? {p1_tlb.tag, p1_raddr_1[11:0]} : 0;
             end
             REFILL_2_REQ, REFILL_2_WAIT: begin
                 axi_rreq_o = miss_2 ? 1 : 0;
-                axi_addr_o = miss_2 ? {tlb_i.tag, p1_raddr_2[11:0]} : 0;
+                axi_addr_o = miss_2 ? {p1_tlb.tag, p1_raddr_2[11:0]} : 0;
             end
             default: begin
                 axi_rreq_o = 0;

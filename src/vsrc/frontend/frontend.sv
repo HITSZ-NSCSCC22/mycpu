@@ -142,7 +142,7 @@ module frontend
         .ftq_i       (ftq_ifu_block),
         .ftq_accept_o(ifu_ftq_accept),
 
-        .csr_i(),
+        .csr_i({csr_pg, csr_da, csr_dmw0, csr_dmw1, csr_plv}),
         .tlb_o(tlb_o),
 
         // <-> Frontend <-> ICache
