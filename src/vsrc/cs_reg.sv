@@ -470,6 +470,9 @@ module cs_reg
         end
     end
 
+    //pgd
+    assign csr_pgd = csr_badv[31] ? csr_pgdh : csr_pgdl;
+
     //llbctl
     always @(posedge clk) begin
         if (rst) begin
