@@ -55,11 +55,6 @@ module frontend
     logic rst_n;
     assign rst_n = ~rst;
 
-    logic inst_addr_trans_en;
-    assign inst_addr_trans_en = csr_pg && !csr_da && !dmw0_en && !dmw1_en;
-    assign dmw0_en = ((csr_dmw0[`PLV0] && csr_plv == 2'd0) || (csr_dmw0[`PLV3] && csr_plv == 2'd3)) && (pc[31:29] == csr_dmw0[`VSEG]);
-    assign dmw1_en = ((csr_dmw1[`PLV0] && csr_plv == 2'd0) || (csr_dmw1[`PLV3] && csr_plv == 2'd3)) && (pc[31:29] == csr_dmw1[`VSEG]);
-
     // TODO: move excp to correct position
     logic excp_tlbr, excp_pif, excp_ppi, excp_adef;
     // assign excp_tlbr = !inst_tlb_found && inst_addr_trans_en;

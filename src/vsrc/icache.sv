@@ -282,15 +282,16 @@ module icache
     end
 
     // Read request to AXI Controller
+    // Use result from TLB
     always_comb begin
         case (state)
             REFILL_1_REQ, REFILL_1_WAIT: begin
                 axi_rreq_o = miss_1 ? 1 : 0;
-                axi_addr_o = miss_1 ? p1_raddr_1 : 0;
+                axi_addr_o = miss_1 ? {tlb_i.tag, p1_raddr_1[11:0]} : 0;
             end
             REFILL_2_REQ, REFILL_2_WAIT: begin
                 axi_rreq_o = miss_2 ? 1 : 0;
-                axi_addr_o = miss_2 ? p1_raddr_2 : 0;
+                axi_addr_o = miss_2 ? {tlb_i.tag, p1_raddr_2[11:0]} : 0;
             end
             default: begin
                 axi_rreq_o = 0;

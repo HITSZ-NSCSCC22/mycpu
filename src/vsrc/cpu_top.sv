@@ -241,6 +241,10 @@ module cpu_top
     logic [1:0]icache_frontend_valid;
     logic [1:0][ICACHELINE_WIDTH-1:0] icache_frontend_data;
 
+    // ICache <- TLB
+    // Frontend <- TLB
+    tlb_inst_t tlb_inst;
+
     icache u_icache(
        .clk          (clk          ),
        .rst          (rst          ),
@@ -262,7 +266,10 @@ module cpu_top
        .axi_rdy_i    (axi_icache_rdy),
        .axi_rvalid_i (axi_icache_rvalid),
        .axi_rlast_i  (),
-       .axi_data_i   (axi_icache_data)
+       .axi_data_i   (axi_icache_data),
+
+       // <- TLB
+       .tlb_i(tlb_inst)
    );
     
     // Frontend <-> TLB
@@ -309,12 +316,12 @@ module cpu_top
 
         // <-> TLB
         .tlb_o(frontend_tlb),
-        .inst_tlb_tag(tlb_inst_o.tag),
-        .inst_tlb_found(tlb_inst_o.tlb_found),
-        .inst_tlb_v(tlb_inst_o.tlb_v),
-        .inst_tlb_d(tlb_inst_o.tlb_d),
-        .inst_tlb_mat(tlb_inst_o.tlb_mat),
-        .inst_tlb_plv(tlb_inst_o.tlb_plv)
+        .inst_tlb_tag(tlb_inst.tag),
+        .inst_tlb_found(tlb_inst.tlb_found),
+        .inst_tlb_v(tlb_inst.tlb_v),
+        .inst_tlb_d(tlb_inst.tlb_d),
+        .inst_tlb_mat(tlb_inst.tlb_mat),
+        .inst_tlb_plv(tlb_inst.tlb_plv)
     );
 
     instr_buffer_info_t ib_backend_instr_info[2];  // IB -> ID
@@ -435,7 +442,6 @@ module cpu_top
 
 
     //tlb
-    logic inst_addr_trans_en;
     logic data_addr_trans_en;
 
     //csr
@@ -787,7 +793,6 @@ module cpu_top
     assign tlb_data_i.vaddr = mem_cache_addr;
     assign tlb_data_i.fetch = data_fetch[0];
 
-    tlb_inst_t tlb_inst_o;
     data_tlb_t tlb_data_i;
     tlb_data_t tlb_data_o;
     tlb_write_in_struct tlb_write_signal_i;
@@ -798,11 +803,10 @@ module cpu_top
         .clk               (clk),
         .asid              (csr_asid),
         //trans mode 
-        .inst_addr_trans_en(inst_addr_trans_en),
         .data_addr_trans_en(data_addr_trans_en),
         //inst addr trans
         .inst_i(frontend_tlb),
-        .inst_o(tlb_inst_o),
+        .inst_o(tlb_inst),
         //data addr trans 
         .data_i(tlb_data_i),
         .data_o(tlb_data_o),

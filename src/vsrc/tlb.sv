@@ -12,8 +12,7 @@ module tlb
     input logic [9:0] asid,
 
     //inst addr trans, return next cycle
-    input logic inst_addr_trans_en,
-    input inst_tlb_t inst_i,
+    input  inst_tlb_t inst_i,
     output tlb_inst_t inst_o,
 
     //data addr trans, return next cycle
@@ -166,7 +165,7 @@ module tlb
 
     assign inst_o.offset = inst_vaddr_buffer[3:0];
     assign inst_o.index = inst_vaddr_buffer[11:4];
-    assign inst_o.tag    = inst_addr_trans_en ? ((s0_ps == 6'd12) ? s0_ppn : {s0_ppn[19:10], inst_paddr[21:12]}) : inst_paddr[31:12];
+    assign inst_o.tag    = inst_i.trans_en ? ((s0_ps == 6'd12) ? s0_ppn : {s0_ppn[19:10], inst_paddr[21:12]}) : inst_paddr[31:12];
 
     assign data_paddr = (pg_mode && data_i.dmw0_en && !data_i.cacop_op_mode_di) ? {csr_dmw0[`PSEG], data_vaddr_buffer[28:0]} : 
                     (pg_mode && data_i.dmw1_en && !data_i.cacop_op_mode_di) ? {csr_dmw1[`PSEG], data_vaddr_buffer[28:0]} : data_vaddr_buffer;
