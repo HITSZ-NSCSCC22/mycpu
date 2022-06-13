@@ -68,7 +68,8 @@ module frontend
     assign instr_buffer_o[1].excp = excp_tlbr | excp_pif | excp_ppi | excp_adef;
     assign instr_buffer_o[1].excp_num = {excp_ppi, excp_pif, excp_tlbr, excp_adef};
 
-    logic [ADDR_WIDTH-1:0] pc, next_pc;
+    logic [ADDR_WIDTH-1:0] pc, next_pc, sequential_pc;
+    assign sequential_pc = pc + 4 * bpu_ftq_block.length;
 
     always_ff @(posedge clk or negedge rst_n) begin : pc_ff
         if (!rst_n) begin
@@ -86,18 +87,25 @@ module frontend
         end else if (ftq_full) begin
             next_pc = pc;
         end else begin
-            next_pc = pc + FETCH_WIDTH * 4;
+            next_pc = sequential_pc;
         end
     end
 
     // BPU
     bpu_ftq_t bpu_ftq_block;
+    logic is_cross_page;
+    assign is_cross_page = pc[11:0] > 12'hff0;  // if 4 instr already cross the page limit
     always_comb begin
         if (~ftq_full) begin
+            if (is_cross_page) begin
+                bpu_ftq_block.length = (12'h000 - pc[11:0]) >> 2;
+            end else begin
+                bpu_ftq_block.length = 4;
+            end
             bpu_ftq_block.start_pc = pc;
             bpu_ftq_block.valid = 1;
-            bpu_ftq_block.length = 4;
-            bpu_ftq_block.is_cross_cacheline = (pc[3:2] != 2'b00);
+            // If cross page, length will be cut, so ensures no cacheline cross
+            bpu_ftq_block.is_cross_cacheline = (pc[3:2] != 2'b00) & ~is_cross_page;
         end else begin
             bpu_ftq_block = 0;
         end
