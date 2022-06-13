@@ -668,8 +668,7 @@ module cpu_top
         .rst(rst),
 
         // <- WB
-        .wb_i_1(wb_ctrl_signal[0]),
-        .wb_i_2(wb_ctrl_signal[1]),
+        .wb_i({wb_ctrl_signal[1],wb_ctrl_signal[0]}),
 
         // <- EX
     	.ex_branch_flag_i (stall[2] ? 0: branch_flag),

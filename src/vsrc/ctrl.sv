@@ -11,26 +11,25 @@ module ctrl
     input logic clk,
     input logic rst,
 
-    input wb_ctrl wb_i_1,
-    input wb_ctrl wb_i_2,
-    input logic [1:0] ex_branch_flag_i,
-    input logic [1:0] ex_stallreq_i,
-    input logic [1:0] tlb_stallreq,
-    input logic stallreq_from_dispatch,
-    input logic [1:0] mem_stallreq_i,
-    output logic idle_flush,
-    output logic excp_flush,
-    output logic ertn_flush,
-    output logic fetch_flush,
-    output logic [`InstAddrBus] idle_pc,
+    input wb_ctrl wb_i [2],  //流水线传来的信号
+    input logic [1:0] ex_branch_flag_i,  //执行阶段跳转信号
+    input logic [1:0] ex_stallreq_i,    //执行阶段暂停请求信号
+    input logic [1:0] tlb_stallreq,     //tlb暂停请求信号(未用到)
+    input logic stallreq_from_dispatch, //发射阶段暂停请求信号
+    input logic [1:0] mem_stallreq_i,   //访存阶段暂停请求信号
+    output logic idle_flush,            //idle指令冲刷信号
+    output logic excp_flush,            //异常指令冲刷信号
+    output logic ertn_flush,            //ertn指令冲刷信号
+    output logic fetch_flush,            //未用到，暂时不管
+    output logic [`InstAddrBus] idle_pc, //idle指令pc
 
     // Stall request to each stage
     output logic [4:0] stall,  // from 4->0 {ex_mem, dispatch_ex, id_dispatch, _}
 
-    input logic is_pri_instr,
+    input logic is_pri_instr,//是否为特权指令
     output logic pri_stall,   //当特权指令发射时把此信号拉高,提交后拉低,确保特权指令后没有其它指令
 
-    output logic [1:0] ex_mem_flush_o,
+    output logic [1:0] ex_mem_flush_o, 
     output logic flush,
 
     //to csr
@@ -70,35 +69,31 @@ module ctrl
     output diff_commit commit_1
 );
 
-    logic [63:0] timer_test1, timer_test2;
-    assign timer_test1 = commit_0.timer_64;
-    assign timer_test2 = commit_1.timer_64;
-
     logic valid;
-    assign valid = wb_i_1.valid | wb_i_2.valid;
+    assign valid = wb_i[0].valid | wb_i[1].valid;
 
     logic [`AluOpBus] aluop, aluop_1;
-    assign aluop = wb_i_1.aluop;
-    assign aluop_1 = wb_i_2.aluop;
+    assign aluop = wb_i[0].aluop;
+    assign aluop_1 = wb_i[1].aluop;
 
     // csr and tlb instr 
-    assign tlbrd_en = wb_i_1.aluop == `EXE_TLBRD_OP | wb_i_2.aluop == `EXE_TLBRD_OP;
-    assign tlbwr_en = wb_i_1.aluop == `EXE_TLBWR_OP | wb_i_2.aluop == `EXE_TLBWR_OP;
-    assign tlbsrch_en = wb_i_1.aluop == `EXE_TLBSRCH_OP | wb_i_2.aluop == `EXE_TLBSRCH_OP;
-    assign tlbfill_en = wb_i_1.aluop == `EXE_TLBFILL_OP | wb_i_2.aluop == `EXE_TLBFILL_OP;
+    assign tlbrd_en = wb_i[0].aluop == `EXE_TLBRD_OP | wb_i[1].aluop == `EXE_TLBRD_OP;
+    assign tlbwr_en = wb_i[0].aluop == `EXE_TLBWR_OP | wb_i[1].aluop == `EXE_TLBWR_OP;
+    assign tlbsrch_en = wb_i[0].aluop == `EXE_TLBSRCH_OP | wb_i[1].aluop == `EXE_TLBSRCH_OP;
+    assign tlbfill_en = wb_i[0].aluop == `EXE_TLBFILL_OP | wb_i[1].aluop == `EXE_TLBFILL_OP;
     assign tlbsrch_found = tlbsrch_result_i.data_tlb_found;
     assign tlbsrch_index = tlbsrch_result_i.data_tlb_index;
-    assign inv_o = wb_i_1.inv_i | wb_i_2.inv_i;
+    assign inv_o = wb_i[0].inv_i | wb_i[1].inv_i;
 
-    //assign llbit_signal.we = wb_i_1.aluop == `EXE_LL_OP | wb_i_1.aluop == `EXE_SC_OP ;
-    //assign llbit_signal.value = (wb_i_1.aluop == `EXE_LL_OP & 1'b1) | (wb_i_1.aluop == `EXE_SC_OP & 1'b0);
+    //assign llbit_signal.we = wb_i[0].aluop == `EXE_LL_OP | wb_i[0].aluop == `EXE_SC_OP ;
+    //assign llbit_signal.value = (wb_i[0].aluop == `EXE_LL_OP & 1'b1) | (wb_i[0].aluop == `EXE_SC_OP & 1'b0);
 
     always_comb begin
         if (rst) llbit_signal = 0;
         else if (excp) llbit_signal = 0;
         else begin
-            llbit_signal.we = wb_i_1.aluop == `EXE_LL_OP | wb_i_1.aluop == `EXE_SC_OP;
-            llbit_signal.value = (wb_i_1.aluop == `EXE_LL_OP & 1'b1) | (wb_i_1.aluop == `EXE_SC_OP & 1'b0);
+            llbit_signal.we = wb_i[0].aluop == `EXE_LL_OP | wb_i[0].aluop == `EXE_SC_OP;
+            llbit_signal.value = (wb_i[0].aluop == `EXE_LL_OP & 1'b1) | (wb_i[0].aluop == `EXE_SC_OP & 1'b0);
         end
     end
 
@@ -110,9 +105,9 @@ module ctrl
     assign ex_mem_flush_o[0] = ertn_flush | excp_flush;
     assign excp_flush = excp;
     assign idle_flush = aluop == `EXE_IDLE_OP;
-    assign ertn_flush = aluop == `EXE_ERTN_OP | wb_i_2.aluop == `EXE_ERTN_OP;
+    assign ertn_flush = aluop == `EXE_ERTN_OP | wb_i[1].aluop == `EXE_ERTN_OP;
     assign fetch_flush = 0;
-    assign idle_pc = wb_i_1.wb_reg_o.pc;
+    assign idle_pc = wb_i[0].wb_reg_o.pc;
     assign flush = fetch_flush | excp_flush | ertn_flush;
 
     //暂停处理
@@ -150,28 +145,28 @@ module ctrl
 
     //提交difftest
     always_comb begin
-        commit_0 = wb_i_1.diff_commit_o;
-        if (wb_i_1.excp) commit_0.valid = 0;
-        commit_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP) ? 0 : wb_i_2.diff_commit_o;
-        if (wb_i_2.excp) commit_1.valid = 0;
+        commit_0 = wb_i[0].diff_commit_o;
+        if (wb_i[0].excp) commit_0.valid = 0;
+        commit_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP) ? 0 : wb_i[1].diff_commit_o;
+        if (wb_i[1].excp) commit_1.valid = 0;
     end
 
     //写入寄存器堆
-    assign reg_o_0 = wb_i_1.excp ? 0 : wb_i_1.wb_reg_o;
-    assign reg_o_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | excp) ? 0 : wb_i_2.wb_reg_o;
+    assign reg_o_0 = wb_i[0].excp ? 0 : wb_i[0].wb_reg_o;
+    assign reg_o_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | excp) ? 0 : wb_i[1].wb_reg_o;
 
-    assign csr_w_o_0 = wb_i_1.excp ? 0 : wb_i_1.csr_signal_o;
-    assign csr_w_o_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | excp) ? 0 : wb_i_2.csr_signal_o;
+    assign csr_w_o_0 = wb_i[0].excp ? 0 : wb_i[0].csr_signal_o;
+    assign csr_w_o_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | excp) ? 0 : wb_i[1].csr_signal_o;
 
     logic excp;
     logic [15:0] excp_num;
     logic [`RegBus] pc, error_va;
-    assign excp = wb_i_1.excp | wb_i_2.excp;
+    assign excp = wb_i[0].excp | wb_i[1].excp;
     assign csr_era = aluop == `EXE_IDLE_OP ? pc + 32'h4 : pc;
     //异常处理，优先处理第一条流水线的异常
     assign {excp_num, pc, excp_instr, error_va} = 
-            wb_i_1.excp ? {wb_i_1.excp_num, wb_i_1.wb_reg_o.pc,wb_i_1.diff_commit_o.instr, wb_i_1.mem_addr} :
-            wb_i_2.excp ? {wb_i_2.excp_num, wb_i_2.wb_reg_o.pc,wb_i_2.diff_commit_o.instr, wb_i_2.mem_addr} : 0;
+            wb_i[0].excp ? {wb_i[0].excp_num, wb_i[0].wb_reg_o.pc,wb_i[0].diff_commit_o.instr, wb_i[0].mem_addr} :
+            wb_i[1].excp ? {wb_i[1].excp_num, wb_i[1].wb_reg_o.pc,wb_i[1].diff_commit_o.instr, wb_i[1].mem_addr} : 0;
 
     assign {csr_ecode,va_error, bad_va, csr_esubcode, excp_tlbrefill,excp_tlb, excp_tlb_vppn} = 
     excp_num[0] ? {`ECODE_INT ,1'b0, 32'b0 , 9'b0 , 1'b0, 1'b0, 19'b0} :
