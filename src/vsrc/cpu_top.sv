@@ -825,8 +825,12 @@ module cpu_top
 
     // Difftest Delay signals
     diff_commit difftest_commit_info_delay1[2];
+    logic csr_rstat_commit[2];
+    logic [`RegBus] csr_data_commit[2];
     always_ff @(posedge clk) begin
         difftest_commit_info_delay1 <= difftest_commit_info;
+        csr_rstat_commit[0] <= csr_w_o[0].we && (csr_w_o[0].addr == 14'h5);
+        csr_data_commit[1] <= csr_w_o[1].data;
     end
 
     always_ff @(posedge clk) begin
@@ -842,18 +846,13 @@ module cpu_top
         `endif
     end
 
-    logic [31:0] pc_test[4];
-    assign pc_test[0] = difftest_commit_info_delay1[0].pc;
-    assign pc_test[1] = difftest_commit_info_delay1[1].pc;
-
     logic excp_flush_commit;
     logic ertn_flush_commit;
     logic [`RegBus]excp_pc_commit;
     logic [5:0] csr_ecode_commit;
     logic [`InstBus] excp_instr_commit;
-    logic [63:0] timer_test1,timer_test2;
-    assign timer_test1 = difftest_commit_info_delay1[0].timer_64;
-    assign timer_test2 = difftest_commit_info_delay1[1].timer_64;
+    logic tlbfill_en_commit;
+    logic [4:0] rand_index_commit;
 
     always_ff @(posedge clk) begin 
         excp_flush_commit <= excp_flush;
@@ -861,6 +860,8 @@ module cpu_top
         excp_pc_commit <= csr_era_i;
         csr_ecode_commit <= csr_ecode_i;
         excp_instr_commit <= excp_instr;
+        tlbfill_en_commit <= tlb_write_signal_i.tlbfill_en;
+        rand_index_commit <= tlb_write_signal_i.rand_index;
     end
     // difftest dpi-c
 `ifdef SIMU  // SIMU is defined in chiplab run_func/makefile
@@ -872,15 +873,15 @@ module cpu_top
         .pc            (difftest_commit_info_delay1[0].pc),
         .instr         (difftest_commit_info_delay1[0].instr),
         .skip          (0),                             // not implemented in CHIPLAB, keep 0 
-        .is_TLBFILL    (),
-        .TLBFILL_index (),
+        .is_TLBFILL    (tlbfill_en_commit),
+        .TLBFILL_index (rand_index_commit),
         .is_CNTinst    (difftest_commit_info_delay1[0].is_CNTinst),
         .timer_64_value(difftest_commit_info_delay1[0].timer_64),
         .wen           (debug0_wb_rf_wen),
         .wdest         ({3'b0, debug0_wb_rf_wnum}),
         .wdata         (debug0_wb_rf_wdata),
-        .csr_rstat     (),
-        .csr_data      ()
+        .csr_rstat     (csr_rstat_commit[0]),
+        .csr_data      (csr_data_commit[0])
     );
     DifftestInstrCommit difftest_instr_commit_1 (  
         .clock         (aclk),
@@ -890,15 +891,15 @@ module cpu_top
         .valid         (difftest_commit_info_delay1[1].valid),  // 1 means valid
         .pc            (difftest_commit_info_delay1[1].pc),
         .instr         (difftest_commit_info_delay1[1].instr),
-        .is_TLBFILL    (),
-        .TLBFILL_index (),
+        .is_TLBFILL    (tlbfill_en_commit),
+        .TLBFILL_index (rand_index_commit),
         .is_CNTinst    (difftest_commit_info_delay1[1].is_CNTinst),
         .timer_64_value(difftest_commit_info_delay1[1].timer_64),
         .wen           (debug1_wb_rf_wen),
         .wdest         ({3'b0, debug1_wb_rf_wnum}),
         .wdata         (debug1_wb_rf_wdata),
-        .csr_rstat     (),
-        .csr_data      ()
+        .csr_rstat     (csr_rstat_commit[1]),
+        .csr_data      (csr_data_commit[1])
     );
 
     DifftestStoreEvent difftest_store_event(
