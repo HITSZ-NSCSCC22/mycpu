@@ -9,6 +9,7 @@ module frontend
     import core_types::*;
     import core_config::*;
     import tlb_types::inst_tlb_t;
+    import tlb_types::tlb_inst_t;
 (
     input logic clk,
     input logic rst,
@@ -25,6 +26,7 @@ module frontend
     input branch_update_info_t branch_update_info_i,
     input logic [ADDR_WIDTH-1:0] backend_next_pc_i,
     input logic backend_flush_i,
+    input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_flush_ftq_id_i,
     input logic backend_commit_i,
 
     // <-> Instruction buffer
@@ -42,13 +44,7 @@ module frontend
 
     // <-> TLB
     output inst_tlb_t tlb_o,
-    input logic [19:0] inst_tlb_tag,
-    input logic inst_tlb_found,
-    input logic inst_tlb_v,
-    input logic inst_tlb_d,
-    input logic [1:0] inst_tlb_mat,
-    input logic [1:0] inst_tlb_plv
-
+    input  tlb_inst_t tlb_i
 );
 
     // Reset signal
@@ -102,6 +98,7 @@ module frontend
 
     ftq_ifu_t ftq_ifu_block;
     logic ifu_ftq_accept;
+    logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_ifu_id;
 
     ftq u_ftq (
         .clk(clk),
@@ -109,9 +106,7 @@ module frontend
 
         // Flush
         .backend_flush_i(backend_flush_i),
-
-        // <-> Frontend
-        .instr_buffer_stallreq_i(instr_buffer_stallreq_i),
+        .backend_flush_ftq_id_i(backend_flush_ftq_id_i),
 
         // <-> BPU
         .bpu_i           (bpu_ftq_block),
@@ -122,6 +117,7 @@ module frontend
 
         // <-> IFU
         .ifu_o       (ftq_ifu_block),
+        .ifu_ftq_id_o(ftq_ifu_id),
         .ifu_accept_i(ifu_ftq_accept)
     );
 
@@ -137,9 +133,11 @@ module frontend
 
         // <-> FTQ
         .ftq_i       (ftq_ifu_block),
+        .ftq_id_i    (ftq_ifu_id),
         .ftq_accept_o(ifu_ftq_accept),
 
         .csr_i({csr_pg, csr_da, csr_dmw0, csr_dmw1, csr_plv}),
+        .tlb_i(tlb_i),
         .tlb_o(tlb_o),
 
         // <-> Frontend <-> ICache

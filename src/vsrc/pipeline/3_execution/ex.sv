@@ -1,9 +1,11 @@
 `include "core_types.sv"
+`include "core_config.sv"
 `include "csr_defines.sv"
 `include "muldiv/mul.sv"
 
 module ex
     import core_types::*;
+    import core_config::*;
     import csr_defines::*;
 (
     // Pass through to multi-cycle ALU
@@ -33,8 +35,10 @@ module ex
     output logic stallreq,
     output logic tlb_stallreq,
 
+    // -> Ctrl
     output logic branch_flag_o,
     output logic [`RegBus] branch_target_address,
+    output logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] branch_ftq_id_o,
 
     output ex_dispatch_struct ex_data_forward,
 
@@ -283,7 +287,8 @@ module ex
     // means do we branch under current condition
     // however, this signal is not accurate because maybe waiting for load or other stalling condition
     logic branch_flag;
-    assign branch_flag_o = branch_flag;
+    assign branch_flag_o   = branch_flag;
+    assign branch_ftq_id_o = branch_flag ? dispatch_i.instr_info.ftq_id : 0;
     always @(*) begin
         if (rst == `RstEnable) begin
             branch_flag = 1'b0;
@@ -357,8 +362,12 @@ module ex
     logic [31:0] wdata;
     assign wdata = ex_o.wdata;
 
-    always @(*) begin
+    always_comb begin
         ex_o.instr_info = stallreq ? 0 : dispatch_i.instr_info;
+
+        // If the branch taken, then this basic block should be ended
+        if (branch_flag) ex_o.instr_info.is_last_in_block = 1;
+
         ex_o.waddr = wd_i;
         ex_o.wreg = wreg_i;
         ex_o.timer_64 = timer_64;
@@ -389,7 +398,7 @@ module ex
     end
 
 
-    always @(posedge clk) begin
+    always_ff @(posedge clk) begin
         if (rst == `RstEnable) begin
             ex_o_buffer <= 0;
         end else if (flush == 1'b1 || excp_flush == 1'b1 || ertn_flush == 1'b1) begin

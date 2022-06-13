@@ -1,16 +1,16 @@
 `include "defines.sv"
 `include "frontend/frontend_defines.sv"
+`include "core_config.sv"
 
-module ftq #(
-    parameter FETCH_WIDTH = 4,
-    parameter QUEUE_SIZE  = 4
-) (
+module ftq
+    import core_config::*;
+(
     input logic clk,
     input logic rst,
 
     // <-> Frontend
     input logic backend_flush_i,
-    input logic instr_buffer_stallreq_i,
+    input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_flush_ftq_id_i,
 
     // <-> BPU
     input bpu_ftq_t bpu_i,
@@ -21,8 +21,11 @@ module ftq #(
 
     // <-> IFU
     output ftq_ifu_t ifu_o,
+    output [$clog2(FRONTEND_FTQ_SIZE)-1:0] ifu_ftq_id_o,
     input logic ifu_accept_i  // Must return in the same cycle
 );
+
+    localparam QUEUE_SIZE = FRONTEND_FTQ_SIZE;
 
     // QUEUE data structure
     ftq_block_t [QUEUE_SIZE-1:0] FTQ, next_FTQ;
@@ -44,6 +47,7 @@ module ftq #(
 
     // PTR
     logic [$clog2(QUEUE_SIZE)-1:0] bpu_ptr, ifu_ptr, comm_ptr;
+    assign ifu_ftq_id_o = ifu_ptr;
     always_ff @(posedge clk) begin : ptr_ff
         if (rst) begin
             bpu_ptr  <= 0;
@@ -60,11 +64,11 @@ module ftq #(
             // BPU ptr
             if (bpu_i.valid) bpu_ptr <= bpu_ptr + 1;
 
-            // If backend redirect triggered, back to comm_ptr + 1
-            // Since FTQ is cleared out, so not pending block
+            // If backend redirect triggered, back to the next block of the redirect block
+            // backend may continue to commit older block
             if (backend_flush_i) begin
-                ifu_ptr <= comm_ptr + 1 + backend_commit_i;
-                bpu_ptr <= comm_ptr + 1 + backend_commit_i;
+                ifu_ptr <= backend_flush_ftq_id_i + 1;
+                bpu_ptr <= backend_flush_ftq_id_i + 1;
             end
         end
     end

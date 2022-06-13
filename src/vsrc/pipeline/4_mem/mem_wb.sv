@@ -1,7 +1,9 @@
 `include "core_types.sv"
+`include "core_config.sv"
 
 module mem_wb
     import core_types::*;
+    import core_config::*;
     import csr_defines::*;
 (
     input logic clk,
@@ -32,7 +34,8 @@ module mem_wb
     output wb_ctrl wb_ctrl_signal,
 
     // <-> Frontend
-    output logic is_last_in_block
+    output logic is_last_in_block,
+    output logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_id_o
 );
 
     csr_write_signal csr_test;
@@ -110,7 +113,11 @@ module mem_wb
             wb_ctrl_signal.diff_commit_o.valid <= `InstInvalid;
             is_last_in_block <= 0;
         end else begin
-            is_last_in_block <= mem_signal_o.instr_info.is_last_in_block;
+            // -> Frontend
+            // If marked as exception, the basic block is ended
+            is_last_in_block <= excp ? 1 : mem_signal_o.instr_info.is_last_in_block;
+            ftq_id_o <= mem_signal_o.instr_info.ftq_id;
+
             wb_ctrl_signal.valid <= 1'b1;
             wb_ctrl_signal.aluop <= mem_signal_o.aluop;
             wb_ctrl_signal.wb_reg_o.waddr <= mem_signal_o.waddr;
