@@ -8,6 +8,7 @@ module ifu
     import core_types::*;
     import core_config::*;
     import tlb_types::inst_tlb_t;
+    import tlb_types::tlb_inst_t;
 (
     input logic clk,
     input logic rst,
@@ -22,8 +23,9 @@ module ifu
     // Addr translation related
     // <- Frontend <- CSR regs
     input  ifu_csr_t  csr_i,
-    // -> Frontend -> TLB
+    // <-> Frontend <-> TLB
     output inst_tlb_t tlb_o,
+    input  tlb_inst_t tlb_i,
 
     // <-> Frontend <-> ICache
     output logic [1:0] icache_rreq_o,
@@ -39,10 +41,13 @@ module ifu
     /////////////////////////////////////////////////////////////////////////////////
     // P0, send read req to ICache & TLB
     /////////////////////////////////////////////////////////////////////////////////
-    logic p0_send_rreq;
+    logic p0_send_rreq, p0_send_rreq_delay1;
     // Condition when to send rreq to ICache, see doc for detail
     assign p0_send_rreq = ftq_i.valid & ~is_flushing & ~stallreq_i & ~p1_stallreq;
     assign ftq_accept_o = p0_send_rreq;  // FTQ handshake, same cycle as ftq_i
+    always_ff @(posedge clk) begin
+        p0_send_rreq_delay1 <= p0_send_rreq;
+    end
 
     // P0 PC
     logic [ADDR_WIDTH-1:0] p0_pc = ftq_i.start_pc;
@@ -92,6 +97,11 @@ module ifu
     end
 
     // P1 data structure
+    tlb_inst_t p1_tlb, tlb_i_r;
+    assign p1_tlb = p0_send_rreq_delay1 ? tlb_i : tlb_i_r;
+    always_ff @(posedge clk) begin
+        if (p0_send_rreq_delay1) tlb_i_r <= tlb_i;
+    end
     typedef struct packed {
         logic valid;
         logic [`InstAddrBus] start_pc;
@@ -99,6 +109,8 @@ module ifu
         logic [$clog2(`FETCH_WIDTH+1)-1:0] length;
         logic [1:0] icache_rvalid_r;
         logic [1:0][ICACHELINE_WIDTH-1:0] icache_rdata_r;
+        inst_tlb_t tlb_rreq;
+        ifu_csr_t csr;
     } read_transaction_t;
     read_transaction_t p1_read_transaction;
 
@@ -147,9 +159,27 @@ module ifu
     logic [1:0] debug_p1_rvalid_r = p1_read_transaction.icache_rvalid_r;
 
 
+
     /////////////////////////////////////////////////////////////////////////////////
     // P2, send instr info to IB
-    /////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////// TODO: move excp to correct position
+    logic [FETCH_WIDTH-1:0] excp_tlbr, excp_pif, excp_ppi, excp_adef;
+    // TLB not found, trigger a TLBR
+    assign excp_tlbr = {FETCH_WIDTH{!p1_tlb.tlb_found && p1_read_transaction.tlb_rreq.trans_en}};
+    // TLB found with invalid page, trigger a PIF
+    assign excp_pif = {FETCH_WIDTH{!p1_tlb.tlb_v && p1_read_transaction.tlb_rreq.trans_en}};
+    // TLB found with not enough PLV, trigger a PPI
+    assign excp_ppi = {FETCH_WIDTH{(p1_read_transaction.csr.plv > p1_tlb.tlb_plv) && p1_read_transaction.tlb_rreq.trans_en}};
+    // Instr addr not aligned, trigger a ADEF
+    always_comb begin
+        for (integer i = 0; i < FETCH_WIDTH; i++) begin
+            if (i < p1_read_transaction.length) begin
+                logic [ADDR_WIDTH-1:0] pc_ii = p1_read_transaction.start_pc + i * 4;
+                excp_adef[i] = (pc_ii[0] || pc_ii[1]) | (pc_ii[31]&& p1_read_transaction.csr.plv == 2'd3&& p1_read_transaction.tlb_rreq.trans_en);
+            end
+        end
+    end
+
     always_ff @(posedge clk) begin : p2_ff
         if (rst) begin
             for (integer i = 0; i < FETCH_WIDTH; i++) begin
@@ -170,15 +200,16 @@ module ifu
 
                 if (i < p1_read_transaction.length) begin
                     if (i == p1_read_transaction.length - 1) begin
-                        instr_buffer_o[i].valid <= 1;
                         instr_buffer_o[i].is_last_in_block <= 1; // Mark the instruction as last in block, used when commit
-                        instr_buffer_o[i].pc <= p1_read_transaction.start_pc + i * 4;  // Instr is 4 bytes long
-                        instr_buffer_o[i].instr <= cacheline_combined[p1_read_transaction.start_pc[3:2]+i];
-                    end else begin
-                        instr_buffer_o[i].valid <= 1;
-                        instr_buffer_o[i].pc <= p1_read_transaction.start_pc + i * 4;  // Instr is 4 bytes long
-                        instr_buffer_o[i].instr <= cacheline_combined[p1_read_transaction.start_pc[3:2]+i];
                     end
+                    instr_buffer_o[i].valid <= 1;
+                    instr_buffer_o[i].pc <= p1_read_transaction.start_pc + i * 4;  // Instr is 4 bytes long
+                    instr_buffer_o[i].instr <= cacheline_combined[p1_read_transaction.start_pc[3:2]+i];
+                    // Exception info
+                    instr_buffer_o[i].excp <= excp_tlbr[i] | excp_pif[i] | excp_ppi[i] | excp_adef[i];
+                    instr_buffer_o[i].excp_num <= {
+                        excp_ppi[i], excp_pif[i], excp_tlbr[i], excp_adef[i]
+                    };
                 end else begin
                     instr_buffer_o[i] <= 0;
                 end

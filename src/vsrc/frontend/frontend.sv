@@ -55,18 +55,7 @@ module frontend
     logic rst_n;
     assign rst_n = ~rst;
 
-    // TODO: move excp to correct position
-    logic excp_tlbr, excp_pif, excp_ppi, excp_adef;
-    // assign excp_tlbr = !inst_tlb_found && inst_addr_trans_en;
-    // assign excp_pif = !inst_tlb_v && inst_addr_trans_en;
-    // assign excp_ppi = (csr_plv > inst_tlb_plv) && inst_addr_trans_en;
-    // assign excp_adef = (pc[0] || pc[1]) | (pc[31] && (csr_plv == 2'd3) && inst_addr_trans_en);
 
-    assign instr_buffer_o[0].excp = excp_tlbr | excp_pif | excp_ppi | excp_adef;
-    assign instr_buffer_o[0].excp_num = {excp_ppi, excp_pif, excp_tlbr, excp_adef};
-
-    assign instr_buffer_o[1].excp = excp_tlbr | excp_pif | excp_ppi | excp_adef;
-    assign instr_buffer_o[1].excp_num = {excp_ppi, excp_pif, excp_tlbr, excp_adef};
 
     logic [ADDR_WIDTH-1:0] pc, next_pc, sequential_pc;
     assign sequential_pc = pc + 4 * bpu_ftq_block.length;

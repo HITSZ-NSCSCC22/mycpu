@@ -20,8 +20,9 @@ package core_types;
     } ifu_csr_t;
 
     typedef struct packed {
-        //excp
+        // Exception info from frontend
         logic excp;
+        // {excp_ppi, excp_pif, excp_tlbr, excp_adef}
         logic [3:0] excp_num;
 
         bit valid;
