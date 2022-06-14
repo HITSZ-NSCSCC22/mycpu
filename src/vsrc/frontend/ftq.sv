@@ -25,7 +25,7 @@ module ftq
     input logic ifu_accept_i  // Must return in the same cycle
 );
 
-    logic [$clog2(COMMIT_WIDTH)-1:0] backend_commit_num;
+    logic [$clog2(COMMIT_WIDTH):0] backend_commit_num;
     always_comb begin
         backend_commit_num = 0;
         for (integer i = 0; i < COMMIT_WIDTH; i++) begin
@@ -86,7 +86,9 @@ module ftq
         // Default no change
         next_FTQ = FTQ;
         // clear out if committed
-        if (backend_commit_i) next_FTQ[comm_ptr] = 0;
+        for (integer i = 0; i < COMMIT_WIDTH; i++) begin
+            if (backend_commit_i[i]) next_FTQ[comm_ptr+i] = 0;
+        end
         // Accept BPU input
         if (bpu_i.valid) next_FTQ[bpu_ptr] = bpu_i;
         // If backend redirect triggered, clear FTQ

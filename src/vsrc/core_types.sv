@@ -205,6 +205,7 @@ package core_types;
 
     typedef struct packed {
         logic valid;
+        logic is_last_in_block;
         logic [`AluOpBus] aluop;
         wb_reg wb_reg_o;
         wb_llbit llbit_o;

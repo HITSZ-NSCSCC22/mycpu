@@ -34,7 +34,6 @@ module mem_wb
     output wb_ctrl wb_ctrl_signal,
 
     // <-> Frontend
-    output logic is_last_in_block,
     output logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_id_o
 );
 
@@ -102,23 +101,21 @@ module mem_wb
 
     always @(posedge clk) begin
         if (rst == `RstEnable) begin
-            wb_ctrl_signal   <= 0;
-            is_last_in_block <= 0;
+            wb_ctrl_signal <= 0;
         end else if (flush) begin
-            wb_ctrl_signal   <= 0;
-            is_last_in_block <= 0;
+            wb_ctrl_signal <= 0;
         end else if (stall == `Stop) begin
+            wb_ctrl_signal.valid <= 1'b0;
             wb_ctrl_signal.diff_commit_o.instr <= `ZeroWord;
             wb_ctrl_signal.diff_commit_o.pc <= `ZeroWord;
             wb_ctrl_signal.diff_commit_o.valid <= `InstInvalid;
-            is_last_in_block <= 0;
         end else begin
             // -> Frontend
             // If marked as exception, the basic block is ended
-            is_last_in_block <= excp ? 1 : mem_signal_o.instr_info.is_last_in_block;
             ftq_id_o <= mem_signal_o.instr_info.ftq_id;
 
             wb_ctrl_signal.valid <= 1'b1;
+            wb_ctrl_signal.is_last_in_block <= mem_signal_o.instr_info.is_last_in_block;
             wb_ctrl_signal.aluop <= mem_signal_o.aluop;
             wb_ctrl_signal.wb_reg_o.waddr <= mem_signal_o.waddr;
             wb_ctrl_signal.wb_reg_o.we <= mem_signal_o.wreg;

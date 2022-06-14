@@ -283,7 +283,7 @@ module cpu_top
     // Frontend <-> Backend 
     logic backend_flush;
     logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_flush_ftq_id;
-    logic [1:0] is_last_in_block; // <- WB, suggest whether last instr in basic block is committed
+    logic [COMMIT_WIDTH-1:0] ctrl_frontend_commit_block; // <- WB, suggest whether last instr in basic block is committed
 
     // All frontend structures
     frontend u_frontend (
@@ -301,7 +301,7 @@ module cpu_top
         .backend_next_pc_i   (next_pc),       // backend PC, <- pc_gen
         .backend_flush_i     (backend_flush), // backend flush, usually come with next_pc
         .backend_flush_ftq_id_i(backend_flush_ftq_id),
-        .backend_commit_i ({is_last_in_block[0] | ertn_flush | idle_flush, is_last_in_block[1]}),
+        .backend_commit_i (ctrl_frontend_commit_block),
 
         // <-> Instruction Buffer
         .instr_buffer_stallreq_i(ib_frontend_stallreq),   // instruction buffer is full
@@ -637,7 +637,6 @@ module cpu_top
                 .wb_ctrl_signal(wb_ctrl_signal[i]),
 
                 // -> Frontend
-                .is_last_in_block(is_last_in_block[i]),
                 .ftq_id_o(wb_ftq_id[i])
             );
         end
@@ -682,6 +681,9 @@ module cpu_top
     ctrl u_ctrl(
         .clk(clk),
         .rst(rst),
+
+        // -> Frontend
+        .backend_commit_block_o(ctrl_frontend_commit_block),
 
         // <- WB
         .wb_i(wb_ctrl_signal),

@@ -1,35 +1,40 @@
 `include "core_types.sv"
 `include "tlb_types.sv"
 `include "csr_defines.sv"
+`include "core_config.sv"
 
 
 module ctrl
     import tlb_types::*;
     import core_types::*;
     import csr_defines::*;
+    import core_config::*;
 (
     input logic clk,
     input logic rst,
 
-    input wb_ctrl wb_i [2],  //流水线传来的信号
-    input logic [1:0] ex_branch_flag_i,  //执行阶段跳转信号
-    input logic [1:0] ex_stallreq_i,    //执行阶段暂停请求信号
-    input logic [1:0] tlb_stallreq,     //tlb暂停请求信号(未用到)
-    input logic stallreq_from_dispatch, //发射阶段暂停请求信号
-    input logic [1:0] mem_stallreq_i,   //访存阶段暂停请求信号
-    output logic idle_flush,            //idle指令冲刷信号
-    output logic excp_flush,            //异常指令冲刷信号
-    output logic ertn_flush,            //ertn指令冲刷信号
-    output logic fetch_flush,            //未用到，暂时不管
-    output logic [`InstAddrBus] idle_pc, //idle指令pc
+    // -> Frontend
+    output logic [COMMIT_WIDTH-1:0] backend_commit_block_o,  // do backend commit a basic block
+
+    input  wb_ctrl                wb_i                  [2],  //流水线传来的信号
+    input  logic   [         1:0] ex_branch_flag_i,           //执行阶段跳转信号
+    input  logic   [         1:0] ex_stallreq_i,              //执行阶段暂停请求信号
+    input  logic   [         1:0] tlb_stallreq,               //tlb暂停请求信号(未用到)
+    input  logic                  stallreq_from_dispatch,     //发射阶段暂停请求信号
+    input  logic   [         1:0] mem_stallreq_i,             //访存阶段暂停请求信号
+    output logic                  idle_flush,                 //idle指令冲刷信号
+    output logic                  excp_flush,                 //异常指令冲刷信号
+    output logic                  ertn_flush,                 //ertn指令冲刷信号
+    output logic                  fetch_flush,                //未用到，暂时不管
+    output logic   [`InstAddrBus] idle_pc,                    //idle指令pc
 
     // Stall request to each stage
     output logic [4:0] stall,  // from 4->0 {ex_mem, dispatch_ex, id_dispatch, _}
 
-    input logic is_pri_instr,//是否为特权指令
+    input logic is_pri_instr,  //是否为特权指令
     output logic pri_stall,   //当特权指令发射时把此信号拉高,提交后拉低,确保特权指令后没有其它指令
 
-    output logic [1:0] ex_mem_flush_o, 
+    output logic [1:0] ex_mem_flush_o,
     output logic flush,
 
     //to csr
@@ -71,6 +76,15 @@ module ctrl
 
     logic valid;
     assign valid = wb_i[0].valid | wb_i[1].valid;
+
+    logic [COMMIT_WIDTH-1:0] backend_commit_valid;
+    assign backend_commit_valid[0] = wb_i[0].valid;
+    assign backend_commit_valid[1] = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | wb_i[0].excp)? 0 : wb_i[1].valid;
+
+    // Backend commit basic block
+    assign backend_commit_block_o = backend_commit_valid & (wb_i[0].excp ? 2'b01:
+                                    wb_i[1].excp ? {1'b1 , wb_i[0].is_last_in_block | ertn_flush | idle_flush} : 
+                                    {wb_i[1].is_last_in_block, wb_i[0].is_last_in_block | ertn_flush | idle_flush});
 
     logic [`AluOpBus] aluop, aluop_1;
     assign aluop = wb_i[0].aluop;
