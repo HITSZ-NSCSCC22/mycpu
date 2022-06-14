@@ -227,6 +227,7 @@ module id
     assign dispatch_o.instr_info.pc = pc_i;
     assign dispatch_o.instr_info.instr = inst_i;
     assign dispatch_o.instr_info.is_last_in_block = is_last_in_block;
+    assign dispatch_o.instr_info.ftq_id = instr_buffer_i.valid ? instr_buffer_i.ftq_id : 0;
 
 
     // TODO: add explanation

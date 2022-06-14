@@ -3,12 +3,17 @@
 `include "defines.sv"
 `include "csr_defines.sv"
 `include "tlb_types.sv"
+`include "core_config.sv"
+
 package core_types;
 
     import tlb_types::*;
     import csr_defines::*;
+    import core_config::*;
 
     `define DECODE_WIDTH 2
+
+
 
 
     typedef struct packed {
@@ -29,6 +34,9 @@ package core_types;
         bit is_last_in_block;  // Mark the last instruction in basic block
         bit [`InstAddrBus] pc;
         bit [`InstBus] instr;
+
+        // Frontend info
+        bit [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_id;
 
         // BPU info
         bit bpu_predicted_taken;

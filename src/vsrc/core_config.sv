@@ -11,6 +11,7 @@ package core_config;
     // Frontend Parameters
     parameter FETCH_WIDTH = 4;
     parameter ICACHELINE_WIDTH = 128;
+    parameter FRONTEND_FTQ_SIZE = 8;
 
 endpackage
 

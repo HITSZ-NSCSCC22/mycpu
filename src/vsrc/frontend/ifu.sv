@@ -18,6 +18,7 @@ module ifu
 
     // <-> Fetch Target Queue
     input ftq_ifu_t ftq_i,
+    input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_id_i,
     output logic ftq_accept_o,  // In current cycle
 
     // Addr translation related
@@ -109,6 +110,7 @@ module ifu
         logic [$clog2(`FETCH_WIDTH+1)-1:0] length;
         logic [1:0] icache_rvalid_r;
         logic [1:0][ICACHELINE_WIDTH-1:0] icache_rdata_r;
+        logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_id;
         inst_tlb_t tlb_rreq;
         ifu_csr_t csr;
     } read_transaction_t;
@@ -131,6 +133,7 @@ module ifu
             p1_read_transaction.length <= ftq_i.length;
             p1_read_transaction.icache_rvalid_r <= 0;
             p1_read_transaction.icache_rdata_r <= 0;
+            p1_read_transaction.ftq_id <= ftq_id_i;
         end else if (p1_read_done & ~stallreq_i) begin
             // Reset if done and not stalling
             p1_read_transaction <= 0;
@@ -210,6 +213,7 @@ module ifu
                     instr_buffer_o[i].excp_num <= {
                         excp_ppi[i], excp_pif[i], excp_tlbr[i], excp_adef[i]
                     };
+                    instr_buffer_o[i].ftq_id <= p1_read_transaction.ftq_id;
                 end else begin
                     instr_buffer_o[i] <= 0;
                 end
