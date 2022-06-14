@@ -75,6 +75,7 @@ module mem
     assign access_mem = mem_load_op || mem_store_op;
 
     assign stallreq = !data_ok & (mem_load_op | mem_store_op);
+    // Anything can trigger stall and modify register is considerd a "load" instr
     assign mem_load_op = aluop_i == `EXE_LD_B_OP || aluop_i == `EXE_LD_BU_OP || aluop_i == `EXE_LD_H_OP || aluop_i == `EXE_LD_HU_OP ||
                        aluop_i == `EXE_LD_W_OP || aluop_i == `EXE_LL_OP || aluop_i == `EXE_SC_OP;
 
@@ -117,7 +118,7 @@ module mem
         end
     end
 
-    always @(*) begin
+    always_comb begin
         if (rst == `RstEnable) begin
             signal_o.instr_info = 0;
             signal_o.wreg = 0;
@@ -312,15 +313,18 @@ module mem
                     if (LLbit == 1'b1) begin
                         signal_cache_o.addr = mem_addr;
                         signal_cache_o.we = `WriteEnable;
-                        signal_o.wreg = `WriteEnable;
                         signal_cache_o.ce = `ChipEnable;
                         signal_cache_o.data = reg2_i;
-                        signal_o.store_data = reg2_i;
                         signal_cache_o.sel = 4'b1111;
                         LLbit_we_o = 1'b1;
                         LLbit_value_o = 1'b0;
+                        signal_o.wreg = `WriteEnable;
+                        signal_o.store_data = reg2_i;
                         signal_o.wdata = 32'b1;
                     end else begin
+                        signal_cache_o = 0;
+                        signal_o.wreg = `WriteEnable;
+                        signal_o.store_data = 0;
                         signal_o.wdata = 32'b0;
                     end
                 end
