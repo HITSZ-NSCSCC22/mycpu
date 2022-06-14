@@ -72,9 +72,9 @@ module mem
     // Send request to TLB, so result can be used in WB
     assign data_fetch = access_mem | aluop_i == `EXE_TLBSRCH_OP;
 
-    assign access_mem = mem_load_op || mem_store_op;
+    assign access_mem = signal_cache_o.ce;
 
-    assign stallreq = !data_ok & (mem_load_op | mem_store_op);
+    assign stallreq = !data_ok & access_mem;
     assign mem_load_op = aluop_i == `EXE_LD_B_OP || aluop_i == `EXE_LD_BU_OP || aluop_i == `EXE_LD_H_OP || aluop_i == `EXE_LD_HU_OP ||
                        aluop_i == `EXE_LD_W_OP || aluop_i == `EXE_LL_OP || aluop_i == `EXE_SC_OP;
 

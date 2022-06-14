@@ -564,7 +564,7 @@ module cpu_top
     assign csr_mem_signal = {csr_pg,csr_da,csr_dmw0,csr_dmw1,csr_plv,csr_datm};
     //assign tlb_mem_signal = {data_tlb_found,data_tlb_index,data_tlb_v,data_tlb_d,data_tlb_mat,data_tlb_plv};
 
-    logic wb_LLbit_we_i[2],wb_LLbit_value_i[2],data_fetch[2];
+    logic data_fetch[2];
     generate
         for (genvar i = 0; i < 2; i++) begin : mem
             mem u_mem (
@@ -587,8 +587,10 @@ module cpu_top
                 .stallreq(mem_stallreq[i]),
 
                 .LLbit_i(LLbit_o),
-                .wb_LLbit_we_i(wb_LLbit_we_i[i]),
-                .wb_LLbit_value_i(wb_LLbit_value_i[i]),
+                // <- CSR
+                .wb_LLbit_we_i(llbit_i.we),
+                .wb_LLbit_value_i(llbit_i.value),
+
                 .LLbit_we_o(mem_wb_LLbit_we[i]),
                 .LLbit_value_o(mem_wb_LLbit_value[i]),
 

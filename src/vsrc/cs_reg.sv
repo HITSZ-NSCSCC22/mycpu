@@ -473,7 +473,7 @@ module cs_reg
     //pgd
     assign csr_pgd = csr_badv[31] ? csr_pgdh : csr_pgdl;
 
-    //llbctl
+    // llbctl
     always @(posedge clk) begin
         if (rst) begin
             csr_llbctl[`KLO] <= 1'b0;
