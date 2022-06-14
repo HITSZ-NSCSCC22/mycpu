@@ -11,6 +11,7 @@
 `include "dummy_dcache.sv"
 `include "ctrl.sv"
 `include "core_types.sv"
+`include "core_config.sv"
 `include "pipeline/1_decode/id.sv"
 `include "pipeline/1_decode/id_dispatch.sv"
 `include "pipeline/2_dispatch/dispatch.sv"
@@ -20,6 +21,7 @@
 
 module cpu_top 
     import core_types::*;
+    import core_config::*;
     import csr_defines::*;
     import tlb_types::*;
 (
@@ -92,7 +94,7 @@ module cpu_top
     logic rst_n;
     logic rst;
     assign rst_n = aresetn;
-    assign rst   = ~rst_n;
+    assign rst   = ~aresetn;
 
     // ICache <-> AXI Controller
     logic icache_axi_rreq;
@@ -100,7 +102,7 @@ module cpu_top
     logic [127:0] axi_icache_data; // 128b
     logic [`RegBus] icache_axi_addr;
 
-    // MEM <-> AXI Controller
+    // DCache <-> AXI Controller
     logic dcache_axi_rreq; // Read handshake
     logic axi_dcache_rd_rdy;
     logic axi_dcache_rvalid;
@@ -110,11 +112,12 @@ module cpu_top
     logic [`DataAddrBus] dcache_axi_waddr;
     logic [`DataAddrBus] dcache_axi_addr;
     assign dcache_axi_addr = dcache_axi_rreq ? dcache_axi_raddr : dcache_axi_wreq ? dcache_axi_waddr : 0;
-    logic [127:0] axi_dcache_data;
     logic [127:0] dcache_axi_data;
+    logic [15:0] dcache_axi_wstrb; // Byte selection
+    logic [127:0] axi_dcache_data; // AXI Read result
+
     logic [`RegBus] cache_mem_data;
     logic mem_data_ok,mem_addr_ok;
-    logic [15:0] dcache_axi_wstrb; // Byte selection
 
     axi_master u_axi_master (
         .aclk   (aclk),
@@ -144,6 +147,7 @@ module cpu_top
         .dcache_wr_type_i(3'b000), 
         .dcache_wr_data(dcache_axi_data),
         .dcache_wr_rdy(axi_dcache_wr_rdy),
+        .write_ok(), // Used in conherent instructions, unused for now
 
 
         // External AXI signals
@@ -229,16 +233,17 @@ module cpu_top
     );
     
 
-    // FETCH_WIDTH is 4
-    localparam FETCH_WIDTH = 4;
-
     // Frontend -> ICache
     logic [1:0] frontend_icache_rreq;
     logic [1:0][`InstAddrBus] frontend_icache_addr;
 
     // ICache -> Frontend
     logic [1:0]icache_frontend_valid;
-    logic [1:0][127:0] icache_frontend_data; // Cacheline is 128b
+    logic [1:0][ICACHELINE_WIDTH-1:0] icache_frontend_data;
+
+    // ICache <- TLB
+    // Frontend <- TLB
+    tlb_inst_t tlb_inst;
 
     icache u_icache(
        .clk          (clk          ),
@@ -261,9 +266,14 @@ module cpu_top
        .axi_rdy_i    (axi_icache_rdy),
        .axi_rvalid_i (axi_icache_rvalid),
        .axi_rlast_i  (),
-       .axi_data_i   (axi_icache_data)
+       .axi_data_i   (axi_icache_data),
+
+       // <- TLB
+       .tlb_i(tlb_inst)
    );
     
+    // Frontend <-> TLB
+    inst_tlb_t frontend_tlb;
 
     // Frontend <-> Instruction Buffer
     logic ib_frontend_stallreq;
@@ -305,16 +315,13 @@ module cpu_top
         .disable_cache(),
 
         // <-> TLB
-        .inst_addr(tlb_inst_i.vaddr),
-        .inst_addr_trans_en(inst_addr_trans_en),
-        .dmw0_en(tlb_inst_i.dmw0_en),
-        .dmw1_en(tlb_inst_i.dmw1_en),
-        .inst_tlb_tag(tlb_inst_o.tag),
-        .inst_tlb_found(tlb_inst_o.tlb_found),
-        .inst_tlb_v(tlb_inst_o.tlb_v),
-        .inst_tlb_d(tlb_inst_o.tlb_d),
-        .inst_tlb_mat(tlb_inst_o.tlb_mat),
-        .inst_tlb_plv(tlb_inst_o.tlb_plv)
+        .tlb_o(frontend_tlb),
+        .inst_tlb_tag(tlb_inst.tag),
+        .inst_tlb_found(tlb_inst.tlb_found),
+        .inst_tlb_v(tlb_inst.tlb_v),
+        .inst_tlb_d(tlb_inst.tlb_d),
+        .inst_tlb_mat(tlb_inst.tlb_mat),
+        .inst_tlb_plv(tlb_inst.tlb_plv)
     );
 
     instr_buffer_info_t ib_backend_instr_info[2];  // IB -> ID
@@ -435,7 +442,6 @@ module cpu_top
 
 
     //tlb
-    logic inst_addr_trans_en;
     logic data_addr_trans_en;
 
     //csr
@@ -786,8 +792,6 @@ module cpu_top
     assign tlb_data_i.vaddr = mem_cache_addr;
     assign tlb_data_i.fetch = data_fetch[0];
 
-    inst_tlb_t tlb_inst_i;
-    tlb_inst_t tlb_inst_o;
     data_tlb_t tlb_data_i;
     tlb_data_t tlb_data_o;
     tlb_write_in_struct tlb_write_signal_i;
@@ -798,11 +802,10 @@ module cpu_top
         .clk               (clk),
         .asid              (csr_asid),
         //trans mode 
-        .inst_addr_trans_en(inst_addr_trans_en),
         .data_addr_trans_en(data_addr_trans_en),
         //inst addr trans
-        .inst_i(tlb_inst_i),
-        .inst_o(tlb_inst_o),
+        .inst_i(frontend_tlb),
+        .inst_o(tlb_inst),
         //data addr trans 
         .data_i(tlb_data_i),
         .data_o(tlb_data_o),
@@ -821,8 +824,12 @@ module cpu_top
 
     // Difftest Delay signals
     diff_commit difftest_commit_info_delay1[2];
+    logic csr_rstat_commit[2];
+    logic [`RegBus] csr_data_commit[2];
     always_ff @(posedge clk) begin
         difftest_commit_info_delay1 <= difftest_commit_info;
+        csr_rstat_commit[0] <= csr_w_o[0].we && (csr_w_o[0].addr == 14'h5);
+        csr_data_commit[1] <= csr_w_o[1].data;
     end
 
     always_ff @(posedge clk) begin
@@ -838,18 +845,13 @@ module cpu_top
         `endif
     end
 
-    logic [31:0] pc_test[4];
-    assign pc_test[0] = difftest_commit_info_delay1[0].pc;
-    assign pc_test[1] = difftest_commit_info_delay1[1].pc;
-
     logic excp_flush_commit;
     logic ertn_flush_commit;
     logic [`RegBus]excp_pc_commit;
     logic [5:0] csr_ecode_commit;
     logic [`InstBus] excp_instr_commit;
-    logic [63:0] timer_test1,timer_test2;
-    assign timer_test1 = difftest_commit_info_delay1[0].timer_64;
-    assign timer_test2 = difftest_commit_info_delay1[1].timer_64;
+    logic tlbfill_en_commit;
+    logic [4:0] rand_index_commit;
 
     always_ff @(posedge clk) begin 
         excp_flush_commit <= excp_flush;
@@ -857,6 +859,8 @@ module cpu_top
         excp_pc_commit <= csr_era_i;
         csr_ecode_commit <= csr_ecode_i;
         excp_instr_commit <= excp_instr;
+        tlbfill_en_commit <= tlb_write_signal_i.tlbfill_en;
+        rand_index_commit <= tlb_write_signal_i.rand_index;
     end
     // difftest dpi-c
 `ifdef SIMU  // SIMU is defined in chiplab run_func/makefile
@@ -868,15 +872,15 @@ module cpu_top
         .pc            (difftest_commit_info_delay1[0].pc),
         .instr         (difftest_commit_info_delay1[0].instr),
         .skip          (0),                             // not implemented in CHIPLAB, keep 0 
-        .is_TLBFILL    (),
-        .TLBFILL_index (),
+        .is_TLBFILL    (tlbfill_en_commit),
+        .TLBFILL_index (rand_index_commit),
         .is_CNTinst    (difftest_commit_info_delay1[0].is_CNTinst),
         .timer_64_value(difftest_commit_info_delay1[0].timer_64),
         .wen           (debug0_wb_rf_wen),
         .wdest         ({3'b0, debug0_wb_rf_wnum}),
         .wdata         (debug0_wb_rf_wdata),
-        .csr_rstat     (),
-        .csr_data      ()
+        .csr_rstat     (csr_rstat_commit[0]),
+        .csr_data      (csr_data_commit[0])
     );
     DifftestInstrCommit difftest_instr_commit_1 (  
         .clock         (aclk),
@@ -886,15 +890,15 @@ module cpu_top
         .valid         (difftest_commit_info_delay1[1].valid),  // 1 means valid
         .pc            (difftest_commit_info_delay1[1].pc),
         .instr         (difftest_commit_info_delay1[1].instr),
-        .is_TLBFILL    (),
-        .TLBFILL_index (),
+        .is_TLBFILL    (tlbfill_en_commit),
+        .TLBFILL_index (rand_index_commit),
         .is_CNTinst    (difftest_commit_info_delay1[1].is_CNTinst),
         .timer_64_value(difftest_commit_info_delay1[1].timer_64),
         .wen           (debug1_wb_rf_wen),
         .wdest         ({3'b0, debug1_wb_rf_wnum}),
         .wdata         (debug1_wb_rf_wdata),
-        .csr_rstat     (),
-        .csr_data      ()
+        .csr_rstat     (csr_rstat_commit[1]),
+        .csr_data      (csr_data_commit[1])
     );
 
     DifftestStoreEvent difftest_store_event(

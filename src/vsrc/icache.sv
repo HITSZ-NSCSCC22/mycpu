@@ -1,12 +1,14 @@
-
+`include "core_config.sv"
+`include "tlb_types.sv"
 `include "utils/bram.sv"
 `include "utils/lfsr.sv"
 
-module icache #(
+module icache
+    import core_config::*;
+    import tlb_types::*;
+#(
     parameter NSET = 256,
-    parameter NWAY = 2,
-    parameter CACHELINE_WIDTH = 128,
-    parameter ADDR_WIDTH = 32
+    parameter NWAY = 2
 ) (
     input logic clk,
     input logic rst,
@@ -15,13 +17,13 @@ module icache #(
     input logic rreq_1_i,
     input logic [ADDR_WIDTH-1:0] raddr_1_i,
     output logic rvalid_1_o,
-    output logic [CACHELINE_WIDTH-1:0] rdata_1_o,
+    output logic [ICACHELINE_WIDTH-1:0] rdata_1_o,
 
     // Read port 2
     input logic rreq_2_i,
     input logic [ADDR_WIDTH-1:0] raddr_2_i,
     output logic rvalid_2_o,
-    output logic [CACHELINE_WIDTH-1:0] rdata_2_o,
+    output logic [ICACHELINE_WIDTH-1:0] rdata_2_o,
 
     // <-> AXI Controller
     output logic [ADDR_WIDTH-1:0] axi_addr_o,
@@ -29,15 +31,18 @@ module icache #(
     input logic axi_rdy_i,
     input logic axi_rvalid_i,
     input logic [1:0] axi_rlast_i,
-    input logic [CACHELINE_WIDTH-1:0] axi_data_i
+    input logic [ICACHELINE_WIDTH-1:0] axi_data_i,
+
+    // <- TLB
+    input tlb_inst_t tlb_i
 );
 
     /////////////////////////////////////////////////
     // PO, query BRAM
     ////////////////////////////////////////////////
 
-    logic [NWAY-1:0][1:0][CACHELINE_WIDTH-1:0] data_bram_rdata;
-    logic [NWAY-1:0][1:0][CACHELINE_WIDTH-1:0] data_bram_wdata;
+    logic [NWAY-1:0][1:0][ICACHELINE_WIDTH-1:0] data_bram_rdata;
+    logic [NWAY-1:0][1:0][ICACHELINE_WIDTH-1:0] data_bram_wdata;
     logic [NWAY-1:0][1:0][$clog2(NSET)-1:0] data_bram_addr;
     logic [NWAY-1:0][1:0] data_bram_we;
 
@@ -214,7 +219,7 @@ module icache #(
         end
     end
 
-
+    // Generate miss signal
     logic miss_1_pulse, miss_2_pulse, miss_1_r, miss_2_r, miss_1, miss_2;
     assign miss_1_pulse = p1_rreq_1 & ~rvalid_1 & (state == IDLE);
     assign miss_2_pulse = p1_rreq_2 & ~rvalid_2 & (state == IDLE);
@@ -242,6 +247,15 @@ module icache #(
         end
     end
 
+    // Store TLB input
+    tlb_inst_t p1_tlb;
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            p1_tlb <= 0;
+        end else if (miss_1_pulse | miss_2_pulse) begin
+            p1_tlb <= tlb_i;
+        end
+    end
 
 
     always_comb begin : transition_comb
@@ -277,15 +291,16 @@ module icache #(
     end
 
     // Read request to AXI Controller
+    // Use result from TLB
     always_comb begin
         case (state)
             REFILL_1_REQ, REFILL_1_WAIT: begin
                 axi_rreq_o = miss_1 ? 1 : 0;
-                axi_addr_o = miss_1 ? p1_raddr_1 : 0;
+                axi_addr_o = miss_1 ? {p1_tlb.tag, p1_raddr_1[11:0]} : 0;
             end
             REFILL_2_REQ, REFILL_2_WAIT: begin
                 axi_rreq_o = miss_2 ? 1 : 0;
-                axi_addr_o = miss_2 ? p1_raddr_2 : 0;
+                axi_addr_o = miss_2 ? {p1_tlb.tag, p1_raddr_2[11:0]} : 0;
             end
             default: begin
                 axi_rreq_o = 0;

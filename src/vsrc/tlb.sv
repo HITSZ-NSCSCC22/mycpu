@@ -12,8 +12,7 @@ module tlb
     input logic [9:0] asid,
 
     //inst addr trans, return next cycle
-    input logic inst_addr_trans_en,
-    input inst_tlb_t inst_i,
+    input  inst_tlb_t inst_i,
     output tlb_inst_t inst_o,
 
     //data addr trans, return next cycle
@@ -57,6 +56,7 @@ module tlb
 
     logic [31:0] inst_vaddr_buffer;
     logic [31:0] data_vaddr_buffer;
+    inst_tlb_t inst_i_buffer;
     logic [31:0] inst_paddr;
     logic [31:0] data_paddr;
 
@@ -67,6 +67,7 @@ module tlb
 
     always @(posedge clk) begin
         inst_vaddr_buffer <= inst_i.vaddr;
+        inst_i_buffer <= inst_i;
         data_vaddr_buffer <= data_i.vaddr;
     end
 
@@ -161,12 +162,12 @@ module tlb
     assign cacop_test = data_i.cacop_op_mode_di;
 
 
-    assign inst_paddr = (pg_mode && inst_i.dmw0_en) ? {csr_dmw0[`PSEG], inst_vaddr_buffer[28:0]} :
-                    (pg_mode && inst_i.dmw1_en) ? {csr_dmw1[`PSEG], inst_vaddr_buffer[28:0]} : inst_vaddr_buffer;
+    assign inst_paddr = (pg_mode && inst_i_buffer.dmw0_en) ? {csr_dmw0[`PSEG], inst_vaddr_buffer[28:0]} :
+                    (pg_mode && inst_i_buffer.dmw1_en) ? {csr_dmw1[`PSEG], inst_vaddr_buffer[28:0]} : inst_vaddr_buffer;
 
     assign inst_o.offset = inst_vaddr_buffer[3:0];
     assign inst_o.index = inst_vaddr_buffer[11:4];
-    assign inst_o.tag    = inst_addr_trans_en ? ((s0_ps == 6'd12) ? s0_ppn : {s0_ppn[19:10], inst_paddr[21:12]}) : inst_paddr[31:12];
+    assign inst_o.tag    = inst_i_buffer.trans_en ? ((s0_ps == 6'd12) ? s0_ppn : {s0_ppn[19:10], inst_paddr[21:12]}) : inst_paddr[31:12];
 
     assign data_paddr = (pg_mode && data_i.dmw0_en && !data_i.cacop_op_mode_di) ? {csr_dmw0[`PSEG], data_vaddr_buffer[28:0]} : 
                     (pg_mode && data_i.dmw1_en && !data_i.cacop_op_mode_di) ? {csr_dmw1[`PSEG], data_vaddr_buffer[28:0]} : data_vaddr_buffer;

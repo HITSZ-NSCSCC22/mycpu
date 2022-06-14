@@ -10,9 +10,19 @@ package core_types;
 
     `define DECODE_WIDTH 2
 
+
     typedef struct packed {
-        //excp
+        logic pg;
+        logic da;
+        logic [31:0] dmw0;
+        logic [31:0] dmw1;
+        logic [1:0] plv;
+    } ifu_csr_t;
+
+    typedef struct packed {
+        // Exception info from frontend
         logic excp;
+        // {excp_ppi, excp_pif, excp_tlbr, excp_adef}
         logic [3:0] excp_num;
 
         bit valid;
