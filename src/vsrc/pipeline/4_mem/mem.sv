@@ -82,7 +82,7 @@ module mem
     assign mem_store_op = aluop_i == `EXE_ST_B_OP || aluop_i == `EXE_ST_H_OP || aluop_i == `EXE_ST_W_OP || aluop_i == `EXE_SC_OP;
 
     //difftest
-    assign signal_o.inst_ld_en = {
+    assign signal_o.inst_ld_en = access_mem ? {
         2'b0,
         aluop_i == `EXE_LL_OP ? 1'b1 : 1'b0,
         aluop_i == `EXE_LD_W_OP ? 1'b1 : 1'b0,
@@ -90,15 +90,15 @@ module mem
         aluop_i == `EXE_LD_H_OP ? 1'b1 : 1'b0,
         aluop_i == `EXE_LD_BU_OP ? 1'b1 : 1'b0,
         aluop_i == `EXE_LD_B_OP ? 1'b1 : 1'b0
-    };
+    } : 0;
 
-    assign signal_o.inst_st_en = {
+    assign signal_o.inst_st_en = access_mem ? {
         4'b0,
         aluop_i == `EXE_SC_OP ? 1'b1 : 1'b0,
         aluop_i == `EXE_ST_W_OP ? 1'b1 : 1'b0,
         aluop_i == `EXE_ST_H_OP ? 1'b1 : 1'b0,
         aluop_i == `EXE_ST_B_OP ? 1'b1 : 1'b0
-    };
+    } : 0;
 
     assign signal_o.load_addr = mem_load_op ? mem_addr : 0;
     assign signal_o.store_addr = mem_store_op ? mem_addr : 0;
