@@ -17,13 +17,21 @@ module ftq
     output logic bpu_queue_full_o,
 
     // <-> Backend 
-    input logic backend_commit_i,
+    input logic [COMMIT_WIDTH-1:0] backend_commit_i,
 
     // <-> IFU
     output ftq_ifu_t ifu_o,
     output [$clog2(FRONTEND_FTQ_SIZE)-1:0] ifu_ftq_id_o,
     input logic ifu_accept_i  // Must return in the same cycle
 );
+
+    logic [$clog2(COMMIT_WIDTH)-1:0] backend_commit_num;
+    always_comb begin
+        backend_commit_num = 0;
+        for (integer i = 0; i < COMMIT_WIDTH; i++) begin
+            backend_commit_num += backend_commit_i[i];
+        end
+    end
 
     localparam QUEUE_SIZE = FRONTEND_FTQ_SIZE;
 
@@ -55,7 +63,7 @@ module ftq
             comm_ptr <= 0;
         end else begin
             // Backend committed, means that current comm_ptr block is done
-            if (backend_commit_i) comm_ptr <= comm_ptr + 1;
+            comm_ptr <= comm_ptr + backend_commit_num;
 
             // If block is accepted by IFU, ifu_ptr++
             // IB full should result in IFU not accepting FTQ input

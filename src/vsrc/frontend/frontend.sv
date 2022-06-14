@@ -27,7 +27,7 @@ module frontend
     input logic [ADDR_WIDTH-1:0] backend_next_pc_i,
     input logic backend_flush_i,
     input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_flush_ftq_id_i,
-    input logic backend_commit_i,
+    input logic [COMMIT_WIDTH-1:0] backend_commit_i,
 
     // <-> Instruction buffer
     input logic instr_buffer_stallreq_i,

@@ -301,7 +301,7 @@ module cpu_top
         .backend_next_pc_i   (next_pc),       // backend PC, <- pc_gen
         .backend_flush_i     (backend_flush), // backend flush, usually come with next_pc
         .backend_flush_ftq_id_i(backend_flush_ftq_id),
-        .backend_commit_i (is_last_in_block[0] | is_last_in_block[1] | ertn_flush | idle_flush),
+        .backend_commit_i ({is_last_in_block[0] | ertn_flush | idle_flush, is_last_in_block[1]}),
 
         // <-> Instruction Buffer
         .instr_buffer_stallreq_i(ib_frontend_stallreq),   // instruction buffer is full

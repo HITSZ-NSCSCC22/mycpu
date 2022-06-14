@@ -13,6 +13,9 @@ package core_config;
     parameter ICACHELINE_WIDTH = 128;
     parameter FRONTEND_FTQ_SIZE = 8;
 
+    // Commit Parameters
+    parameter COMMIT_WIDTH = 2;
+
 endpackage
 
 `endif
