@@ -477,12 +477,13 @@ module cpu_top
     logic [1:0] branch_flag;
 
     logic [1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] branch_ftq_id;
-    logic [1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] wb_ftq_id;
+    logic [1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] wb_ctrl_ftq_id;
+    logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ctrl_frontend_ftq_id;
 
     // Redirect signal for frontend
     assign backend_flush = excp_flush | ertn_flush | idle_flush |((branch_flag[0] | branch_flag[1]) & ~stall[2]);
 
-    assign backend_flush_ftq_id = (excp_flush | ertn_flush | idle_flush) ? wb_ftq_id[0] | wb_ftq_id[1] :
+    assign backend_flush_ftq_id = (excp_flush | ertn_flush | idle_flush) ? ctrl_frontend_ftq_id:
                                 (branch_flag[0] & ~stall[2]) ? branch_ftq_id[0] : 
                                 (branch_flag[1] & ~stall[2]) ? branch_ftq_id[1] : 0;
 
@@ -635,9 +636,7 @@ module cpu_top
 
                 //to ctrl
                 .wb_ctrl_signal(wb_ctrl_signal[i]),
-
-                // -> Frontend
-                .ftq_id_o(wb_ftq_id[i])
+                .ftq_id_o(wb_ctrl_ftq_id[i])
             );
         end
     endgenerate
@@ -684,9 +683,11 @@ module cpu_top
 
         // -> Frontend
         .backend_commit_block_o(ctrl_frontend_commit_block),
+        .backend_flush_ftq_id_o(ctrl_frontend_ftq_id),
 
         // <- WB
         .wb_i(wb_ctrl_signal),
+        .wb_ftq_id_i(wb_ctrl_ftq_id),
 
         // <- EX
     	.ex_branch_flag_i (stall[2] ? 0: branch_flag),

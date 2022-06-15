@@ -15,18 +15,20 @@ module ctrl
 
     // -> Frontend
     output logic [COMMIT_WIDTH-1:0] backend_commit_block_o,  // do backend commit a basic block
+    output logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_flush_ftq_id_o,
 
-    input  wb_ctrl                wb_i                  [2],  //流水线传来的信号
-    input  logic   [         1:0] ex_branch_flag_i,           //执行阶段跳转信号
-    input  logic   [         1:0] ex_stallreq_i,              //执行阶段暂停请求信号
-    input  logic   [         1:0] tlb_stallreq,               //tlb暂停请求信号(未用到)
-    input  logic                  stallreq_from_dispatch,     //发射阶段暂停请求信号
-    input  logic   [         1:0] mem_stallreq_i,             //访存阶段暂停请求信号
-    output logic                  idle_flush,                 //idle指令冲刷信号
-    output logic                  excp_flush,                 //异常指令冲刷信号
-    output logic                  ertn_flush,                 //ertn指令冲刷信号
-    output logic                  fetch_flush,                //未用到，暂时不管
-    output logic   [`InstAddrBus] idle_pc,                    //idle指令pc
+    input wb_ctrl wb_i[2],  //流水线传来的信号
+    input logic [1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] wb_ftq_id_i,
+    input logic [1:0] ex_branch_flag_i,  //执行阶段跳转信号
+    input logic [1:0] ex_stallreq_i,  //执行阶段暂停请求信号
+    input logic [1:0] tlb_stallreq,  //tlb暂停请求信号(未用到)
+    input logic stallreq_from_dispatch,  //发射阶段暂停请求信号
+    input logic [1:0] mem_stallreq_i,  //访存阶段暂停请求信号
+    output logic idle_flush,  //idle指令冲刷信号
+    output logic excp_flush,  //异常指令冲刷信号
+    output logic ertn_flush,  //ertn指令冲刷信号
+    output logic fetch_flush,  //未用到，暂时不管
+    output logic [`InstAddrBus] idle_pc,  //idle指令pc
 
     // Stall request to each stage
     output logic [4:0] stall,  // from 4->0 {ex_mem, dispatch_ex, id_dispatch, _}
@@ -85,6 +87,9 @@ module ctrl
     assign backend_commit_block_o = backend_commit_valid & (wb_i[0].excp ? 2'b01:
                                     wb_i[1].excp ? {1'b1 , wb_i[0].is_last_in_block | ertn_flush | idle_flush} : 
                                     {wb_i[1].is_last_in_block, wb_i[0].is_last_in_block | ertn_flush | idle_flush});
+    // Backend flush FTQ ID
+    assign backend_flush_ftq_id_o = (wb_i[0].excp | ertn_flush | idle_flush ) ? wb_ftq_id_i[0] :
+                                    (wb_i[1].excp) ? wb_ftq_id_i[1] : 0;
 
     logic [`AluOpBus] aluop, aluop_1;
     assign aluop = wb_i[0].aluop;
