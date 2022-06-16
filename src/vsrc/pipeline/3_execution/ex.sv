@@ -74,7 +74,7 @@ module ex
     always_comb begin
         if(mem_data_forward_i[1].write_reg == `WriteEnable && mem_data_forward_i[1].is_load_data && mem_data_forward_i[1].write_reg_addr == dispatch_i.read_reg_addr[0] && mem_data_forward_i[1].write_reg_addr != 0)
             oprand1 = mem_data_forward_i[1].write_reg_data;
-        else if(mem_data_forward_i[0].write_reg == `WriteEnable && mem_data_forward_i[0].is_load_data && mem_data_forward_i[0].write_reg_addr == dispatch_i.read_reg_addr[0])// && mem_data_forward_i[0].write_reg_addr != 0)
+        else if(mem_data_forward_i[0].write_reg == `WriteEnable && mem_data_forward_i[0].is_load_data && mem_data_forward_i[0].write_reg_addr == dispatch_i.read_reg_addr[0] && mem_data_forward_i[0].write_reg_addr != 0)
             oprand1 = mem_data_forward_i[0].write_reg_data;
         else oprand1 = dispatch_i.oprand1;
         if(mem_data_forward_i[1].write_reg == `WriteEnable && mem_data_forward_i[1].is_load_data && mem_data_forward_i[1].write_reg_addr == dispatch_i.read_reg_addr[1] && mem_data_forward_i[1].write_reg_addr != 0)
@@ -269,11 +269,11 @@ module ex
                 `EXE_MUL_OP: arithout = $signed(reg1_i) * $signed(reg2_i);
                 `EXE_MULH_OP: arithout = ($signed(reg1_i) * $signed(reg2_i)) >> 32;
                 `EXE_MULHU_OP: arithout = ($unsigned(reg1_i) * $unsigned(reg2_i)) >> 32;
-                `EXE_DIV_OP: arithout = ($signed(reg1_i) / $signed(reg2_i));
-                `EXE_DIVU_OP: arithout = ($unsigned(reg1_i) / $unsigned(reg2_i));
-                `EXE_MODU_OP: arithout = ($unsigned(reg1_i) % $unsigned(reg2_i));
+                `EXE_DIV_OP: arithout = ($signed(reg1_i) / $signed(reg2_i == 0 ? 1 : reg2_i));
+                `EXE_DIVU_OP: arithout = ($unsigned(reg1_i) / $unsigned(reg2_i == 0 ? 1 : reg2_i));
+                `EXE_MODU_OP: arithout = ($unsigned(reg1_i) % $unsigned(reg2_i == 0 ? 1 : reg2_i));
                 `EXE_MOD_OP: begin
-                    arithout = ($signed(reg1_i) % $signed(reg2_i));
+                    arithout = ($signed(reg1_i) % $signed(reg2_i == 0 ? 1 : reg2_i));
                 end
                 `EXE_SLT_OP, `EXE_SLTU_OP: arithout = {31'b0, reg1_lt_reg2};
                 default: begin
