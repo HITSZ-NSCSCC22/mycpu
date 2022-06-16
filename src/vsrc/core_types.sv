@@ -30,13 +30,13 @@ package core_types;
         // {excp_ppi, excp_pif, excp_tlbr, excp_adef}
         logic [3:0] excp_num;
 
+        // Frontend info
+        bit [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_id;
+
         bit valid;
         bit is_last_in_block;  // Mark the last instruction in basic block
         bit [`InstAddrBus] pc;
         bit [`InstBus] instr;
-
-        // Frontend info
-        bit [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_id;
 
         // BPU info
         bit bpu_predicted_taken;

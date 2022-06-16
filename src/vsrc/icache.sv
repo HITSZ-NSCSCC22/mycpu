@@ -175,8 +175,8 @@ module icache
     logic [NWAY-1:0][1:0] tag_hit;
     always_comb begin
         for (integer i = 0; i < NWAY; i++) begin
-            tag_hit[i][0] = tag_bram_rdata[i][0][19:0] == p1_raddr_1[ADDR_WIDTH-1:ADDR_WIDTH-20] && tag_bram_rdata[i][0][20];
-            tag_hit[i][1] = tag_bram_rdata[i][1][19:0] == p1_raddr_2[ADDR_WIDTH-1:ADDR_WIDTH-20] && tag_bram_rdata[i][1][20];
+            tag_hit[i][0] = tag_bram_rdata[i][0][19:0] == p1_tlb.tag && tag_bram_rdata[i][0][20];
+            tag_hit[i][1] = tag_bram_rdata[i][1][19:0] == p1_tlb.tag && tag_bram_rdata[i][1][20];
         end
     end
 
@@ -248,12 +248,13 @@ module icache
     end
 
     // Store TLB input
-    tlb_inst_t p1_tlb;
+    tlb_inst_t p1_tlb, tlb_i_r;
+    assign p1_tlb = (state == IDLE) ? tlb_i : tlb_i_r;
     always_ff @(posedge clk) begin
         if (rst) begin
-            p1_tlb <= 0;
+            tlb_i_r <= 0;
         end else if (miss_1_pulse | miss_2_pulse) begin
-            p1_tlb <= tlb_i;
+            tlb_i_r <= tlb_i;
         end
     end
 
@@ -295,11 +296,11 @@ module icache
     always_comb begin
         case (state)
             REFILL_1_REQ, REFILL_1_WAIT: begin
-                axi_rreq_o = miss_1 ? 1 : 0;
+                axi_rreq_o = (miss_1 ? 1 : 0) & ~axi_rvalid_i;
                 axi_addr_o = miss_1 ? {p1_tlb.tag, p1_raddr_1[11:0]} : 0;
             end
             REFILL_2_REQ, REFILL_2_WAIT: begin
-                axi_rreq_o = miss_2 ? 1 : 0;
+                axi_rreq_o = (miss_2 ? 1 : 0) & ~axi_rvalid_i;
                 axi_addr_o = miss_2 ? {p1_tlb.tag, p1_raddr_2[11:0]} : 0;
             end
             default: begin
@@ -329,13 +330,13 @@ module icache
                 // write this way
                 if (state == REFILL_1_WAIT && axi_rvalid_i) begin
                     tag_bram_we[i][0] = 1;
-                    tag_bram_wdata[i][0] = {1'b1, p1_raddr_1[31:12]};
+                    tag_bram_wdata[i][0] = {1'b1, p1_tlb.tag};
                     data_bram_we[i][0] = 1;
                     data_bram_wdata[i][0] = axi_data_i;
                 end
                 if (state == REFILL_2_WAIT && axi_rvalid_i) begin
                     tag_bram_we[i][1] = 1;
-                    tag_bram_wdata[i][1] = {1'b1, p1_raddr_2[31:12]};
+                    tag_bram_wdata[i][1] = {1'b1, p1_tlb.tag};
                     data_bram_we[i][1] = 1;
                     data_bram_wdata[i][1] = axi_data_i;
                 end
