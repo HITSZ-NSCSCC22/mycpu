@@ -565,7 +565,7 @@ module cpu_top
     assign csr_mem_signal = {csr_pg,csr_da,csr_dmw0,csr_dmw1,csr_plv,csr_datm};
     //assign tlb_mem_signal = {data_tlb_found,data_tlb_index,data_tlb_v,data_tlb_d,data_tlb_mat,data_tlb_plv};
 
-    logic data_fetch[2];
+    logic [1:0] data_fetch, mem_tlbsrch;
     generate
         for (genvar i = 0; i < 2; i++) begin : mem
             mem u_mem (
@@ -581,8 +581,11 @@ module cpu_top
                 // <- AXI Controller
                 .addr_ok(mem_addr_ok),
                 .data_ok(mem_data_ok),
-                .data_fetch(data_fetch[i]),
                 .mem_data_i(cache_mem_data),
+
+                // -> TLB
+                .data_fetch(data_fetch[i]),
+                .tlbsrch_en_o(mem_tlbsrch[i]),
 
                 // -> Ctrl
                 .stallreq(mem_stallreq[i]),
@@ -800,12 +803,13 @@ module cpu_top
     );
 
     assign data_addr_trans_en = mem_data_addr_trans_en[0];
+    data_tlb_t tlb_data_i;
     assign tlb_data_i.dmw0_en = mem_data_dmw0_en[0];
     assign tlb_data_i.dmw1_en = mem_data_dmw1_en[0];
     assign tlb_data_i.vaddr = mem_cache_addr;
     assign tlb_data_i.fetch = data_fetch[0];
+    assign tlb_data_i.tlbsrch = mem_tlbsrch[0];
 
-    data_tlb_t tlb_data_i;
     tlb_data_t tlb_data_o;
     tlb_write_in_struct tlb_write_signal_i;
     tlb_read_out_struct tlb_read_signal_o;

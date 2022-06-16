@@ -30,6 +30,7 @@ package tlb_types;
 
     typedef struct packed {
         logic fetch;
+        logic tlbsrch;
         logic [31:0] vaddr;
         logic dmw0_en;
         logic dmw1_en;

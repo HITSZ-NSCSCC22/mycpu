@@ -75,7 +75,7 @@ module tlb
     assign s0_vppn = inst_i.vaddr[31:13];
     assign s0_odd_page = inst_i.vaddr[12];
 
-    assign s1_vppn = data_i.vaddr[31:13] | write_signal_i.tlbehi[`VPPN];
+    assign s1_vppn = data_i.tlbsrch ? write_signal_i.tlbehi[`VPPN] : data_i.vaddr[31:13];
     assign s1_odd_page = data_i.vaddr[12];
 
     //trans write port sig

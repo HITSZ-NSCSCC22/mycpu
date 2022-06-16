@@ -21,7 +21,9 @@ module mem
     input logic data_ok,
     input logic [`RegBus] mem_data_i,
 
-    output data_fetch,
+    // -> TLB
+    output logic data_fetch,
+    output logic tlbsrch_en_o,
 
     input logic LLbit_i,
     input logic wb_LLbit_we_i,
@@ -70,7 +72,8 @@ module mem
     assign excp_num_i = signal_i.excp_num;
 
     // Send request to TLB, so result can be used in WB
-    assign data_fetch = access_mem | aluop_i == `EXE_TLBSRCH_OP;
+    assign tlbsrch_en_o = aluop_i == `EXE_TLBSRCH_OP;
+    assign data_fetch = access_mem;
 
     assign access_mem = signal_cache_o.ce;
 
