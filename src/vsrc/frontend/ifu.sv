@@ -134,6 +134,7 @@ module ifu
             p1_read_transaction.icache_rvalid_r <= 0;
             p1_read_transaction.icache_rdata_r <= 0;
             p1_read_transaction.ftq_id <= ftq_id_i;
+            p1_read_transaction.tlb_rreq <= tlb_o;
         end else if (p1_read_done & ~stallreq_i) begin
             // Reset if done and not stalling
             p1_read_transaction <= 0;
@@ -165,7 +166,7 @@ module ifu
 
     /////////////////////////////////////////////////////////////////////////////////
     // P2, send instr info to IB
-    ////////////////////////////// TODO: move excp to correct position
+    ////////////////////////////// 
     logic [FETCH_WIDTH-1:0] excp_tlbr, excp_pif, excp_ppi, excp_adef;
     // TLB not found, trigger a TLBR
     assign excp_tlbr = {FETCH_WIDTH{!p1_tlb.tlb_found && p1_read_transaction.tlb_rreq.trans_en}};
@@ -176,8 +177,9 @@ module ifu
     // Instr addr not aligned, trigger a ADEF
     always_comb begin
         for (integer i = 0; i < FETCH_WIDTH; i++) begin
+            logic [ADDR_WIDTH-1:0] pc_ii = p1_read_transaction.start_pc + i * 4;
+            excp_adef[i] = 0;
             if (i < p1_read_transaction.length) begin
-                logic [ADDR_WIDTH-1:0] pc_ii = p1_read_transaction.start_pc + i * 4;
                 excp_adef[i] = (pc_ii[0] || pc_ii[1]) | (pc_ii[31]&& p1_read_transaction.csr.plv == 2'd3&& p1_read_transaction.tlb_rreq.trans_en);
             end
         end
