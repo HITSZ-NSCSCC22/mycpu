@@ -72,14 +72,14 @@ module ex
     // Determine oprands
     logic [`RegBus] reg1_i, reg2_i, imm, oprand1, oprand2;
     always_comb begin
-        if(mem_data_forward_i[1].write_reg == `WriteEnable && mem_data_forward_i[1].is_load_data && mem_data_forward_i[1].write_reg_addr == dispatch_i.read_reg_addr[0])
+        if(mem_data_forward_i[1].write_reg == `WriteEnable && mem_data_forward_i[1].is_load_data && mem_data_forward_i[1].write_reg_addr == dispatch_i.read_reg_addr[0] && mem_data_forward_i[1].write_reg_addr != 0)
             oprand1 = mem_data_forward_i[1].write_reg_data;
-        else if(mem_data_forward_i[0].write_reg == `WriteEnable && mem_data_forward_i[0].is_load_data && mem_data_forward_i[0].write_reg_addr == dispatch_i.read_reg_addr[0] )
+        else if(mem_data_forward_i[0].write_reg == `WriteEnable && mem_data_forward_i[0].is_load_data && mem_data_forward_i[0].write_reg_addr == dispatch_i.read_reg_addr[0] && mem_data_forward_i[0].write_reg_addr != 0)
             oprand1 = mem_data_forward_i[0].write_reg_data;
         else oprand1 = dispatch_i.oprand1;
-        if(mem_data_forward_i[1].write_reg == `WriteEnable && mem_data_forward_i[1].is_load_data && mem_data_forward_i[1].write_reg_addr == dispatch_i.read_reg_addr[1] )
+        if(mem_data_forward_i[1].write_reg == `WriteEnable && mem_data_forward_i[1].is_load_data && mem_data_forward_i[1].write_reg_addr == dispatch_i.read_reg_addr[1] && mem_data_forward_i[1].write_reg_addr != 0)
             oprand2 = mem_data_forward_i[1].write_reg_data;
-        else if(mem_data_forward_i[0].write_reg == `WriteEnable && mem_data_forward_i[0].is_load_data && mem_data_forward_i[0].write_reg_addr == dispatch_i.read_reg_addr[1] )
+        else if(mem_data_forward_i[0].write_reg == `WriteEnable && mem_data_forward_i[0].is_load_data && mem_data_forward_i[0].write_reg_addr == dispatch_i.read_reg_addr[1] && mem_data_forward_i[0].write_reg_addr != 0)
             oprand2 = mem_data_forward_i[0].write_reg_data;
         else oprand2 = dispatch_i.oprand2;
     end
@@ -256,9 +256,9 @@ module ex
         .mul_para      (muldiv_para),
         .mul_initial   (muldiv_init),
         .mul_rs0       (reg1_i),
-        .mul_rs1       (reg2_i),
+        .mul_rs1       (reg2_i == 0 ? 1 : reg2_i),
         .mul_ready     (muldiv_busy),
-        .mul_finished  (muldiv_finished),  // 1 means finished
+        .mul_finished  (muldiv_finished),           // 1 means finished
         .mul_data      (muldiv_result),
         .mul_ack       (muldiv_ack)
     );
