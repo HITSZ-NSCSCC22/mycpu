@@ -31,7 +31,7 @@ module ctrl
     output logic [`InstAddrBus] idle_pc,  //idle指令pc
 
     // Stall request to each stage
-    output logic [4:0] stall,  // from 4->0 {ex_mem, dispatch_ex, id_dispatch, _}
+    output logic [4:0] stall,  // from 4->0 {mem_wb, ex_mem, dispatch_ex, id_dispatch, _}
 
     input logic is_pri_instr,  //是否为特权指令
     output logic pri_stall,   //当特权指令发射时把此信号拉高,提交后拉低,确保特权指令后没有其它指令
@@ -132,10 +132,10 @@ module ctrl
     //暂停处理
     always_comb begin
         if (rst) stall = 5'b00000;
-        //执行阶段的暂停请求:进行乘除法时请求暂停,此时将译码和发射阶段阻塞
-        else if (ex_stallreq_i[0] | ex_stallreq_i[1]) stall = 5'b11110;
         //访存阶段的暂停请求:进行访存操作时请求暂停,此时将译码和发射阶段阻塞
         else if (mem_stallreq_i[0] | mem_stallreq_i[1]) stall = 5'b11110;
+        //执行阶段的暂停请求:进行乘除法时请求暂停,此时将译码和发射阶段阻塞
+        else if (ex_stallreq_i[0] | ex_stallreq_i[1]) stall = 5'b11110;
         //发射阶段的暂停请求:原本用于tlbrd指令的请求暂停,但是会出现bug,目前已经弃用
         else if (stallreq_from_dispatch) stall = 5'b11100;
         //else if (tlb_stallreq[0] | tlb_stallreq[1]) stall = 5'b11000;

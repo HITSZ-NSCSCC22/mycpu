@@ -534,7 +534,7 @@ module cpu_top
                 .ertn_flush(ertn_flush),
 
                 // <-> Ctrl
-                .stall(stall[3]),
+                .stall({mem_stallreq[0] | mem_stallreq[1] ,stall[3]}),
                 .flush(ex_mem_flush[i])
 
             );

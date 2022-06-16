@@ -46,7 +46,7 @@ module ex
     input logic ertn_flush,
 
     // Stall & flush
-    input logic stall,
+    input logic [1:0] stall,  // {mem_wb, ex}
     input logic flush
 
 );
@@ -54,7 +54,7 @@ module ex
     reg [`RegBus] logicout;
     reg [`RegBus] shiftout;
     reg [`RegBus] moveout;
-    reg [63:0] arithout;
+    reg [31:0] arithout;
 
     ex_mem_struct ex_o;
 
@@ -236,48 +236,61 @@ module ex
     logic [31:0] muldiv_result;
     logic muldiv_finished;
     logic muldiv_ack;
+    logic muldiv_busy_r;
+    logic muldiv_init;
     logic muldiv_busy;  // Low means busy
+    always_ff @(posedge clk) begin
+        if (rst) muldiv_busy_r <= 0;
+        else if (flush | excp_flush | ertn_flush) muldiv_busy_r <= 0;
+        else if (muldiv_init) muldiv_busy_r <= 1;
+        else if (muldiv_ack) muldiv_busy_r <= 0;
+    end
     always_comb begin
-        muldiv_ack = muldiv_finished & muldiv_op;
+        muldiv_init = muldiv_op & ~muldiv_busy_r & ~stall[1];
+        muldiv_ack  = muldiv_finished & muldiv_op & ~stall[1];
     end
     mul u_mul (
         .clk           (clk),
         .rst           (rst),
-        .clear_pipeline(1'b0),
+        .clear_pipeline(flush),
         .mul_para      (muldiv_para),
-        .mul_initial   (muldiv_op & muldiv_busy & ~muldiv_finished),
+        .mul_initial   (muldiv_init),
         .mul_rs0       (reg1_i),
         .mul_rs1       (reg2_i),
         .mul_ready     (muldiv_busy),
-        .mul_finished  (muldiv_finished),                             // 1 means finished
+        .mul_finished  (muldiv_finished),  // 1 means finished
         .mul_data      (muldiv_result),
         .mul_ack       (muldiv_ack)
     );
 
 
-    // assign stallreq = muldiv_op & ~muldiv_finished;
+    assign stallreq = muldiv_op & ~muldiv_finished;
     assign tlb_stallreq = aluop_i == `EXE_TLBRD_OP | aluop_i == `EXE_TLBSRCH_OP;
 
     always @(*) begin
         if (rst == `RstEnable) begin
-            arithout = `ZeroWord;
+            arithout = 0;
         end else begin
             case (aluop_i)
                 `EXE_ADD_OP: arithout = reg1_i + reg2_i;
                 `EXE_SUB_OP: arithout = reg1_i - reg2_i;
-
-                `EXE_MUL_OP: arithout = $signed(reg1_i) * $signed(reg2_i);
-                `EXE_MULH_OP: arithout = ($signed(reg1_i) * $signed(reg2_i)) >> 32;
-                `EXE_MULHU_OP: arithout = ($unsigned(reg1_i) * $unsigned(reg2_i)) >> 32;
-                `EXE_DIV_OP: arithout = ($signed(reg1_i) / $signed(reg2_i));
-                `EXE_DIVU_OP: arithout = ($unsigned(reg1_i) / $unsigned(reg2_i));
-                `EXE_MODU_OP: arithout = ($unsigned(reg1_i) % $unsigned(reg2_i));
-                `EXE_MOD_OP: begin
-                    arithout = ($signed(reg1_i) % $signed(reg2_i));
+                `EXE_MUL_OP, `EXE_MULH_OP, `EXE_MULHU_OP, `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP: begin
+                    // Select result from multi-cycle divider
+                    arithout = muldiv_result;
                 end
+
+                // `EXE_MUL_OP: arithout = $signed(reg1_i) * $signed(reg2_i);
+                // `EXE_MULH_OP: arithout = ($signed(reg1_i) * $signed(reg2_i)) >> 32;
+                // `EXE_MULHU_OP: arithout = ($unsigned(reg1_i) * $unsigned(reg2_i)) >> 32;
+                // `EXE_DIV_OP: arithout = ($signed(reg1_i) / $signed(reg2_i));
+                // `EXE_DIVU_OP: arithout = ($unsigned(reg1_i) / $unsigned(reg2_i));
+                // `EXE_MODU_OP: arithout = ($unsigned(reg1_i) % $unsigned(reg2_i));
+                // `EXE_MOD_OP: begin
+                //     arithout = ($signed(reg1_i) % $signed(reg2_i));
+                // end
                 `EXE_SLT_OP, `EXE_SLTU_OP: arithout = {31'b0, reg1_lt_reg2};
                 default: begin
-                    arithout = `ZeroWord;
+                    arithout = 0;
                 end
             endcase
         end
@@ -401,9 +414,9 @@ module ex
     always_ff @(posedge clk) begin
         if (rst == `RstEnable) begin
             ex_o_buffer <= 0;
-        end else if (flush == 1'b1 || excp_flush == 1'b1 || ertn_flush == 1'b1) begin
+        end else if (flush | excp_flush | ertn_flush) begin
             ex_o_buffer <= 0;
-        end else if (stall == `Stop) begin
+        end else if (stall[0]) begin
             // Do nothing
         end else begin
             ex_o_buffer <= ex_o;
