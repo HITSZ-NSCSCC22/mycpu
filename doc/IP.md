@@ -4,6 +4,10 @@
 
 ## ICache BRAM
 
+Enable Port Type: Always Enabled
+
+no primitive output register
+
 Tag BRAM:
 - module name: bram_icache_tag_ram
 - width: 21
