@@ -195,6 +195,7 @@ module cpu_top
     logic [2:0] mem_cache_rd_type;
     logic [3:0] mem_cache_sel;
     logic [31:0] mem_cache_addr,mem_cache_data;
+    logic [1:0] wb_dcache_flush; // flush dcache if excp
     
     assign mem_cache_ce = mem_cache_signal[0].ce | mem_cache_signal[1].ce;
     assign mem_cache_we = mem_cache_signal[0].we | mem_cache_signal[1].we;
@@ -216,6 +217,7 @@ module cpu_top
         .wstrb     (mem_cache_sel),
         .wdata     (mem_cache_data),
         .rd_type_i (mem_cache_rd_type),
+        .flush_i    (wb_dcache_flush!=2'b0), // If excp occurs, flush DCache
         .addr_ok   (mem_addr_ok),
         .data_ok   (mem_data_ok),
         .rdata     (cache_mem_data),
@@ -641,6 +643,9 @@ module cpu_top
                 .cacop_op_mode_di(cacop_op_mode_di[i]),
                 //-> tlb
                 .tlb_mem_signal(tlb_mem_signal),
+
+                // -> DCache
+                .dcache_flush_o(wb_dcache_flush[i]),
 
                 //to ctrl
                 .wb_ctrl_signal(wb_ctrl_signal[i]),

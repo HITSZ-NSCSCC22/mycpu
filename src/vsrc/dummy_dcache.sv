@@ -12,6 +12,7 @@ module dummy_dcache (
     input logic [3:0] wstrb,  //写字节使能信号
     input logic [31:0] wdata,  //写数据
     input logic [2:0] rd_type_i, //读请求类型：3'b000: 字节；3'b001: 半字；3'b010: 字；3'b100：Cache行
+    input logic flush_i, // 冲刷信号，如果出于某种原因需要取消写事务，CPU拉高此信号
     output logic addr_ok,             //该次请求的地址传输OK，读：地址被接收；写：地址和数据被接收
     output logic data_ok,             //该次请求的数据传输Ok，读：数据返回；写：数据写入完成
     output logic [31:0] rdata,  //读Cache的结果
@@ -49,7 +50,7 @@ module dummy_dcache (
     end
 
     // State transition
-    always_comb begin
+    always_comb begin : transition_comb
         case (state)
             IDLE: begin
                 if (valid) begin
@@ -66,8 +67,9 @@ module dummy_dcache (
                 else next_state = READ_WAIT;
             end
             WRITE_REQ: begin
-                if (wr_rdy)
-                    next_state = IDLE; // If AXI is ready, then write req is accept this cycle, back to IDLE
+                // If AXI is ready, then write req is accept this cycle, back to IDLE
+                // If flushed, back to IDLE
+                if (wr_rdy | flush_i) next_state = IDLE;
                 else next_state = WRITE_REQ;
             end
             default: begin
@@ -95,7 +97,7 @@ module dummy_dcache (
     end
 
 
-    assign rd_type = rd_type_i ;
+    assign rd_type = rd_type_i;
     assign wr_type = 3'b010;  // word
     always_comb begin
         // Default signal
@@ -118,7 +120,10 @@ module dummy_dcache (
                 rd_addr = rd_addr_r;
             end
             WRITE_REQ: begin
-                if (wr_rdy) begin
+                if (flush_i) begin
+                    wr_req  = 0;
+                    wr_addr = 0;
+                end else if (wr_rdy) begin
                     wr_req = 1;
                     wr_addr = cpu_addr;  // DO NOT align addr, 128b -> 32b translate need info from addr
                     case (cpu_addr[3:2])

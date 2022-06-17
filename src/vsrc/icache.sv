@@ -180,7 +180,6 @@ module icache
     logic p1_rreq_1, p1_rreq_2;
     logic [ADDR_WIDTH-1:0] p1_raddr_1, p1_raddr_2;
     always_ff @(posedge clk) begin
-        p1_tlb_rreq <= tlb_rreq_i;
         if (rvalid_1_o | ~p1_rreq_1) begin
             p1_rreq_1  <= rreq_1_i;
             p1_raddr_1 <= raddr_1_i;

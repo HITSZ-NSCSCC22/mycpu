@@ -33,6 +33,9 @@ module mem_wb
     // load store relate difftest
     output wb_ctrl wb_ctrl_signal,
 
+    // -> DCache
+    output logic dcache_flush_o,
+
     // <-> Frontend
     output logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_id_o
 );
@@ -88,6 +91,8 @@ module mem_wb
     assign excp_num = {
         excp_pil, excp_pis, excp_ppi, excp_pme, excp_tlbr, excp_adem, mem_signal_o.excp_num
     };
+
+    assign dcache_flush_o = excp;
 
     // DEBUG
     logic [`RegBus] debug_mem_wdata;
