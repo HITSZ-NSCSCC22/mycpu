@@ -137,7 +137,7 @@ module dispatch
         end
     end
 
-    logic [4:0] debug_reg0,debug_reg1,debug_reg2,debug_reg3;
+    logic [4:0] debug_reg0, debug_reg1, debug_reg2, debug_reg3;
     assign debug_reg0 = id_i[0].reg_read_addr[0];
     assign debug_reg1 = id_i[0].reg_read_addr[1];
     assign debug_reg2 = id_i[1].reg_read_addr[0];
