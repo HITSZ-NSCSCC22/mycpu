@@ -78,6 +78,24 @@ module axi_master (
     output reg s_bready
 
 );
+    /***set arsize and awsize***/
+    //read type must be cache line
+    wire data_rd_cache_line;
+    wire [`Size] data_real_rd_size;
+    assign data_rd_cache_line = dcache_rd_type_i == 3'b100;
+    assign data_real_rd_size  = data_rd_cache_line ? 3'b100 : dcache_rd_type_i;
+
+    wire inst_rd_cache_line;
+    wire [`Size] inst_real_rd_size;
+    assign inst_rd_cache_line = icache_rd_type_i == 3'b100;
+    assign inst_real_rd_size  = inst_rd_cache_line ? 3'b100 : icache_rd_type_i;
+
+    //write size can be special
+    wire data_wr_cache_line;
+    wire [`Size] data_real_wr_size;
+    assign data_wr_cache_line = dcache_wr_type_i == 3'b100;
+    assign data_real_wr_size  = data_wr_cache_line ? 3'b100 : dcache_wr_type_i;
+
     reg write_wait_enable;
     reg [`Data] inst_buffer;
 
@@ -101,37 +119,12 @@ module axi_master (
 
     //decide arlen by rd_type
     wire [`Len] inst_real_s_arlen;
-    assign inst_real_s_arlen = (icache_rd_type_i == 3'b100) ? 8'b11 : 8'b0;
-
+    // assign inst_real_s_arlen = (icache_rd_type_i == 3'b100) ? 8'b11 : 8'b0;
+    assign inst_real_s_arlen = 8'b0;
 
     /**
 **read state machine for fetch instruction 
 **/
-    //改变输出
-    // always @(*) begin
-    //     if (!aresetn) begin
-    //         is_fetching_inst = 0;
-    //     end else begin
-    //         case (inst_r_state)
-    //             `R_FREE: begin
-    //                     is_fetching_inst = 0;
-    //             end
-    //             `R_ADDR: begin
-    //                 is_fetching_inst = 1;
-    //             end
-    //             `R_DATA: begin
-    //                 if (s_rvalid && s_rlast && s_rid[0] == 0) begin
-    //                     is_fetching_inst = 0;
-    //                 end else begin
-    //                     is_fetching_inst = 1;
-    //                 end
-    //             end
-    //             default: begin
-    //                 is_fetching_inst=0;
-    //             end
-    //         endcase
-    //     end
-    // end
 
     //signal to icache
     always @(posedge aclk) begin
@@ -205,7 +198,7 @@ module axi_master (
                             inst_r_state <= `R_ADDR;
                             inst_s_arid <= inst_id;
                             inst_s_araddr <= inst_cpu_addr_i;
-                            inst_s_arsize <= 3'b100;
+                            inst_s_arsize <= inst_real_rd_size;
                             inst_buffer <= 0;
                             inst_s_arlen <= inst_real_s_arlen;
                             inst_s_rready <= 0;
@@ -220,7 +213,7 @@ module axi_master (
                                 inst_r_state <= `R_ADDR;
                                 inst_s_arid <= inst_id;
                                 inst_s_araddr <= inst_cpu_addr_i;
-                                inst_s_arsize <= 3'b100;
+                                inst_s_arsize <= inst_real_rd_size;
                                 inst_buffer <= 0;
                                 inst_s_arlen <= inst_real_s_arlen;
                                 inst_s_rready <= 0;
@@ -340,7 +333,8 @@ module axi_master (
 
     //decide arlen by rd_type
     wire [`Len] data_real_s_arlen;
-    assign data_real_s_arlen = (dcache_rd_type_i == 3'b100) ? 8'b11 : 8'b0;
+    // assign data_real_s_arlen = (dcache_rd_type_i == 3'b100) ? 8'b11 : 8'b0;
+    assign data_real_s_arlen = 8'b0;
     /**
 **read state machine for fetch data
 **/
@@ -416,7 +410,7 @@ module axi_master (
                         data_r_state <= `R_ADDR;
                         data_s_arid <= data_id;
                         data_s_araddr <= data_cpu_addr_i;
-                        data_s_arsize <= (data_cpu_addr_i[31:16] == 16'h1fe0) ? 3'b000 : 3'b100;
+                        data_s_arsize <= data_real_rd_size;
                         data_buffer <= 0;
                         data_s_arlen <= data_real_s_arlen;
                         data_s_rready <= 0;
@@ -513,7 +507,7 @@ module axi_master (
     reg [3:0] w_state;
 
     //counter 
-    reg [31:0] cnt;
+    reg [7:0] cnt;
     always @(posedge aclk) begin
         if (!aresetn) cnt <= 0;
         else if (w_state == `W_DATA) begin
@@ -611,7 +605,7 @@ module axi_master (
                     if (dcache_wr_req_i) begin
                         w_state <= `W_ADDR;
                         s_awaddr <= data_cpu_addr_i;
-                        s_awsize <= 3'b100;
+                        s_awsize <= data_real_wr_size;
                         s_awvalid <= 1;
                         s_wstrb <= 0;
                         s_wdata <= 0;
@@ -727,19 +721,20 @@ module axi_master (
 
     //set default
     //aw
-    assign s_awid = 1;
-    assign s_awlen = (dcache_wr_type_i == 3'b100) ? 8'b11 : 8'b0;
+    assign s_awid    = 1;
+    // assign s_awlen            = (dcache_wr_type_i == 3'b100) ? 8'b11 : 8'b0;
+    assign s_awlen   = 8'b0;
     assign s_awburst = `INCR;
-    assign s_awlock = 0;
+    assign s_awlock  = 0;
     assign s_awcache = 0;
-    assign s_awprot = 0;
-    assign s_wid = 0;
+    assign s_awprot  = 0;
+    assign s_wid     = 0;
 
     //set axi signal
-    assign s_arid = inst_s_arid | data_s_arid;
-    assign s_araddr = inst_s_araddr | data_s_araddr;
-    assign s_arsize = inst_s_arsize | data_s_arsize;
+    assign s_arid    = inst_s_arid | data_s_arid;
+    assign s_araddr  = inst_s_araddr | data_s_araddr;
+    assign s_arsize  = inst_s_arsize | data_s_arsize;
     assign s_arvalid = inst_s_arvalid | data_s_arvalid;
-    assign s_rready = inst_s_rready | data_s_rready;
+    assign s_rready  = inst_s_rready | data_s_rready;
 
 endmodule

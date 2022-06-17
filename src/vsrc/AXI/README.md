@@ -115,7 +115,7 @@
    * 如果连续发送两次读请求，则会等待第一个读请求结束在处理第二个读请求
    * 先写后读，写请求结束后才会处理读请求
    * 所有的请求在请求结束前，都需要保证来自cpu的输入信号不变
-   * dcache/icache_rd/wr_type_i表示一次性读或写的数据量。`3'b100`表示一次性读/写连续四个地址的数据；其他值表示只读/写一个数据，推荐直接写0
+   * dcache/icache_rd/wr_type_i表示一次性读或写的数据量。`3'b100`表示一次性读写128bit；`3'b010`，32bit；`3'b001`,16bit;`3'b000`8bit
    ```      
          
             wire aresetn=~rst;
@@ -217,4 +217,13 @@
 
 4. 关于cache给AXI的信号。在AXI完成写或读请求前，cache的信号必须要持续的拉高。对于读指令，当ret_last拉高时，才能更新输出给AXI的信号（req，type，addr）;对于写，和wr_rdy正常握手就好，输出给AXI的信号只需要保存一个时钟周期。
 
-5. cache何时给信号。cache只要发出读或写请求就立刻给出所有信号(req，type，addr,data)。`重点`addr，data，type，req是同时给到AXI，而不是等到cache与rdy握手后才给addr和data，这样AXI就无法接受数据。握手是指握手后接收方立刻把数据存到寄存器里。
+5. cache何时给信号。cache只要发出读或写请求就立刻给出所有信号(req，type，addr,data)。`重点`addr，data，type，req是同时给到AXI，而不是等到cache与rdy握手后才给addr和data，这样AXI就无法接受数据。握手是指握手后接收方立刻把数据存到寄存器里。   
+
+## size和传送字节数的关系
+| rd_type(wr_type) | arzie(awsize) |字节数|
+|:----:|:----:|:----:|
+|3'b000|3'b000|1|
+|3'b001|3'b00|2|
+|3'b010|3'b010|4|
+|3'b011|3'b011|8|
+|3'b100|3'b100|16|

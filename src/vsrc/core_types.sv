@@ -172,6 +172,7 @@ package core_types;
         logic [`DataAddrBus] addr;
         logic [`RegBus] data;
         logic uncache_en;
+        logic [2:0] rd_type;
     } mem_cache_struct;
 
     typedef struct packed {
