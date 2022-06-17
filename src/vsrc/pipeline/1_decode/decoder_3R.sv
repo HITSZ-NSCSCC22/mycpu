@@ -177,7 +177,13 @@ module decoder_3R
                 alusel_o = `EXE_RES_NOP;
             end
             `EXE_DBAR, `EXE_IBAR: begin
-                aluop_o  = `EXE_NOP_OP;
+                reg_write_valid_o = 0;
+                reg_write_addr_o = 0;
+                reg_read_valid_o = 2'b00;
+                reg_read_addr_o = 0;
+                use_imm = 1'b0;
+                imm_o = 0;
+                aluop_o = `EXE_NOP_OP;
                 alusel_o = `EXE_RES_NOP;
             end
             `EXE_INVTLB: begin
