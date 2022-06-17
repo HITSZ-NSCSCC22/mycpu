@@ -272,8 +272,9 @@ module cpu_top
        .axi_rlast_i  (),
        .axi_data_i   (axi_icache_data),
 
-       // <- TLB
-       .tlb_i(tlb_inst)
+       // TLB related
+       .tlb_i(tlb_inst), // <- TLB
+       .tlb_rreq_i(frontend_tlb) // <- Frontend
    );
     
     // Frontend <-> TLB

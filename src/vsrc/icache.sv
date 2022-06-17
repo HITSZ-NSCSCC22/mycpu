@@ -33,8 +33,9 @@ module icache
     input logic [1:0] axi_rlast_i,
     input logic [ICACHELINE_WIDTH-1:0] axi_data_i,
 
-    // <- TLB
-    input tlb_inst_t tlb_i
+    // TLB related
+    input tlb_inst_t tlb_i,  // <- TLB
+    input inst_tlb_t tlb_rreq_i  // <- IFU
 );
 
     /////////////////////////////////////////////////
@@ -157,10 +158,29 @@ module icache
     // P1, output gen
     ///////////////////////////////////////////////////
 
+    // TLB miss
+    logic p1_tlb_miss;
+    inst_tlb_t p1_tlb_rreq;
+    always_ff @(posedge clk) begin
+        if (rreq_1_i | rreq_2_i) p1_tlb_rreq <= tlb_rreq_i;
+    end
+    assign p1_tlb_miss = p1_tlb_rreq.trans_en & ~p1_tlb.tlb_found;
+
+    // Store TLB input
+    tlb_inst_t p1_tlb, tlb_i_r;
+    assign p1_tlb = (state == IDLE) ? tlb_i : tlb_i_r;
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            tlb_i_r <= 0;
+        end else if (miss_1_pulse | miss_2_pulse) begin
+            tlb_i_r <= tlb_i;
+        end
+    end
     // Input reg
     logic p1_rreq_1, p1_rreq_2;
     logic [ADDR_WIDTH-1:0] p1_raddr_1, p1_raddr_2;
     always_ff @(posedge clk) begin
+        p1_tlb_rreq <= tlb_rreq_i;
         if (rvalid_1_o | ~p1_rreq_1) begin
             p1_rreq_1  <= rreq_1_i;
             p1_raddr_1 <= raddr_1_i;
@@ -180,9 +200,11 @@ module icache
         end
     end
 
+    // rvalid_1 & 2 is only valid when state == IDLE or (miss_1 | (state == REFILL_1_WAIT & ~rvalid_1))
     logic rvalid_1, rvalid_2;
-    assign rvalid_1_o = rvalid_1 && p1_rreq_1;
-    assign rvalid_2_o = rvalid_2 && p1_rreq_2;
+    // IDLE & WAIT can return rvalid_o, but REQ must not return rvalid_o
+    assign rvalid_1_o = (rvalid_1 && p1_rreq_1 && state != REFILL_1_REQ) | (p1_tlb_miss && state == IDLE);
+    assign rvalid_2_o = (rvalid_2 && p1_rreq_2 && state != REFILL_2_REQ) | (p1_tlb_miss && state == IDLE);
     // Generate read output
     always_comb begin
         rvalid_1  = 0;
@@ -232,8 +254,10 @@ module icache
         end else begin
             case (state)
                 IDLE: begin
-                    miss_1_r <= miss_1_pulse;
-                    miss_2_r <= miss_2_pulse;
+                    if (~p1_tlb_miss) begin
+                        miss_1_r <= miss_1_pulse;
+                        miss_2_r <= miss_2_pulse;
+                    end
                 end
                 REFILL_1_WAIT: begin
                     if (axi_rvalid_i) miss_1_r <= 0;
@@ -247,22 +271,13 @@ module icache
         end
     end
 
-    // Store TLB input
-    tlb_inst_t p1_tlb, tlb_i_r;
-    assign p1_tlb = (state == IDLE) ? tlb_i : tlb_i_r;
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            tlb_i_r <= 0;
-        end else if (miss_1_pulse | miss_2_pulse) begin
-            tlb_i_r <= tlb_i;
-        end
-    end
 
 
     always_comb begin : transition_comb
         case (state)
             IDLE: begin
-                if (miss_1) next_state = REFILL_1_REQ;
+                if (p1_tlb_miss) next_state = IDLE;  // No refilling if TLB miss
+                else if (miss_1) next_state = REFILL_1_REQ;
                 else if (miss_2) next_state = REFILL_2_REQ;
                 else next_state = IDLE;
             end
