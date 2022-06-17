@@ -164,9 +164,14 @@ module decoder_2RI12
                 alusel_o = `EXE_RES_NOP;
             end
             `EXE_CACOP: begin
+                reg_write_valid_o = 0;
+                reg_write_addr_o = 0;
+                reg_read_valid_o = 2'b00;
+                reg_read_addr_o = {5'b0, rj};
                 use_imm = 1'b1;
                 aluop_o = `EXE_CACOP_OP;
-                imm_o   = {{20{imm_12[11]}}, imm_12};  // Signed Extension
+                alusel_o = `EXE_RES_NOP;
+                imm_o = {{20{imm_12[11]}}, imm_12};  // Signed Extension
             end
             default: begin
                 use_imm = 1'b0;
