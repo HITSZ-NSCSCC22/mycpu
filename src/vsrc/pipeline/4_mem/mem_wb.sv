@@ -80,7 +80,7 @@ module mem_wb
     // Addr translate mode for DCache, pull down if instr is invalid
     assign data_addr_trans_en = access_mem && pg_mode && !dmw0_en && !dmw1_en && !cacop_op_mode_di && mem_signal_o.instr_info.valid;
 
-    assign excp_adem = 0;
+    assign excp_adem = access_mem && data_addr_trans_en && (csr_mem_signal.csr_plv == 2'd3) && mem_signal_o.mem_addr[31];
     assign excp_tlbr = access_mem && !tlb_mem_signal.data_tlb_found && data_addr_trans_en;
     assign excp_pil  = mem_load_op  && !tlb_mem_signal.data_tlb_v && data_addr_trans_en;  //cache will generate pil exception??
     assign excp_pis = mem_store_op && !tlb_mem_signal.data_tlb_v && data_addr_trans_en;
