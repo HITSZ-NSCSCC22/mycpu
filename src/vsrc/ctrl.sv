@@ -27,7 +27,7 @@ module ctrl
     output logic idle_flush,  //idle指令冲刷信号
     output logic excp_flush,  //异常指令冲刷信号
     output logic ertn_flush,  //ertn指令冲刷信号
-    output logic fetch_flush,  //未用到，暂时不管
+    output logic fetch_flush,  // TLB related instr require instr to be refetch
     output logic [`InstAddrBus] idle_pc,  //idle指令pc
 
     // Stall request to each stage
@@ -85,10 +85,10 @@ module ctrl
 
     // Backend commit basic block
     assign backend_commit_block_o = backend_commit_valid & (wb_i[0].excp ? 2'b01:
-                                    wb_i[1].excp ? {1'b1 , wb_i[0].is_last_in_block | ertn_flush | idle_flush} : 
-                                    {wb_i[1].is_last_in_block, wb_i[0].is_last_in_block | ertn_flush | idle_flush});
+                                    wb_i[1].excp ? {1'b1 , wb_i[0].is_last_in_block | ertn_flush | idle_flush | fetch_flush} : 
+                                    {wb_i[1].is_last_in_block, wb_i[0].is_last_in_block | ertn_flush | idle_flush | fetch_flush});
     // Backend flush FTQ ID
-    assign backend_flush_ftq_id_o = (wb_i[0].excp | ertn_flush | idle_flush ) ? wb_ftq_id_i[0] :
+    assign backend_flush_ftq_id_o = (wb_i[0].excp | ertn_flush | idle_flush |fetch_flush) ? wb_ftq_id_i[0] :
                                     (wb_i[1].excp) ? wb_ftq_id_i[1] : 0;
 
     logic [`AluOpBus] aluop, aluop_1;
@@ -125,9 +125,9 @@ module ctrl
     assign excp_flush = excp;
     assign idle_flush = aluop == `EXE_IDLE_OP;
     assign ertn_flush = aluop == `EXE_ERTN_OP | wb_i[1].aluop == `EXE_ERTN_OP;
-    assign fetch_flush = 0;
+    assign fetch_flush = wb_i[0].fetch_flush | wb_i[1].fetch_flush;
     assign idle_pc = wb_i[0].wb_reg_o.pc;
-    assign flush = fetch_flush | excp_flush | ertn_flush;
+    assign flush = fetch_flush | excp_flush | ertn_flush | idle_flush;
 
     //暂停处理
     always_comb begin

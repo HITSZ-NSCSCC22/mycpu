@@ -242,6 +242,7 @@ module cpu_top
     logic has_int;
     logic excp_flush;
     logic ertn_flush;
+    logic fetch_flush;
     logic [31:0] csr_era_i;
     logic [8:0] csr_esubcode_i;
     logic [5:0] csr_ecode_i;
@@ -489,9 +490,9 @@ module cpu_top
     logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ctrl_frontend_ftq_id;
 
     // Redirect signal for frontend
-    assign backend_flush = excp_flush | ertn_flush | idle_flush |((branch_flag[0] | branch_flag[1]) & ~stall[2]);
+    assign backend_flush = excp_flush | ertn_flush | idle_flush |((branch_flag[0] | branch_flag[1]) & ~stall[2]) | fetch_flush;
 
-    assign backend_flush_ftq_id = (excp_flush | ertn_flush | idle_flush) ? ctrl_frontend_ftq_id:
+    assign backend_flush_ftq_id = (excp_flush | ertn_flush | idle_flush | fetch_flush) ? ctrl_frontend_ftq_id :
                                 (branch_flag[0] & ~stall[2]) ? branch_ftq_id[0] : 
                                 (branch_flag[1] & ~stall[2]) ? branch_ftq_id[1] : 0;
 
@@ -501,6 +502,7 @@ module cpu_top
                      (excp_flush && excp_tlbrefill) ? csr_tlbrentry :
                      ertn_flush ? csr_era :
                      idle_flush ? idle_pc : 
+                     fetch_flush ? idle_pc +4 :
                      (branch_flag[0] & ~stall[2]) ? branch_target_address[0] : 
                      (branch_flag[1] & ~stall[2]) ? branch_target_address[1] : `ZeroWord;
 
@@ -616,7 +618,6 @@ module cpu_top
 
     endgenerate
 
-    logic fetch_flush;
 
     wb_ctrl wb_ctrl_signal[2];
 

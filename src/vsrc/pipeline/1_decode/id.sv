@@ -237,7 +237,7 @@ module id
     assign dispatch_o.instr_info.is_last_in_block = is_last_in_block;
     assign dispatch_o.instr_info.ftq_id = instr_buffer_i.valid ? instr_buffer_i.ftq_id : 0;
     // Generate signals affecting ITLB
-    assign dispatch_o.refetch = (instr_aluop == `EXE_TLBFILL_OP || instr_aluop == `EXE_TLBRD_OP || instr_aluop == `EXE_TLBWR_OP || instr_aluop == `EXE_TLBSRCH_OP || instr_aluop == `EXE_ERTN_OP || instr_aluop == `EXE_INVTLB_OP) ;
+    assign dispatch_o.refetch = (instr_aluop == `EXE_TLBFILL_OP || instr_aluop == `EXE_TLBRD_OP || instr_aluop == `EXE_TLBWR_OP || instr_aluop == `EXE_TLBSRCH_OP || instr_aluop == `EXE_INVTLB_OP) ;
     // Exception
     assign dispatch_o.excp = excp;
     assign dispatch_o.excp_num = excp_num;
