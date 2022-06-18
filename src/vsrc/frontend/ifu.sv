@@ -116,6 +116,8 @@ module ifu
     } read_transaction_t;
     read_transaction_t p1_read_transaction;
 
+    logic [ADDR_WIDTH-1:0] p1_pc = p1_read_transaction.start_pc;
+
     logic p1_read_done;  // Read done is same cycle as ICache return valid
     assign p1_read_done = p1_read_transaction.is_cross_cacheline ?
     (icache_rvalid_i[0] | p1_read_transaction.icache_rvalid_r[0]) & (icache_rvalid_i[1]| p1_read_transaction.icache_rvalid_r[1]) :
@@ -135,6 +137,7 @@ module ifu
             p1_read_transaction.icache_rdata_r <= 0;
             p1_read_transaction.ftq_id <= ftq_id_i;
             p1_read_transaction.tlb_rreq <= tlb_o;
+            p1_read_transaction.csr <= csr_i;
         end else if (p1_read_done & ~stallreq_i) begin
             // Reset if done and not stalling
             p1_read_transaction <= 0;
@@ -159,7 +162,6 @@ module ifu
     };
 
     // P1 debug, for observability
-    logic [ADDR_WIDTH-1:0] debug_p1_pc = p1_read_transaction.start_pc;  // DEBUG
     logic [1:0] debug_p1_rvalid_r = p1_read_transaction.icache_rvalid_r;
 
 
@@ -177,10 +179,9 @@ module ifu
     // Instr addr not aligned, trigger a ADEF
     always_comb begin
         for (integer i = 0; i < FETCH_WIDTH; i++) begin
-            logic [ADDR_WIDTH-1:0] pc_ii = p1_read_transaction.start_pc + i * 4;
             excp_adef[i] = 0;
             if (i < p1_read_transaction.length) begin
-                excp_adef[i] = (pc_ii[0] || pc_ii[1]) | (pc_ii[31]&& p1_read_transaction.csr.plv == 2'd3&& p1_read_transaction.tlb_rreq.trans_en);
+                excp_adef[i] = (p1_pc[0] || p1_pc[1]) | (p1_pc[31]&& p1_read_transaction.csr.plv == 2'd3&& p1_read_transaction.tlb_rreq.trans_en);
             end
         end
     end
@@ -227,5 +228,11 @@ module ifu
             end
         end
     end
+
+    // P2 Debug
+    logic debug_p2_tlb_trans_en;
+    logic [1:0] debug_p2_csr_plv;
+    assign debug_p2_tlb_trans_en = p1_read_transaction.tlb_rreq.trans_en;
+    assign debug_p2_csr_plv = p1_read_transaction.csr.plv;
 
 endmodule
