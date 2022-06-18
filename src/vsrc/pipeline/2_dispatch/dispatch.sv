@@ -93,7 +93,7 @@ module dispatch
     // Dispatch flag
     logic [EXE_STAGE_WIDTH-1:0] do_we_issue;
     logic [EXE_STAGE_WIDTH-1:0] issue_valid;
-    assign issue_valid = do_we_issue ;//& {id_i[1].instr_info.valid, id_i[0].instr_info.valid};
+    assign issue_valid = do_we_issue & {id_i[1].instr_info.valid, id_i[0].instr_info.valid};
     // If stall, tell IB no more instructions can be accepted
     logic [DECODE_WIDTH-1:0] instr_valid;  // For observability
     always_comb begin

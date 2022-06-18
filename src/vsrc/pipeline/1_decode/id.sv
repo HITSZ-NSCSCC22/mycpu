@@ -17,12 +17,12 @@
 // Should be totally cominational circuit
 // What ID DO:
 // 1. Extract information from the instruction
-// 2. Do GPR and CSR read
-// 3. Determine oprands for EXE
+// 2. Receives interrupt and packed into instr_info
 // What ID NOT DO:
 // 1. Determine whether a instruction dispatch in EXE or not
 // 2. Calculate anything, such as branch target
-// 
+// 3. CSR & GPR read is moved to dispatch stage
+// 4. op1, op2 and imm is passed through to EXE, no selection made here
 module id
     import core_types::*;
 (
@@ -38,20 +38,32 @@ module id
 
 );
 
+    // Input
     logic [`InstAddrBus] pc_i;
-    assign pc_i = instr_buffer_i.valid ? instr_buffer_i.pc : `ZeroWord;
     logic [`InstBus] inst_i;
-    assign inst_i = instr_buffer_i.valid ? instr_buffer_i.instr : `ZeroWord;
     logic is_last_in_block;
+    assign pc_i = instr_buffer_i.valid ? instr_buffer_i.pc : 0;
+    assign inst_i = instr_buffer_i.valid ? instr_buffer_i.instr : 0;
     assign is_last_in_block = instr_buffer_i.valid ? instr_buffer_i.is_last_in_block : 0;
 
-    logic instr_break, instr_syscall, kernel_instr;
-    assign kernel_instr = dispatch_o.aluop == `EXE_CSRRD_OP | dispatch_o.aluop == `EXE_CSRWR_OP | dispatch_o.aluop == `EXE_CSRXCHG_OP |
-                          dispatch_o.aluop == `EXE_TLBFILL_OP |dispatch_o.aluop == `EXE_TLBRD_OP |dispatch_o.aluop == `EXE_TLBWR_OP |
-                          dispatch_o.aluop == `EXE_TLBSRCH_OP | dispatch_o.aluop == `EXE_ERTN_OP |dispatch_o.aluop == `EXE_IDLE_OP |
-                          dispatch_o.aluop == `EXE_INVTLB_OP;
+    // Exception info
+    logic excp;
+    logic excp_ine;
+    logic excp_ipe;
+    logic [8:0] excp_num;  // IPE, INE, BREAK, SYSCALL, {4 frontend excp}, INT
 
-    // Sub-decoder section
+
+    // Instruction info
+    logic instr_valid;
+    logic [`AluOpBus] instr_aluop;
+    logic [`AluSelBus] instr_alusel;
+    logic [1:0] instr_reg_read_valid;
+    logic [`RegNumLog2*2-1:0] instr_reg_read_addr;
+    logic instr_reg_write_valid;
+    logic [`RegAddrBus] instr_reg_write_addr;
+    logic [`RegBus] instr_imm;
+    logic instr_use_imm;
+    // Sub-decoder signals
     localparam SUB_DECODER_NUM = 9;
     logic sub_decoder_valid[SUB_DECODER_NUM];
     logic [`AluOpBus] sub_decoder_aluop[SUB_DECODER_NUM];
@@ -63,8 +75,15 @@ module id
     logic [`RegBus] sub_decoder_imm[SUB_DECODER_NUM];
     logic sub_decoder_use_imm[SUB_DECODER_NUM];
 
+    // Info about privilege instr
+    logic instr_break, instr_syscall, kernel_instr;
+    assign kernel_instr = instr_aluop == `EXE_CSRRD_OP | instr_aluop == `EXE_CSRWR_OP | instr_aluop == `EXE_CSRXCHG_OP |
+                          instr_aluop == `EXE_TLBFILL_OP |instr_aluop == `EXE_TLBRD_OP |instr_aluop == `EXE_TLBWR_OP |
+                          instr_aluop == `EXE_TLBSRCH_OP | instr_aluop == `EXE_ERTN_OP |instr_aluop == `EXE_IDLE_OP |
+                          instr_aluop == `EXE_INVTLB_OP;
+
     // Sub-decoders in following order:
-    // 2R, 3R, 2RI8, 2RI12, 2RI16, I26, Special
+    // 2R, 3R, 2RI8, 2RI12, 2RI16, 1RI20, 2RI14, I26, Special
     decoder_2R u_decoder_2R (
         .instr_info_i         (instr_buffer_i),
         .decode_result_valid_o(sub_decoder_valid[0]),
@@ -126,7 +145,6 @@ module id
         .aluop_o              (sub_decoder_aluop[4]),
         .alusel_o             (sub_decoder_alusel[4])
     );
-
     decoder_1RI20 U_decoder_1RI20 (
         .instr_info_i         (instr_buffer_i),
         .decode_result_valid_o(sub_decoder_valid[5]),
@@ -175,90 +193,61 @@ module id
     );
     // Sub-decoder END
 
-    // Generate instr_valid, using OR
-    logic instr_valid;
-    always_comb begin
+    // Generate instruction info, using OR
+    always_comb begin : instr_info_comb
         instr_valid = 0;
+        instr_use_imm = 0;
+        instr_imm = 0;
+        instr_aluop = 0;
+        instr_alusel = 0;
+        instr_reg_read_valid = 0;
+        instr_reg_read_addr = 0;
+        instr_reg_write_valid = 0;
+        instr_reg_write_addr = 0;
         for (integer i = 0; i < SUB_DECODER_NUM; i++) begin
             instr_valid = instr_valid | sub_decoder_valid[i];
+            instr_use_imm = instr_use_imm | sub_decoder_use_imm[i];
+            instr_imm = instr_imm | sub_decoder_imm[i];
+            instr_aluop = instr_aluop | sub_decoder_aluop[i];
+            instr_alusel = instr_alusel | sub_decoder_alusel[i];
+            instr_reg_write_valid = instr_reg_write_valid | sub_decoder_reg_write_valid[i];
+            instr_reg_write_addr = instr_reg_write_addr | sub_decoder_reg_write_addr[i];
+            // Generate output to Regfile
+            instr_reg_read_valid = instr_reg_read_valid | sub_decoder_reg_read_valid[i];
+            instr_reg_read_addr = instr_reg_read_addr | sub_decoder_reg_read_addr[i];
         end
     end
 
     // Generate output
-    //对valid进行特判:如果存在无效指令,也要发射出去,以便让ctrl处理异常
-    //目前暂时是对取指地址异常进行特判
-    //如果是无效指令，要让ctrl处理，所以当成nop发射
-    assign dispatch_o.instr_info.valid = instr_valid | ((excp_num & 9'h01E) != 0);
-
-    // Generate imm, using OR
-    logic use_imm;
-    logic [`RegBus] imm;
-    assign dispatch_o.use_imm = use_imm;
-    assign dispatch_o.imm = imm;
-    always_comb begin
-        use_imm = 0;
-        imm = 0;
-        for (integer i = 0; i < SUB_DECODER_NUM; i++) begin
-            use_imm = use_imm | sub_decoder_use_imm[i];
-            imm = imm | sub_decoder_imm[i];
-        end
-    end
-    
-    // Generate output to EXE
-    always_comb begin
-        dispatch_o.aluop = 0;
-        dispatch_o.alusel = 0;
-        dispatch_o.reg_write_valid = 0;
-        dispatch_o.reg_write_addr = 0;
-        if(instr_valid)begin
-            for (integer i = 0; i < SUB_DECODER_NUM; i++) begin
-                dispatch_o.aluop = dispatch_o.aluop | sub_decoder_aluop[i];
-                dispatch_o.alusel = dispatch_o.alusel | sub_decoder_alusel[i];
-                dispatch_o.reg_write_valid = dispatch_o.reg_write_valid | sub_decoder_reg_write_valid[i];
-                dispatch_o.reg_write_addr = dispatch_o.reg_write_addr | sub_decoder_reg_write_addr[i];
-            end
-        end
-    end
+    // 只要是 IB 输入的指令，那么一律认为是有效的
+    // 如果在 ID 级发生了异常或在此之前就有异常，那么全部认为是 NOP， 但是是有效指令，以便进行异常处理
+    assign dispatch_o.instr_info.valid = instr_buffer_i.valid;
+    assign dispatch_o.use_imm = instr_valid ? instr_use_imm : 0;
+    assign dispatch_o.imm = instr_valid ? instr_imm : 0;
+    assign dispatch_o.aluop = instr_valid ? instr_aluop : 0;
+    assign dispatch_o.alusel = instr_valid ? instr_alusel : 0;
+    assign dispatch_o.reg_write_valid = instr_valid ? instr_reg_write_valid : 0;
+    assign dispatch_o.reg_write_addr = instr_valid ? instr_reg_write_addr : 0;
     // Generate output to Regfile
-    always_comb begin
-        dispatch_o.reg_read_valid = 0;
-        dispatch_o.reg_read_addr  = 0;
-        if(instr_valid)begin
-            for (integer i = 0; i < SUB_DECODER_NUM; i++) begin
-                dispatch_o.reg_read_valid = dispatch_o.reg_read_valid | sub_decoder_reg_read_valid[i];
-                dispatch_o.reg_read_addr  = dispatch_o.reg_read_addr | sub_decoder_reg_read_addr[i];
-            end
-        end
-    end
-
-
+    assign dispatch_o.reg_read_valid = instr_valid ? instr_reg_read_valid : 0;
+    assign dispatch_o.reg_read_addr = instr_valid ? instr_reg_read_addr : 0;
+    // Generate instr info pack
     assign dispatch_o.instr_info.pc = pc_i;
     assign dispatch_o.instr_info.instr = inst_i;
     assign dispatch_o.instr_info.is_last_in_block = is_last_in_block;
     assign dispatch_o.instr_info.ftq_id = instr_buffer_i.valid ? instr_buffer_i.ftq_id : 0;
+    // Generate signals affecting ITLB
+    assign dispatch_o.refetch = (instr_aluop == `EXE_TLBFILL_OP || instr_aluop == `EXE_TLBRD_OP || instr_aluop == `EXE_TLBWR_OP || instr_aluop == `EXE_TLBSRCH_OP || instr_aluop == `EXE_ERTN_OP || instr_aluop == `EXE_INVTLB_OP) ;
+    // Exception
+    assign dispatch_o.excp = excp;
+    assign dispatch_o.excp_num = excp_num;
 
-
-    // TODO: add explanation
-    logic excp_ine;
-    logic excp_ipe;
-    logic excp;
-    logic [8:0] excp_num;
-
-    assign dispatch_o.refetch = (dispatch_o.aluop == `EXE_TLBFILL_OP || dispatch_o.aluop == `EXE_TLBRD_OP || dispatch_o.aluop == `EXE_TLBWR_OP || dispatch_o.aluop == `EXE_TLBSRCH_OP || dispatch_o.aluop == `EXE_ERTN_OP || dispatch_o.aluop == `EXE_INVTLB_OP) ;
-
-    assign excp_ine = !(instr_valid == `InstInvalid) && !instr_buffer_i.valid;
+    assign excp_ine = ~instr_valid & instr_buffer_i.valid; // If IB input is valid, but no valid decode result, then INE is triggered
     assign excp_ipe = kernel_instr && (csr_plv == 2'b11);
 
     assign excp = excp_ipe | instr_syscall | instr_break | instr_buffer_i.excp | excp_ine | has_int;
     assign excp_num = {
         excp_ipe, excp_ine, instr_break, instr_syscall, instr_buffer_i.excp_num, has_int
     };
-    assign dispatch_o.excp = excp;
-    assign dispatch_o.excp_num = excp_num;
-
-
-    // TODO: ex_op generate rules not implemented yet
-
-
 
 endmodule
