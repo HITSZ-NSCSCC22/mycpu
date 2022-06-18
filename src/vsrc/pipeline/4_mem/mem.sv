@@ -73,7 +73,7 @@ module mem
 
     // Send request to TLB, so result can be used in WB
     assign tlbsrch_en_o = aluop_i == `EXE_TLBSRCH_OP;
-    assign data_fetch = access_mem;
+    assign data_fetch = access_mem | tlbsrch_en_o;
 
     assign access_mem = signal_cache_o.ce;
 
