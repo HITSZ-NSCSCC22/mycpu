@@ -237,6 +237,35 @@ module cpu_top
         .wr_data   (dcache_axi_data),
         .wr_rdy    (axi_dcache_wr_rdy)
     );
+
+    // CSR signals
+    logic has_int;
+    logic excp_flush;
+    logic ertn_flush;
+    logic [31:0] csr_era_i;
+    logic [8:0] csr_esubcode_i;
+    logic [5:0] csr_ecode_i;
+    logic va_error_i;
+    logic [31:0] bad_va_i;
+    logic tlbsrch_en;
+    logic tlbsrch_found;
+    logic [4:0] tlbsrch_index;
+    logic excp_tlbrefill;
+    logic excp_tlb;
+    logic [18:0] excp_tlb_vppn;
+    logic [18:0] csr_vppn_o;
+    logic [`RegBus] csr_eentry;
+    logic [31:0] csr_tlbrentry;
+    logic [`RegBus] csr_era;
+
+    logic [9:0] csr_asid;
+    logic csr_pg;
+    logic csr_da;
+    logic [31:0] csr_dmw0;
+    logic [31:0] csr_dmw1;
+    logic [1:0] csr_datf;
+    logic [1:0] csr_datm;
+    logic [1:0] csr_plv;
     
 
     // Frontend -> ICache
@@ -248,7 +277,8 @@ module cpu_top
     logic [1:0][ICACHELINE_WIDTH-1:0] icache_frontend_data;
 
     // ICache <- TLB
-    // Frontend <- TLB
+    // Frontend <-> TLB
+    inst_tlb_t frontend_tlb;
     tlb_inst_t tlb_inst;
 
     icache u_icache(
@@ -279,8 +309,6 @@ module cpu_top
        .tlb_rreq_i(frontend_tlb) // <- Frontend
    );
     
-    // Frontend <-> TLB
-    inst_tlb_t frontend_tlb;
 
     // Frontend <-> Instruction Buffer
     logic ib_frontend_stallreq;
@@ -448,34 +476,7 @@ module cpu_top
     //tlb
     logic data_addr_trans_en;
 
-    //csr
-    logic has_int;
-    logic excp_flush;
-    logic ertn_flush;
-    logic [31:0] csr_era_i;
-    logic [8:0] csr_esubcode_i;
-    logic [5:0] csr_ecode_i;
-    logic va_error_i;
-    logic [31:0] bad_va_i;
-    logic tlbsrch_en;
-    logic tlbsrch_found;
-    logic [4:0] tlbsrch_index;
-    logic excp_tlbrefill;
-    logic excp_tlb;
-    logic [18:0] excp_tlb_vppn;
-    logic [18:0] csr_vppn_o;
-    logic [`RegBus] csr_eentry;
-    logic [31:0] csr_tlbrentry;
-    logic [`RegBus] csr_era;
-
-    logic [9:0] csr_asid;
-    logic csr_pg;
-    logic csr_da;
-    logic [31:0] csr_dmw0;
-    logic [31:0] csr_dmw1;
-    logic [1:0] csr_datf;
-    logic [1:0] csr_datm;
-    logic [1:0] csr_plv;
+    
 
     logic idle_flush;
     logic [`InstAddrBus] idle_pc;
@@ -703,7 +704,7 @@ module cpu_top
         .wb_ftq_id_i(wb_ctrl_ftq_id),
 
         // <- EX
-    	.ex_branch_flag_i (stall[2] ? 0: branch_flag),
+    	.ex_branch_flag_i (stall[2] ? 2'b0: branch_flag),
         .ex_stallreq_i (ex_stallreq),
         .tlb_stallreq(tlb_stallreq),
 

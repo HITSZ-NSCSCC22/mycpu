@@ -45,11 +45,12 @@ module decoder_2R
     assign rd = instr[4:0];
 
     always_comb begin
-        reg_read_valid_o = 2'b00;
-        reg_read_addr_o = 0;
+        reg_read_valid_o  = 2'b00;
+        reg_read_addr_o   = 0;
         reg_write_valid_o = 0;
-        reg_write_addr_o = 0;
-        alusel_o = 0;
+        reg_write_addr_o  = 0;
+        alusel_o          = 0;
+        aluop_o           = 0;
         case (instr[31:10])
             `EXE_TLBWR: begin
                 decode_result_valid_o = 1;

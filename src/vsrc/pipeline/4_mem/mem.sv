@@ -122,229 +122,214 @@ module mem
     end
 
     always_comb begin
-        if (rst == `RstEnable) begin
-            signal_o.instr_info = 0;
-            signal_o.wreg = 0;
-            signal_o.wdata = 0;
-            signal_o.waddr = 0;
-            signal_o.csr_signal = 0;
-            signal_o.aluop = 0;
-            signal_o.inv_i = 0;
-            signal_cache_o = 0;
-            signal_o.store_data = 0;
-            signal_o.mem_addr = 0;
-            signal_o.timer_64 = 0;
-            signal_cache_o.rd_type = 0;
-        end else begin
-            LLbit_we_o = 1'b0;
-            LLbit_value_o = 1'b0;
-            // FIXME: information should be passed to next stage
-            // currently not carefully designed
-            signal_o.instr_info = signal_i.instr_info;
-            signal_o.wreg = signal_i.wreg;
-            signal_o.waddr = signal_i.waddr;
-            signal_o.wdata = signal_i.wdata;
-            signal_o.aluop = aluop_i;
-            signal_o.csr_signal = signal_i.csr_signal;
-            signal_o.inv_i = signal_i.inv_i;
-            signal_o.mem_addr = mem_addr;
-            signal_o.timer_64 = signal_i.timer_64;
-            signal_cache_o = 0;
-            signal_o.store_data = 0;
-            signal_cache_o.rd_type = 0;
-            case (aluop_i)
-                `EXE_LD_B_OP: begin
-                    signal_cache_o.addr = mem_addr;
-                    signal_o.wreg = `WriteEnable;
-                    signal_cache_o.ce = `ChipEnable;
-                    signal_cache_o.sel = 4'b1111;
-                    signal_cache_o.rd_type = 0;
-                    case (mem_addr[1:0])
-                        2'b11: begin
-                            signal_o.wdata = {{24{mem_data_i[31]}}, mem_data_i[31:24]};
-                            signal_cache_o.sel = 4'b1000;
-                        end
-                        2'b10: begin
-                            signal_o.wdata = {{24{mem_data_i[23]}}, mem_data_i[23:16]};
-                            signal_cache_o.sel = 4'b0100;
-                        end
-                        2'b01: begin
-                            signal_o.wdata = {{24{mem_data_i[15]}}, mem_data_i[15:8]};
-                            signal_cache_o.sel = 4'b0010;
-                        end
-                        2'b00: begin
-                            signal_o.wdata = {{24{mem_data_i[7]}}, mem_data_i[7:0]};
-                            signal_cache_o.sel = 4'b0001;
-                        end
-                        default: begin
-                            signal_o.wdata = `ZeroWord;
-                        end
-                    endcase
-                end
-                `EXE_LD_H_OP: begin
-                    signal_cache_o.addr = mem_addr;
-                    signal_o.wreg = `WriteEnable;
-                    signal_cache_o.ce = `ChipEnable;
-                    signal_cache_o.rd_type = 3'b001;
-                    case (mem_addr[1:0])
-                        2'b10: begin
-                            signal_o.wdata = {{16{mem_data_i[31]}}, mem_data_i[31:16]};
-                            signal_cache_o.sel = 4'b1100;
-                        end
+        LLbit_we_o = 1'b0;
+        LLbit_value_o = 1'b0;
+        // FIXME: information should be passed to next stage
+        // currently not carefully designed
+        signal_o.instr_info = signal_i.instr_info;
+        signal_o.wreg = signal_i.wreg;
+        signal_o.waddr = signal_i.waddr;
+        signal_o.wdata = signal_i.wdata;
+        signal_o.aluop = aluop_i;
+        signal_o.csr_signal = signal_i.csr_signal;
+        signal_o.inv_i = signal_i.inv_i;
+        signal_o.mem_addr = mem_addr;
+        signal_o.timer_64 = signal_i.timer_64;
+        signal_cache_o = 0;
+        signal_o.store_data = 0;
+        signal_cache_o.rd_type = 0;
+        case (aluop_i)
+            `EXE_LD_B_OP: begin
+                signal_cache_o.addr = mem_addr;
+                signal_o.wreg = `WriteEnable;
+                signal_cache_o.ce = `ChipEnable;
+                signal_cache_o.sel = 4'b1111;
+                signal_cache_o.rd_type = 0;
+                case (mem_addr[1:0])
+                    2'b11: begin
+                        signal_o.wdata = {{24{mem_data_i[31]}}, mem_data_i[31:24]};
+                        signal_cache_o.sel = 4'b1000;
+                    end
+                    2'b10: begin
+                        signal_o.wdata = {{24{mem_data_i[23]}}, mem_data_i[23:16]};
+                        signal_cache_o.sel = 4'b0100;
+                    end
+                    2'b01: begin
+                        signal_o.wdata = {{24{mem_data_i[15]}}, mem_data_i[15:8]};
+                        signal_cache_o.sel = 4'b0010;
+                    end
+                    2'b00: begin
+                        signal_o.wdata = {{24{mem_data_i[7]}}, mem_data_i[7:0]};
+                        signal_cache_o.sel = 4'b0001;
+                    end
+                    default: begin
+                        signal_o.wdata = `ZeroWord;
+                    end
+                endcase
+            end
+            `EXE_LD_H_OP: begin
+                signal_cache_o.addr = mem_addr;
+                signal_o.wreg = `WriteEnable;
+                signal_cache_o.ce = `ChipEnable;
+                signal_cache_o.rd_type = 3'b001;
+                case (mem_addr[1:0])
+                    2'b10: begin
+                        signal_o.wdata = {{16{mem_data_i[31]}}, mem_data_i[31:16]};
+                        signal_cache_o.sel = 4'b1100;
+                    end
 
-                        2'b00: begin
-                            signal_o.wdata = {{16{mem_data_i[15]}}, mem_data_i[15:0]};
-                            signal_cache_o.sel = 4'b0011;
-                        end
+                    2'b00: begin
+                        signal_o.wdata = {{16{mem_data_i[15]}}, mem_data_i[15:0]};
+                        signal_cache_o.sel = 4'b0011;
+                    end
 
-                        default: begin
-                            signal_o.wdata = `ZeroWord;
-                        end
-                    endcase
-                end
-                `EXE_LD_W_OP: begin
+                    default: begin
+                        signal_o.wdata = `ZeroWord;
+                    end
+                endcase
+            end
+            `EXE_LD_W_OP: begin
+                signal_cache_o.addr = mem_addr;
+                signal_o.wreg = `WriteEnable;
+                signal_cache_o.ce = `ChipEnable;
+                signal_cache_o.sel = 4'b1111;
+                signal_o.wdata = mem_data_i;
+                signal_cache_o.rd_type = 3'b010;
+            end
+            `EXE_LD_BU_OP: begin
+                signal_cache_o.addr = mem_addr;
+                signal_o.wreg = `WriteEnable;
+                signal_cache_o.ce = `ChipEnable;
+                signal_cache_o.rd_type = 3'b000;
+                case (mem_addr[1:0])
+                    2'b11: begin
+                        signal_o.wdata = {{24{1'b0}}, mem_data_i[31:24]};
+                        signal_cache_o.sel = 4'b1000;
+                    end
+                    2'b10: begin
+                        signal_o.wdata = {{24{1'b0}}, mem_data_i[23:16]};
+                        signal_cache_o.sel = 4'b0100;
+                    end
+                    2'b01: begin
+                        signal_o.wdata = {{24{1'b0}}, mem_data_i[15:8]};
+                        signal_cache_o.sel = 4'b0010;
+                    end
+                    2'b00: begin
+                        signal_o.wdata = {{24{1'b0}}, mem_data_i[7:0]};
+                        signal_cache_o.sel = 4'b0001;
+                    end
+                    default: begin
+                        signal_o.wdata = `ZeroWord;
+                    end
+                endcase
+            end
+            `EXE_LD_HU_OP: begin
+                signal_cache_o.addr = mem_addr;
+                signal_o.wreg = `WriteEnable;
+                signal_cache_o.ce = `ChipEnable;
+                signal_cache_o.rd_type = 3'b001;
+                case (mem_addr[1:0])
+                    2'b10: begin
+                        signal_o.wdata = {{16{1'b0}}, mem_data_i[31:16]};
+                        signal_cache_o.sel = 4'b1100;
+                    end
+                    2'b00: begin
+                        signal_o.wdata = {{16{1'b0}}, mem_data_i[15:0]};
+                        signal_cache_o.sel = 4'b0011;
+                    end
+                    default: begin
+                        signal_o.wdata = `ZeroWord;
+                    end
+                endcase
+            end
+            `EXE_ST_B_OP: begin
+                signal_cache_o.addr = mem_addr;
+                signal_o.wreg = `WriteEnable;
+                signal_cache_o.we = `WriteEnable;
+                signal_cache_o.ce = `ChipEnable;
+                signal_cache_o.data = {reg2_i[7:0], reg2_i[7:0], reg2_i[7:0], reg2_i[7:0]};
+                case (mem_addr[1:0])
+                    2'b11: begin
+                        signal_cache_o.sel  = 4'b1000;
+                        signal_o.store_data = {reg2_i[7:0], 24'b0};
+                    end
+                    2'b10: begin
+                        signal_cache_o.sel  = 4'b0100;
+                        signal_o.store_data = {8'b0, reg2_i[7:0], 16'b0};
+                    end
+                    2'b01: begin
+                        signal_cache_o.sel  = 4'b0010;
+                        signal_o.store_data = {16'b0, reg2_i[7:0], 8'b0};
+                    end
+                    2'b00: begin
+                        signal_cache_o.sel  = 4'b0001;
+                        signal_o.store_data = {24'b0, reg2_i[7:0]};
+                    end
+                endcase
+            end
+            `EXE_ST_H_OP: begin
+                signal_cache_o.addr = mem_addr;
+                signal_o.wreg = `WriteEnable;
+                signal_cache_o.we = `WriteEnable;
+                signal_cache_o.ce = `ChipEnable;
+                signal_cache_o.data = {reg2_i[15:0], reg2_i[15:0]};
+                case (mem_addr[1:0])
+                    2'b10: begin
+                        signal_cache_o.sel  = 4'b1100;
+                        signal_o.store_data = {reg2_i[15:0], 16'b0};
+                    end
+                    2'b00: begin
+                        signal_cache_o.sel  = 4'b0011;
+                        signal_o.store_data = {16'b0, reg2_i[15:0]};
+                    end
+                    default: begin
+                        signal_cache_o.sel = 4'b0000;
+                    end
+                endcase
+            end
+            `EXE_ST_W_OP: begin
+                signal_cache_o.addr = mem_addr;
+                signal_o.wreg = `WriteEnable;
+                signal_cache_o.we = `WriteEnable;
+                signal_cache_o.ce = `ChipEnable;
+                signal_cache_o.data = reg2_i;
+                signal_cache_o.sel = 4'b1111;
+                signal_o.store_data = reg2_i;
+            end
+            `EXE_LL_OP: begin
+                signal_cache_o.addr = mem_addr;
+                signal_o.wreg = `WriteEnable;
+                signal_cache_o.ce = `ChipEnable;
+                signal_cache_o.sel = 4'b1111;
+                signal_o.wdata = mem_data_i;
+                LLbit_we_o = 1'b1;
+                LLbit_value_o = 1'b1;
+                signal_cache_o.rd_type = 3'b010;
+            end
+            `EXE_SC_OP: begin
+                if (LLbit == 1'b1) begin
                     signal_cache_o.addr = mem_addr;
-                    signal_o.wreg = `WriteEnable;
-                    signal_cache_o.ce = `ChipEnable;
-                    signal_cache_o.sel = 4'b1111;
-                    signal_o.wdata = mem_data_i;
-                    signal_cache_o.rd_type = 3'b010;
-                end
-                `EXE_LD_BU_OP: begin
-                    signal_cache_o.addr = mem_addr;
-                    signal_o.wreg = `WriteEnable;
-                    signal_cache_o.ce = `ChipEnable;
-                    signal_cache_o.rd_type = 3'b000;
-                    case (mem_addr[1:0])
-                        2'b11: begin
-                            signal_o.wdata = {{24{1'b0}}, mem_data_i[31:24]};
-                            signal_cache_o.sel = 4'b1000;
-                        end
-                        2'b10: begin
-                            signal_o.wdata = {{24{1'b0}}, mem_data_i[23:16]};
-                            signal_cache_o.sel = 4'b0100;
-                        end
-                        2'b01: begin
-                            signal_o.wdata = {{24{1'b0}}, mem_data_i[15:8]};
-                            signal_cache_o.sel = 4'b0010;
-                        end
-                        2'b00: begin
-                            signal_o.wdata = {{24{1'b0}}, mem_data_i[7:0]};
-                            signal_cache_o.sel = 4'b0001;
-                        end
-                        default: begin
-                            signal_o.wdata = `ZeroWord;
-                        end
-                    endcase
-                end
-                `EXE_LD_HU_OP: begin
-                    signal_cache_o.addr = mem_addr;
-                    signal_o.wreg = `WriteEnable;
-                    signal_cache_o.ce = `ChipEnable;
-                    signal_cache_o.rd_type = 3'b001;
-                    case (mem_addr[1:0])
-                        2'b10: begin
-                            signal_o.wdata = {{16{1'b0}}, mem_data_i[31:16]};
-                            signal_cache_o.sel = 4'b1100;
-                        end
-                        2'b00: begin
-                            signal_o.wdata = {{16{1'b0}}, mem_data_i[15:0]};
-                            signal_cache_o.sel = 4'b0011;
-                        end
-                        default: begin
-                            signal_o.wdata = `ZeroWord;
-                        end
-                    endcase
-                end
-                `EXE_ST_B_OP: begin
-                    signal_cache_o.addr = mem_addr;
-                    signal_o.wreg = `WriteEnable;
-                    signal_cache_o.we = `WriteEnable;
-                    signal_cache_o.ce = `ChipEnable;
-                    signal_cache_o.data = {reg2_i[7:0], reg2_i[7:0], reg2_i[7:0], reg2_i[7:0]};
-                    case (mem_addr[1:0])
-                        2'b11: begin
-                            signal_cache_o.sel  = 4'b1000;
-                            signal_o.store_data = {reg2_i[7:0], 24'b0};
-                        end
-                        2'b10: begin
-                            signal_cache_o.sel  = 4'b0100;
-                            signal_o.store_data = {8'b0, reg2_i[7:0], 16'b0};
-                        end
-                        2'b01: begin
-                            signal_cache_o.sel  = 4'b0010;
-                            signal_o.store_data = {16'b0, reg2_i[7:0], 8'b0};
-                        end
-                        2'b00: begin
-                            signal_cache_o.sel  = 4'b0001;
-                            signal_o.store_data = {24'b0, reg2_i[7:0]};
-                        end
-                    endcase
-                end
-                `EXE_ST_H_OP: begin
-                    signal_cache_o.addr = mem_addr;
-                    signal_o.wreg = `WriteEnable;
-                    signal_cache_o.we = `WriteEnable;
-                    signal_cache_o.ce = `ChipEnable;
-                    signal_cache_o.data = {reg2_i[15:0], reg2_i[15:0]};
-                    case (mem_addr[1:0])
-                        2'b10: begin
-                            signal_cache_o.sel  = 4'b1100;
-                            signal_o.store_data = {reg2_i[15:0], 16'b0};
-                        end
-                        2'b00: begin
-                            signal_cache_o.sel  = 4'b0011;
-                            signal_o.store_data = {16'b0, reg2_i[15:0]};
-                        end
-                        default: begin
-                            signal_cache_o.sel = 4'b0000;
-                        end
-                    endcase
-                end
-                `EXE_ST_W_OP: begin
-                    signal_cache_o.addr = mem_addr;
-                    signal_o.wreg = `WriteEnable;
                     signal_cache_o.we = `WriteEnable;
                     signal_cache_o.ce = `ChipEnable;
                     signal_cache_o.data = reg2_i;
                     signal_cache_o.sel = 4'b1111;
-                    signal_o.store_data = reg2_i;
-                end
-                `EXE_LL_OP: begin
-                    signal_cache_o.addr = mem_addr;
-                    signal_o.wreg = `WriteEnable;
-                    signal_cache_o.ce = `ChipEnable;
-                    signal_cache_o.sel = 4'b1111;
-                    signal_o.wdata = mem_data_i;
                     LLbit_we_o = 1'b1;
-                    LLbit_value_o = 1'b1;
-                    signal_cache_o.rd_type = 3'b010;
-                end
-                `EXE_SC_OP: begin
-                    if (LLbit == 1'b1) begin
-                        signal_cache_o.addr = mem_addr;
-                        signal_cache_o.we = `WriteEnable;
-                        signal_cache_o.ce = `ChipEnable;
-                        signal_cache_o.data = reg2_i;
-                        signal_cache_o.sel = 4'b1111;
-                        LLbit_we_o = 1'b1;
-                        LLbit_value_o = 1'b0;
-                        signal_o.wreg = `WriteEnable;
-                        signal_o.store_data = reg2_i;
-                        signal_o.wdata = 32'b1;
-                    end else begin
-                        signal_cache_o = 0;
-                        signal_o.wreg = `WriteEnable;
-                        signal_o.store_data = 0;
-                        signal_o.wdata = 32'b0;
-                    end
-                end
-                default: begin
-                    // Reset AXI signals, IMPORTANT!
+                    LLbit_value_o = 1'b0;
+                    signal_o.wreg = `WriteEnable;
+                    signal_o.store_data = reg2_i;
+                    signal_o.wdata = 32'b1;
+                end else begin
                     signal_cache_o = 0;
+                    signal_o.wreg = `WriteEnable;
+                    signal_o.store_data = 0;
+                    signal_o.wdata = 32'b0;
                 end
-            endcase
-        end
+            end
+            default: begin
+                // Reset AXI signals, IMPORTANT!
+                signal_cache_o = 0;
+            end
+        endcase
     end
 
 endmodule
