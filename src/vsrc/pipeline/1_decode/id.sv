@@ -175,6 +175,21 @@ module id
     );
     // Sub-decoder END
 
+    // Generate instr_valid, using OR
+    logic instr_valid;
+    always_comb begin
+        instr_valid = 0;
+        for (integer i = 0; i < SUB_DECODER_NUM; i++) begin
+            instr_valid = instr_valid | sub_decoder_valid[i];
+        end
+    end
+
+    // Generate output
+    //对valid进行特判:如果存在无效指令,也要发射出去,以便让ctrl处理异常
+    //目前暂时是对取指地址异常进行特判
+    //如果是无效指令，要让ctrl处理，所以当成nop发射
+    assign dispatch_o.instr_info.valid = instr_valid | ((excp_num & 9'h01E) != 0);
+
     // Generate imm, using OR
     logic use_imm;
     logic [`RegBus] imm;
@@ -188,42 +203,35 @@ module id
             imm = imm | sub_decoder_imm[i];
         end
     end
-    // Generate instr_valid, using OR
-    logic instr_valid;
-    always_comb begin
-        instr_valid = 0;
-        for (integer i = 0; i < SUB_DECODER_NUM; i++) begin
-            instr_valid = instr_valid | sub_decoder_valid[i];
-        end
-    end
+    
     // Generate output to EXE
     always_comb begin
         dispatch_o.aluop = 0;
         dispatch_o.alusel = 0;
         dispatch_o.reg_write_valid = 0;
         dispatch_o.reg_write_addr = 0;
-        for (integer i = 0; i < SUB_DECODER_NUM; i++) begin
-            dispatch_o.aluop = dispatch_o.aluop | sub_decoder_aluop[i];
-            dispatch_o.alusel = dispatch_o.alusel | sub_decoder_alusel[i];
-            dispatch_o.reg_write_valid = dispatch_o.reg_write_valid | sub_decoder_reg_write_valid[i];
-            dispatch_o.reg_write_addr = dispatch_o.reg_write_addr | sub_decoder_reg_write_addr[i];
+        if(instr_valid)begin
+            for (integer i = 0; i < SUB_DECODER_NUM; i++) begin
+                dispatch_o.aluop = dispatch_o.aluop | sub_decoder_aluop[i];
+                dispatch_o.alusel = dispatch_o.alusel | sub_decoder_alusel[i];
+                dispatch_o.reg_write_valid = dispatch_o.reg_write_valid | sub_decoder_reg_write_valid[i];
+                dispatch_o.reg_write_addr = dispatch_o.reg_write_addr | sub_decoder_reg_write_addr[i];
+            end
         end
     end
     // Generate output to Regfile
     always_comb begin
         dispatch_o.reg_read_valid = 0;
         dispatch_o.reg_read_addr  = 0;
-        for (integer i = 0; i < SUB_DECODER_NUM; i++) begin
-            dispatch_o.reg_read_valid = dispatch_o.reg_read_valid | sub_decoder_reg_read_valid[i];
-            dispatch_o.reg_read_addr  = dispatch_o.reg_read_addr | sub_decoder_reg_read_addr[i];
+        if(instr_valid)begin
+            for (integer i = 0; i < SUB_DECODER_NUM; i++) begin
+                dispatch_o.reg_read_valid = dispatch_o.reg_read_valid | sub_decoder_reg_read_valid[i];
+                dispatch_o.reg_read_addr  = dispatch_o.reg_read_addr | sub_decoder_reg_read_addr[i];
+            end
         end
     end
 
 
-    // Generate output
-    //对valid进行特判:如果存在无效指令,也要发射出去,以便让ctrl处理异常
-    //目前暂时是对取指地址异常进行特判
-    assign dispatch_o.instr_info.valid = instr_valid | ((excp_num & 9'h01E) != 0);
     assign dispatch_o.instr_info.pc = pc_i;
     assign dispatch_o.instr_info.instr = inst_i;
     assign dispatch_o.instr_info.is_last_in_block = is_last_in_block;
