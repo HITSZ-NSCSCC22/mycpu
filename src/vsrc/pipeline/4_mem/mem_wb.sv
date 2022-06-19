@@ -17,9 +17,12 @@ module mem_wb
 
     input logic flush,
 
-    //<- csr 
+    //<-> csr 
     input csr_to_mem_struct csr_mem_signal,
     input logic disable_cache,
+    input logic LLbit_i,
+    input logic LLbit_we_i,
+    input logic LLbit_value_i,
 
     //<- tlb
     output logic data_addr_trans_en,
@@ -42,6 +45,16 @@ module mem_wb
 
     csr_write_signal csr_test;
     assign csr_test = mem_signal_o.csr_signal;
+
+    //sc只有llbit为1才执行，如果llbit为0，sc就不算访存指令
+    logic LLbit;
+    always @(*) begin
+        if (rst == `RstEnable) LLbit = 1'b0;
+        else begin
+            if (LLbit_we_i == 1'b1) LLbit = LLbit_value_i;
+            else LLbit = LLbit_i;
+        end
+    end
 
     logic excp, pg_mode, da_mode;
     logic [15:0] excp_num;
@@ -69,7 +82,7 @@ module mem_wb
     assign mem_load_op = mem_signal_o.aluop == `EXE_LD_B_OP ||  mem_signal_o.aluop == `EXE_LD_BU_OP ||  mem_signal_o.aluop == `EXE_LD_H_OP ||  mem_signal_o.aluop == `EXE_LD_HU_OP ||
                         mem_signal_o.aluop == `EXE_LD_W_OP ||  mem_signal_o.aluop == `EXE_LL_OP;
 
-    assign mem_store_op =  mem_signal_o.aluop == `EXE_ST_B_OP ||  mem_signal_o.aluop == `EXE_ST_H_OP ||  mem_signal_o.aluop == `EXE_ST_W_OP ||  mem_signal_o.aluop == `EXE_SC_OP;
+    assign mem_store_op =  mem_signal_o.aluop == `EXE_ST_B_OP ||  mem_signal_o.aluop == `EXE_ST_H_OP ||  mem_signal_o.aluop == `EXE_ST_W_OP ||  (mem_signal_o.aluop == `EXE_SC_OP && LLbit == 1'b1);
 
     assign dmw0_en = ((csr_mem_signal.csr_dmw0[`PLV0] && csr_mem_signal.csr_plv == 2'd0) || (csr_mem_signal.csr_dmw0[`PLV3] && csr_mem_signal.csr_plv == 2'd3)) && (mem_signal_o.mem_addr[31:29] == csr_mem_signal.csr_dmw0[`VSEG]);
     assign dmw1_en = ((csr_mem_signal.csr_dmw1[`PLV0] && csr_mem_signal.csr_plv == 2'd0) || (csr_mem_signal.csr_dmw1[`PLV3] && csr_mem_signal.csr_plv == 2'd3)) && (mem_signal_o.mem_addr[31:29] == csr_mem_signal.csr_dmw1[`VSEG]);
