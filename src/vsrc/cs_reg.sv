@@ -204,6 +204,9 @@ module cs_reg
     assign tlbelo1_out = csr_tlbelo1;
     assign tlbidx_out = csr_tlbidx;
     assign rand_index = timer_64[4:0];
+    assign ecode_out = csr_estat[`ECODE];
+    assign datf_out = csr_crmd[`DATF];
+    assign datm_out = csr_crmd[`DATM];
 
 
     //crmd
