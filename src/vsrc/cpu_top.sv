@@ -470,7 +470,6 @@ module cpu_top
 
 
     logic [`RegBus] branch_target_address[2];
-    logic [`RegBus] link_addr;
     logic flush;
 
 

@@ -1,6 +1,6 @@
 `include "defines.sv"
 `include "csr_defines.sv"
-module cs_logic
+module cs_reg
     import csr_defines::*;
 (
     input logic clk,
