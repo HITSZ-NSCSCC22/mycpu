@@ -1,6 +1,6 @@
 `include "defines.sv"
 `include "csr_defines.sv"
-module cs_reg
+module cs_logic
     import csr_defines::*;
 (
     input logic clk,
@@ -39,7 +39,7 @@ module cs_reg
 
     output logic [1:0] plv_o,
 
-    //to pc_reg
+    //to pc_logic
     output logic has_int,
     output logic [31:0] eentry_out,
     output logic [31:0] era_out,
@@ -68,40 +68,42 @@ module cs_reg
     input logic [9:0] asid_in
 );
 
-    reg [31:0] csr_crmd;
-    reg [31:0] csr_prmd;
-    reg [31:0] csr_ectl;
-    reg [31:0] csr_estat;
-    reg [31:0] csr_era;
-    reg [31:0] csr_badv;
-    reg [31:0] csr_eentry;
-    reg [31:0] csr_tlbidx;
-    reg [31:0] csr_tlbehi;
-    reg [31:0] csr_tlbelo0;
-    reg [31:0] csr_tlbelo1;
-    reg [31:0] csr_tlbrentry;
-    reg [31:0] csr_tid;
-    reg [31:0] csr_tcfg;
-    reg [31:0] csr_tval;
-    reg [31:0] csr_cntc;
-    reg [31:0] csr_ticlr;
-    reg [31:0] csr_llbctl;
-    reg [31:0] csr_asid;
-    reg [31:0] csr_cpuid;
-    reg [31:0] csr_pgdl;
-    reg [31:0] csr_pgdh;
-    reg [31:0] csr_save0;
-    reg [31:0] csr_save1;
-    reg [31:0] csr_save2;
-    reg [31:0] csr_save3;
-    reg [31:0] csr_dmw0;
-    reg [31:0] csr_dmw1;
+    logic [31:0] csr_crmd;
+    logic [31:0] csr_prmd;
+    logic [31:0] csr_ectl;
+    logic [31:0] csr_estat;
+    logic [31:0] csr_era;
+    logic [31:0] csr_badv;
+    logic [31:0] csr_eentry;
+    logic [31:0] csr_tlbidx;
+    logic [31:0] csr_tlbehi;
+    logic [31:0] csr_tlbelo0;
+    logic [31:0] csr_tlbelo1;
+    logic [31:0] csr_tlbrentry;
+    logic [31:0] csr_tid;
+    logic [31:0] csr_tcfg;
+    logic [31:0] csr_tval;
+    logic [31:0] csr_cntc;
+    logic [31:0] csr_ticlr;
+    logic [31:0] csr_llbctl;
+    logic [31:0] csr_asid;
+    logic [31:0] csr_cpuid;
+    logic [31:0] csr_pgdl;
+    logic [31:0] csr_pgdh;
+    logic [31:0] csr_save0;
+    logic [31:0] csr_save1;
+    logic [31:0] csr_save2;
+    logic [31:0] csr_save3;
+    logic [31:0] csr_dmw0;
+    logic [31:0] csr_dmw1;
+    logic [31:0] csr_brk;
+    logic [31:0] csr_disable_cache;
 
     logic [31:0] csr_pgd;
-    reg timer_en;
-    reg [63:0] timer_64;
+    logic timer_en;
+    logic [63:0] timer_64;
 
-    reg llbit;
+    logic llbit;
 
     logic eret_tlbrefill_excp;
     logic tlbrd_valid_wr_en;
@@ -109,9 +111,9 @@ module cs_reg
     logic no_forward;
 
     //选择有写入信号的进行赋值，同样假设不会有写冲突
-    reg we;
-    reg [13:0] waddr;
-    reg [`RegBus] wdata;
+    logic we;
+    logic [13:0] waddr;
+    logic [`RegBus] wdata;
 
     always @(*) begin
         if (rst) begin
@@ -133,7 +135,7 @@ module cs_reg
         end
     end
 
-    //data to pc_reg
+    //data to fronted
     assign tlbrentry_out = csr_tlbrentry;
     assign no_forward   = !excp_tlbrefill && !(eret_tlbrefill_excp && ertn_flush) && !(we == 1'b1 && waddr == `CRMD);
 
@@ -154,6 +156,10 @@ module cs_reg
 
     assign dmw0_out = we == 1'b1 && waddr == `DMW0 ? wdata : csr_dmw0;
     assign dmw1_out = we == 1'b1 && waddr == `DMW1 ? wdata : csr_dmw1;
+
+    assign ecode_out = csr_estat[`ECODE];
+    assign datf_out = csr_crmd[`DATF];
+    assign datm_out = csr_crmd[`DATM];
 
     assign has_int = ((csr_ectl[`LIE] & csr_estat[`IS]) != 13'b0) & csr_crmd[`IE];
 
@@ -570,6 +576,26 @@ module cs_reg
             timer_64 <= 64'b0;
         end else begin
             timer_64 <= timer_64 + 1'b1;
+        end
+    end
+
+
+    always @(posedge clk) begin
+        if (rst) begin
+            csr_brk <= 32'b0;
+        end
+        if (we == 1'b1 && waddr == `BRK) begin
+            csr_brk <= wdata;
+        end
+    end
+
+    //use for disable cache or enable cache
+    always @(posedge clk) begin
+        if (rst) begin
+            csr_disable_cache <= 32'b0;
+        end
+        if (we == 1'b1 && waddr == `DISABLE_CACHE) begin
+            csr_disable_cache <= wdata;
         end
     end
 
