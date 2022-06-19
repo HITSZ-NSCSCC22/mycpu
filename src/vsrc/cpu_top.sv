@@ -637,7 +637,6 @@ module cpu_top
                 .csr_mem_signal(csr_mem_signal),
                 .disable_cache(1'b0),
                 .LLbit_i(LLbit_o),
-                // <- CSR
                 .LLbit_we_i(llbit_i.we),
                 .LLbit_value_i(llbit_i.value),
 
