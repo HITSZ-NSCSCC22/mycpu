@@ -663,7 +663,6 @@ module cpu_top
         .READ_PORTS(4)  // 2 for each ID, 2 ID in total, TODO: remove magic number
     ) u_regfile (
         .clk(clk),
-        .rst(rst),
 
         .we_1   (reg_o[0].we),
         .pc_i_1 (reg_o[0].pc),

@@ -1,9 +1,11 @@
 `include "defines.sv"
+
+// Regfile is the architectural register file
+// No hardware reset to generate LUTRAM, is allowed in manual
 module regfile #(
     parameter READ_PORTS = 4
 ) (
     input wire clk,
-    input wire rst,
 
     input wire [`InstAddrBus] pc_i_1,
     input wire we_1,
@@ -23,19 +25,9 @@ module regfile #(
     // Used in difftest, should named regs, IMPORTANT!!
     reg [`RegBus] regs[0:`RegNum-1];
 
-    logic [4:0] debug_reg0, debug_reg1, debug_reg2, debug_reg3;
-    assign debug_reg0 = read_addr_i[0];
-    assign debug_reg1 = read_addr_i[1];
-    assign debug_reg2 = read_addr_i[2];
-    assign debug_reg3 = read_addr_i[3];
-
     // Write Logic
     always @(posedge clk) begin
-        if (rst == `RstEnable) begin
-            for (integer i = 0; i < `RegNum; i = i + 1) begin
-                regs[i] <= 0;
-            end
-        end else begin  //同时写入一个位置，将后面的写入
+        begin  //同时写入一个位置，将后面的写入
             if ((we_1 == `WriteEnable) && (we_2 == `WriteEnable) && waddr_1 == waddr_2) begin
                 if (pc_i_1 > pc_i_2) regs[waddr_1] <= wdata_1;
                 else regs[waddr_1] <= wdata_2;
@@ -51,8 +43,7 @@ module regfile #(
     // Read Logic
     always_comb begin : read_comb
         for (integer i = 0; i < READ_PORTS; i++) begin
-            if (rst == `RstEnable) read_data_o[i] = `ZeroWord;  // Reset to zero
-            else if (read_addr_i[i] == 0) read_data_o[i] = `ZeroWord;  // r0 is always zero
+            if (read_addr_i[i] == 0) read_data_o[i] = `ZeroWord;  // r0 is always zero
             else if (waddr_2 == read_addr_i[i] && we_2)
                 read_data_o[i] = wdata_2;  // port 2 has higher priority
             else if (waddr_1 == read_addr_i[i] && we_1) read_data_o[i] = wdata_1;
