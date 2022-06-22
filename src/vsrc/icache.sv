@@ -47,6 +47,15 @@ module icache
     }
         state, next_state;
 
+    // P1 signal
+    logic miss_1_pulse, miss_2_pulse, miss_1_r, miss_2_r, miss_1, miss_2;
+    // rvalid_1 & 2 is only valid when state == IDLE or (miss_1 | (state == REFILL_1_WAIT & ~rvalid_1))
+    logic rvalid_1, rvalid_2;
+    // Input reg
+    logic p1_rreq_1, p1_rreq_2;
+    logic [ADDR_WIDTH-1:0] p1_raddr_1, p1_raddr_2;
+    logic p1_tlb_miss;
+
     /////////////////////////////////////////////////
     // PO, query BRAM
     ////////////////////////////////////////////////
@@ -168,7 +177,6 @@ module icache
     ///////////////////////////////////////////////////
 
     // Generate miss signal
-    logic miss_1_pulse, miss_2_pulse, miss_1_r, miss_2_r, miss_1, miss_2;
     assign miss_1_pulse = p1_rreq_1 & ~rvalid_1 & (state == IDLE);
     assign miss_2_pulse = p1_rreq_2 & ~rvalid_2 & (state == IDLE);
     assign miss_1 = miss_1_pulse | miss_1_r;
@@ -197,7 +205,6 @@ module icache
         end
     end
     // TLB miss
-    logic p1_tlb_miss;
     inst_tlb_t p1_tlb_rreq;
     always_ff @(posedge clk) begin
         if (rreq_1_i | rreq_2_i) p1_tlb_rreq <= tlb_rreq_i;
@@ -214,9 +221,6 @@ module icache
             tlb_i_r <= tlb_i;
         end
     end
-    // Input reg
-    logic p1_rreq_1, p1_rreq_2;
-    logic [ADDR_WIDTH-1:0] p1_raddr_1, p1_raddr_2;
     always_ff @(posedge clk) begin
         if (rvalid_1_o | ~p1_rreq_1) begin
             p1_rreq_1  <= rreq_1_i;
@@ -237,8 +241,6 @@ module icache
         end
     end
 
-    // rvalid_1 & 2 is only valid when state == IDLE or (miss_1 | (state == REFILL_1_WAIT & ~rvalid_1))
-    logic rvalid_1, rvalid_2;
     // IDLE & WAIT can return rvalid_o, but REQ must not return rvalid_o
     assign rvalid_1_o = (rvalid_1 && p1_rreq_1 && state != REFILL_1_REQ) | (p1_tlb_miss && state == IDLE);
     assign rvalid_2_o = (rvalid_2 && p1_rreq_2 && state != REFILL_2_REQ) | (p1_tlb_miss && state == IDLE);

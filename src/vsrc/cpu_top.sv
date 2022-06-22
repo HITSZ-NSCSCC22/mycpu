@@ -258,6 +258,7 @@ module cpu_top
     logic [`RegBus] csr_eentry;
     logic [31:0] csr_tlbrentry;
     logic [`RegBus] csr_era;
+    logic LLbit_o;
 
     logic [9:0] csr_asid;
     logic csr_pg;
@@ -564,10 +565,10 @@ module cpu_top
 
     logic [1:0] mem_stallreq;
 
-    logic LLbit_o;
     logic mem_wb_LLbit_we[2];
     logic mem_wb_LLbit_value[2];
     logic cacop_op_mode_di[2];
+    tlb_inv_t tlb_inv_signal_i;
     assign tlb_data_i.cacop_op_mode_di =  cacop_op_mode_di[0] |  cacop_op_mode_di[1];
 
     csr_to_mem_struct csr_mem_signal;
@@ -828,7 +829,6 @@ module cpu_top
     tlb_data_t tlb_data_o;
     tlb_write_in_struct tlb_write_signal_i;
     tlb_read_out_struct tlb_read_signal_o;
-    tlb_inv_t tlb_inv_signal_i;
     
     tlb u_tlb (
         .clk               (clk),
