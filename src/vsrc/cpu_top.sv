@@ -282,6 +282,10 @@ module cpu_top
     inst_tlb_t frontend_tlb;
     tlb_inst_t tlb_inst;
 
+    logic [`InstBus] excp_instr;
+    logic [13:0] dispatch_csr_read_addr;
+    logic [`RegBus] dispatch_csr_data;
+
     icache u_icache(
        .clk          (clk          ),
        .rst          (rst          ),
@@ -759,9 +763,7 @@ module cpu_top
         .commit_1(difftest_commit_info[1])
     );
     
-    logic [`InstBus] excp_instr;
-    logic [13:0] dispatch_csr_read_addr;
-    logic [`RegBus] dispatch_csr_data;
+    
 
     cs_reg u_cs_reg (
         .clk(clk),

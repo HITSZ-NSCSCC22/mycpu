@@ -76,10 +76,15 @@ module ctrl
     output diff_commit commit_1
 );
 
-    logic valid;
+    logic valid,pri_commit,excp;
+    logic [`AluOpBus] aluop, aluop_1;
+    logic [COMMIT_WIDTH-1:0] backend_commit_valid;
+    logic [15:0] excp_num;
+    logic [`RegBus] pc, error_va;
+
     assign valid = wb_i[0].valid | wb_i[1].valid;
 
-    logic [COMMIT_WIDTH-1:0] backend_commit_valid;
+    
     assign backend_commit_valid[0] = wb_i[0].valid;
     assign backend_commit_valid[1] = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | wb_i[0].excp)? 0 : wb_i[1].valid;
 
@@ -91,7 +96,7 @@ module ctrl
     assign backend_flush_ftq_id_o = (wb_i[0].excp | ertn_flush | idle_flush |fetch_flush) ? wb_ftq_id_i[0] :
                                     (wb_i[1].excp) ? wb_ftq_id_i[1] : 0;
 
-    logic [`AluOpBus] aluop, aluop_1;
+    
     assign aluop = wb_i[0].aluop;
     assign aluop_1 = wb_i[1].aluop;
 
@@ -144,7 +149,7 @@ module ctrl
     end
 
     //判断提交的是否为特权指令,因为特权后不发射其它指令,故必然出现在第一条流水线
-    logic pri_commit;
+    
     assign pri_commit = aluop == `EXE_CSRWR_OP | aluop == `EXE_CSRRD_OP | aluop == `EXE_CSRXCHG_OP |
                        aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_ERTN_OP |
                        aluop == `EXE_TLBRD_OP | aluop == `EXE_TLBWR_OP | aluop == `EXE_TLBSRCH_OP |
@@ -177,9 +182,7 @@ module ctrl
     assign csr_w_o_0 = wb_i[0].excp ? 0 : wb_i[0].csr_signal_o;
     assign csr_w_o_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | excp) ? 0 : wb_i[1].csr_signal_o;
 
-    logic excp;
-    logic [15:0] excp_num;
-    logic [`RegBus] pc, error_va;
+    
     assign excp = wb_i[0].excp | wb_i[1].excp;
     assign csr_era = aluop == `EXE_IDLE_OP ? pc + 32'h4 : pc;
     //异常处理，优先处理第一条流水线的异常

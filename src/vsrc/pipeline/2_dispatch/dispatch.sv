@@ -59,6 +59,8 @@ module dispatch
     assign aluop_i[0] = id_i[0].aluop;
     assign aluop_i[1] = id_i[1].aluop;
 
+    logic [EXE_STAGE_WIDTH-1:0] do_we_issue;
+
     //assign stallreq = aluop_i == `EXE_TLBRD_OP;
     //判断待发射的两条指令里面有无特权指令,如有有就拉高is_pri_instr,把信号传给ctrl就行阻塞
     logic pri_op[2];
@@ -91,7 +93,6 @@ module dispatch
     assign is_both_mem_instr = alusel_i[0] == `EXE_RES_LOAD_STORE | alusel_i[1] == `EXE_RES_LOAD_STORE | aluop_i[0] == `EXE_LL_OP | aluop_i[1] == `EXE_LL_OP | aluop_i[0] == `EXE_SC_OP | aluop_i[1] == `EXE_SC_OP | alusel_i[0] == `EXE_RES_JUMP | alusel_i[1] == `EXE_RES_JUMP;
 
     // Dispatch flag
-    logic [EXE_STAGE_WIDTH-1:0] do_we_issue;
     logic [EXE_STAGE_WIDTH-1:0] issue_valid;
     assign issue_valid = do_we_issue & {id_i[1].instr_info.valid, id_i[0].instr_info.valid};
     // If stall, tell IB no more instructions can be accepted
