@@ -37,6 +37,15 @@ module icache
     input tlb_inst_t tlb_i,  // <- TLB
     input inst_tlb_t tlb_rreq_i  // <- IFU
 );
+    // Refill states
+    enum int {
+        IDLE,
+        REFILL_1_REQ,
+        REFILL_1_WAIT,
+        REFILL_2_REQ,
+        REFILL_2_WAIT
+    }
+        state, next_state;
 
     /////////////////////////////////////////////////
     // PO, query BRAM
@@ -158,6 +167,35 @@ module icache
     // P1, output gen
     ///////////////////////////////////////////////////
 
+    // Generate miss signal
+    logic miss_1_pulse, miss_2_pulse, miss_1_r, miss_2_r, miss_1, miss_2;
+    assign miss_1_pulse = p1_rreq_1 & ~rvalid_1 & (state == IDLE);
+    assign miss_2_pulse = p1_rreq_2 & ~rvalid_2 & (state == IDLE);
+    assign miss_1 = miss_1_pulse | miss_1_r;
+    assign miss_2 = miss_2_pulse | miss_2_r;
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            miss_1_r <= 0;
+            miss_2_r <= 0;
+        end else begin
+            case (state)
+                IDLE: begin
+                    if (~p1_tlb_miss) begin
+                        miss_1_r <= miss_1_pulse;
+                        miss_2_r <= miss_2_pulse;
+                    end
+                end
+                REFILL_1_WAIT: begin
+                    if (axi_rvalid_i) miss_1_r <= 0;
+                end
+                REFILL_2_WAIT: begin
+                    if (axi_rvalid_i) miss_2_r <= 0;
+                end
+                default: begin
+                end
+            endcase
+        end
+    end
     // TLB miss
     logic p1_tlb_miss;
     inst_tlb_t p1_tlb_rreq;
@@ -222,16 +260,7 @@ module icache
         end
     end
 
-
     // Refill state machine
-    enum int {
-        IDLE,
-        REFILL_1_REQ,
-        REFILL_1_WAIT,
-        REFILL_2_REQ,
-        REFILL_2_WAIT
-    }
-        state, next_state;
     always_ff @(posedge clk) begin
         if (rst) begin
             state <= IDLE;
@@ -239,38 +268,6 @@ module icache
             state <= next_state;
         end
     end
-
-    // Generate miss signal
-    logic miss_1_pulse, miss_2_pulse, miss_1_r, miss_2_r, miss_1, miss_2;
-    assign miss_1_pulse = p1_rreq_1 & ~rvalid_1 & (state == IDLE);
-    assign miss_2_pulse = p1_rreq_2 & ~rvalid_2 & (state == IDLE);
-    assign miss_1 = miss_1_pulse | miss_1_r;
-    assign miss_2 = miss_2_pulse | miss_2_r;
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            miss_1_r <= 0;
-            miss_2_r <= 0;
-        end else begin
-            case (state)
-                IDLE: begin
-                    if (~p1_tlb_miss) begin
-                        miss_1_r <= miss_1_pulse;
-                        miss_2_r <= miss_2_pulse;
-                    end
-                end
-                REFILL_1_WAIT: begin
-                    if (axi_rvalid_i) miss_1_r <= 0;
-                end
-                REFILL_2_WAIT: begin
-                    if (axi_rvalid_i) miss_2_r <= 0;
-                end
-                default: begin
-                end
-            endcase
-        end
-    end
-
-
 
     always_comb begin : transition_comb
         case (state)
