@@ -58,7 +58,8 @@ module ifu
     end
 
     // P0 PC
-    logic [ADDR_WIDTH-1:0] p0_pc = ftq_i.start_pc;
+    logic [ADDR_WIDTH-1:0] p0_pc;
+    assign p0_pc = ftq_i.start_pc;
 
     // TLB search req
     logic dmw0_en, dmw1_en;
@@ -122,7 +123,8 @@ module ifu
     } read_transaction_t;
     read_transaction_t p1_read_transaction;
 
-    logic [ADDR_WIDTH-1:0] p1_pc = p1_read_transaction.start_pc;
+    logic [ADDR_WIDTH-1:0] p1_pc;
+    assign p1_pc = p1_read_transaction.start_pc;
 
     assign p1_read_done = p1_read_transaction.is_cross_cacheline ?
     (icache_rvalid_i[0] | p1_read_transaction.icache_rvalid_r[0]) & (icache_rvalid_i[1]| p1_read_transaction.icache_rvalid_r[1]) :

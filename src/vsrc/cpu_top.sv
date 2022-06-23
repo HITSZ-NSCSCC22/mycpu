@@ -1048,5 +1048,33 @@ module cpu_top
     );
 `endif
 
+`ifndef SIMULATION
+// FPGA Debug core
+ila_1 ila_cpu_top (
+	.clk(clk), // input wire clk
+
+
+	.probe0(u_axi_master.inst_r_state), // input wire [3:0]  probe0  
+	.probe1(u_axi_master.data_r_state), // input wire [3:0]  probe1 
+	.probe2(u_axi_master.w_state), // input wire [3:0]  probe2 
+	.probe3(u_axi_master.inst_cpu_addr_i), // input wire [31:0]  probe3 
+	.probe4(u_axi_master.icache_rd_req_i), // input wire [0:0]  probe4 
+	.probe5(u_axi_master.icache_rd_rdy_o), // input wire [0:0]  probe5 
+	.probe6(u_icache.state), // input wire [31:0]  probe6 
+	.probe7(u_icache.rreq_1_i), // input wire [0:0]  probe7 
+	.probe8(u_icache.rreq_2_i), // input wire [0:0]  probe8 
+	.probe9(u_icache.raddr_1_i), // input wire [31:0]  probe9 
+	.probe10(u_icache.raddr_2_i), // input wire [31:0]  probe10 
+	.probe11(u_frontend.u_ifu.tlb_o.trans_en), // input wire [0:0]  probe11 
+	.probe12(u_frontend.u_ifu.p0_pc), // input wire [31:0]  probe12 
+	.probe13(u_frontend.u_ifu.p1_pc), // input wire [31:0]  probe13 
+	.probe14(0), // input wire [31:0]  probe14 
+	.probe15(u_frontend.pc), // input wire [31:0]  probe15 
+	.probe16(rst), // input wire [0:0]  probe16 
+	.probe17(u_icache.axi_rvalid_i), // input wire [0:0]  probe17 
+	.probe18(0), // input wire [0:0]  probe18 
+	.probe19(0) // input wire [0:0]  probe19
+);
+`endif
 
 endmodule
