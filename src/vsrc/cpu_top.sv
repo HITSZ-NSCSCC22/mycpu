@@ -258,6 +258,7 @@ module cpu_top
     logic [`RegBus] csr_eentry;
     logic [31:0] csr_tlbrentry;
     logic [`RegBus] csr_era;
+    logic LLbit_o;
 
     logic [9:0] csr_asid;
     logic csr_pg;
@@ -505,7 +506,7 @@ module cpu_top
                      idle_flush ? idle_pc : 
                      fetch_flush ? idle_pc +4 :
                      (branch_flag[0] & ~stall[2]) ? branch_target_address[0] : 
-                     (branch_flag[1] & ~stall[2]) ? branch_target_address[1] : `ZeroWord;
+                     (branch_flag[1] & ~stall[2]) ? branch_target_address[1] : 0;
 
 
     ex_mem_struct ex_signal_o[2];
@@ -567,10 +568,10 @@ module cpu_top
 
     logic [1:0] mem_stallreq;
 
-    logic LLbit_o;
     logic mem_wb_LLbit_we[2];
     logic mem_wb_LLbit_value[2];
     logic cacop_op_mode_di[2];
+    tlb_inv_t tlb_inv_signal_i;
     assign tlb_data_i.cacop_op_mode_di =  cacop_op_mode_di[0] |  cacop_op_mode_di[1];
 
     csr_to_mem_struct csr_mem_signal;
@@ -832,7 +833,6 @@ module cpu_top
     tlb_data_t tlb_data_o;
     tlb_write_in_struct tlb_write_signal_i;
     tlb_read_out_struct tlb_read_signal_o;
-    tlb_inv_t tlb_inv_signal_i;
     
     tlb u_tlb (
         .clk               (clk),
@@ -1052,5 +1052,33 @@ module cpu_top
     );
 `endif
 
+`ifndef SIMULATION
+// FPGA Debug core
+ila_1 ila_cpu_top (
+	.clk(clk), // input wire clk
+
+
+	.probe0(u_axi_master.inst_r_state), // input wire [3:0]  probe0  
+	.probe1(u_axi_master.data_r_state), // input wire [3:0]  probe1 
+	.probe2(u_axi_master.w_state), // input wire [3:0]  probe2 
+	.probe3(u_axi_master.inst_cpu_addr_i), // input wire [31:0]  probe3 
+	.probe4(u_axi_master.icache_rd_req_i), // input wire [0:0]  probe4 
+	.probe5(u_axi_master.icache_rd_rdy_o), // input wire [0:0]  probe5 
+	.probe6(u_icache.state), // input wire [31:0]  probe6 
+	.probe7(u_icache.rreq_1_i), // input wire [0:0]  probe7 
+	.probe8(u_icache.rreq_2_i), // input wire [0:0]  probe8 
+	.probe9(u_icache.raddr_1_i), // input wire [31:0]  probe9 
+	.probe10(u_icache.raddr_2_i), // input wire [31:0]  probe10 
+	.probe11(u_frontend.u_ifu.tlb_o.trans_en), // input wire [0:0]  probe11 
+	.probe12(u_frontend.u_ifu.p0_pc), // input wire [31:0]  probe12 
+	.probe13(u_frontend.u_ifu.p1_pc), // input wire [31:0]  probe13 
+	.probe14(u_axi_master.s_awaddr), // input wire [31:0]  probe14 
+	.probe15(u_axi_master.s_araddr), // input wire [31:0]  probe15 
+	.probe16(u_axi_master.s_awready), // input wire [0:0]  probe16 
+	.probe17(u_axi_master.s_awvalid), // input wire [0:0]  probe17 
+	.probe18(u_axi_master.s_wready), // input wire [0:0]  probe18 
+	.probe19(u_axi_master.s_wvalid) // input wire [0:0]  probe19
+);
+`endif
 
 endmodule

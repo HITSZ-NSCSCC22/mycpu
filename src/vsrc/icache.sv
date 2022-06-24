@@ -45,6 +45,13 @@ module icache
     input tlb_inst_t tlb_i,  // <- TLB
     input inst_tlb_t tlb_rreq_i  // <- IFU
 );
+
+    // Reset signal
+    logic rst_n;
+    assign rst_n = ~rst;
+    // Indicates an entry is valid
+    logic valid_flag;
+
     // Refill states
     enum int {
         IDLE,
@@ -54,6 +61,21 @@ module icache
         REFILL_2_WAIT
     }
         state, next_state;
+
+    // P1 signal
+    logic miss_1_pulse, miss_2_pulse, miss_1_r, miss_2_r, miss_1, miss_2;
+    // rvalid_1 & 2 is only valid when state == IDLE or (miss_1 | (state == REFILL_1_WAIT & ~rvalid_1))
+    logic rvalid_1, rvalid_2;
+    // Input reg
+    logic p1_rreq_1, p1_rreq_2;
+    logic [ADDR_WIDTH-1:0] p1_raddr_1, p1_raddr_2;
+    logic p1_tlb_miss;
+
+    // valid flag
+    always_ff @(posedge clk or negedge rst_n) begin
+        // Flip valid bit if reset of receive a ICache invalid instruction
+        if (!rst_n) valid_flag <= ~valid_flag;
+    end
 
     /////////////////////////////////////////////////
     // PO, query BRAM
@@ -184,7 +206,6 @@ module icache
     ///////////////////////////////////////////////////
 
     // Generate miss signal
-    logic miss_1_pulse, miss_2_pulse, miss_1_r, miss_2_r, miss_1, miss_2;
     assign miss_1_pulse = p1_rreq_1 & ~rvalid_1 & (state == IDLE);
     assign miss_2_pulse = p1_rreq_2 & ~rvalid_2 & (state == IDLE);
     assign miss_1 = miss_1_pulse | miss_1_r;
@@ -213,7 +234,6 @@ module icache
         end
     end
     // TLB miss
-    logic p1_tlb_miss;
     inst_tlb_t p1_tlb_rreq;
     always_ff @(posedge clk) begin
         if (rreq_1_i | rreq_2_i) p1_tlb_rreq <= tlb_rreq_i;
@@ -230,9 +250,6 @@ module icache
             tlb_i_r <= tlb_i;
         end
     end
-    // Input reg
-    logic p1_rreq_1, p1_rreq_2;
-    logic [ADDR_WIDTH-1:0] p1_raddr_1, p1_raddr_2;
     always_ff @(posedge clk) begin
         if (rvalid_1_o | ~p1_rreq_1) begin
             p1_rreq_1  <= rreq_1_i;
@@ -248,13 +265,11 @@ module icache
     logic [NWAY-1:0][1:0] tag_hit;
     always_comb begin
         for (integer i = 0; i < NWAY; i++) begin
-            tag_hit[i][0] = tag_bram_rdata[i][0][19:0] == real_tag && tag_bram_rdata[i][0][20];
-            tag_hit[i][1] = tag_bram_rdata[i][1][19:0] == real_tag && tag_bram_rdata[i][1][20];
+            tag_hit[i][0] = tag_bram_rdata[i][0][19:0] == p1_tlb.tag && tag_bram_rdata[i][0][20] == valid_flag;
+            tag_hit[i][1] = tag_bram_rdata[i][1][19:0] == p1_tlb.tag && tag_bram_rdata[i][1][20] == valid_flag;
         end
     end
 
-    // rvalid_1 & 2 is only valid when state == IDLE or (miss_1 | (state == REFILL_1_WAIT & ~rvalid_1))
-    logic rvalid_1, rvalid_2;
     // IDLE & WAIT can return rvalid_o, but REQ must not return rvalid_o
     assign rvalid_1_o = (rvalid_1 && p1_rreq_1 && state != REFILL_1_REQ) | (p1_tlb_miss && state == IDLE);
     assign rvalid_2_o = (rvalid_2 && p1_rreq_2 && state != REFILL_2_REQ) | (p1_tlb_miss && state == IDLE);
@@ -357,13 +372,13 @@ module icache
                 // write this way
                 if (state == REFILL_1_WAIT && axi_rvalid_i) begin
                     tag_bram_we[i][0] = 1;
-                    tag_bram_wdata[i][0] = {1'b1, real_tag};
+                    tag_bram_wdata[i][0] = {valid_flag, p1_tlb.tag};
                     data_bram_we[i][0] = 1;
                     data_bram_wdata[i][0] = axi_data_i;
                 end
                 if (state == REFILL_2_WAIT && axi_rvalid_i) begin
                     tag_bram_we[i][1] = 1;
-                    tag_bram_wdata[i][1] = {1'b1, real_tag};
+                    tag_bram_wdata[i][1] = {valid_flag, p1_tlb.tag};
                     data_bram_we[i][1] = 1;
                     data_bram_wdata[i][1] = axi_data_i;
                 end

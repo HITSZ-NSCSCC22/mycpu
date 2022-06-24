@@ -39,10 +39,17 @@ module ifu
     input logic stallreq_i,
     output instr_buffer_info_t instr_buffer_o[FETCH_WIDTH]
 );
+    // P0 signal
+    logic p0_send_rreq, p0_send_rreq_delay1;
+    // P1 signal
+    logic p1_read_done;  // Read done is same cycle as ICache return valid
+    logic p1_stallreq;  // Currently in transaction and not done yet
+    // Flush state
+    logic is_flushing_r, is_flushing;
+
     /////////////////////////////////////////////////////////////////////////////////
     // P0, send read req to ICache & TLB
     /////////////////////////////////////////////////////////////////////////////////
-    logic p0_send_rreq, p0_send_rreq_delay1;
     // Condition when to send rreq to ICache, see doc for detail
     assign p0_send_rreq = ftq_i.valid & ~is_flushing & ~stallreq_i & ~p1_stallreq;
     assign ftq_accept_o = p0_send_rreq;  // FTQ handshake, same cycle as ftq_i
@@ -51,7 +58,8 @@ module ifu
     end
 
     // P0 PC
-    logic [ADDR_WIDTH-1:0] p0_pc = ftq_i.start_pc;
+    logic [ADDR_WIDTH-1:0] p0_pc;
+    assign p0_pc = ftq_i.start_pc;
 
     // TLB search req
     logic dmw0_en, dmw1_en;
@@ -83,7 +91,6 @@ module ifu
     // P1
     /////////////////////////////////////////////////////////////////////////////////
     // Flush state
-    logic is_flushing_r, is_flushing;
     assign is_flushing = is_flushing_r | flush_i;
     always_ff @(posedge clk) begin : is_flushing_ff
         if (rst) begin
@@ -116,13 +123,12 @@ module ifu
     } read_transaction_t;
     read_transaction_t p1_read_transaction;
 
-    logic [ADDR_WIDTH-1:0] p1_pc = p1_read_transaction.start_pc;
+    logic [ADDR_WIDTH-1:0] p1_pc;
+    assign p1_pc = p1_read_transaction.start_pc;
 
-    logic p1_read_done;  // Read done is same cycle as ICache return valid
     assign p1_read_done = p1_read_transaction.is_cross_cacheline ?
     (icache_rvalid_i[0] | p1_read_transaction.icache_rvalid_r[0]) & (icache_rvalid_i[1]| p1_read_transaction.icache_rvalid_r[1]) :
     (icache_rvalid_i[0] | p1_read_transaction.icache_rvalid_r[0]);
-    logic p1_stallreq;  // Currently in transaction and not done yet
     assign p1_stallreq = p1_read_transaction.valid & ~p1_read_done;
     always_ff @(posedge clk) begin : p1_ff
         if (rst) begin
