@@ -200,7 +200,7 @@ module cpu_top
     assign mem_cache_ce = mem_cache_signal[0].ce | mem_cache_signal[1].ce;
     assign mem_cache_we = mem_cache_signal[0].we | mem_cache_signal[1].we;
     assign mem_cache_sel = mem_cache_signal[0].we ? mem_cache_signal[0].sel : mem_cache_signal[1].we ? mem_cache_signal[1].sel : 0;
-    assign mem_cache_rd_type = mem_cache_signal[0].we ? mem_cache_signal[0].rd_type : mem_cache_signal[1].we ? mem_cache_signal[1].rd_type : 0;
+    assign mem_cache_rd_type = mem_cache_signal[0].ce ? mem_cache_signal[0].rd_type : mem_cache_signal[1].ce ? mem_cache_signal[1].rd_type : 0;
     assign mem_cache_addr = mem_cache_signal[0].addr | mem_cache_signal[1].addr;
     assign mem_cache_data = mem_cache_signal[0].we ? mem_cache_signal[0].data : mem_cache_signal[1].we ? mem_cache_signal[1].data : 0;
    
@@ -1048,7 +1048,7 @@ module cpu_top
     );
 `endif
 
-`ifndef SIMULATION
+`ifdef DEBUG
 // FPGA Debug core
 ila_1 ila_cpu_top (
 	.clk(clk), // input wire clk
@@ -1057,16 +1057,16 @@ ila_1 ila_cpu_top (
 	.probe0(u_axi_master.inst_r_state), // input wire [3:0]  probe0  
 	.probe1(u_axi_master.data_r_state), // input wire [3:0]  probe1 
 	.probe2(u_axi_master.w_state), // input wire [3:0]  probe2 
-	.probe3(u_axi_master.inst_cpu_addr_i), // input wire [31:0]  probe3 
-	.probe4(u_axi_master.icache_rd_req_i), // input wire [0:0]  probe4 
-	.probe5(u_axi_master.icache_rd_rdy_o), // input wire [0:0]  probe5 
-	.probe6(u_icache.state), // input wire [31:0]  probe6 
-	.probe7(u_icache.rreq_1_i), // input wire [0:0]  probe7 
-	.probe8(u_icache.rreq_2_i), // input wire [0:0]  probe8 
-	.probe9(u_icache.raddr_1_i), // input wire [31:0]  probe9 
-	.probe10(u_icache.raddr_2_i), // input wire [31:0]  probe10 
-	.probe11(u_frontend.u_ifu.tlb_o.trans_en), // input wire [0:0]  probe11 
-	.probe12(u_frontend.u_ifu.p0_pc), // input wire [31:0]  probe12 
+	.probe3({26'b0,u_axi_master.dcache_rd_type_i,u_axi_master.s_arsize}), // input wire [31:0]  probe3 
+	.probe4(u_axi_master.dcache_rd_req_i), // input wire [0:0]  probe4 
+	.probe5(u_axi_master.dcache_ret_valid_o), // input wire [0:0]  probe5 
+	.probe6(u_regfile.regs[4]), // input wire [31:0]  probe6 
+	.probe7(u_tlb.data_i.fetch), // input wire [0:0]  probe7 
+	.probe8(u_tlb.we), // input wire [0:0]  probe8 
+	.probe9(u_tlb.data_i.vaddr), // input wire [31:0]  probe9 
+	.probe10({u_tlb.data_o.tag,u_tlb.data_o.index,u_tlb.data_o.offset}), // input wire [31:0]  probe10 
+	.probe11(u_tlb.data_addr_trans_en), // input wire [0:0]  probe11 
+	.probe12(next_pc), // input wire [31:0]  probe12 
 	.probe13(u_frontend.u_ifu.p1_pc), // input wire [31:0]  probe13 
 	.probe14(u_axi_master.s_awaddr), // input wire [31:0]  probe14 
 	.probe15(u_axi_master.s_araddr), // input wire [31:0]  probe15 
