@@ -181,7 +181,7 @@ module icache
     // BRAM index gen
     always_comb begin : bram_addr_gen
         for (integer i = 0; i < NWAY; i++) begin
-            if (miss_1 | (state == REFILL_1_WAIT & ~rvalid_1)) begin
+            if ((miss_1 & ~p1_tlb_miss) | (state == REFILL_1_WAIT & ~rvalid_1)) begin
                 tag_bram_addr[i][0]  = p1_raddr_1[11:4];
                 data_bram_addr[i][0] = p1_raddr_1[11:4];
             end else if (rreq_1_i) begin
@@ -193,7 +193,7 @@ module icache
             end
         end
         for (integer i = 0; i < NWAY; i++) begin
-            if (miss_2 | (state == REFILL_2_WAIT & ~rvalid_2)) begin
+            if ((miss_2 & ~p1_tlb_miss) | (state == REFILL_2_WAIT & ~rvalid_2)) begin
                 tag_bram_addr[i][1]  = p1_raddr_2[11:4];
                 data_bram_addr[i][1] = p1_raddr_2[11:4];
             end else if (rreq_2_i) begin
