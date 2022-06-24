@@ -37,6 +37,13 @@ module icache
     input tlb_inst_t tlb_i,  // <- TLB
     input inst_tlb_t tlb_rreq_i  // <- IFU
 );
+
+    // Reset signal
+    logic rst_n;
+    assign rst_n = ~rst;
+    // Indicates an entry is valid
+    logic valid_flag;
+
     // Refill states
     enum int {
         IDLE,
@@ -55,6 +62,12 @@ module icache
     logic p1_rreq_1, p1_rreq_2;
     logic [ADDR_WIDTH-1:0] p1_raddr_1, p1_raddr_2;
     logic p1_tlb_miss;
+
+    // valid flag
+    always_ff @(posedge clk or negedge rst_n) begin
+        // Flip valid bit if reset of receive a ICache invalid instruction
+        if (!rst_n) valid_flag <= ~valid_flag;
+    end
 
     /////////////////////////////////////////////////
     // PO, query BRAM
@@ -236,8 +249,8 @@ module icache
     logic [NWAY-1:0][1:0] tag_hit;
     always_comb begin
         for (integer i = 0; i < NWAY; i++) begin
-            tag_hit[i][0] = tag_bram_rdata[i][0][19:0] == p1_tlb.tag && tag_bram_rdata[i][0][20];
-            tag_hit[i][1] = tag_bram_rdata[i][1][19:0] == p1_tlb.tag && tag_bram_rdata[i][1][20];
+            tag_hit[i][0] = tag_bram_rdata[i][0][19:0] == p1_tlb.tag && tag_bram_rdata[i][0][20] == valid_flag;
+            tag_hit[i][1] = tag_bram_rdata[i][1][19:0] == p1_tlb.tag && tag_bram_rdata[i][1][20] == valid_flag;
         end
     end
 
@@ -343,13 +356,13 @@ module icache
                 // write this way
                 if (state == REFILL_1_WAIT && axi_rvalid_i) begin
                     tag_bram_we[i][0] = 1;
-                    tag_bram_wdata[i][0] = {1'b1, p1_tlb.tag};
+                    tag_bram_wdata[i][0] = {valid_flag, p1_tlb.tag};
                     data_bram_we[i][0] = 1;
                     data_bram_wdata[i][0] = axi_data_i;
                 end
                 if (state == REFILL_2_WAIT && axi_rvalid_i) begin
                     tag_bram_we[i][1] = 1;
-                    tag_bram_wdata[i][1] = {1'b1, p1_tlb.tag};
+                    tag_bram_wdata[i][1] = {valid_flag, p1_tlb.tag};
                     data_bram_we[i][1] = 1;
                     data_bram_wdata[i][1] = axi_data_i;
                 end

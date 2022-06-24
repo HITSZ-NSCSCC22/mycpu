@@ -508,7 +508,7 @@ module cpu_top
                      idle_flush ? idle_pc : 
                      fetch_flush ? idle_pc +4 :
                      (branch_flag[0] & ~stall[2]) ? branch_target_address[0] : 
-                     (branch_flag[1] & ~stall[2]) ? branch_target_address[1] : `ZeroWord;
+                     (branch_flag[1] & ~stall[2]) ? branch_target_address[1] : 0;
 
 
     ex_mem_struct ex_signal_o[2];
@@ -1068,12 +1068,12 @@ ila_1 ila_cpu_top (
 	.probe11(u_frontend.u_ifu.tlb_o.trans_en), // input wire [0:0]  probe11 
 	.probe12(u_frontend.u_ifu.p0_pc), // input wire [31:0]  probe12 
 	.probe13(u_frontend.u_ifu.p1_pc), // input wire [31:0]  probe13 
-	.probe14(0), // input wire [31:0]  probe14 
-	.probe15(u_frontend.pc), // input wire [31:0]  probe15 
-	.probe16(rst), // input wire [0:0]  probe16 
-	.probe17(u_icache.axi_rvalid_i), // input wire [0:0]  probe17 
-	.probe18(0), // input wire [0:0]  probe18 
-	.probe19(0) // input wire [0:0]  probe19
+	.probe14(u_axi_master.s_awaddr), // input wire [31:0]  probe14 
+	.probe15(u_axi_master.s_araddr), // input wire [31:0]  probe15 
+	.probe16(u_axi_master.s_awready), // input wire [0:0]  probe16 
+	.probe17(u_axi_master.s_awvalid), // input wire [0:0]  probe17 
+	.probe18(u_axi_master.s_wready), // input wire [0:0]  probe18 
+	.probe19(u_axi_master.s_wvalid) // input wire [0:0]  probe19
 );
 `endif
 
