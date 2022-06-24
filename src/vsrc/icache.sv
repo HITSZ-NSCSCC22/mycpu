@@ -54,25 +54,7 @@ module icache
     }
         state, next_state;
 
-    // P1 signal
-    logic miss_1_pulse, miss_2_pulse, miss_1_r, miss_2_r, miss_1, miss_2;
-    // rvalid_1 & 2 is only valid when state == IDLE or (miss_1 | (state == REFILL_1_WAIT & ~rvalid_1))
-    logic rvalid_1, rvalid_2;
-    // Input reg
-    logic p1_rreq_1, p1_rreq_2;
-    logic [ADDR_WIDTH-1:0] p1_raddr_1, p1_raddr_2;
-    logic p1_tlb_miss;
-
-    // valid flag
-    always_ff @(posedge clk or negedge rst_n) begin
-        // Flip valid bit if reset of receive a ICache invalid instruction
-        if (!rst_n) valid_flag <= ~valid_flag;
-    end
-
-    /////////////////////////////////////////////////
-    // PO, query BRAM
-    ////////////////////////////////////////////////
-
+    // BRAM signals
     logic [NWAY-1:0][1:0][ICACHELINE_WIDTH-1:0] data_bram_rdata;
     logic [NWAY-1:0][1:0][ICACHELINE_WIDTH-1:0] data_bram_wdata;
     logic [NWAY-1:0][1:0][$clog2(NSET)-1:0] data_bram_addr;
@@ -86,6 +68,31 @@ module icache
     logic [NWAY-1:0][1:0][$clog2(NSET)-1:0] tag_bram_addr;
     logic [NWAY-1:0][1:0] tag_bram_we;
 
+    // P1 signal
+    logic miss_1_pulse, miss_2_pulse, miss_1_r, miss_2_r, miss_1, miss_2;  // miss signal
+    logic p1_rreq_1, p1_rreq_2;  // P1 rreq reg
+    logic [ADDR_WIDTH-1:0] p1_raddr_1, p1_raddr_2;  // P1 raddr reg
+    logic p1_tlb_miss;  // P1 TLB result miss
+    // rvalid_1 & 2 is only valid when state == IDLE or (miss_1 | (state == REFILL_1_WAIT & ~rvalid_1))
+    logic rvalid_1, rvalid_2;
+    logic [NWAY-1:0][1:0] tag_hit;  // P1 hit signal
+
+
+
+
+
+
+    // valid flag
+    always_ff @(posedge clk or negedge rst_n) begin
+        // Flip valid bit if reset of receive a ICache invalid instruction
+        if (!rst_n) valid_flag <= ~valid_flag;
+    end
+
+    /////////////////////////////////////////////////
+    // PO, query BRAM
+    ////////////////////////////////////////////////
+
+    // BRAM 
     generate
         for (genvar i = 0; i < NWAY; i++) begin : tag_bram
 
@@ -245,8 +252,7 @@ module icache
         end
     end
 
-
-    logic [NWAY-1:0][1:0] tag_hit;
+    // Hit signal
     always_comb begin
         for (integer i = 0; i < NWAY; i++) begin
             tag_hit[i][0] = tag_bram_rdata[i][0][19:0] == p1_tlb.tag && tag_bram_rdata[i][0][20] == valid_flag;
