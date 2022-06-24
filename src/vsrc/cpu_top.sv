@@ -477,13 +477,11 @@ module cpu_top
     logic [`RegBus] branch_target_address[2];
     logic flush;
 
-
     //tlb
     logic data_addr_trans_en;
 
-    
-
     logic idle_flush;
+    logic icache_flush;
     logic [`InstAddrBus] idle_pc;
 
     logic disable_cache;
@@ -546,6 +544,11 @@ module cpu_top
 
                 .excp_flush(excp_flush),
                 .ertn_flush(ertn_flush),
+
+                // -> Cache
+                .icacop_op_en(icacop_op_en),
+                .dcacop_op_en(dcacop_op_en),
+                .cacop_op_mode(dicacop_op_mode),
 
                 // <-> Ctrl
                 .stall({mem_stallreq[0] | mem_stallreq[1] ,stall[3]}),
@@ -722,6 +725,7 @@ module cpu_top
         .ertn_flush(ertn_flush),
         .fetch_flush(fetch_flush),
         .idle_flush(idle_flush),
+        .icache_flush(icache_flush),
         .idle_pc(idle_pc),
 
         .stall(stall),

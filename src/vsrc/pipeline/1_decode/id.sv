@@ -80,7 +80,7 @@ module id
     assign kernel_instr = instr_aluop == `EXE_CSRRD_OP | instr_aluop == `EXE_CSRWR_OP | instr_aluop == `EXE_CSRXCHG_OP |
                           instr_aluop == `EXE_TLBFILL_OP |instr_aluop == `EXE_TLBRD_OP |instr_aluop == `EXE_TLBWR_OP |
                           instr_aluop == `EXE_TLBSRCH_OP | instr_aluop == `EXE_ERTN_OP |instr_aluop == `EXE_IDLE_OP |
-                          instr_aluop == `EXE_INVTLB_OP;
+                          instr_aluop == `EXE_INVTLB_OP | instr_aluop == `EXE_CACOP_OP;
 
     // Sub-decoders in following order:
     // 2R, 3R, 2RI8, 2RI12, 2RI16, 1RI20, 2RI14, I26, Special

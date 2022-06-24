@@ -47,9 +47,12 @@ module mem
     assign csr_test = signal_i.csr_signal;
 
     reg LLbit;
-    logic access_mem;
-    logic mem_store_op;
-    logic mem_load_op;
+    logic access_mem,mem_store_op,mem_load_op;
+    logic cacop_en,icache_op_en;
+    logic [4:0] cacop_op;
+    assign cacop_en = signal_i.cacop_en;
+    assign icache_op_en = signal_i.icache_op_en;
+    assign cacop_op = signal_i.cacop_op;
 
     // DEBUG
     logic [`InstAddrBus] debug_pc_i;
@@ -138,6 +141,9 @@ module mem
         signal_cache_o = 0;
         signal_o.store_data = 0;
         signal_cache_o.rd_type = 0;
+        signal_o.cacop_en = cacop_en;
+        signal_o.icache_op_en = icache_op_en;
+        signal_o.cacop_op = cacop_op;
         case (aluop_i)
             `EXE_LD_B_OP: begin
                 signal_cache_o.addr = mem_addr;

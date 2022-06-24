@@ -40,6 +40,11 @@ module ex
 
     output ex_dispatch_struct ex_data_forward,
 
+    // -> Cache
+    output logic icacop_op_en,
+    output logic dcacop_op_en,
+    output logic [1:0] cacop_op_mode,
+
     input logic excp_flush,
     input logic ertn_flush,
 
@@ -118,6 +123,18 @@ module ex
                           aluop_i == `EXE_RDCNTVL_OP ? timer_64[31:0] :
                           aluop_i == `EXE_RDCNTVH_OP ? timer_64[63:32] :
                           dispatch_i.csr_reg_data;
+
+            
+    //cache ins
+    logic cacop_instr,icacop_inst,dcacop_inst;
+    logic [4:0] cacop_op;
+    assign cacop_op = inst_i[4:0];
+    assign cacop_instr = aluop_i == `EXE_CACOP_OP;
+    assign icacop_inst = cacop_instr && (cacop_op[2:0] == 3'b0);
+    assign icacop_op_en = icacop_inst && !excp_i && !(flush | excp_flush | ertn_flush);
+    assign dcacop_inst = cacop_instr && (cacop_op[2:0] == 3'b1);
+    assign dcacop_op_en = dcacop_inst && !excp_i && !(flush | excp_flush | ertn_flush);
+    assign cacop_op_mode = cacop_op[4:3];
 
     logic excp_ale, excp_ine, excp_i;
     logic [9:0] excp_num;
@@ -382,6 +399,9 @@ module ex
         ex_o.waddr = wd_i;
         ex_o.wreg = wreg_i;
         ex_o.timer_64 = timer_64;
+        ex_o.cacop_en = cacop_instr;
+        ex_o.icache_op_en = icacop_op_en;
+        ex_o.cacop_op = cacop_op;
         ex_o.inv_i = aluop_i == `EXE_INVTLB_OP ? {1'b1, oprand1[9:0], oprand2[31:13], imm[4:0]} : 0;
         case (alusel_i)
             `EXE_RES_LOGIC: begin
