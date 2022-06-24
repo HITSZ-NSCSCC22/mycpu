@@ -28,6 +28,7 @@ module ctrl
     output logic excp_flush,  //异常指令冲刷信号
     output logic ertn_flush,  //ertn指令冲刷信号
     output logic fetch_flush,  // TLB related instr require instr to be refetch
+    output logic icache_flush, // ICache cacop 指令冲刷流水线
     output logic [`InstAddrBus] idle_pc,  //idle指令pc
 
     // Stall request to each stage
@@ -131,8 +132,9 @@ module ctrl
     assign idle_flush = aluop == `EXE_IDLE_OP;
     assign ertn_flush = aluop == `EXE_ERTN_OP | wb_i[1].aluop == `EXE_ERTN_OP;
     assign fetch_flush = wb_i[0].fetch_flush | wb_i[1].fetch_flush;
+    assign icache_flush = wb_i[0].icache_op_en && wb_i[0].valid;
     assign idle_pc = wb_i[0].wb_reg_o.pc;
-    assign flush = fetch_flush | excp_flush | ertn_flush | idle_flush;
+    assign flush = fetch_flush | excp_flush | ertn_flush | idle_flush | icache_flush;
 
     //暂停处理
     always_comb begin

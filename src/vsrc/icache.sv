@@ -33,6 +33,14 @@ module icache
     input logic [1:0] axi_rlast_i,
     input logic [ICACHELINE_WIDTH-1:0] axi_data_i,
 
+    // CACOP
+    input logic uncache_en,
+    input logic icacop_op_en,
+    input logic [1:0] cacop_op_mode,  
+    input logic [7:0] cacop_op_addr_index, 
+    input logic [19:0] cacop_op_addr_tag, 
+    input logic [3:0]  cacop_op_addr_offset, 
+
     // TLB related
     input tlb_inst_t tlb_i,  // <- TLB
     input inst_tlb_t tlb_rreq_i  // <- IFU
@@ -63,6 +71,14 @@ module icache
     logic [NWAY-1:0][1:0][TAG_BRAM_WIDTH-1:0] tag_bram_wdata;
     logic [NWAY-1:0][1:0][$clog2(NSET)-1:0] tag_bram_addr;
     logic [NWAY-1:0][1:0] tag_bram_we;
+
+
+    logic [3:0] real_offset;
+    logic [19:0] real_tag;
+    logic [7:0] real_index;
+    assign real_offset = icacop_op_en ? cacop_op_addr_offset : p1_tlb.offset;
+    assign real_tag = icacop_op_en ? cacop_op_addr_tag : p1_tlb.tag;
+    assign real_index = icacop_op_en ? cacop_op_addr_index : p1_tlb.index;
 
     generate
         for (genvar i = 0; i < NWAY; i++) begin : tag_bram
@@ -232,8 +248,8 @@ module icache
     logic [NWAY-1:0][1:0] tag_hit;
     always_comb begin
         for (integer i = 0; i < NWAY; i++) begin
-            tag_hit[i][0] = tag_bram_rdata[i][0][19:0] == p1_tlb.tag && tag_bram_rdata[i][0][20];
-            tag_hit[i][1] = tag_bram_rdata[i][1][19:0] == p1_tlb.tag && tag_bram_rdata[i][1][20];
+            tag_hit[i][0] = tag_bram_rdata[i][0][19:0] == real_tag && tag_bram_rdata[i][0][20];
+            tag_hit[i][1] = tag_bram_rdata[i][1][19:0] == real_tag && tag_bram_rdata[i][1][20];
         end
     end
 
@@ -308,11 +324,11 @@ module icache
         case (state)
             REFILL_1_REQ, REFILL_1_WAIT: begin
                 axi_rreq_o = (miss_1 ? 1 : 0) & ~axi_rvalid_i;
-                axi_addr_o = miss_1 ? {p1_tlb.tag, p1_raddr_1[11:0]} : 0;
+                axi_addr_o = miss_1 ? {real_tag, p1_raddr_1[11:0]} : 0;
             end
             REFILL_2_REQ, REFILL_2_WAIT: begin
                 axi_rreq_o = (miss_2 ? 1 : 0) & ~axi_rvalid_i;
-                axi_addr_o = miss_2 ? {p1_tlb.tag, p1_raddr_2[11:0]} : 0;
+                axi_addr_o = miss_2 ? {real_tag, p1_raddr_2[11:0]} : 0;
             end
             default: begin
                 axi_rreq_o = 0;
@@ -341,13 +357,13 @@ module icache
                 // write this way
                 if (state == REFILL_1_WAIT && axi_rvalid_i) begin
                     tag_bram_we[i][0] = 1;
-                    tag_bram_wdata[i][0] = {1'b1, p1_tlb.tag};
+                    tag_bram_wdata[i][0] = {1'b1, real_tag};
                     data_bram_we[i][0] = 1;
                     data_bram_wdata[i][0] = axi_data_i;
                 end
                 if (state == REFILL_2_WAIT && axi_rvalid_i) begin
                     tag_bram_we[i][1] = 1;
-                    tag_bram_wdata[i][1] = {1'b1, p1_tlb.tag};
+                    tag_bram_wdata[i][1] = {1'b1, real_tag};
                     data_bram_we[i][1] = 1;
                     data_bram_wdata[i][1] = axi_data_i;
                 end

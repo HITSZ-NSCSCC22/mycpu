@@ -130,6 +130,10 @@ package core_types;
 
         tlb_inv_t inv_i;
         logic [63:0] timer_64;
+
+        logic cacop_en;
+        logic icache_op_en;
+        logic [4:0] cacop_op;
     } ex_mem_struct;
 
     // MEM stage data forwarding
@@ -163,6 +167,10 @@ package core_types;
 
         tlb_inv_t inv_i;
         logic [63:0] timer_64;
+
+        logic cacop_en;
+        logic icache_op_en;
+        logic [4:0] cacop_op;
     } mem_wb_struct;
 
     typedef struct packed {
@@ -219,6 +227,9 @@ package core_types;
         logic [4:0] data_tlb_index;
         csr_write_signal csr_signal_o;
         diff_commit diff_commit_o;
+        logic cacop_en;
+        logic icache_op_en;
+        logic [4:0] cacop_op;
     } wb_ctrl;
 
     typedef struct packed {
