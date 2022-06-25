@@ -313,13 +313,14 @@ module cpu_top
        .axi_rlast_i  (),
        .axi_data_i   (axi_icache_data),
 
+        .frontend_uncache_i(),
+        .invalid_i(),
+
         //-> CACOP
-        .uncache_en(),
-        .icacop_op_en(icacop_op_en[0]),
-        .cacop_op_mode(cacop_op_mode[0]),
-        .cacop_op_addr_index(tlb_data_o.index),
-        .cacop_op_addr_tag(tlb_data_o.tag),
-        .cacop_op_addr_offset(tlb_data_o.offset),
+        .cacop_i(icacop_op_en[0]),
+        .cacop_mode_i(cacop_op_mode[0]),
+        .cacop_addr_i({tlb_data_o.tag,tlb_data_o.index,tlb_data_o.offset}),
+        
 
        // TLB related
        .tlb_i(tlb_inst), // <- TLB
