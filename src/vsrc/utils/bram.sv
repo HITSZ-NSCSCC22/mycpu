@@ -6,6 +6,8 @@ module bram #(
     parameter DATA_DEPTH_EXP2 = 8
 ) (
     input logic clk,
+    input logic ena,  // Chip enable A
+    input logic enb,  // Chip enable B
     input logic wea,  // Write enable A
     input logic web,  // Write enable B
 
@@ -29,8 +31,13 @@ module bram #(
 
     // Read logic
     always_ff @(posedge clk) begin
-        douta <= data[addra];
-        doutb <= data[addrb];
+        if (ena & wea) douta <= dina;
+        else if (ena) douta <= data[addra];
+        else douta <= 0;
+
+        if (enb & web) doutb <= dinb;
+        else if (enb) doutb <= data[addrb];
+        else doutb <= 0;
     end
 
     // Write logic

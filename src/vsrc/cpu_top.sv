@@ -275,6 +275,7 @@ module cpu_top
     logic [1:0][`InstAddrBus] frontend_icache_addr;
 
     // ICache -> Frontend
+    logic [1:0]icache_frontend_rreq_ack;
     logic [1:0]icache_frontend_valid;
     logic [1:0][ICACHELINE_WIDTH-1:0] icache_frontend_data;
 
@@ -291,27 +292,29 @@ module cpu_top
     logic [1:0] cacop_op_mode[2];
 
     icache u_icache(
-       .clk          (clk          ),
-       .rst          (rst          ),
+        .clk          (clk          ),
+        .rst          (rst          ),
        
-       // Port A
-       .rreq_1_i     (frontend_icache_rreq[0]),
-       .raddr_1_i    (frontend_icache_addr[0]),
-       .rvalid_1_o   (icache_frontend_valid[0]),
-       .rdata_1_o    (icache_frontend_data[0]),
-       // Port B
-       .rreq_2_i     (frontend_icache_rreq[1]),
-       .raddr_2_i    (frontend_icache_addr[1]),
-       .rvalid_2_o   (icache_frontend_valid[1]),
-       .rdata_2_o    (icache_frontend_data[1]),
+        // Port A
+        .rreq_1_i     (frontend_icache_rreq[0]),
+        .raddr_1_i    (frontend_icache_addr[0]),
+        .rreq_1_ack_o (icache_frontend_rreq_ack[0]),
+        .rvalid_1_o   (icache_frontend_valid[0]),
+        .rdata_1_o    (icache_frontend_data[0]),
+        // Port B
+        .rreq_2_i     (frontend_icache_rreq[1]),
+        .raddr_2_i    (frontend_icache_addr[1]),
+        .rreq_2_ack_o (icache_frontend_rreq_ack[1]),
+        .rvalid_2_o   (icache_frontend_valid[1]),
+        .rdata_2_o    (icache_frontend_data[1]),
 
-       // <-> AXI Controller
-       .axi_addr_o   (icache_axi_addr),
-       .axi_rreq_o   (icache_axi_rreq),
-       .axi_rdy_i    (axi_icache_rdy),
-       .axi_rvalid_i (axi_icache_rvalid),
-       .axi_rlast_i  (),
-       .axi_data_i   (axi_icache_data),
+        // <-> AXI Controller
+        .axi_addr_o   (icache_axi_addr),
+        .axi_rreq_o   (icache_axi_rreq),
+        .axi_rdy_i    (axi_icache_rdy),
+        .axi_rvalid_i (axi_icache_rvalid),
+        .axi_rlast_i  (),
+        .axi_data_i   (axi_icache_data),
 
         .frontend_uncache_i(),
         .invalid_i(),
@@ -346,6 +349,7 @@ module cpu_top
         // <-> ICache
         .icache_read_addr_o(frontend_icache_addr),  // -> ICache
         .icache_read_req_o(frontend_icache_rreq),
+        .icache_rreq_ack_i(icache_frontend_rreq_ack),
         .icache_read_valid_i(icache_frontend_valid),  // <- ICache
         .icache_read_data_i(icache_frontend_data),  // <- ICache
 

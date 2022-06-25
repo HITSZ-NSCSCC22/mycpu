@@ -15,12 +15,14 @@ module icache
     // Read port 1
     input logic rreq_1_i,
     input logic [ADDR_WIDTH-1:0] raddr_1_i,
+    output logic rreq_1_ack_o,
     output logic rvalid_1_o,
     output logic [ICACHELINE_WIDTH-1:0] rdata_1_o,
 
     // Read port 2
     input logic rreq_2_i,
     input logic [ADDR_WIDTH-1:0] raddr_2_i,
+    output logic rreq_2_ack_o,
     output logic rvalid_2_o,
     output logic [ICACHELINE_WIDTH-1:0] rdata_2_o,
 
@@ -63,7 +65,8 @@ module icache
         REFILL_2_REQ,
         REFILL_2_WAIT,
         INVALID,  // Reset all tag ram to 0
-        CACOP_INVALID
+        CACOP_INVALID_1,
+        CACOP_INVALID_2
     }
         state, next_state;
 
@@ -79,6 +82,7 @@ module icache
     logic [NWAY-1:0][1:0][ICACHELINE_WIDTH-1:0] data_bram_wdata;
     logic [NWAY-1:0][1:0][$clog2(NSET)-1:0] data_bram_addr;
     logic [NWAY-1:0][1:0] data_bram_we;
+    logic [NWAY-1:0][1:0] data_bram_en;
 
     // Tag bram 
     // {1bit valid, 20bits tag}
@@ -87,6 +91,7 @@ module icache
     logic [NWAY-1:0][1:0][TAG_BRAM_WIDTH-1:0] tag_bram_wdata;
     logic [NWAY-1:0][1:0][$clog2(NSET)-1:0] tag_bram_addr;
     logic [NWAY-1:0][1:0] tag_bram_we;
+    logic [NWAY-1:0][1:0] tag_bram_en;
 
     // P1 signal
     logic miss_1_pulse, miss_2_pulse, miss_1_r, miss_2_r, miss_1, miss_2;  // miss signal
@@ -95,13 +100,17 @@ module icache
     logic p1_tlb_miss;  // P1 TLB result miss
     logic [1:0] hit;
     logic [NWAY-1:0][1:0] tag_hit;  // P1 hit signal
+    logic axi_rvalid_delay_1;
 
     // CACOP
     logic cacop_op_mode0, cacop_op_mode1, cacop_op_mode2;
     logic [$clog2(NWAY)-1:0] cacop_way;
     logic [$clog2(NSET)-1:0] cacop_index;
 
-
+    // AXI rvalid delay
+    always_ff @(posedge clk) begin
+        axi_rvalid_delay_1 <= axi_rvalid_i;
+    end
     // Invalid control
     assign invalid_done = invalid_cnt == {$clog2(NSET) {1'b1}};
     always_ff @(posedge clk) begin
@@ -111,7 +120,7 @@ module icache
     end
 
     // CACOP control
-    assign cacop_ack_o = state == CACOP_INVALID;
+    assign cacop_ack_o = state == CACOP_INVALID_2;
     assign cacop_op_mode0 = cacop_i & cacop_mode_i == 2'b00;
     assign cacop_op_mode1 = cacop_i & cacop_mode_i == 2'b01;
     assign cacop_op_mode2 = cacop_i & cacop_mode_i == 2'b10;
@@ -140,7 +149,7 @@ module icache
         case (state)
             IDLE: begin
                 if (invalid_i) next_state = INVALID;
-                else if (cacop_i) next_state = CACOP_INVALID;
+                else if (cacop_i) next_state = CACOP_INVALID_1;
                 else if (miss_1) next_state = REFILL_1_REQ;
                 else if (miss_2) next_state = REFILL_2_REQ;
                 else next_state = IDLE;
@@ -167,9 +176,8 @@ module icache
                 if (invalid_done) next_state = IDLE;
                 else next_state = INVALID;
             end
-            CACOP_INVALID: begin
-                next_state = IDLE;
-            end
+            CACOP_INVALID_1: next_state = CACOP_INVALID_2;
+            CACOP_INVALID_2: next_state = IDLE;
             default: begin
                 next_state = IDLE;
             end
@@ -182,55 +190,92 @@ module icache
     ////////////////////////////////////////////////
 
 
+    // RREQ ack
+    // hit or next_state is REQ
+    // if next_state is not REQ, means something important is going on, do not accept rreq
+    assign rreq_1_ack_o = state == IDLE & rreq_1_i & (~miss_1 | next_state == REFILL_1_REQ);
+    assign rreq_2_ack_o = state == IDLE & rreq_2_i & (~miss_2 | next_state == REFILL_2_REQ);
+
     // BRAM input signals
-    // Addr
+    // Addr & EN
     always_comb begin : bram_addr_gen
         // Default all 0
         for (integer i = 0; i < NWAY; i++) begin
-            tag_bram_addr[i][0]  = 0;
+            tag_bram_addr[i][0] = 0;
             data_bram_addr[i][0] = 0;
-            tag_bram_addr[i][1]  = 0;
+            tag_bram_addr[i][1] = 0;
             data_bram_addr[i][1] = 0;
+            tag_bram_en[i] = 0;
+            data_bram_en[i] = 0;
         end
         case (state)
             IDLE: begin
                 for (integer i = 0; i < NWAY; i++) begin
                     // Port 1
                     if (rreq_1_i) begin
-                        tag_bram_addr[i][0]  = raddr_1_i[11:4];
+                        tag_bram_en[i][0] = 1;
+                        data_bram_en[i][0] = 1;
+                        tag_bram_addr[i][0] = raddr_1_i[11:4];
                         data_bram_addr[i][0] = raddr_1_i[11:4];
-                    end
-                    // Port 2
-                    if (rreq_2_i) begin
-                        tag_bram_addr[i][1]  = raddr_2_i[11:4];
-                        data_bram_addr[i][1] = raddr_2_i[11:4];
-                    end
-                end
-            end
-            REFILL_1_REQ, REFILL_2_REQ, REFILL_1_WAIT, REFILL_2_WAIT: begin
-                for (integer i = 0; i < NWAY; i++) begin
-                    // Port 1
-                    if (~hit[0]) begin
+                    end else if (miss_1) begin
                         tag_bram_addr[i][0]  = p1_raddr_1[11:4];
                         data_bram_addr[i][0] = p1_raddr_1[11:4];
                     end
                     // Port 2
-                    if (~hit[1]) begin
+                    if (rreq_2_i) begin
+                        tag_bram_en[i][1] = 1;
+                        data_bram_en[i][1] = 1;
+                        tag_bram_addr[i][1] = raddr_2_i[11:4];
+                        data_bram_addr[i][1] = raddr_2_i[11:4];
+                    end else begin
                         tag_bram_addr[i][1]  = p1_raddr_2[11:4];
                         data_bram_addr[i][1] = p1_raddr_2[11:4];
                     end
                 end
             end
-            CACOP_INVALID: begin
+            REFILL_1_REQ, REFILL_2_REQ, REFILL_1_WAIT, REFILL_2_WAIT: begin
                 for (integer i = 0; i < NWAY; i++) begin
+                    tag_bram_en[i][0]  = axi_rvalid_delay_1;
+                    tag_bram_en[i][1]  = axi_rvalid_delay_1;
+                    data_bram_en[i][0] = axi_rvalid_delay_1;
+                    data_bram_en[i][1] = axi_rvalid_delay_1;
+                    // Port 1
+                    if (miss_1) begin
+                        tag_bram_addr[i][0]  = p1_raddr_1[11:4];
+                        data_bram_addr[i][0] = p1_raddr_1[11:4];
+                    end else begin
+                        tag_bram_addr[i][0]  = raddr_1_i[11:4];
+                        data_bram_addr[i][0] = raddr_1_i[11:4];
+                    end
+                    // Port 2
+                    if (miss_2) begin
+                        tag_bram_addr[i][1]  = p1_raddr_2[11:4];
+                        data_bram_addr[i][1] = p1_raddr_2[11:4];
+                    end else begin
+                        tag_bram_addr[i][1]  = raddr_2_i[11:4];
+                        data_bram_addr[i][1] = raddr_2_i[11:4];
+                    end
+                end
+            end
+            CACOP_INVALID_1: begin
+                for (integer i = 0; i < NWAY; i++) begin
+                    tag_bram_en[i][0]  = 0;
+                    tag_bram_en[i][1]  = 0;
+                    data_bram_en[i][0] = 0;
+                    data_bram_en[i][1] = 0;
                     if (cacop_way == i) begin
-                        tag_bram_addr[i][0] = cacop_index;
+                        tag_bram_addr[i][1] = cacop_index;
+                        tag_bram_en[i][1]   = 1;
                     end
                 end
             end
             INVALID: begin
                 for (integer i = 0; i < NWAY; i++) begin
+                    tag_bram_en[i][1]   = 0;
+                    data_bram_en[i][0]  = 0;
+                    data_bram_en[i][1]  = 0;
                     tag_bram_addr[i][0] = invalid_cnt;
+                    tag_bram_en[i][0]   = 1;
                 end
             end
             default: begin
@@ -271,11 +316,11 @@ module icache
                     end
                 end
             end
-            CACOP_INVALID: begin
+            CACOP_INVALID_1: begin
                 for (integer i = 0; i < NWAY; i++) begin
                     if (cacop_way == i) begin
-                        tag_bram_we[i][0] = 1;
-                        tag_bram_wdata[i][0] = 0;
+                        tag_bram_we[i][1] = 1;
+                        tag_bram_wdata[i][1] = 0;
                     end
                 end
             end
@@ -313,10 +358,10 @@ module icache
                     end
                 end
                 REFILL_1_WAIT: begin
-                    if (axi_rvalid_i) miss_1_r <= 0;
+                    if (axi_rvalid_delay_1) miss_1_r <= 0;
                 end
                 REFILL_2_WAIT: begin
-                    if (axi_rvalid_i) miss_2_r <= 0;
+                    if (axi_rvalid_delay_1) miss_2_r <= 0;
                 end
                 default: begin
                 end
@@ -342,13 +387,19 @@ module icache
         end
     end
     always_ff @(posedge clk) begin
-        if (rvalid_1_o | ~p1_rreq_1) begin
+        if (rreq_1_ack_o) begin
             p1_rreq_1  <= rreq_1_i;
             p1_raddr_1 <= raddr_1_i;
+        end else if (rvalid_1_o) begin
+            p1_rreq_1  <= 0;
+            p1_raddr_1 <= 0;
         end
-        if (rvalid_2_o | ~p1_rreq_2) begin
+        if (rreq_2_ack_o) begin
             p1_rreq_2  <= rreq_2_i;
             p1_raddr_2 <= raddr_2_i;
+        end else if (rvalid_2_o) begin
+            p1_rreq_2  <= 0;
+            p1_raddr_2 <= 0;
         end
     end
 
@@ -361,8 +412,8 @@ module icache
     end
 
     // IDLE & WAIT can return rvalid_o, but REQ must not return rvalid_o
-    assign rvalid_1_o = (hit[0] && p1_rreq_1 && state != REFILL_1_REQ) | (p1_tlb_miss && state == IDLE);
-    assign rvalid_2_o = (hit[1] && p1_rreq_2 && state != REFILL_2_REQ) | (p1_tlb_miss && state == IDLE);
+    assign rvalid_1_o = (hit[0] && p1_rreq_1 && state != REFILL_1_REQ && state != CACOP_INVALID_1) | (p1_tlb_miss && state == IDLE);
+    assign rvalid_2_o = (hit[1] && p1_rreq_2 && state != REFILL_2_REQ && state != CACOP_INVALID_1) | (p1_tlb_miss && state == IDLE);
     // Generate read output
     always_comb begin
         hit[0] = 0;
@@ -381,16 +432,17 @@ module icache
         end
     end
 
+    // AXI handshake
     // Read request to AXI Controller
     // Use result from TLB
     always_comb begin
         case (state)
             REFILL_1_REQ, REFILL_1_WAIT: begin
-                axi_rreq_o = (miss_1 ? 1 : 0) & ~axi_rvalid_i;
+                axi_rreq_o = miss_1 & ~axi_rvalid_i & ~axi_rvalid_delay_1;
                 axi_addr_o = miss_1 ? {p1_tlb.tag, p1_raddr_1[11:0]} : 0;
             end
             REFILL_2_REQ, REFILL_2_WAIT: begin
-                axi_rreq_o = (miss_2 ? 1 : 0) & ~axi_rvalid_i;
+                axi_rreq_o = miss_2 & ~axi_rvalid_i & ~axi_rvalid_delay_1;
                 axi_addr_o = miss_2 ? {p1_tlb.tag, p1_raddr_2[11:0]} : 0;
             end
             default: begin
@@ -417,6 +469,8 @@ module icache
             bram_icache_tag_ram u_tag_bram (
                 .clka (clk),
                 .clkb (clk),
+                .ena  (tag_bram_en[i][0]),
+                .enb  (tag_bram_en[i][1]),
                 .wea  (tag_bram_we[i][0]),
                 .web  (tag_bram_we[i][1]),
                 .dina (tag_bram_wdata[i][0]),
@@ -429,6 +483,8 @@ module icache
             bram_icache_data_ram u_data_bram (
                 .clka (clk),
                 .clkb (clk),
+                .ena  (data_bram_en[i][0]),
+                .enb  (data_bram_en[i][1]),
                 .wea  (data_bram_we[i][0]),
                 .web  (data_bram_we[i][1]),
                 .dina (data_bram_wdata[i][0]),
@@ -445,6 +501,8 @@ module icache
                 .DATA_DEPTH_EXP2($clog2(NSET))
             ) u_tag_bram (
                 .clk  (clk),
+                .ena  (tag_bram_en[i][0]),
+                .enb  (tag_bram_en[i][1]),
                 .wea  (tag_bram_we[i][0]),
                 .web  (tag_bram_we[i][1]),
                 .dina (tag_bram_wdata[i][0]),
@@ -459,6 +517,8 @@ module icache
                 .DATA_DEPTH_EXP2($clog2(NSET))
             ) u_data_bram (
                 .clk  (clk),
+                .ena  (data_bram_en[i][0]),
+                .enb  (data_bram_en[i][1]),
                 .wea  (data_bram_we[i][0]),
                 .web  (data_bram_we[i][1]),
                 .dina (data_bram_wdata[i][0]),
