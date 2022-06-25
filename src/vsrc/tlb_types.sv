@@ -5,6 +5,24 @@ package tlb_types;
 
     parameter TLBNUM = 32;
 
+    //TLB-ENTRY parameter
+    `define ENTRY_LEN 89 
+    `define E 0
+    `define TLB_ASID 10:1
+    `define G 11
+    `define PS 17:12
+    `define VPPN 36:18
+    `define V0 37
+    `define D0 38
+    `define MAT0 40:39
+    `define PLV0 42:41
+    `define PPN0 62:43
+    `define V1 63
+    `define D1 64
+    `define MAT1 66:65
+    `define PLV1 68:67
+    `define PPN1 88:69
+
     // Frontend -> TLB
     typedef struct packed {
         logic fetch;

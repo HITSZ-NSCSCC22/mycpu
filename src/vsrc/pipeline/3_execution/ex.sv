@@ -225,7 +225,7 @@ module ex
     logic muldiv_op;  // High effective
     always_comb begin
         case (aluop_i)
-            `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP: begin
+            `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP,`EXE_MUL_OP,`EXE_MULH_OP,`EXE_MULHU_OP: begin
                 muldiv_op = 1;
             end
             default: begin
@@ -271,7 +271,7 @@ module ex
         .mul_para      (muldiv_para),
         .mul_initial   (muldiv_init),
         .mul_rs0       (reg1_i),
-        .mul_rs1       (reg2_i == 0 ? 1 : reg2_i),
+        .mul_rs1       ((reg2_i == 0 && (aluop_i == `EXE_DIV_OP || aluop_i == `EXE_DIVU_OP)) ? 1 : reg2_i),
         .mul_ready     (muldiv_busy),
         .mul_finished  (muldiv_finished),           // 1 means finished
         .mul_data      (muldiv_result),
@@ -289,14 +289,14 @@ module ex
             case (aluop_i)
                 `EXE_ADD_OP: arithout = reg1_i + reg2_i;
                 `EXE_SUB_OP: arithout = reg1_i - reg2_i;
-                `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP: begin
+                `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP,`EXE_MUL_OP,`EXE_MULH_OP,`EXE_MULHU_OP: begin
                     // Select result from multi-cycle divider
                     arithout = muldiv_result;
                 end
 
-                `EXE_MUL_OP: arithout = $signed(reg1_i) * $signed(reg2_i);
-                `EXE_MULH_OP: arithout = ($signed(reg1_i) * $signed(reg2_i)) >> 32;
-                `EXE_MULHU_OP: arithout = ($unsigned(reg1_i) * $unsigned(reg2_i)) >> 32;
+                //`EXE_MUL_OP: arithout = $signed(reg1_i) * $signed(reg2_i);
+                //`EXE_MULH_OP: arithout = ($signed(reg1_i) * $signed(reg2_i)) >> 32;
+                //`EXE_MULHU_OP: arithout = ($unsigned(reg1_i) * $unsigned(reg2_i)) >> 32;
                 // `EXE_DIV_OP: arithout = ($signed(reg1_i) / $signed(reg2_i));
                 // `EXE_DIVU_OP: arithout = ($unsigned(reg1_i) / $unsigned(reg2_i));
                 // `EXE_MODU_OP: arithout = ($unsigned(reg1_i) % $unsigned(reg2_i));

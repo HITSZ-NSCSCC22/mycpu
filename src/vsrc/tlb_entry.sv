@@ -47,21 +47,7 @@ module tlb_entry
 );
 
     // Data structure
-    logic [18:0] tlb_vppn[TLBNUM-1:0];
-    logic [TLBNUM-1:0] tlb_e;
-    logic [9:0] tlb_asid[TLBNUM-1:0];
-    logic [TLBNUM-1:0] tlb_g;
-    logic [5:0] tlb_ps[TLBNUM-1:0];
-    logic [19:0] tlb_ppn0[TLBNUM-1:0];
-    logic [1:0] tlb_plv0[TLBNUM-1:0];
-    logic [1:0] tlb_mat0[TLBNUM-1:0];
-    logic tlb_d0[TLBNUM-1:0];
-    logic tlb_v0[TLBNUM-1:0];
-    logic [19:0] tlb_ppn1[TLBNUM-1:0];
-    logic [1:0] tlb_plv1[TLBNUM-1:0];
-    logic [1:0] tlb_mat1[TLBNUM-1:0];
-    logic tlb_d1[TLBNUM-1:0];
-    logic tlb_v1[TLBNUM-1:0];
+    logic [`ENTRY_LEN-1:0] tlb_entrys[TLBNUM-1:0];
 
     // One-hot match table
     logic [TLBNUM-1:0] match0;
@@ -75,12 +61,12 @@ module tlb_entry
         for (i = 0; i < TLBNUM; i = i + 1) begin : match
             always @(posedge clk) begin
                 if (s0_fetch) begin
-                    s0_odd_page_buffer[i] <= (tlb_ps[i] == 6'd12) ? s0_odd_page : s0_vppn[8];
-                    match0[i] <= (tlb_e[i] == 1'b1) && ((tlb_ps[i] == 6'd12) ? s0_vppn == tlb_vppn[i] : s0_vppn[18:9] == tlb_vppn[i][18:9]) && ((s0_asid == tlb_asid[i]) || tlb_g[i]);
+                    s0_odd_page_buffer[i] <= (tlb_entrys[i][`PS] == 6'd12) ? s0_odd_page : s0_vppn[8];
+                    match0[i] <= (tlb_entrys[i][`E] == 1'b1) && ((tlb_entrys[i][`PS] == 6'd12) ? s0_vppn == tlb_entrys[i][`VPPN] : s0_vppn[18:9] == tlb_entrys[i][`VPPN][18:9]) && ((s0_asid == tlb_entrys[i][`TLB_ASID]) || tlb_entrys[i][`G]);
                 end
                 if (s1_fetch) begin
-                    s1_odd_page_buffer[i] <= (tlb_ps[i] == 6'd12) ? s1_odd_page : s1_vppn[8];
-                    match1[i] <= (tlb_e[i] == 1'b1) && ((tlb_ps[i] == 6'd12) ? s1_vppn == tlb_vppn[i] : s1_vppn[18:9] == tlb_vppn[i][18:9]) && ((s1_asid == tlb_asid[i]) || tlb_g[i]);
+                    s1_odd_page_buffer[i] <= (tlb_entrys[i][`PS] == 6'd12) ? s1_odd_page : s1_vppn[8];
+                    match1[i] <= (tlb_entrys[i][`E] == 1'b1) && ((tlb_entrys[i][`PS] == 6'd12) ? s1_vppn == tlb_entrys[i][`VPPN] : s1_vppn[18:9] == tlb_entrys[i][`VPPN][18:9]) && ((s1_asid == tlb_entrys[i][`TLB_ASID]) || tlb_entrys[i][`G]);
                 end
             end
         end
@@ -96,12 +82,12 @@ module tlb_entry
         // Match 
         for (integer j = 0; j < 32; j++) begin
             if (match0[j]) begin
-                {s0_index, s0_ps, s0_ppn, s0_v, s0_d, s0_mat, s0_plv} = {37{s0_odd_page_buffer[j] }} & {j[4:0], tlb_ps[j], tlb_ppn1[j], tlb_v1[j], tlb_d1[j], tlb_mat1[j], tlb_plv1[j]} |
-                                                                {37{~s0_odd_page_buffer[j] }} & {j[4:0], tlb_ps[j], tlb_ppn0[j], tlb_v0[j], tlb_d0[j], tlb_mat0[j], tlb_plv0[j]};
+                {s0_index, s0_ps, s0_ppn, s0_v, s0_d, s0_mat, s0_plv} = {37{s0_odd_page_buffer[j] }} & {j[4:0], tlb_entrys[j][`PS], tlb_entrys[j][`PPN0], tlb_entrys[j][`V0], tlb_entrys[j][`D0], tlb_entrys[j][`MAT0], tlb_entrys[j][`PLV0]} |
+                                                                {37{~s0_odd_page_buffer[j] }} & {j[4:0], tlb_entrys[j][`PS], tlb_entrys[j][`PPN0], tlb_entrys[j][`V0], tlb_entrys[j][`D0], tlb_entrys[j][`MAT0], tlb_entrys[j][`PLV0]};
             end
             if (match1[j]) begin
-                {s1_index, s1_ps, s1_ppn, s1_v, s1_d, s1_mat, s1_plv} = {37{s1_odd_page_buffer[j] }} & {j[4:0], tlb_ps[j], tlb_ppn1[j], tlb_v1[j], tlb_d1[j], tlb_mat1[j], tlb_plv1[j]} |
-                                                                {37{~s1_odd_page_buffer[j] }} & {j[4:0], tlb_ps[j], tlb_ppn0[j], tlb_v0[j], tlb_d0[j], tlb_mat0[j], tlb_plv0[j]};
+                {s1_index, s1_ps, s1_ppn, s1_v, s1_d, s1_mat, s1_plv} = {37{s1_odd_page_buffer[j] }} & {j[4:0], tlb_entrys[j][`PS], tlb_entrys[j][`PPN1], tlb_entrys[j][`V1], tlb_entrys[j][`D1], tlb_entrys[j][`MAT1], tlb_entrys[j][`PLV1]} |
+                                                                {37{~s1_odd_page_buffer[j] }} & {j[4:0], tlb_entrys[j][`PS], tlb_entrys[j][`PPN1], tlb_entrys[j][`V1], tlb_entrys[j][`D1], tlb_entrys[j][`MAT1], tlb_entrys[j][`PLV1]};
             end
         end
     end
@@ -109,46 +95,46 @@ module tlb_entry
 
     always @(posedge clk) begin
         if (we) begin
-            tlb_vppn[w_index] <= write_port.vppn;
-            tlb_asid[w_index] <= write_port.asid;
-            tlb_g[w_index]    <= write_port.g;
-            tlb_ps[w_index]   <= write_port.ps;
-            tlb_ppn0[w_index] <= write_port.ppn0;
-            tlb_plv0[w_index] <= write_port.plv0;
-            tlb_mat0[w_index] <= write_port.mat0;
-            tlb_d0[w_index]   <= write_port.d0;
-            tlb_v0[w_index]   <= write_port.v0;
-            tlb_ppn1[w_index] <= write_port.ppn1;
-            tlb_plv1[w_index] <= write_port.plv1;
-            tlb_mat1[w_index] <= write_port.mat1;
-            tlb_d1[w_index]   <= write_port.d1;
-            tlb_v1[w_index]   <= write_port.v1;
+            tlb_entrys[w_index][`VPPN] <= write_port.vppn;
+            tlb_entrys[w_index][`TLB_ASID] <= write_port.asid;
+            tlb_entrys[w_index][`G]    <= write_port.g;
+            tlb_entrys[w_index][`PS]   <= write_port.ps;
+            tlb_entrys[w_index][`PPN0] <= write_port.ppn0;
+            tlb_entrys[w_index][`PLV0] <= write_port.plv0;
+            tlb_entrys[w_index][`MAT0] <= write_port.mat0;
+            tlb_entrys[w_index][`D0]   <= write_port.d0;
+            tlb_entrys[w_index][`V0]   <= write_port.v0;
+            tlb_entrys[w_index][`PPN1] <= write_port.ppn1;
+            tlb_entrys[w_index][`PLV1] <= write_port.plv1;
+            tlb_entrys[w_index][`MAT1] <= write_port.mat1;
+            tlb_entrys[w_index][`D1]   <= write_port.d1;
+            tlb_entrys[w_index][`V1]   <= write_port.v1;
         end
     end
 
-    assign read_port.vppn = tlb_vppn[r_index];
-    assign read_port.asid = tlb_asid[r_index];
-    assign read_port.g    = tlb_g[r_index];
-    assign read_port.ps   = tlb_ps[r_index];
-    assign read_port.e    = tlb_e[r_index];
-    assign read_port.v0   = tlb_v0[r_index];
-    assign read_port.d0   = tlb_d0[r_index];
-    assign read_port.mat0 = tlb_mat0[r_index];
-    assign read_port.plv0 = tlb_plv0[r_index];
-    assign read_port.ppn0 = tlb_ppn0[r_index];
-    assign read_port.v1   = tlb_v1[r_index];
-    assign read_port.d1   = tlb_d1[r_index];
-    assign read_port.mat1 = tlb_mat1[r_index];
-    assign read_port.plv1 = tlb_plv1[r_index];
-    assign read_port.ppn1 = tlb_ppn1[r_index];
+    assign read_port.vppn = tlb_entrys[r_index][`VPPN];
+    assign read_port.asid = tlb_entrys[r_index][`TLB_ASID];
+    assign read_port.g    = tlb_entrys[r_index][`G];
+    assign read_port.ps   = tlb_entrys[r_index][`PS];
+    assign read_port.e    = tlb_entrys[r_index][`E];
+    assign read_port.v0   = tlb_entrys[r_index][`V0];
+    assign read_port.d0   = tlb_entrys[r_index][`D0];
+    assign read_port.mat0 = tlb_entrys[r_index][`MAT0];
+    assign read_port.plv0 = tlb_entrys[r_index][`PLV0];
+    assign read_port.ppn0 = tlb_entrys[r_index][`PPN0];
+    assign read_port.v1   = tlb_entrys[r_index][`V1];
+    assign read_port.d1   = tlb_entrys[r_index][`D1];
+    assign read_port.mat1 = tlb_entrys[r_index][`MAT1];
+    assign read_port.plv1 = tlb_entrys[r_index][`PLV1];
+    assign read_port.ppn1 = tlb_entrys[r_index][`PPN1];
 
     // DEBUG
     logic [31:0] debug_asid_match, debug_vppn_match;
     logic [18:0] debug_inv_vpn = inv_i.vpn;
     always_comb begin
         for (integer ii = 0; ii < TLBNUM; ii++) begin
-            debug_asid_match[ii] = tlb_asid[ii] == inv_i.asid;
-            debug_vppn_match[ii] = tlb_vppn[ii] == inv_i.vpn;
+            debug_asid_match[ii] = tlb_entrys[ii][`TLB_ASID] == inv_i.asid;
+            debug_vppn_match[ii] = tlb_entrys[ii][`VPPN] == inv_i.vpn;
         end
     end
 
@@ -157,20 +143,20 @@ module tlb_entry
         for (i = 0; i < TLBNUM; i = i + 1) begin : invalid_tlb_entry
             always @(posedge clk) begin
                 if (we && (w_index == i)) begin
-                    tlb_e[i] <= write_port.e;
+                    tlb_entrys[i][`E] <= write_port.e;
                 end else if (inv_i.en) begin
                     // invalid search
-                    if (inv_i.op == 5'd0 || inv_i.op == 5'd1) tlb_e[i] <= 1'b0;
-                    else if (inv_i.op == 5'd2 && tlb_g[i]) tlb_e[i] <= 1'b0;
-                    else if (inv_i.op == 5'd3 && !tlb_g[i]) tlb_e[i] <= 1'b0;
-                    else if (inv_i.op == 5'd4 && !tlb_g[i] && (tlb_asid[i] == inv_i.asid))
-                        tlb_e[i] <= 1'b0;
-                    else if (inv_i.op == 5'd5 && !tlb_g[i] && (tlb_asid[i] == inv_i.asid) && 
-                           ((tlb_ps[i] == 6'd12) ? (tlb_vppn[i] == inv_i.vpn) : (tlb_vppn[i][18:10] == inv_i.vpn[18:10])))
-                        tlb_e[i] <= 1'b0;
-                    else if (inv_i.op == 5'd6 && (tlb_g[i] || (tlb_asid[i] == inv_i.asid)) && 
-                           ((tlb_ps[i] == 6'd12) ? (tlb_vppn[i] == inv_i.vpn) : (tlb_vppn[i][18:10] == inv_i.vpn[18:10])))
-                        tlb_e[i] <= 1'b0;
+                    if (inv_i.op == 5'd0 || inv_i.op == 5'd1) tlb_entrys[i][`E] <= 1'b0;
+                    else if (inv_i.op == 5'd2 && tlb_entrys[i][`G]) tlb_entrys[i][`E] <= 1'b0;
+                    else if (inv_i.op == 5'd3 && !tlb_entrys[i][`G]) tlb_entrys[i][`E] <= 1'b0;
+                    else if (inv_i.op == 5'd4 && !tlb_entrys[i][`G] && (tlb_entrys[i][`TLB_ASID] == inv_i.asid))
+                        tlb_entrys[i][`E] <= 1'b0;
+                    else if (inv_i.op == 5'd5 && !tlb_entrys[i][`G] && (tlb_entrys[i][`TLB_ASID] == inv_i.asid) && 
+                           ((tlb_entrys[i][`PS] == 6'd12) ? (tlb_entrys[i][`VPPN] == inv_i.vpn) : (tlb_entrys[i][`VPPN][18:10] == inv_i.vpn[18:10])))
+                        tlb_entrys[i][`E] <= 1'b0;
+                    else if (inv_i.op == 5'd6 && (tlb_entrys[i][`G] || (tlb_entrys[i][`TLB_ASID] == inv_i.asid)) && 
+                           ((tlb_entrys[i][`PS] == 6'd12) ? (tlb_entrys[i][`VPPN] == inv_i.vpn) : (tlb_entrys[i][`VPPN][18:10] == inv_i.vpn[18:10])))
+                        tlb_entrys[i][`E] <= 1'b0;
                 end
             end
         end
