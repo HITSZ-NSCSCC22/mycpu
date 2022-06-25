@@ -7,21 +7,21 @@ package tlb_types;
 
     //TLB-ENTRY parameter
     `define ENTRY_LEN 89 
-    `define E 0
-    `define TLB_ASID 10:1
-    `define G 11
-    `define PS 17:12
-    `define VPPN 36:18
-    `define V0 37
-    `define D0 38
-    `define MAT0 40:39
-    `define PLV0 42:41
-    `define PPN0 62:43
-    `define V1 63
-    `define D1 64
-    `define MAT1 66:65
-    `define PLV1 68:67
-    `define PPN1 88:69
+    `define ENTRY_E 0
+    `define ENTRY_ASID 10:1
+    `define ENTRY_G 11
+    `define ENTRY_PS 17:12
+    `define ENTRY_VPPN 36:18
+    `define ENTRY_V0 37
+    `define ENTRY_D0 38
+    `define ENTRY_MAT0 40:39
+    `define ENTRY_PLV0 42:41
+    `define ENTRY_PPN0 62:43
+    `define ENTRY_V1 63
+    `define ENTRY_D1 64
+    `define ENTRY_MAT1 66:65
+    `define ENTRY_PLV1 68:67
+    `define ENTRY_PPN1 88:69
 
     // Frontend -> TLB
     typedef struct packed {
