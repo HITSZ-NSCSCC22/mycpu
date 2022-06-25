@@ -85,8 +85,9 @@ module icache
     logic rvalid_1, rvalid_2;
     logic [NWAY-1:0][1:0] tag_hit;  // P1 hit signal
 
-
-
+    logic way0_hit,way1_hit;
+    assign way0_hit = (tag_bram_rdata[i][0][19:0] == p1_tlb.tag && tag_bram_rdata[i][0][20] == valid_flag);
+    assign way1_hit = (tag_bram_rdata[i][1][19:0] == p1_tlb.tag && tag_bram_rdata[i][1][20] == valid_flag);
 
 
 
@@ -104,9 +105,16 @@ module icache
     logic [ 3:0] real_offset;
     logic [19:0] real_tag;
     logic [ 7:0] real_index;
+    logic cacop_op_mode0,cacop_op_mode1,cacop_op_mode2,cacop_tag_we,cacop_op_mode2_hit;
     assign real_offset = icacop_op_en ? cacop_op_addr_offset : p1_tlb.offset;
     assign real_tag = icacop_op_en ? cacop_op_addr_tag : p1_tlb.tag;
     assign real_index = icacop_op_en ? cacop_op_addr_index : p1_tlb.index;
+    assign cacop_op_mode0 = icacop_op_en && cacop_op_mode == 2'b00;
+    assign cacop_op_mode1 = icacop_op_en && cacop_op_mode == 2'b01;
+    assign cacop_op_mode2 = icacop_op_en && cacop_op_mode == 2'b10;
+    assign cacop_op_mode2_hit = cacop_op_mode2 && (way0_hit || way1_hit);
+
+    assign cacop_tag_we = cacop_op_mode0 || cacop_op_mode1 ||cacop_op_mode2_hit;
 
     // BRAM 
     generate
@@ -271,8 +279,8 @@ module icache
     // Hit signal
     always_comb begin
         for (integer i = 0; i < NWAY; i++) begin
-            tag_hit[i][0] = tag_bram_rdata[i][0][19:0] == p1_tlb.tag && tag_bram_rdata[i][0][20] == valid_flag;
-            tag_hit[i][1] = tag_bram_rdata[i][1][19:0] == p1_tlb.tag && tag_bram_rdata[i][1][20] == valid_flag;
+            tag_hit[i][0] = way0_hit && !(uncache_en || cacop_op_mode0 || cacop_op_mode1 || cacop_op_mode2);
+            tag_hit[i][1] = way1_hit && !(uncache_en || cacop_op_mode0 || cacop_op_mode1 || cacop_op_mode2);
         end
     end
 
@@ -376,15 +384,15 @@ module icache
             data_bram_wdata[i] = 0;
             if (i[0] == random_r[0]) begin
                 // write this way
-                if (state == REFILL_1_WAIT && axi_rvalid_i) begin
+                if ((state == REFILL_1_WAIT && axi_rvalid_i) || cacop_tag_we) begin
                     tag_bram_we[i][0] = 1;
-                    tag_bram_wdata[i][0] = {valid_flag, p1_tlb.tag};
+                    tag_bram_wdata[i][0] = (cacop_op_mode0 || cacop_op_mode1 || cacop_op_mode2_hit) ? 21'b0 : {valid_flag, real_tag};
                     data_bram_we[i][0] = 1;
                     data_bram_wdata[i][0] = axi_data_i;
                 end
-                if (state == REFILL_2_WAIT && axi_rvalid_i) begin
+                if ((state == REFILL_2_WAIT && axi_rvalid_i) || cacop_tag_we) begin
                     tag_bram_we[i][1] = 1;
-                    tag_bram_wdata[i][1] = {valid_flag, p1_tlb.tag};
+                    tag_bram_wdata[i][1] = (cacop_op_mode0 || cacop_op_mode1 || cacop_op_mode2_hit) ? 21'b0 :{valid_flag, real_tag};
                     data_bram_we[i][1] = 1;
                     data_bram_wdata[i][1] = axi_data_i;
                 end

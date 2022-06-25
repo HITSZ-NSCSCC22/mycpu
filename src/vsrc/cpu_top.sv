@@ -287,6 +287,9 @@ module cpu_top
     logic [13:0] dispatch_csr_read_addr;
     logic [`RegBus] dispatch_csr_data;
 
+    logic icacop_op_en[2];
+    logic [1:0] cacop_op_mode[2];
+
     icache u_icache(
        .clk          (clk          ),
        .rst          (rst          ),
@@ -309,6 +312,14 @@ module cpu_top
        .axi_rvalid_i (axi_icache_rvalid),
        .axi_rlast_i  (),
        .axi_data_i   (axi_icache_data),
+
+        //-> CACOP
+        .uncache_en(),
+        .icacop_op_en(icacop_op_en[0]),
+        .cacop_op_mode(cacop_op_mode[0]),
+        .cacop_op_addr_index(tlb_data_o.index),
+        .cacop_op_addr_tag(tlb_data_o.tag),
+        .cacop_op_addr_offset(tlb_data_o.offset),
 
        // TLB related
        .tlb_i(tlb_inst), // <- TLB
@@ -546,9 +557,9 @@ module cpu_top
                 .ertn_flush(ertn_flush),
 
                 // -> Cache
-                .icacop_op_en(icacop_op_en),
+                .icacop_op_en(icacop_op_en[i]),
                 .dcacop_op_en(dcacop_op_en),
-                .cacop_op_mode(dicacop_op_mode),
+                .cacop_op_mode(cacop_op_mode[i]),
 
                 // <-> Ctrl
                 .stall({mem_stallreq[0] | mem_stallreq[1] ,stall[3]}),
