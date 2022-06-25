@@ -116,6 +116,7 @@ module cpu_top
     logic [15:0] dcache_axi_wstrb; // Byte selection
     logic [127:0] axi_dcache_data; // AXI Read result
     logic [2:0] dcache_rd_type;
+    logic [2:0] dcache_wr_type;
 
     logic [`RegBus] cache_mem_data;
     logic mem_data_ok,mem_addr_ok;
@@ -145,7 +146,7 @@ module cpu_top
         .dcache_ret_valid_o(axi_dcache_rvalid),
         .dcache_ret_last_o(), // same as ICache
         .dcache_wr_req_i(dcache_axi_wreq),
-        .dcache_wr_type_i(3'b100), 
+        .dcache_wr_type_i(dcache_wr_type), 
         .dcache_wr_data(dcache_axi_data),
         .dcache_wr_rdy(axi_dcache_wr_rdy),
         .write_ok(), // Used in conherent instructions, unused for now
@@ -196,11 +197,13 @@ module cpu_top
     logic [3:0] mem_cache_sel;
     logic [31:0] mem_cache_addr,mem_cache_data;
     logic [1:0] wb_dcache_flush; // flush dcache if excp
+    logic [2:0]mem_cache_wr_type;
     
     assign mem_cache_ce = mem_cache_signal[0].ce | mem_cache_signal[1].ce;
     assign mem_cache_we = mem_cache_signal[0].we | mem_cache_signal[1].we;
     assign mem_cache_sel = mem_cache_signal[0].we ? mem_cache_signal[0].sel : mem_cache_signal[1].we ? mem_cache_signal[1].sel : 0;
     assign mem_cache_rd_type = mem_cache_signal[0].ce ? mem_cache_signal[0].rd_type : mem_cache_signal[1].ce ? mem_cache_signal[1].rd_type : 0;
+    assign mem_cache_wr_type = mem_cache_signal[0].ce ? mem_cache_signal[0].wr_type : mem_cache_signal[1].ce ? mem_cache_signal[1].wr_type : 0;
     assign mem_cache_addr = mem_cache_signal[0].addr | mem_cache_signal[1].addr;
     assign mem_cache_data = mem_cache_signal[0].we ? mem_cache_signal[0].data : mem_cache_signal[1].we ? mem_cache_signal[1].data : 0;
    
@@ -217,6 +220,7 @@ module cpu_top
         .wstrb     (mem_cache_sel),
         .wdata     (mem_cache_data),
         .rd_type_i (mem_cache_rd_type),
+        .wr_type_i (mem_cache_wr_type),
         .flush_i    (wb_dcache_flush!=2'b0), // If excp occurs, flush DCache
         .addr_ok   (mem_addr_ok),
         .data_ok   (mem_data_ok),
@@ -231,7 +235,7 @@ module cpu_top
         .ret_last  (),
         .ret_data  (axi_dcache_data),
         .wr_req    (dcache_axi_wreq),
-        .wr_type   (),
+        .wr_type   (dcache_wr_type),
         .wr_addr   (dcache_axi_waddr),
         .wr_wstrb  (dcache_axi_wstrb),
         .wr_data   (dcache_axi_data),
