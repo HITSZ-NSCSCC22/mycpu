@@ -47,6 +47,7 @@ module tlb_entry
 );
 
     // Data structure
+    logic tlb_e[TLBNUM-1:0];
     logic [`ENTRY_LEN-1:0] tlb_entrys[TLBNUM-1:0];
 
     // One-hot match table
@@ -62,11 +63,11 @@ module tlb_entry
             always @(posedge clk) begin
                 if (s0_fetch) begin
                     s0_odd_page_buffer[i] <= (tlb_entrys[i][`ENTRY_PS] == 6'd12) ? s0_odd_page : s0_vppn[8];
-                    match0[i] <= (tlb_entrys[i][`ENTRY_E] == 1'b1) && ((tlb_entrys[i][`ENTRY_PS] == 6'd12) ? s0_vppn == tlb_entrys[i][`ENTRY_VPPN] : s0_vppn[18:9] == tlb_entrys[i][`ENTRY_VPPN][18:9]) && ((s0_asid == tlb_entrys[i][`ENTRY_ASID]) || tlb_entrys[i][`ENTRY_G]);
+                    match0[i] <= (tlb_e[i] == 1'b1) && ((tlb_entrys[i][`ENTRY_PS] == 6'd12) ? s0_vppn == tlb_entrys[i][`ENTRY_VPPN] : s0_vppn[18:9] == tlb_entrys[i][`ENTRY_VPPN_H0]) && ((s0_asid == tlb_entrys[i][`ENTRY_ASID]) || tlb_entrys[i][`ENTRY_G]);
                 end
                 if (s1_fetch) begin
                     s1_odd_page_buffer[i] <= (tlb_entrys[i][`ENTRY_PS] == 6'd12) ? s1_odd_page : s1_vppn[8];
-                    match1[i] <= (tlb_entrys[i][`ENTRY_E] == 1'b1) && ((tlb_entrys[i][`ENTRY_PS] == 6'd12) ? s1_vppn == tlb_entrys[i][`ENTRY_VPPN] : s1_vppn[18:9] == tlb_entrys[i][`ENTRY_VPPN][18:9]) && ((s1_asid == tlb_entrys[i][`ENTRY_ASID]) || tlb_entrys[i][`ENTRY_G]);
+                    match1[i] <= (tlb_e[i] == 1'b1) && ((tlb_entrys[i][`ENTRY_PS] == 6'd12) ? s1_vppn == tlb_entrys[i][`ENTRY_VPPN] : s1_vppn[18:9] == tlb_entrys[i][`ENTRY_VPPN_H0]) && ((s1_asid == tlb_entrys[i][`ENTRY_ASID]) || tlb_entrys[i][`ENTRY_G]);
                 end
             end
         end
@@ -116,7 +117,7 @@ module tlb_entry
     assign read_port.asid = tlb_entrys[r_index][`ENTRY_ASID];
     assign read_port.g    = tlb_entrys[r_index][`ENTRY_G];
     assign read_port.ps   = tlb_entrys[r_index][`ENTRY_PS];
-    assign read_port.e    = tlb_entrys[r_index][`ENTRY_E];
+    assign read_port.e    = tlb_e[r_index];
     assign read_port.v0   = tlb_entrys[r_index][`ENTRY_V0];
     assign read_port.d0   = tlb_entrys[r_index][`ENTRY_D0];
     assign read_port.mat0 = tlb_entrys[r_index][`ENTRY_MAT0];
@@ -143,22 +144,22 @@ module tlb_entry
         for (i = 0; i < TLBNUM; i = i + 1) begin : invalid_tlb_entry
             always @(posedge clk) begin
                 if (we && (w_index == i)) begin
-                    tlb_entrys[i][`ENTRY_E] <= write_port.e;
+                    tlb_e[i] <= write_port.e;
                 end else if (inv_i.en) begin
                     // invalid search
-                    if (inv_i.op == 5'd0 || inv_i.op == 5'd1) tlb_entrys[i][`ENTRY_E] <= 1'b0;
+                    if (inv_i.op == 5'd0 || inv_i.op == 5'd1) tlb_e[i] <= 1'b0;
                     else if (inv_i.op == 5'd2 && tlb_entrys[i][`ENTRY_G])
-                        tlb_entrys[i][`ENTRY_E] <= 1'b0;
+                        tlb_e[i] <= 1'b0;
                     else if (inv_i.op == 5'd3 && !tlb_entrys[i][`ENTRY_G])
-                        tlb_entrys[i][`ENTRY_E] <= 1'b0;
+                        tlb_e[i] <= 1'b0;
                     else if (inv_i.op == 5'd4 && !tlb_entrys[i][`ENTRY_G] && (tlb_entrys[i][`ENTRY_ASID] == inv_i.asid))
-                        tlb_entrys[i][`ENTRY_E] <= 1'b0;
+                        tlb_e[i] <= 1'b0;
                     else if (inv_i.op == 5'd5 && !tlb_entrys[i][`ENTRY_G] && (tlb_entrys[i][`ENTRY_ASID] == inv_i.asid) && 
-                           ((tlb_entrys[i][`ENTRY_PS] == 6'd12) ? (tlb_entrys[i][`ENTRY_VPPN] == inv_i.vpn) : (tlb_entrys[i][`ENTRY_VPPN][18:10] == inv_i.vpn[18:10])))
-                        tlb_entrys[i][`ENTRY_E] <= 1'b0;
+                           ((tlb_entrys[i][`ENTRY_PS] == 6'd12) ? (tlb_entrys[i][`ENTRY_VPPN] == inv_i.vpn) : (tlb_entrys[i][`ENTRY_VPPN_H1] == inv_i.vpn[18:10])))
+                        tlb_e[i] <= 1'b0;
                     else if (inv_i.op == 5'd6 && (tlb_entrys[i][`ENTRY_G] || (tlb_entrys[i][`ENTRY_ASID] == inv_i.asid)) && 
-                           ((tlb_entrys[i][`ENTRY_PS] == 6'd12) ? (tlb_entrys[i][`ENTRY_VPPN] == inv_i.vpn) : (tlb_entrys[i][`ENTRY_VPPN][18:10] == inv_i.vpn[18:10])))
-                        tlb_entrys[i][`ENTRY_E] <= 1'b0;
+                           ((tlb_entrys[i][`ENTRY_PS] == 6'd12) ? (tlb_entrys[i][`ENTRY_VPPN] == inv_i.vpn) : (tlb_entrys[i][`ENTRY_VPPN_H1] == inv_i.vpn[18:10])))
+                        tlb_e[i] <= 1'b0;
                 end
             end
         end

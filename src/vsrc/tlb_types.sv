@@ -12,6 +12,8 @@ package tlb_types;
     `define ENTRY_G 11
     `define ENTRY_PS 17:12
     `define ENTRY_VPPN 36:18
+    `define ENTRY_VPPN_H0 36:27
+    `define ENTRY_VPPN_H1 36:28
     `define ENTRY_V0 37
     `define ENTRY_D0 38
     `define ENTRY_MAT0 40:39
