@@ -93,7 +93,7 @@ module ifu
         end else begin
             icache_rreq_o = 0;
             icache_raddr_o = 0;
-            tlb_o.fetch = 0;
+            tlb_o = 0;
         end
     end
 
