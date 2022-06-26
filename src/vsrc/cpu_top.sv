@@ -289,6 +289,7 @@ module cpu_top
     logic [`RegBus] dispatch_csr_data;
 
     logic icacop_op_en[2];
+    logic icacop_ack;
     logic [1:0] cacop_op_mode[2];
 
     icache u_icache(
@@ -323,6 +324,7 @@ module cpu_top
         .cacop_i(icacop_op_en[0]),
         .cacop_mode_i(cacop_op_mode[0]),
         .cacop_addr_i({tlb_data_o.tag,tlb_data_o.index,tlb_data_o.offset}),
+        .cacop_ack_o(icacop_ack),
         
 
        // TLB related
@@ -561,8 +563,9 @@ module cpu_top
                 .excp_flush(excp_flush),
                 .ertn_flush(ertn_flush),
 
-                // -> Cache
+                // <-> Cache
                 .icacop_op_en(icacop_op_en[i]),
+                .icacop_op_ack_i(icacop_ack),
                 .dcacop_op_en(dcacop_op_en),
                 .cacop_op_mode(cacop_op_mode[i]),
 
