@@ -1,6 +1,6 @@
 `include "defines.sv"
 `include "csr_defines.sv"
-`include "tlb_types.sv"
+`include "TLB/tlb_types.sv"
 
 
 module tlb

@@ -1,4 +1,4 @@
-`include "tlb_types.sv"
+`include "TLB/tlb_types.sv"
 
 module tlb_lutram #(
     parameter WIDTH = 89,

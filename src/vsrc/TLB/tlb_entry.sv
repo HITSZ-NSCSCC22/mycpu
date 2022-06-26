@@ -1,4 +1,4 @@
-`include "tlb_types.sv"
+`include "TLB/tlb_types.sv"
 `include "TLB/tlb_lutram.sv"
 
 module tlb_entry
@@ -102,7 +102,10 @@ module tlb_entry
         .invtlbout(invtlbout)
     );
 
-
+    logic [3:0] inst_tag;
+    logic [3:0] data_tag;
+    assign inst_tag = s0_vppn[3:0];
+    assign data_tag = s1_vppn[3:0];
 
     genvar i;
     generate
@@ -130,14 +133,10 @@ module tlb_entry
 
     always_comb begin
         for (integer j = 0; j < 32; j++) begin
-            if (match0[j]) 
-                inst_addr = j[4:0];
-            else 
-                inst_addr = 5'b0;
-            if (match1[j]) 
-                data_addr = j[4:0];
-            else 
-                data_addr = 5'b0;
+            if (match0[j]) inst_addr = j[4:0];
+            else inst_addr = 5'b0;
+            if (match1[j]) data_addr = j[4:0];
+            else data_addr = 5'b0;
         end
     end
 

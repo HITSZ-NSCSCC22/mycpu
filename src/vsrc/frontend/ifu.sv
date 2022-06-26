@@ -1,7 +1,7 @@
 `include "frontend/frontend_defines.sv"
 `include "core_types.sv"
 `include "core_config.sv"
-`include "tlb_types.sv"
+`include "TLB/tlb_types.sv"
 
 
 module ifu
