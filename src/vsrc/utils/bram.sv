@@ -42,12 +42,12 @@ module bram #(
 
     // Write logic
     always_ff @(posedge clk) begin
-        if (web) begin
+        if (enb & web) begin
             data[addrb[DATA_DEPTH_EXP2-1:0]] <= dinb;
         end
 
         // A port has priority
-        if (wea) begin
+        if (ena & wea) begin
             data[addra[DATA_DEPTH_EXP2-1:0]] <= dina;
         end
     end

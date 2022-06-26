@@ -235,10 +235,10 @@ module icache
             end
             REFILL_1_REQ, REFILL_2_REQ, REFILL_1_WAIT, REFILL_2_WAIT: begin
                 for (integer i = 0; i < NWAY; i++) begin
-                    tag_bram_en[i][0]  = axi_rvalid_delay_1;
-                    tag_bram_en[i][1]  = axi_rvalid_delay_1;
-                    data_bram_en[i][0] = axi_rvalid_delay_1;
-                    data_bram_en[i][1] = axi_rvalid_delay_1;
+                    tag_bram_en[i][0]  = axi_rvalid_delay_1 | axi_rvalid_i;
+                    tag_bram_en[i][1]  = axi_rvalid_delay_1 | axi_rvalid_i;
+                    data_bram_en[i][0] = axi_rvalid_delay_1 | axi_rvalid_i;
+                    data_bram_en[i][1] = axi_rvalid_delay_1 | axi_rvalid_i;
                     // Port 1
                     if (miss_1) begin
                         tag_bram_addr[i][0]  = p1_raddr_1[11:4];

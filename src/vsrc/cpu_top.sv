@@ -1077,10 +1077,10 @@ ila_1 ila_cpu_top (
 	.probe0(u_axi_master.inst_r_state), // input wire [3:0]  probe0  
 	.probe1(u_axi_master.data_r_state), // input wire [3:0]  probe1 
 	.probe2(u_axi_master.w_state), // input wire [3:0]  probe2 
-	.probe3({26'b0,u_axi_master.dcache_rd_type_i,u_axi_master.s_arsize}), // input wire [31:0]  probe3 
-	.probe4(u_axi_master.dcache_rd_req_i), // input wire [0:0]  probe4 
-	.probe5(u_axi_master.dcache_ret_valid_o), // input wire [0:0]  probe5 
-	.probe6(u_regfile.regs[4]), // input wire [31:0]  probe6 
+	.probe3({21'b0,u_icache.hit,u_icache.miss_1, u_icache.miss_2,u_icache.cacop_i,u_axi_master.dcache_rd_type_i,u_axi_master.s_arsize}), // input wire [31:0]  probe3 
+	.probe4(u_axi_master.icache_rd_req_i), // input wire [0:0]  probe4 
+	.probe5(u_axi_master.icache_ret_valid_o), // input wire [0:0]  probe5 
+	.probe6(u_icache.state), // input wire [31:0]  probe6 
 	.probe7(u_tlb.data_i.fetch), // input wire [0:0]  probe7 
 	.probe8(u_tlb.we), // input wire [0:0]  probe8 
 	.probe9(u_tlb.data_i.vaddr), // input wire [31:0]  probe9 
