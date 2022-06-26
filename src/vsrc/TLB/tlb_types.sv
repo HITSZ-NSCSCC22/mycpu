@@ -7,6 +7,7 @@ package tlb_types;
 
     //TLB-ENTRY parameter
     `define ENTRY_LEN 89 
+    `define ENTRYWAYLEN 26
     `define ENTRY_E 0
     `define ENTRY_ASID 10:1
     `define ENTRY_G 11
@@ -96,11 +97,11 @@ package tlb_types;
     } tlb_inv_t;
 
     typedef struct packed {
-        logic [18:0] vppn;
+        logic e;
         logic [9:0] asid;
         logic g;
         logic [5:0] ps;
-        logic e;
+        logic [18:0] vppn;
         logic v0;
         logic d0;
         logic [1:0] mat0;

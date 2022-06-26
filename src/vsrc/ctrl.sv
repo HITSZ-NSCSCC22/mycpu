@@ -1,5 +1,5 @@
 `include "core_types.sv"
-`include "tlb_types.sv"
+`include "TLB/tlb_types.sv"
 `include "csr_defines.sv"
 `include "core_config.sv"
 

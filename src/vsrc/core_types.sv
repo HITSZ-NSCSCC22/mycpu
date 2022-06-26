@@ -2,7 +2,7 @@
 `define CORE_TYPES_SV
 `include "defines.sv"
 `include "csr_defines.sv"
-`include "tlb_types.sv"
+`include "TLB/tlb_types.sv"
 `include "core_config.sv"
 
 package core_types;
