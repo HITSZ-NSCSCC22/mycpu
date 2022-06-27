@@ -102,20 +102,28 @@ module tlb_entry
         .invtlbout(invtlbout)
     );
 
-    logic [3:0] inst_tag;
-    logic [3:0] data_tag;
-    assign inst_tag = s0_vppn[3:0];
-    assign data_tag = s1_vppn[3:0];
+    logic [31:0] inst_tag;
+    logic [31:0] data_tag;
+    assign inst_tag = {29'b0, s0_vppn[2:0]};
+    assign data_tag = {29'b0, s1_vppn[2:0]};
 
     genvar i;
     generate
-        for (i = 0; i < TLBNUM; i = i + 1) begin : match
+        for (i = 0; i < TLBNUM; i = i + 1) begin : inst_search
             assign match_search = i;
             always @(posedge clk) begin
                 if (s0_fetch) begin
                     s0_odd_page_buffer[i] <= (searchout[`ENTRY_PS] == 6'd12) ? s0_odd_page : s0_vppn[8];
                     match0[i] <= (tlb_e[i] == 1'b1) && ((searchout[`ENTRY_PS] == 6'd12) ? s0_vppn == searchout[`ENTRY_VPPN] : s0_vppn[18:9] == searchout[`ENTRY_VPPN_H0]) && ((s0_asid == searchout[`ENTRY_ASID]) || searchout[`ENTRY_G]);
                 end
+            end
+        end
+    endgenerate
+
+    generate
+        for (i = 0; i < TLBNUM; i = i + 1) begin : data_search
+            assign match_search = i;
+            always @(posedge clk) begin
                 if (s1_fetch) begin
                     s1_odd_page_buffer[i] <= (searchout[`ENTRY_PS] == 6'd12) ? s1_odd_page : s1_vppn[8];
                     match1[i] <= (tlb_e[i] == 1'b1) && ((searchout[`ENTRY_PS] == 6'd12) ? s1_vppn == searchout[`ENTRY_VPPN] : s1_vppn[18:9] == searchout[`ENTRY_VPPN_H0]) && ((s1_asid == searchout[`ENTRY_ASID]) || searchout[`ENTRY_G]);
