@@ -50,136 +50,143 @@ module tlb_entry
     // Data structure
     logic tlb_e[TLBNUM-1:0];
 
-    logic [TLBNUM-1:0] match0;
-    logic [TLBNUM-1:0] match1;
+    //match index
+    logic [NWAY-1:0] match0;
+    logic [NWAY-1:0] match1;
 
-    //指令查找口
-    logic inst_match, inst_odd_page;
-    logic [$clog2(TLBNUM)-1:0] inst_addr;
-    logic [`ENTRY_LEN-1:0] inst_entry;
+    //inst search port 
+    logic inst_odd_page;
+    logic [$clog2(NWAY)-1:0] inst_index;
+    logic [$clog2(NSET)-1:0] inst_addr;
+    logic [`ENTRY_LEN-1:0] inst_entry[NWAY-1:0];
 
-    //数据查找口
-    logic data_match, data_odd_page;
-    logic [$clog2(TLBNUM)-1:0] data_addr;
-    logic [`ENTRY_LEN-1:0] data_entry;
+    //data search port
+    logic data_odd_page;
+    logic [$clog2(NWAY)-1:0] data_index;
+    logic [$clog2(NSET)-1:0] data_addr;
+    logic [`ENTRY_LEN-1:0] data_entry[NWAY-1:0];
 
-    //对比查找口
-    logic [$clog2(TLBNUM)-1:0] match_search;
-    logic [`ENTRY_LEN-1:0] searchout;
+    //wirte port
+    logic wen[NWAY-1:0];
+    logic [$clog2(NSET)-1:0] waddr[NWAY-1:0];
+    logic [`ENTRY_LEN-1:0] wdata[NWAY-1:0];
 
-    //invtlb查找口
-    logic [$clog2(TLBNUM)-1:0] invtlb_search;
-    logic [`ENTRY_LEN-1:0] invtlbout;
+    //read port
+    logic [$clog2(NSET)-1:0] raddr;
+    logic [`ENTRY_LEN-1:0] rdata[NWAY-1:0];
 
-    logic [TLBNUM-1:0] s0_odd_page_buffer;
-    logic [TLBNUM-1:0] s1_odd_page_buffer;
 
-    tlb_wr_port read_port_buffer;
+    logic [NWAY-1:0] s0_odd_page_buffer;
+    logic [NWAY-1:0] s1_odd_page_buffer;
 
-    tlb_lutram tlb_lutram0 (
-        .clk(clk),
 
-        .inst_match(inst_match),
-        .inst_addr(inst_addr),
-        .inst_tlb_entry(inst_entry),
+    for (genvar i = 0; i < NWAY; i = i + 1) begin
+        tlb_lutram tlb_lutram0 (
+            .clk(clk),
 
-        .data_match(data_match),
-        .data_addr(data_addr),
-        .data_tlb_entry(data_entry),
+            .inst_addr(inst_addr),
+            .inst_tlb_entry(inst_entry[i]),
 
-        //write-port
-        .we(we),
-        .waddr(w_index),
-        .wdata(write_port),
+            .data_addr(data_addr),
+            .data_tlb_entry(data_entry[i]),
 
-        .raddr(r_index),
-        .rdata(read_port_buffer),
+            //write-port
+            .we(wen[i]),
+            .waddr(waddr[i]),
+            .wdata(wdata[i]),
 
-        .match_search(match_search),
-        .searchout(searchout),
+            .raddr(raddr),
+            .rdata(rdata[i])
+        );
+    end
 
-        .invtlb_search(invtlb_search),
-        .invtlbout(invtlbout)
-    );
-
-    logic [31:0] inst_tag;
-    logic [31:0] data_tag;
-    assign inst_tag = {29'b0, s0_vppn[2:0]};
-    assign data_tag = {29'b0, s1_vppn[2:0]};
+    assign inst_addr = s0_vppn[2:0];
+    assign data_addr = s1_vppn[2:0];
+    assign raddr = r_index[2:0];
 
     genvar i;
     generate
-        for (i = 0; i < TLBNUM; i = i + 1) begin : inst_search
-            assign match_search = i;
+        for (i = 0; i < NWAY; i = i + 1) begin : inst_search
             always @(posedge clk) begin
                 if (s0_fetch) begin
-                    s0_odd_page_buffer[i] <= (searchout[`ENTRY_PS] == 6'd12) ? s0_odd_page : s0_vppn[8];
-                    match0[i] <= (tlb_e[i] == 1'b1) && ((searchout[`ENTRY_PS] == 6'd12) ? s0_vppn == searchout[`ENTRY_VPPN] : s0_vppn[18:9] == searchout[`ENTRY_VPPN_H0]) && ((s0_asid == searchout[`ENTRY_ASID]) || searchout[`ENTRY_G]);
+                    s0_odd_page_buffer[i] <= (inst_entry[i][`ENTRY_PS] == 6'd12) ? s0_odd_page : s0_vppn[8];
+                    match0[i] <= (tlb_e[i] == 1'b1) && ((inst_entry[i][`ENTRY_PS] == 6'd12) ? s0_vppn == inst_entry[i][`ENTRY_VPPN] : s0_vppn[18:9] == inst_entry[i][`ENTRY_VPPN_H0]) && ((s0_asid == inst_entry[i][`ENTRY_ASID]) || inst_entry[i][`ENTRY_G]);
                 end
-            end
-        end
-    endgenerate
-
-    generate
-        for (i = 0; i < TLBNUM; i = i + 1) begin : data_search
-            assign match_search = i;
-            always @(posedge clk) begin
                 if (s1_fetch) begin
-                    s1_odd_page_buffer[i] <= (searchout[`ENTRY_PS] == 6'd12) ? s1_odd_page : s1_vppn[8];
-                    match1[i] <= (tlb_e[i] == 1'b1) && ((searchout[`ENTRY_PS] == 6'd12) ? s1_vppn == searchout[`ENTRY_VPPN] : s1_vppn[18:9] == searchout[`ENTRY_VPPN_H0]) && ((s1_asid == searchout[`ENTRY_ASID]) || searchout[`ENTRY_G]);
+                    s1_odd_page_buffer[i] <= (data_entry[i][`ENTRY_PS] == 6'd12) ? s1_odd_page : s1_vppn[8];
+                    match1[i] <= (tlb_e[i] == 1'b1) && ((data_entry[i][`ENTRY_PS] == 6'd12) ? s1_vppn == data_entry[i][`ENTRY_VPPN] : s1_vppn[18:9] == data_entry[i][`ENTRY_VPPN_H0]) && ((s1_asid == data_entry[i][`ENTRY_ASID]) || data_entry[i][`ENTRY_G]);
                 end
             end
         end
     endgenerate
 
-    assign s0_found = match0 != 32'b0;  //!(!match0);
-    assign s1_found = match1 != 32'b0;  //!(!match1);
-    assign inst_match = match0 != 32'b0;
-    assign data_match = match1 != 32'b0;
-    assign inst_odd_page = s0_odd_page_buffer[inst_addr];
-    assign data_odd_page = s1_odd_page_buffer[data_addr];
-
-    always_comb begin
-        for (integer j = 0; j < 32; j++) begin
-            if (match0[j]) inst_addr = j[4:0];
-            else inst_addr = 5'b0;
-            if (match1[j]) data_addr = j[4:0];
-            else data_addr = 5'b0;
-        end
-    end
-
-    assign {s0_index, s0_ps, s0_ppn, s0_v, s0_d, s0_mat, s0_plv} = inst_odd_page ? {inst_addr, inst_entry[`ENTRY_PS], inst_entry[`ENTRY_PPN1], inst_entry[`ENTRY_V1], inst_entry[`ENTRY_D1], inst_entry[`ENTRY_MAT1], inst_entry[`ENTRY_PLV1]} :
-                                                                {inst_addr, inst_entry[`ENTRY_PS], inst_entry[`ENTRY_PPN0], inst_entry[`ENTRY_V0], inst_entry[`ENTRY_D0], inst_entry[`ENTRY_MAT0], inst_entry[`ENTRY_PLV0]};
-    assign {s1_index, s1_ps, s1_ppn, s1_v, s1_d, s1_mat, s1_plv} = data_odd_page ? {data_addr, data_entry[`ENTRY_PS], data_entry[`ENTRY_PPN1], data_entry[`ENTRY_V1], data_entry[`ENTRY_D1], data_entry[`ENTRY_MAT1], data_entry[`ENTRY_PLV1]} :
-                                                                 {data_addr, data_entry[`ENTRY_PS], data_entry[`ENTRY_PPN0], data_entry[`ENTRY_V0], data_entry[`ENTRY_D0], data_entry[`ENTRY_MAT0], data_entry[`ENTRY_PLV0]};
-
-    //read port driven
-    assign read_port = {tlb_e[r_index], read_port_buffer[87:0]};
-
-
-    //tlb entry invalid 
+    assign s0_found = match0 != 4'b0;  //!(!match0);
+    assign s1_found = match1 != 4'b0;  //!(!match1);
     generate
-        for (i = 0; i < TLBNUM; i = i + 1) begin : invalid_tlb_entry
-            assign invtlb_search = i;
-            always @(posedge clk) begin
-                if (we && (w_index == i)) begin
-                    tlb_e[i] <= write_port.e;
-                end else if (inv_i.en) begin
-                    // invalid search
-                    if (inv_i.op == 5'd0 || inv_i.op == 5'd1) tlb_e[i] <= 1'b0;
-                    else if (inv_i.op == 5'd2 && invtlbout[`ENTRY_G]) tlb_e[i] <= 1'b0;
-                    else if (inv_i.op == 5'd3 && !invtlbout[`ENTRY_G]) tlb_e[i] <= 1'b0;
-                    else if (inv_i.op == 5'd4 && !invtlbout[`ENTRY_G] && (invtlbout[`ENTRY_ASID] == inv_i.asid))
-                        tlb_e[i] <= 1'b0;
-                    else if (inv_i.op == 5'd5 && !invtlbout[`ENTRY_G] && (invtlbout[`ENTRY_ASID] == inv_i.asid) && 
-                           ((invtlbout[`ENTRY_PS] == 6'd12) ? (invtlbout[`ENTRY_VPPN] == inv_i.vpn) : (invtlbout[`ENTRY_VPPN_H1] == inv_i.vpn[18:10])))
-                        tlb_e[i] <= 1'b0;
-                    else if (inv_i.op == 5'd6 && (invtlbout[`ENTRY_G] || (invtlbout[`ENTRY_ASID] == inv_i.asid)) && 
-                           ((invtlbout[`ENTRY_PS] == 6'd12) ? (invtlbout[`ENTRY_VPPN] == inv_i.vpn) : (invtlbout[`ENTRY_VPPN_H1] == inv_i.vpn[18:10])))
-                        tlb_e[i] <= 1'b0;
+        for (genvar i = 0; i < NWAY; i = i + 1) begin
+            always_comb begin
+                if (match0[i] == 1'b1) begin
+                    inst_index = i;
+                    inst_odd_page = s0_odd_page_buffer[i];
+                end else begin
+                    inst_index = i;
+                    inst_odd_page = 0;
+                end
+                if (match1[i] == 1'b1) begin
+                    data_index = i;
+                    data_odd_page = s1_odd_page_buffer[i];
+                end else begin
+                    data_index = i;
+                    data_odd_page = 0;
                 end
             end
         end
     endgenerate
+
+    generate
+        for (genvar i = 0; i < NWAY; i = i + 1) begin
+            always_comb begin
+                if (w_index[4:3] == i) begin
+                    wen[i]   = we;
+                    waddr[i] = w_index[2:0];
+                    wdata[i] = write_port;
+                end else begin
+                    wen[i]   = 0;
+                    waddr[i] = 0;
+                    wdata[i] = 0;
+                end
+            end
+        end
+    endgenerate
+
+    assign read_port = {tlb_e[r_index], rdata[r_index[4:3]][87:0]};
+
+    assign {s0_index, s0_ps, s0_ppn, s0_v, s0_d, s0_mat, s0_plv} = inst_odd_page ? {inst_index,inst_addr, inst_entry[inst_index][`ENTRY_PS], inst_entry[inst_index][`ENTRY_PPN1], inst_entry[inst_index][`ENTRY_V1], inst_entry[inst_index][`ENTRY_D1], inst_entry[inst_index][`ENTRY_MAT1], inst_entry[inst_index][`ENTRY_PLV1]} :
+                                                                {inst_index,inst_addr, inst_entry[inst_index][`ENTRY_PS], inst_entry[inst_index][`ENTRY_PPN0], inst_entry[inst_index][`ENTRY_V0], inst_entry[inst_index][`ENTRY_D0], inst_entry[inst_index][`ENTRY_MAT0], inst_entry[inst_index][`ENTRY_PLV0]};
+    assign {s1_index, s1_ps, s1_ppn, s1_v, s1_d, s1_mat, s1_plv} = data_odd_page ? {data_index,data_addr, data_entry[data_index][`ENTRY_PS], data_entry[data_index][`ENTRY_PPN1], data_entry[data_index][`ENTRY_V1], data_entry[data_index][`ENTRY_D1], data_entry[data_index][`ENTRY_MAT1], data_entry[data_index][`ENTRY_PLV1]} :
+                                                                {data_index,data_addr, data_entry[data_index][`ENTRY_PS], data_entry[data_index][`ENTRY_PPN0], data_entry[data_index][`ENTRY_V0], data_entry[data_index][`ENTRY_D0], data_entry[data_index][`ENTRY_MAT0], data_entry[data_index][`ENTRY_PLV0]};
+
+    // //read port driven
+    // assign read_port = {tlb_e[r_index], read_port_buffer[87:0]};
+    //         always @(posedge clk) begin
+    //             if (we && (w_index == i)) begin
+    //                 tlb_e[i] <= write_port.e;
+    //             end else if (inv_i.en) begin
+    //                 // invalid search
+    //                 if (inv_i.op == 5'd0 || inv_i.op == 5'd1) tlb_e[i] <= 1'b0;
+    //                 else if (inv_i.op == 5'd2 && invtlbout[`ENTRY_G]) tlb_e[i] <= 1'b0;
+    //                 else if (inv_i.op == 5'd3 && !invtlbout[`ENTRY_G]) tlb_e[i] <= 1'b0;
+    //                 else if (inv_i.op == 5'd4 && !invtlbout[`ENTRY_G] && (invtlbout[`ENTRY_ASID] == inv_i.asid))
+    //                     tlb_e[i] <= 1'b0;
+    //                 else if (inv_i.op == 5'd5 && !invtlbout[`ENTRY_G] && (invtlbout[`ENTRY_ASID] == inv_i.asid) && 
+    //                        ((invtlbout[`ENTRY_PS] == 6'd12) ? (invtlbout[`ENTRY_VPPN] == inv_i.vpn) : (invtlbout[`ENTRY_VPPN_H1] == inv_i.vpn[18:10])))
+    //                     tlb_e[i] <= 1'b0;
+    //                 else if (inv_i.op == 5'd6 && (invtlbout[`ENTRY_G] || (invtlbout[`ENTRY_ASID] == inv_i.asid)) && 
+    //                        ((invtlbout[`ENTRY_PS] == 6'd12) ? (invtlbout[`ENTRY_VPPN] == inv_i.vpn) : (invtlbout[`ENTRY_VPPN_H1] == inv_i.vpn[18:10])))
+    //                     tlb_e[i] <= 1'b0;
+    //             end
+    //         end
+    //     end
+    // endgenerate
 
 endmodule

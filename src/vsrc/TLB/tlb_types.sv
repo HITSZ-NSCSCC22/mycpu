@@ -4,7 +4,8 @@
 package tlb_types;
 
     parameter TLBNUM = 32;
-    parameter TLBWAY = 2;
+    parameter NSET = 8;
+    parameter NWAY = 4;
 
     //TLB-ENTRY parameter
     `define ENTRY_LEN 89 
