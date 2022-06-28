@@ -279,6 +279,7 @@ module cpu_top
     logic [1:0][`InstAddrBus] frontend_icache_addr;
 
     // ICache -> Frontend
+    logic [1:0]icache_frontend_rreq_ack;
     logic [1:0]icache_frontend_valid;
     logic [1:0][ICACHELINE_WIDTH-1:0] icache_frontend_data;
 
@@ -291,28 +292,44 @@ module cpu_top
     logic [13:0] dispatch_csr_read_addr;
     logic [`RegBus] dispatch_csr_data;
 
-    icache u_icache(
-       .clk          (clk          ),
-       .rst          (rst          ),
-       
-       // Port A
-       .rreq_1_i     (frontend_icache_rreq[0]),
-       .raddr_1_i    (frontend_icache_addr[0]),
-       .rvalid_1_o   (icache_frontend_valid[0]),
-       .rdata_1_o    (icache_frontend_data[0]),
-       // Port B
-       .rreq_2_i     (frontend_icache_rreq[1]),
-       .raddr_2_i    (frontend_icache_addr[1]),
-       .rvalid_2_o   (icache_frontend_valid[1]),
-       .rdata_2_o    (icache_frontend_data[1]),
+    logic icacop_op_en[2];
+    logic icacop_ack;
+    logic [1:0] cacop_op_mode[2];
 
-       // <-> AXI Controller
-       .axi_addr_o   (icache_axi_addr),
-       .axi_rreq_o   (icache_axi_rreq),
-       .axi_rdy_i    (axi_icache_rdy),
-       .axi_rvalid_i (axi_icache_rvalid),
-       .axi_rlast_i  (),
-       .axi_data_i   (axi_icache_data),
+    icache u_icache(
+        .clk          (clk          ),
+        .rst          (rst          ),
+       
+        // Port A
+        .rreq_1_i     (frontend_icache_rreq[0]),
+        .raddr_1_i    (frontend_icache_addr[0]),
+        .rreq_1_ack_o (icache_frontend_rreq_ack[0]),
+        .rvalid_1_o   (icache_frontend_valid[0]),
+        .rdata_1_o    (icache_frontend_data[0]),
+        // Port B
+        .rreq_2_i     (frontend_icache_rreq[1]),
+        .raddr_2_i    (frontend_icache_addr[1]),
+        .rreq_2_ack_o (icache_frontend_rreq_ack[1]),
+        .rvalid_2_o   (icache_frontend_valid[1]),
+        .rdata_2_o    (icache_frontend_data[1]),
+
+        // <-> AXI Controller
+        .axi_addr_o   (icache_axi_addr),
+        .axi_rreq_o   (icache_axi_rreq),
+        .axi_rdy_i    (axi_icache_rdy),
+        .axi_rvalid_i (axi_icache_rvalid),
+        .axi_rlast_i  (),
+        .axi_data_i   (axi_icache_data),
+
+        .frontend_uncache_i(),
+        .invalid_i(),
+
+        //-> CACOP
+        .cacop_i(icacop_op_en[0]),
+        .cacop_mode_i(cacop_op_mode[0]),
+        .cacop_addr_i({tlb_data_o.tag,tlb_data_o.index,tlb_data_o.offset}),
+        .cacop_ack_o(icacop_ack),
+        
 
        // TLB related
        .tlb_i(tlb_inst), // <- TLB
@@ -338,6 +355,7 @@ module cpu_top
         // <-> ICache
         .icache_read_addr_o(frontend_icache_addr),  // -> ICache
         .icache_read_req_o(frontend_icache_rreq),
+        .icache_rreq_ack_i(icache_frontend_rreq_ack),
         .icache_read_valid_i(icache_frontend_valid),  // <- ICache
         .icache_read_data_i(icache_frontend_data),  // <- ICache
 
@@ -549,10 +567,11 @@ module cpu_top
                 .excp_flush(excp_flush),
                 .ertn_flush(ertn_flush),
 
-                // -> Cache
-                .icacop_op_en(icacop_op_en),
+                // <-> Cache
+                .icacop_op_en(icacop_op_en[i]),
+                .icacop_op_ack_i(icacop_ack),
                 .dcacop_op_en(dcacop_op_en),
-                .cacop_op_mode(dicacop_op_mode),
+                .cacop_op_mode(cacop_op_mode[i]),
 
                 // <-> Ctrl
                 .stall({mem_stallreq[0] | mem_stallreq[1] ,stall[3]}),
@@ -1065,10 +1084,10 @@ ila_1 ila_cpu_top (
 	.probe0(u_axi_master.inst_r_state), // input wire [3:0]  probe0  
 	.probe1(u_axi_master.data_r_state), // input wire [3:0]  probe1 
 	.probe2(u_axi_master.w_state), // input wire [3:0]  probe2 
-	.probe3({26'b0,u_axi_master.dcache_rd_type_i,u_axi_master.s_arsize}), // input wire [31:0]  probe3 
-	.probe4(u_axi_master.dcache_rd_req_i), // input wire [0:0]  probe4 
-	.probe5(u_axi_master.dcache_ret_valid_o), // input wire [0:0]  probe5 
-	.probe6(u_regfile.regs[4]), // input wire [31:0]  probe6 
+	.probe3({21'b0,u_icache.hit,u_icache.miss_1, u_icache.miss_2,u_icache.cacop_i,u_axi_master.dcache_rd_type_i,u_axi_master.s_arsize}), // input wire [31:0]  probe3 
+	.probe4(u_axi_master.icache_rd_req_i), // input wire [0:0]  probe4 
+	.probe5(u_axi_master.icache_ret_valid_o), // input wire [0:0]  probe5 
+	.probe6(u_icache.state), // input wire [31:0]  probe6 
 	.probe7(u_tlb.data_i.fetch), // input wire [0:0]  probe7 
 	.probe8(u_tlb.we), // input wire [0:0]  probe8 
 	.probe9(u_tlb.data_i.vaddr), // input wire [31:0]  probe9 

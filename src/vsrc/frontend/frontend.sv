@@ -18,6 +18,7 @@ module frontend
     // ICache is fixed dual port
     output logic [1:0] icache_read_req_o,
     output logic [1:0][ADDR_WIDTH-1:0] icache_read_addr_o,
+    input logic [1:0] icache_rreq_ack_i,
     input logic [1:0] icache_read_valid_i,
     input logic [1:0][ICACHELINE_WIDTH-1:0] icache_read_data_i,
 
@@ -141,10 +142,11 @@ module frontend
         .tlb_o(tlb_o),
 
         // <-> Frontend <-> ICache
-        .icache_rreq_o  (icache_read_req_o),
-        .icache_raddr_o (icache_read_addr_o),
+        .icache_rreq_o(icache_read_req_o),
+        .icache_raddr_o(icache_read_addr_o),
+        .icache_rreq_ack_i(icache_rreq_ack_i),
         .icache_rvalid_i(icache_read_valid_i),
-        .icache_rdata_i (icache_read_data_i),
+        .icache_rdata_i(icache_read_data_i),
 
 
         // <-> Frontend <-> Instruction Buffer

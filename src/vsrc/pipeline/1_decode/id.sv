@@ -47,7 +47,7 @@ module id
     assign is_last_in_block = instr_buffer_i.valid ? instr_buffer_i.is_last_in_block : 0;
 
     // Exception info
-    logic excp;
+    logic excp, excp_nop;
     logic excp_ine;
     logic excp_ipe;
     logic [8:0] excp_num;  // IPE, INE, BREAK, SYSCALL, {4 frontend excp}, INT
@@ -222,15 +222,15 @@ module id
     // 只要是 IB 输入的指令，那么一律认为是有效的
     // 如果在 ID 级发生了异常或在此之前就有异常，那么全部认为是 NOP， 但是是有效指令，以便进行异常处理
     assign dispatch_o.instr_info.valid = instr_buffer_i.valid;
-    assign dispatch_o.use_imm = instr_valid ? instr_use_imm : 0;
-    assign dispatch_o.imm = instr_valid ? instr_imm : 0;
-    assign dispatch_o.aluop = instr_valid ? instr_aluop : 0;
-    assign dispatch_o.alusel = instr_valid ? instr_alusel : 0;
-    assign dispatch_o.reg_write_valid = instr_valid ? instr_reg_write_valid : 0;
-    assign dispatch_o.reg_write_addr = instr_valid ? instr_reg_write_addr : 0;
+    assign dispatch_o.use_imm = excp_nop ? 0 : instr_use_imm;
+    assign dispatch_o.imm = excp_nop ? 0 : instr_imm;
+    assign dispatch_o.aluop = excp_nop ? 0 : instr_aluop;
+    assign dispatch_o.alusel = excp_nop ? 0 : instr_alusel;
+    assign dispatch_o.reg_write_valid = excp_nop ? 0 : instr_reg_write_valid;
+    assign dispatch_o.reg_write_addr = excp_nop ? 0 : instr_reg_write_addr;
     // Generate output to Regfile
-    assign dispatch_o.reg_read_valid = instr_valid ? instr_reg_read_valid : 0;
-    assign dispatch_o.reg_read_addr = instr_valid ? instr_reg_read_addr : 0;
+    assign dispatch_o.reg_read_valid = excp_nop ? 0 : instr_reg_read_valid;
+    assign dispatch_o.reg_read_addr = excp_nop ? 0 : instr_reg_read_addr;
     // Generate instr info pack
     assign dispatch_o.instr_info.pc = pc_i;
     assign dispatch_o.instr_info.instr = inst_i;
@@ -245,6 +245,7 @@ module id
     assign excp_ine = ~instr_valid & instr_buffer_i.valid; // If IB input is valid, but no valid decode result, then INE is triggered
     assign excp_ipe = kernel_instr && (csr_plv == 2'b11);
 
+    assign excp_nop = excp_ipe | instr_buffer_i.excp | excp_ine;
     assign excp = excp_ipe | instr_syscall | instr_break | instr_buffer_i.excp | excp_ine | has_int;
     assign excp_num = {
         excp_ipe, excp_ine, instr_break, instr_syscall, instr_buffer_i.excp_num, has_int

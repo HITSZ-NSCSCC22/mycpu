@@ -31,6 +31,7 @@ module ifu
     // <-> Frontend <-> ICache
     output logic [1:0] icache_rreq_o,
     output logic [1:0][ADDR_WIDTH-1:0] icache_raddr_o,
+    input logic [1:0] icache_rreq_ack_i,
     input logic [1:0] icache_rvalid_i,
     input logic [1:0][ICACHELINE_WIDTH-1:0] icache_rdata_i,
 
@@ -42,8 +43,9 @@ module ifu
     // P0 signal
     logic p0_send_rreq, p0_send_rreq_delay1;
     // P1 signal
+    logic p1_rreq_ack;
     logic p1_read_done;  // Read done is same cycle as ICache return valid
-    logic p1_stallreq;  // Currently in transaction and not done yet
+    logic p1_in_transaction;  // Currently in transaction and not done yet
     // Flush state
     logic is_flushing_r, is_flushing;
 
@@ -51,8 +53,8 @@ module ifu
     // P0, send read req to ICache & TLB
     /////////////////////////////////////////////////////////////////////////////////
     // Condition when to send rreq to ICache, see doc for detail
-    assign p0_send_rreq = ftq_i.valid & ~is_flushing & ~stallreq_i & ~p1_stallreq;
-    assign ftq_accept_o = p0_send_rreq;  // FTQ handshake, same cycle as ftq_i
+    assign p0_send_rreq = ftq_i.valid & ~is_flushing & ~stallreq_i & ~p1_in_transaction;
+    assign ftq_accept_o = p0_send_rreq;  // FTQ handshake, same cycle as ftq_i, FTQ can move to next block
     always_ff @(posedge clk) begin
         p0_send_rreq_delay1 <= p0_send_rreq;
     end
@@ -65,10 +67,6 @@ module ifu
     logic dmw0_en, dmw1_en;
     assign dmw0_en = ((csr_i.dmw0[`PLV0] && csr_i.plv == 2'd0) || (csr_i.dmw0[`PLV3] && csr_i.plv == 2'd3)) && (p0_pc[31:29] == csr_i.dmw0[`VSEG]); // Direct map window 0
     assign dmw1_en = ((csr_i.dmw1[`PLV0] && csr_i.plv == 2'd0) || (csr_i.dmw1[`PLV3] && csr_i.plv == 2'd3)) && (p0_pc[31:29] == csr_i.dmw1[`VSEG]); // Direct map window 1
-    assign tlb_o.dmw0_en = dmw0_en;
-    assign tlb_o.dmw1_en = dmw1_en;
-    assign tlb_o.trans_en = csr_i.pg && !csr_i.da && !dmw0_en && !dmw1_en; // Not in direct map windows, enable paging
-    assign tlb_o.vaddr = p0_pc;
 
     // Send read req to ICache & TLB
     always_comb begin
@@ -80,10 +78,22 @@ module ifu
             icache_raddr_o[1] = ftq_i.is_cross_cacheline ? {ftq_i.start_pc[ADDR_WIDTH-1:4], 4'b0} + 16 : 0; // TODO: remove magic number
             // Send req to TLB
             tlb_o.fetch = 1;
+            tlb_o.dmw0_en = dmw0_en;
+            tlb_o.dmw1_en = dmw1_en;
+            tlb_o.trans_en = csr_i.pg && !csr_i.da && !dmw0_en && !dmw1_en; // Not in direct map windows, enable paging
+            tlb_o.vaddr = p0_pc;
+        end else if (p1_in_transaction) begin
+            // Or P1 is in transaction
+            icache_rreq_o[0] = 1;
+            icache_rreq_o[1] = p1_read_transaction.is_cross_cacheline ? 1 : 0;
+            icache_raddr_o[0] = {p1_read_transaction.start_pc[ADDR_WIDTH-1:4], 4'b0};
+            icache_raddr_o[1] = p1_read_transaction.is_cross_cacheline ? {p1_read_transaction.start_pc[ADDR_WIDTH-1:4], 4'b0} + 16 : 0; // TODO: remove magic number
+            // Hold output to TLB
+            tlb_o = p1_read_transaction.tlb_rreq;
         end else begin
             icache_rreq_o = 0;
             icache_raddr_o = 0;
-            tlb_o.fetch = 0;
+            tlb_o = 0;
         end
     end
 
@@ -115,6 +125,7 @@ module ifu
         logic [`InstAddrBus] start_pc;
         logic is_cross_cacheline;
         logic [$clog2(`FETCH_WIDTH+1)-1:0] length;
+        logic [1:0] icache_rreq_ack_r;
         logic [1:0] icache_rvalid_r;
         logic [1:0][ICACHELINE_WIDTH-1:0] icache_rdata_r;
         logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_id;
@@ -126,10 +137,13 @@ module ifu
     logic [ADDR_WIDTH-1:0] p1_pc;
     assign p1_pc = p1_read_transaction.start_pc;
 
+    assign p1_in_transaction = p1_read_transaction.valid & ~p1_read_done;
     assign p1_read_done = p1_read_transaction.is_cross_cacheline ?
-    (icache_rvalid_i[0] | p1_read_transaction.icache_rvalid_r[0]) & (icache_rvalid_i[1]| p1_read_transaction.icache_rvalid_r[1]) :
-    (icache_rvalid_i[0] | p1_read_transaction.icache_rvalid_r[0]);
-    assign p1_stallreq = p1_read_transaction.valid & ~p1_read_done;
+            (icache_rvalid_i[0] | p1_read_transaction.icache_rvalid_r[0]) & (icache_rvalid_i[1] | p1_read_transaction.icache_rvalid_r[1]) :
+            (icache_rvalid_i[0] | p1_read_transaction.icache_rvalid_r[0]);
+    assign p1_rreq_ack =  p1_read_transaction.is_cross_cacheline ?
+            (icache_rreq_ack_i[0] | p1_read_transaction.icache_rreq_ack_r[0]) & (icache_rreq_ack_i[1] | p1_read_transaction.icache_rreq_ack_r[1]) :
+            (icache_rreq_ack_i[0] | p1_read_transaction.icache_rreq_ack_r[0]);
     always_ff @(posedge clk) begin : p1_ff
         if (rst) begin
             p1_read_transaction <= 0;
@@ -139,6 +153,7 @@ module ifu
             p1_read_transaction.start_pc <= ftq_i.start_pc;
             p1_read_transaction.is_cross_cacheline <= ftq_i.is_cross_cacheline;
             p1_read_transaction.length <= ftq_i.length;
+            p1_read_transaction.icache_rreq_ack_r <= icache_rreq_ack_i;
             p1_read_transaction.icache_rvalid_r <= 0;
             p1_read_transaction.icache_rdata_r <= 0;
             p1_read_transaction.ftq_id <= ftq_id_i;
@@ -158,6 +173,9 @@ module ifu
                 p1_read_transaction.icache_rvalid_r[1] <= 1;
                 p1_read_transaction.icache_rdata_r[1]  <= icache_rdata_i[1];
             end
+            // Store ACK in P1 data structure
+            if (icache_rreq_ack_i[0]) p1_read_transaction.icache_rreq_ack_r <= 1;
+            if (icache_rreq_ack_i[1]) p1_read_transaction.icache_rreq_ack_r <= 1;
         end
     end
 
@@ -235,10 +253,5 @@ module ifu
         end
     end
 
-    // P2 Debug
-    logic debug_p2_tlb_trans_en;
-    logic [1:0] debug_p2_csr_plv;
-    assign debug_p2_tlb_trans_en = p1_read_transaction.tlb_rreq.trans_en;
-    assign debug_p2_csr_plv = p1_read_transaction.csr.plv;
 
 endmodule
