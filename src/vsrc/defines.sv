@@ -143,7 +143,7 @@
 `define EXE_XOR_OP 8'b00000011
 `define EXE_NOR_OP 8'b00000100
 `define EXE_LUI_OP 8'b00000101
-`define EXE_SLL_OP 8'b00110001 // HACK: Workaround
+`define EXE_SLL_OP 8'b10110001 // HACK: Workaround
 `define EXE_SRL_OP 8'b00000110
 `define EXE_SRA_OP 8'b00000111
 `define EXE_ADD_OP 8'b00001000
