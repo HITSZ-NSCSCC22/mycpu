@@ -51,23 +51,30 @@ module tlb_entry
     // Data structure
     logic [TLBNUM-1:0] tlb_e;
 
-    //match index
+    // Match index
+    // next cycle after query request
     logic [NWAY-1:0] match0;
     logic [NWAY-1:0] match1;
 
     //inst search port 
+    // same cycle
     logic inst_odd_page;
-    logic [$clog2(NWAY)-1:0] inst_index;
     logic [$clog2(NSET)-1:0] inst_addr;
     logic [`ENTRY_LEN-1:0] inst_entry[NWAY-1:0];
+    // next cycle
+    logic [$clog2(NWAY)-1:0] inst_index;
+    logic [`ENTRY_LEN-1:0] inst_entry_buffer[NWAY-1:0];
 
     //data search port
+    // same cycle
     logic data_odd_page;
-    logic [$clog2(NWAY)-1:0] data_index;
     logic [$clog2(NSET)-1:0] data_addr;
     logic [`ENTRY_LEN-1:0] data_entry[NWAY-1:0];
+    // next cycle
+    logic [$clog2(NWAY)-1:0] data_index;
+    logic [`ENTRY_LEN-1:0] data_entry_buffer[NWAY-1:0];
 
-    //wirte port
+    //write port
     logic [NWAY-1:0] wen;
     logic [$clog2(NSET)-1:0] waddr[NWAY-1:0];
     logic [`ENTRY_LEN-1:0] wdata[NWAY-1:0];
@@ -79,6 +86,11 @@ module tlb_entry
 
     logic [NWAY-1:0] s0_odd_page_buffer;
     logic [NWAY-1:0] s1_odd_page_buffer;
+
+    always_ff @(posedge clk) begin
+        inst_entry_buffer <= inst_entry;
+        data_entry_buffer <= data_entry;
+    end
 
 
     for (genvar i = 0; i < NWAY; i = i + 1) begin
@@ -126,6 +138,7 @@ module tlb_entry
         end
     endgenerate
 
+    // Way selection
     assign s0_found = match0 != 4'b0;  //!(!match0);
     assign s1_found = match1 != 4'b0;  //!(!match1);
     always_comb begin
@@ -145,6 +158,7 @@ module tlb_entry
         end
     end
 
+    // Write signal
     always_comb begin
         for (integer i = 0; i < NWAY; i = i + 1) begin
             if (w_index[4:3] == i) begin
@@ -175,6 +189,7 @@ module tlb_entry
         end
     end
 
+    // Read signal, same cycle as input
     assign {read_port.ppn1,
                     read_port.plv1,
                     read_port.mat1,
@@ -193,11 +208,37 @@ module tlb_entry
         rdata[r_index[4:3]][88:1], tlb_e[r_index]
     };
 
-    assign {s0_index, s0_ps, s0_ppn, s0_v, s0_d, s0_mat, s0_plv} = inst_odd_page ? {inst_index,inst_addr, inst_entry[inst_index][`ENTRY_PS], inst_entry[inst_index][`ENTRY_PPN1], inst_entry[inst_index][`ENTRY_V1], inst_entry[inst_index][`ENTRY_D1], inst_entry[inst_index][`ENTRY_MAT1], inst_entry[inst_index][`ENTRY_PLV1]} :
-                                                                {inst_index,inst_addr, inst_entry[inst_index][`ENTRY_PS], inst_entry[inst_index][`ENTRY_PPN0], inst_entry[inst_index][`ENTRY_V0], inst_entry[inst_index][`ENTRY_D0], inst_entry[inst_index][`ENTRY_MAT0], inst_entry[inst_index][`ENTRY_PLV0]};
-    assign {s1_index, s1_ps, s1_ppn, s1_v, s1_d, s1_mat, s1_plv} = data_odd_page ? {data_index,data_addr, data_entry[data_index][`ENTRY_PS], data_entry[data_index][`ENTRY_PPN1], data_entry[data_index][`ENTRY_V1], data_entry[data_index][`ENTRY_D1], data_entry[data_index][`ENTRY_MAT1], data_entry[data_index][`ENTRY_PLV1]} :
-                                                                {data_index,data_addr, data_entry[data_index][`ENTRY_PS], data_entry[data_index][`ENTRY_PPN0], data_entry[data_index][`ENTRY_V0], data_entry[data_index][`ENTRY_D0], data_entry[data_index][`ENTRY_MAT0], data_entry[data_index][`ENTRY_PLV0]};
+    // Inst & Data search output
+    assign {s0_index, s0_ps, s0_ppn, s0_v, s0_d, s0_mat, s0_plv} = inst_odd_page ? {inst_index,inst_addr, 
+                                                                inst_entry_buffer[inst_index][`ENTRY_PS], 
+                                                                inst_entry_buffer[inst_index][`ENTRY_PPN1], 
+                                                                inst_entry_buffer[inst_index][`ENTRY_V1], 
+                                                                inst_entry_buffer[inst_index][`ENTRY_D1], 
+                                                                inst_entry_buffer[inst_index][`ENTRY_MAT1],
+                                                                inst_entry_buffer[inst_index][`ENTRY_PLV1]} :
+                                                                {inst_index,inst_addr, 
+                                                                inst_entry_buffer[inst_index][`ENTRY_PS], 
+                                                                inst_entry_buffer[inst_index][`ENTRY_PPN0],
+                                                                inst_entry_buffer[inst_index][`ENTRY_V0], 
+                                                                inst_entry_buffer[inst_index][`ENTRY_D0], 
+                                                                inst_entry_buffer[inst_index][`ENTRY_MAT0], 
+                                                                inst_entry_buffer[inst_index][`ENTRY_PLV0]};
+    assign {s1_index, s1_ps, s1_ppn, s1_v, s1_d, s1_mat, s1_plv} = data_odd_page ? {data_index,data_addr, 
+                                                                data_entry_buffer[data_index][`ENTRY_PS], 
+                                                                data_entry_buffer[data_index][`ENTRY_PPN1], 
+                                                                data_entry_buffer[data_index][`ENTRY_V1],
+                                                                data_entry_buffer[data_index][`ENTRY_D1], 
+                                                                data_entry_buffer[data_index][`ENTRY_MAT1], 
+                                                                data_entry_buffer[data_index][`ENTRY_PLV1]} :
+                                                                {data_index,data_addr, 
+                                                                data_entry_buffer[data_index][`ENTRY_PS], 
+                                                                data_entry_buffer[data_index][`ENTRY_PPN0], 
+                                                                data_entry_buffer[data_index][`ENTRY_V0], 
+                                                                data_entry_buffer[data_index][`ENTRY_D0], 
+                                                                data_entry_buffer[data_index][`ENTRY_MAT0], 
+                                                                data_entry_buffer[data_index][`ENTRY_PLV0]};
 
+    // Invalid
     logic [2:0] inv_cal;
     always @(posedge clk) begin
         if (inv_i.en) begin
