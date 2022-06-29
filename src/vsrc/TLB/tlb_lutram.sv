@@ -24,7 +24,7 @@ module tlb_lutram #(
     output logic [WIDTH-1:0] rdata
 );
 
-    (* ram_style = "distributed" *) logic [WIDTH-1:0] ram[DEPTH-1:0];
+    (* ramstyle = "MLAB, no_rw_check", ram_style = "distributed" *) logic [WIDTH-1:0] ram [DEPTH-1:0];
 
 
     always_ff @(posedge clk) begin
@@ -39,6 +39,7 @@ module tlb_lutram #(
 
 
     //debug用的信号
+`ifdef SIMULATION
     logic [18:0] tlb_vppn[DEPTH-1:0];
     logic [ 9:0] tlb_asid[DEPTH-1:0];
     logic        tlb_g   [DEPTH-1:0];
@@ -72,6 +73,7 @@ module tlb_lutram #(
             assign tlb_d1[i] = ram[i][64];
         end
     endgenerate
+`endif
 
 
 endmodule

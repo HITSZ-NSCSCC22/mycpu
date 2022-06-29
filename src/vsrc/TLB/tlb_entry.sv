@@ -278,6 +278,7 @@ module tlb_entry
 
 
     //debug用的信号
+`ifdef SIMULATION
     logic [18:0] inst_tlb_vppn  [NWAY-1:0];
     logic [ 9:0] inst_tlb_asid  [NWAY-1:0];
     logic        inst_tlb_g     [NWAY-1:0];
@@ -368,5 +369,6 @@ module tlb_entry
     assign write_tlb_mat1 = write_port.mat1;
     assign write_tlb_v1 = write_port.v1;
     assign write_tlb_d1 = write_port.d1;
+`endif
 
 endmodule
