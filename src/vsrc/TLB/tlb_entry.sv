@@ -102,9 +102,9 @@ module tlb_entry
     end
 
     // Rand test require 4MB page support
-    // for 4MB page, real vppn is vppn[18:8];
-    assign inst_addr = s0_vppn[10:8];
-    assign data_addr = s1_vppn[10:8];
+    // for 4MB page, real vppn is vppn[18:8], vppn[8] is used as odd_page, so [11:9] is used as way index
+    assign inst_addr = s0_vppn[11:9];
+    assign data_addr = s1_vppn[11:9];
 
     always_comb begin
         if (inv_i.en == 1'b1) raddr = inv_cal;
