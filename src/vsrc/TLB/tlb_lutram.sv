@@ -24,7 +24,7 @@ module tlb_lutram #(
     output logic [WIDTH-1:0] rdata
 );
 
-    (* ramstyle = "MLAB, no_rw_check", ram_style = "distributed" *) logic [WIDTH-1:0] ram [DEPTH-1:0];
+    (* ram_style = "distributed" *) logic [WIDTH-1:0] ram[DEPTH-1:0];
 
 
     always_ff @(posedge clk) begin
@@ -39,23 +39,23 @@ module tlb_lutram #(
 
 
     //debug用的信号
-    logic [18:0] tlb_vppn     [DEPTH-1:0];
-    logic [ 9:0] tlb_asid     [DEPTH-1:0];
-    logic        tlb_g        [DEPTH-1:0];
-    logic [ 5:0] tlb_ps       [DEPTH-1:0];
-    logic [19:0] tlb_ppn0     [DEPTH-1:0];
-    logic [ 1:0] tlb_plv0     [DEPTH-1:0];
-    logic [ 1:0] tlb_mat0     [DEPTH-1:0];
-    logic        tlb_d0       [DEPTH-1:0];
-    logic        tlb_v0       [DEPTH-1:0];
-    logic [19:0] tlb_ppn1     [DEPTH-1:0];
-    logic [ 1:0] tlb_plv1     [DEPTH-1:0];
-    logic [ 1:0] tlb_mat1     [DEPTH-1:0];
-    logic        tlb_d1       [DEPTH-1:0];
-    logic        tlb_v1       [DEPTH-1:0];
+    logic [18:0] tlb_vppn[DEPTH-1:0];
+    logic [ 9:0] tlb_asid[DEPTH-1:0];
+    logic        tlb_g   [DEPTH-1:0];
+    logic [ 5:0] tlb_ps  [DEPTH-1:0];
+    logic [19:0] tlb_ppn0[DEPTH-1:0];
+    logic [ 1:0] tlb_plv0[DEPTH-1:0];
+    logic [ 1:0] tlb_mat0[DEPTH-1:0];
+    logic        tlb_d0  [DEPTH-1:0];
+    logic        tlb_v0  [DEPTH-1:0];
+    logic [19:0] tlb_ppn1[DEPTH-1:0];
+    logic [ 1:0] tlb_plv1[DEPTH-1:0];
+    logic [ 1:0] tlb_mat1[DEPTH-1:0];
+    logic        tlb_d1  [DEPTH-1:0];
+    logic        tlb_v1  [DEPTH-1:0];
 
     generate
-        for(genvar i=0;i<DEPTH;i=i+1)begin
+        for (genvar i = 0; i < DEPTH; i = i + 1) begin
             assign tlb_vppn[i] = ram[i][36:18];
             assign tlb_asid[i] = ram[i][10:1];
             assign tlb_g[i] = ram[i][11];

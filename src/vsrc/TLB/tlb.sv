@@ -83,7 +83,7 @@ module tlb
 
     //trans write port sig
     assign we = write_signal_i.tlbfill_en || write_signal_i.tlbwr_en;
-    assign w_index = ({5{write_signal_i.tlbfill_en}} & {write_signal_i.rand_index[1:0],write_signal_i.tlbehi[15:13]}) | 
+    assign w_index = ({5{write_signal_i.tlbfill_en}} & {write_signal_i.rand_index[1:0],w_port.vppn[10:8]}) | 
                     ({5{write_signal_i.tlbwr_en}} & {write_signal_i.tlbidx[`INDEX]});
     assign w_port.asid = asid;
     assign w_port.vppn = write_signal_i.tlbehi[`VPPN];
