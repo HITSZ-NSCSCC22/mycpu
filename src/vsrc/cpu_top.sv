@@ -580,8 +580,7 @@ module cpu_top
                             tlb_data_o.tlb_d,tlb_data_o.tlb_mat,tlb_data_o.tlb_plv};
 
     assign csr_mem_signal = {csr_pg,csr_da,csr_dmw0,csr_dmw1,csr_plv,csr_datm};
-    //assign tlb_mem_signal = {data_tlb_found,data_tlb_index,data_tlb_v,data_tlb_d,data_tlb_mat,data_tlb_plv};
-
+   
     logic [1:0] data_fetch, mem_tlbsrch;
     generate
         for (genvar i = 0; i < 2; i++) begin : mem
@@ -700,6 +699,7 @@ module cpu_top
     logic tlbrd_en;
 
     wb_llbit llbit_i;
+    logic inv_stallreq;
 
     ctrl u_ctrl(
         .clk(clk),
@@ -748,6 +748,7 @@ module cpu_top
         .llbit_signal(llbit_i),
 
         .inv_o(tlb_inv_signal_i),
+        .inv_stallreq(inv_stallreq),
 
         .tlbwr_en(tlb_write_signal_i.tlbwr_en),
         .tlbsrch_en(tlbsrch_en),
@@ -833,6 +834,8 @@ module cpu_top
     tlb_data_t tlb_data_o;
     tlb_write_in_struct tlb_write_signal_i;
     tlb_read_out_struct tlb_read_signal_o;
+
+    logic [4:0] rand_index_diff;
     
     tlb u_tlb (
         .clk               (clk),
@@ -851,11 +854,14 @@ module cpu_top
         .read_signal_o(tlb_read_signal_o),
         //invtlb 
         .inv_signal_i(tlb_inv_signal_i),
+        .inv_stallreq(inv_stallreq),
         //from csr
         .csr_dmw0(csr_dmw0),
         .csr_dmw1(csr_dmw1),
         .csr_da(csr_da),
-        .csr_pg(csr_pg)
+        .csr_pg(csr_pg),
+
+        .rand_index_diff(rand_index_diff)
     );
 
     // Difftest Delay signals
@@ -896,7 +902,7 @@ module cpu_top
         csr_ecode_commit <= csr_ecode_i;
         excp_instr_commit <= excp_instr;
         tlbfill_en_commit <= tlb_write_signal_i.tlbfill_en;
-        rand_index_commit <= tlb_write_signal_i.rand_index;
+        rand_index_commit <= rand_index_diff;
     end
     // difftest dpi-c
 `ifdef SIMU  // SIMU is defined in chiplab run_func/makefile

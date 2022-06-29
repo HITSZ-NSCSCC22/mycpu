@@ -26,12 +26,15 @@ module tlb
     output tlb_read_out_struct read_signal_o,
     //invtlb 
     input tlb_inv_t inv_signal_i,
+    output logic inv_stallreq,
 
     //from csr
     input logic [31:0] csr_dmw0,
     input logic [31:0] csr_dmw1,
     input logic csr_da,  // mmu disable, direct translate
-    input logic csr_pg  // mmu enable, enable paging
+    input logic csr_pg,  // mmu enable, enable paging
+
+    output [4:0] rand_index_diff
 );
 
     // TLB search 1 & 2
@@ -80,7 +83,8 @@ module tlb
 
     //trans write port sig
     assign we = write_signal_i.tlbfill_en || write_signal_i.tlbwr_en;
-    assign w_index = ({5{write_signal_i.tlbfill_en}} & write_signal_i.rand_index) | ({5{write_signal_i.tlbwr_en}} & write_signal_i.tlbidx[`INDEX]);
+    assign w_index = ({5{write_signal_i.tlbfill_en}} & {write_signal_i.rand_index[1:0],write_signal_i.tlbehi[`VPPN][2:0]}) | 
+                    ({5{write_signal_i.tlbwr_en}} & {write_signal_i.tlbidx[`INDEX]});
     assign w_port.asid = asid;
     assign w_port.vppn = write_signal_i.tlbehi[`VPPN];
     assign w_port.g = write_signal_i.tlbelo0[`TLB_G] && write_signal_i.tlbelo1[`TLB_G];
@@ -109,6 +113,8 @@ module tlb
     assign read_signal_o.tlbidx = {!r_port.e, 1'b0, r_port.ps, 24'b0};  //note do not write index
     assign read_signal_o.asid = r_port.asid;
 
+    assign rand_index_diff = w_index;
+
     tlb_entry tlb_entry (
         .clk(clk),
 
@@ -136,31 +142,25 @@ module tlb
         .s1_asid    (asid),
 
         // <-
-        .s1_found  (data_o.found),
-        .s1_index  (data_o.tlb_index),
-        .s1_ps     (s1_ps),
-        .s1_ppn    (s1_ppn),
-        .s1_v      (data_o.tlb_v),
-        .s1_d      (data_o.tlb_d),
-        .s1_mat    (data_o.tlb_mat),
-        .s1_plv    (data_o.tlb_plv),
+        .s1_found    (data_o.found),
+        .s1_index    (data_o.tlb_index),
+        .s1_ps       (s1_ps),
+        .s1_ppn      (s1_ppn),
+        .s1_v        (data_o.tlb_v),
+        .s1_d        (data_o.tlb_d),
+        .s1_mat      (data_o.tlb_mat),
+        .s1_plv      (data_o.tlb_plv),
         // write port 
-        .we        (we),
-        .w_index   (w_index),
-        .write_port(w_port),
+        .we          (we),
+        .w_index     (w_index),
+        .write_port  (w_port),
         //read port 
-        .r_index   (r_index),
-        .read_port (r_port),
+        .r_index     (r_index),
+        .read_port   (r_port),
         //invalid port
-        .inv_i     (inv_signal_i)
+        .inv_i       (inv_signal_i),
+        .inv_stallreq(inv_stallreq)
     );
-
-    //debug用
-    logic dmw0_en, dmw1_en, cacop_test;
-    assign dmw0 = data_i.dmw0_en;
-    assign dmw1 = data_i.dmw1_en;
-    assign cacop_test = data_i.cacop_op_mode_di;
-
 
     assign inst_paddr = (pg_mode && inst_i_buffer.dmw0_en) ? {csr_dmw0[`PSEG], inst_vaddr_buffer[28:0]} :
                     (pg_mode && inst_i_buffer.dmw1_en) ? {csr_dmw1[`PSEG], inst_vaddr_buffer[28:0]} : inst_vaddr_buffer;
@@ -175,5 +175,14 @@ module tlb
     assign data_o.offset = data_vaddr_buffer[3:0];
     assign data_o.index = data_vaddr_buffer[11:4];
     assign data_o.tag    = data_addr_trans_en ? ((s1_ps == 6'd12) ? s1_ppn : {s1_ppn[19:10], data_paddr[21:12]}) : data_paddr[31:12];
+
+    //debug用
+    logic dmw0_en, dmw1_en, cacop_test;
+    assign dmw0 = data_i.dmw0_en;
+    assign dmw1 = data_i.dmw1_en;
+    assign cacop_test = data_i.cacop_op_mode_di;
+
+    logic [4:0] rand_index_debug;
+    assign rand_index_debug = write_signal_i.rand_index;
 
 endmodule

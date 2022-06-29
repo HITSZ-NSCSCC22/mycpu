@@ -44,11 +44,12 @@ module tlb_entry
     output tlb_wr_port read_port,
 
     // invalid port, on posedge
-    input tlb_inv_t inv_i
+    input tlb_inv_t inv_i,
+    output logic inv_stallreq
 );
 
     // Data structure
-    logic tlb_e[TLBNUM-1:0];
+    logic [TLBNUM-1:0] tlb_e;
 
     //match index
     logic [NWAY-1:0] match0;
@@ -67,7 +68,7 @@ module tlb_entry
     logic [`ENTRY_LEN-1:0] data_entry[NWAY-1:0];
 
     //wirte port
-    logic wen[NWAY-1:0];
+    logic [NWAY-1:0] wen;
     logic [$clog2(NSET)-1:0] waddr[NWAY-1:0];
     logic [`ENTRY_LEN-1:0] wdata[NWAY-1:0];
 
@@ -81,7 +82,7 @@ module tlb_entry
 
 
     for (genvar i = 0; i < NWAY; i = i + 1) begin
-        tlb_lutram tlb_lutram0 (
+        tlb_lutram u_tlb_lutram (
             .clk(clk),
 
             .inst_addr(inst_addr),
@@ -102,11 +103,16 @@ module tlb_entry
 
     assign inst_addr = s0_vppn[2:0];
     assign data_addr = s1_vppn[2:0];
-    assign raddr = r_index[2:0];
+    
+    always_comb begin 
+        if(inv_i.en == 1'b1)
+            raddr = inv_cal;
+        else 
+            raddr = r_index[2:0];
+    end
 
-    genvar i;
     generate
-        for (i = 0; i < NWAY; i = i + 1) begin : inst_search
+        for (genvar i = 0; i < NWAY; i = i + 1) begin : inst_search
             always @(posedge clk) begin
                 if (s0_fetch) begin
                     s0_odd_page_buffer[i] <= (inst_entry[i][`ENTRY_PS] == 6'd12) ? s0_odd_page : s0_vppn[8];
@@ -129,14 +135,14 @@ module tlb_entry
                     inst_index = i;
                     inst_odd_page = s0_odd_page_buffer[i];
                 end else begin
-                    inst_index = i;
+                    inst_index = 0;
                     inst_odd_page = 0;
                 end
                 if (match1[i] == 1'b1) begin
                     data_index = i;
                     data_odd_page = s1_odd_page_buffer[i];
                 end else begin
-                    data_index = i;
+                    data_index = 0;
                     data_odd_page = 0;
                 end
             end
@@ -166,27 +172,106 @@ module tlb_entry
     assign {s1_index, s1_ps, s1_ppn, s1_v, s1_d, s1_mat, s1_plv} = data_odd_page ? {data_index,data_addr, data_entry[data_index][`ENTRY_PS], data_entry[data_index][`ENTRY_PPN1], data_entry[data_index][`ENTRY_V1], data_entry[data_index][`ENTRY_D1], data_entry[data_index][`ENTRY_MAT1], data_entry[data_index][`ENTRY_PLV1]} :
                                                                 {data_index,data_addr, data_entry[data_index][`ENTRY_PS], data_entry[data_index][`ENTRY_PPN0], data_entry[data_index][`ENTRY_V0], data_entry[data_index][`ENTRY_D0], data_entry[data_index][`ENTRY_MAT0], data_entry[data_index][`ENTRY_PLV0]};
 
-    // //read port driven
-    // assign read_port = {tlb_e[r_index], read_port_buffer[87:0]};
-    //         always @(posedge clk) begin
-    //             if (we && (w_index == i)) begin
-    //                 tlb_e[i] <= write_port.e;
-    //             end else if (inv_i.en) begin
-    //                 // invalid search
-    //                 if (inv_i.op == 5'd0 || inv_i.op == 5'd1) tlb_e[i] <= 1'b0;
-    //                 else if (inv_i.op == 5'd2 && invtlbout[`ENTRY_G]) tlb_e[i] <= 1'b0;
-    //                 else if (inv_i.op == 5'd3 && !invtlbout[`ENTRY_G]) tlb_e[i] <= 1'b0;
-    //                 else if (inv_i.op == 5'd4 && !invtlbout[`ENTRY_G] && (invtlbout[`ENTRY_ASID] == inv_i.asid))
-    //                     tlb_e[i] <= 1'b0;
-    //                 else if (inv_i.op == 5'd5 && !invtlbout[`ENTRY_G] && (invtlbout[`ENTRY_ASID] == inv_i.asid) && 
-    //                        ((invtlbout[`ENTRY_PS] == 6'd12) ? (invtlbout[`ENTRY_VPPN] == inv_i.vpn) : (invtlbout[`ENTRY_VPPN_H1] == inv_i.vpn[18:10])))
-    //                     tlb_e[i] <= 1'b0;
-    //                 else if (inv_i.op == 5'd6 && (invtlbout[`ENTRY_G] || (invtlbout[`ENTRY_ASID] == inv_i.asid)) && 
-    //                        ((invtlbout[`ENTRY_PS] == 6'd12) ? (invtlbout[`ENTRY_VPPN] == inv_i.vpn) : (invtlbout[`ENTRY_VPPN_H1] == inv_i.vpn[18:10])))
-    //                     tlb_e[i] <= 1'b0;
-    //             end
-    //         end
-    //     end
-    // endgenerate
+    logic [2:0] inv_cal;
+    always @(posedge clk) begin
+        if (inv_i.en) begin
+            inv_cal <= inv_cal + 1'b1;
+            inv_stallreq <= 1'b1;
+            if (inv_cal == 3'b111) begin
+                inv_cal <= 3'b0;
+                inv_stallreq <= 1'b0;
+            end
+        end else begin
+            inv_cal <= 3'b0;
+            inv_stallreq <= 1'b0;
+        end
+    end
+
+
+    always @(posedge clk) begin
+        if (we) begin
+            tlb_e[w_index] <= write_port.e;
+        end else if (inv_i.en) begin
+            // invalid search
+            for (integer i = 0; i < NWAY; i = i + 1) begin
+                if (inv_i.op == 5'd0 || inv_i.op == 5'd1) tlb_e[i] <= 1'b0;
+                else if (inv_i.op == 5'd2 && rdata[i][`ENTRY_G]) tlb_e[i] <= 1'b0;
+                else if (inv_i.op == 5'd3 && !rdata[i][`ENTRY_G]) tlb_e[i] <= 1'b0;
+                else if (inv_i.op == 5'd4 && !rdata[i][`ENTRY_G] && (rdata[i][`ENTRY_ASID] == inv_i.asid))
+                    tlb_e[i] <= 1'b0;
+                else if (inv_i.op == 5'd5 && !rdata[i][`ENTRY_G] && (rdata[i][`ENTRY_ASID] == inv_i.asid) && 
+                           ((rdata[i][`ENTRY_PS] == 6'd12) ? (rdata[i][`ENTRY_VPPN] == inv_i.vpn) : (rdata[i][`ENTRY_VPPN_H1] == inv_i.vpn[18:10])))
+                    tlb_e[i] <= 1'b0;
+                else if (inv_i.op == 5'd6 && (rdata[i][`ENTRY_G] || (rdata[i][`ENTRY_ASID] == inv_i.asid)) && 
+                           ((rdata[i][`ENTRY_PS] == 6'd12) ? (rdata[i][`ENTRY_VPPN] == inv_i.vpn) : (rdata[i][`ENTRY_VPPN_H1] == inv_i.vpn[18:10])))
+                    tlb_e[i] <= 1'b0;
+            end
+        end
+    end
+
+
+    //debug用的信号
+    logic [18:0] inst_tlb_vppn     [NWAY-1:0];
+    logic [ 9:0] inst_tlb_asid     [NWAY-1:0];
+    logic        inst_tlb_g        [NWAY-1:0];
+    logic [ 5:0] inst_tlb_ps       [NWAY-1:0];
+    logic [19:0] inst_tlb_ppn0     [NWAY-1:0];
+    logic [ 1:0] inst_tlb_plv0     [NWAY-1:0];
+    logic [ 1:0] inst_tlb_mat0     [NWAY-1:0];
+    logic        inst_tlb_d0       [NWAY-1:0];
+    logic        inst_tlb_v0       [NWAY-1:0];
+    logic [19:0] inst_tlb_ppn1     [NWAY-1:0];
+    logic [ 1:0] inst_tlb_plv1     [NWAY-1:0];
+    logic [ 1:0] inst_tlb_mat1     [NWAY-1:0];
+    logic        inst_tlb_d1       [NWAY-1:0];
+    logic        inst_tlb_v1       [NWAY-1:0];
+    logic [18:0] data_tlb_vppn     [NWAY-1:0];
+    logic [ 9:0] data_tlb_asid     [NWAY-1:0];
+    logic        data_tlb_g        [NWAY-1:0];
+    logic [ 5:0] data_tlb_ps       [NWAY-1:0];
+    logic [19:0] data_tlb_ppn0     [NWAY-1:0];
+    logic [ 1:0] data_tlb_plv0     [NWAY-1:0];
+    logic [ 1:0] data_tlb_mat0     [NWAY-1:0];
+    logic        data_tlb_d0       [NWAY-1:0];
+    logic        data_tlb_v0       [NWAY-1:0];
+    logic [19:0] data_tlb_ppn1     [NWAY-1:0];
+    logic [ 1:0] data_tlb_plv1     [NWAY-1:0];
+    logic [ 1:0] data_tlb_mat1     [NWAY-1:0];
+    logic        data_tlb_d1       [NWAY-1:0];
+    logic        data_tlb_v1       [NWAY-1:0];
+
+    generate
+        for(genvar i=0;i<NWAY;i=i+1)begin
+            assign inst_tlb_vppn[i] = inst_entry[i][36:18];
+            assign inst_tlb_asid[i] = inst_entry[i][10:1];
+            assign inst_tlb_g[i] = inst_entry[i][11];
+            assign inst_tlb_ps[i] = inst_entry[i][17:12];
+            assign inst_tlb_ppn0[i] = inst_entry[i][62:43];
+            assign inst_tlb_plv0[i] = inst_entry[i][42:41];
+            assign inst_tlb_mat0[i] = inst_entry[i][40:39];
+            assign inst_tlb_v0[i] = inst_entry[i][37];
+            assign inst_tlb_d0[i] = inst_entry[i][38];
+            assign inst_tlb_ppn1[i] = inst_entry[i][88:69];
+            assign inst_tlb_plv1[i] = inst_entry[i][68:67];
+            assign inst_tlb_mat1[i] = inst_entry[i][66:65];
+            assign inst_tlb_v1[i] = inst_entry[i][63];
+            assign inst_tlb_d1[i] = inst_entry[i][64];
+            assign data_tlb_vppn[i] = data_entry[i][36:18];
+            assign data_tlb_asid[i] = data_entry[i][10:1];
+            assign data_tlb_g[i] = data_entry[i][11];
+            assign data_tlb_ps[i] = data_entry[i][17:12];
+            assign data_tlb_ppn0[i] = data_entry[i][62:43];
+            assign data_tlb_plv0[i] = data_entry[i][42:41];
+            assign data_tlb_mat0[i] = data_entry[i][40:39];
+            assign data_tlb_v0[i] = data_entry[i][37];
+            assign data_tlb_d0[i] = data_entry[i][38];
+            assign data_tlb_ppn1[i] = data_entry[i][88:69];
+            assign data_tlb_plv1[i] = data_entry[i][68:67];
+            assign data_tlb_mat1[i] = data_entry[i][66:65];
+            assign data_tlb_v1[i] = data_entry[i][63];
+            assign data_tlb_d1[i] = data_entry[i][64];
+        end
+    endgenerate
+    
 
 endmodule
