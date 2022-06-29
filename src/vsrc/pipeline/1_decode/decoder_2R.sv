@@ -32,7 +32,8 @@ module decoder_2R
 
     output logic use_imm,
     output logic [ALU_OP_WIDTH-1:0] aluop_o,
-    output logic [ALU_SEL_WIDTH-1:0] alusel_o
+    output logic [ALU_SEL_WIDTH-1:0] alusel_o,
+    output logic is_pri
 
 );
 
@@ -51,33 +52,39 @@ module decoder_2R
         reg_write_addr_o  = 0;
         alusel_o          = 0;
         aluop_o           = 0;
+        is_pri            = 0;
         case (instr[31:10])
             `EXE_TLBWR: begin
                 decode_result_valid_o = 1;
                 aluop_o               = `EXE_TLBWR_OP;
+                is_pri = 1;
             end
             `EXE_TLBFILL: begin
                 decode_result_valid_o = 1;
                 aluop_o = `EXE_TLBFILL_OP;
-
+                is_pri = 1;
             end
             `EXE_TLBRD: begin
                 decode_result_valid_o = 1;
                 aluop_o = `EXE_TLBRD_OP;
+                is_pri = 1;
 
             end
             `EXE_TLBSRCH: begin
                 decode_result_valid_o = 1;
                 aluop_o = `EXE_TLBSRCH_OP;
+                is_pri = 1;
             end
 
             `EXE_ERTN: begin
                 decode_result_valid_o = 1;
                 aluop_o = `EXE_ERTN_OP;
+                is_pri = 1;
             end
             `EXE_RDCNTIDV_W: begin
                 decode_result_valid_o = 1;
                 alusel_o = `EXE_RES_CSR;
+                is_pri = 1;
                 if (rd == 0) begin
                     reg_write_valid_o = 1;
                     reg_write_addr_o = rj;
@@ -94,10 +101,12 @@ module decoder_2R
                 reg_write_addr_o = rd;
                 aluop_o = `EXE_RDCNTVH_OP;
                 alusel_o = `EXE_RES_CSR;
+                is_pri = 1;
             end
             default: begin
                 decode_result_valid_o = 0;
                 aluop_o = 0;
+                is_pri = 0;
             end
         endcase
     end

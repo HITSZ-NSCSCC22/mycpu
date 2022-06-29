@@ -74,6 +74,7 @@ module id
     logic [`RegAddrBus] sub_decoder_reg_write_addr[SUB_DECODER_NUM];
     logic [`RegBus] sub_decoder_imm[SUB_DECODER_NUM];
     logic sub_decoder_use_imm[SUB_DECODER_NUM];
+    logic sub_decoder_is_pri[SUB_DECODER_NUM];
 
     // Info about privilege instr
     logic instr_break, instr_syscall, kernel_instr;
@@ -93,7 +94,8 @@ module id
         .reg_write_addr_o     (sub_decoder_reg_write_addr[0]),
         .use_imm              (sub_decoder_use_imm[0]),
         .aluop_o              (sub_decoder_aluop[0]),
-        .alusel_o             (sub_decoder_alusel[0])
+        .alusel_o             (sub_decoder_alusel[0]),
+        .is_pri               (sub_decoder_is_pri[0])
     );
     decoder_3R u_decoder_3R (
         .instr_info_i         (instr_buffer_i),
@@ -107,7 +109,8 @@ module id
         .aluop_o              (sub_decoder_aluop[1]),
         .alusel_o             (sub_decoder_alusel[1]),
         .instr_break          (instr_break),
-        .instr_syscall        (instr_syscall)
+        .instr_syscall        (instr_syscall),
+        .is_pri               (sub_decoder_is_pri[1])
     );
     decoder_2RI8 U_decoder_2RI8 (
         .instr_info_i         (instr_buffer_i),
@@ -119,7 +122,8 @@ module id
         .reg_write_valid_o    (sub_decoder_reg_write_valid[2]),
         .reg_write_addr_o     (sub_decoder_reg_write_addr[2]),
         .aluop_o              (sub_decoder_aluop[2]),
-        .alusel_o             (sub_decoder_alusel[2])
+        .alusel_o             (sub_decoder_alusel[2]),
+        .is_pri               (sub_decoder_is_pri[2])
     );
     decoder_2RI12 u_decoder_2RI12 (
         .instr_info_i         (instr_buffer_i),
@@ -131,7 +135,8 @@ module id
         .reg_write_valid_o    (sub_decoder_reg_write_valid[3]),
         .reg_write_addr_o     (sub_decoder_reg_write_addr[3]),
         .aluop_o              (sub_decoder_aluop[3]),
-        .alusel_o             (sub_decoder_alusel[3])
+        .alusel_o             (sub_decoder_alusel[3]),
+        .is_pri               (sub_decoder_is_pri[3])
     );
     decoder_2RI16 u_decoder_2RI16 (
         .instr_info_i         (instr_buffer_i),
@@ -143,7 +148,8 @@ module id
         .reg_write_valid_o    (sub_decoder_reg_write_valid[4]),
         .reg_write_addr_o     (sub_decoder_reg_write_addr[4]),
         .aluop_o              (sub_decoder_aluop[4]),
-        .alusel_o             (sub_decoder_alusel[4])
+        .alusel_o             (sub_decoder_alusel[4]),
+        .is_pri               (sub_decoder_is_pri[4])
     );
     decoder_1RI20 U_decoder_1RI20 (
         .instr_info_i         (instr_buffer_i),
@@ -155,7 +161,8 @@ module id
         .reg_write_valid_o    (sub_decoder_reg_write_valid[5]),
         .reg_write_addr_o     (sub_decoder_reg_write_addr[5]),
         .aluop_o              (sub_decoder_aluop[5]),
-        .alusel_o             (sub_decoder_alusel[5])
+        .alusel_o             (sub_decoder_alusel[5]),
+        .is_pri               (sub_decoder_is_pri[5])
     );
     decoder_2RI14 U_decoder_2RI14 (
         .instr_info_i         (instr_buffer_i),
@@ -167,7 +174,8 @@ module id
         .reg_write_valid_o    (sub_decoder_reg_write_valid[6]),
         .reg_write_addr_o     (sub_decoder_reg_write_addr[6]),
         .aluop_o              (sub_decoder_aluop[6]),
-        .alusel_o             (sub_decoder_alusel[6])
+        .alusel_o             (sub_decoder_alusel[6]),
+        .is_pri               (sub_decoder_is_pri[6])
     );
     decoder_I26 U_decoder_I26 (
         .instr_info_i         (instr_buffer_i),
@@ -177,7 +185,8 @@ module id
         .use_imm              (sub_decoder_use_imm[7]),
         .reg_write_addr_o     (sub_decoder_reg_write_addr[7]),
         .aluop_o              (sub_decoder_aluop[7]),
-        .alusel_o             (sub_decoder_alusel[7])
+        .alusel_o             (sub_decoder_alusel[7]),
+        .is_pri               (sub_decoder_is_pri[7])
     );
     decoder_CSR u_decoder_CSR (
         .instr_info_i         (instr_buffer_i),
@@ -189,7 +198,8 @@ module id
         .reg_write_valid_o    (sub_decoder_reg_write_valid[8]),
         .reg_write_addr_o     (sub_decoder_reg_write_addr[8]),
         .aluop_o              (sub_decoder_aluop[8]),
-        .alusel_o             (sub_decoder_alusel[8])
+        .alusel_o             (sub_decoder_alusel[8]),
+        .is_pri               (sub_decoder_is_pri[8])
     );
     // Sub-decoder END
 

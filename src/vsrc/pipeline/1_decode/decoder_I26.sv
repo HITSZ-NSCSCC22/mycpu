@@ -34,7 +34,8 @@ module decoder_I26
 
     // ALU info
     output logic [ ALU_OP_WIDTH-1:0] aluop_o,
-    output logic [ALU_SEL_WIDTH-1:0] alusel_o
+    output logic [ALU_SEL_WIDTH-1:0] alusel_o,
+    output logic is_pri
 
 );
 
@@ -53,6 +54,7 @@ module decoder_I26
         reg_write_addr_o = 0;
         use_imm = 1'b0;
         imm_o = {{4{imm_26[25]}}, imm_26, 2'b0};
+        is_pri = 0;
         case (instr[31:26])
             `EXE_B: begin
                 aluop_o  = `EXE_B_OP;
@@ -69,6 +71,7 @@ module decoder_I26
                 aluop_o = 0;
                 alusel_o = 0;
                 imm_o = 0;
+                is_pri = 0;
             end
         endcase
     end

@@ -38,7 +38,8 @@ module decoder_2RI14
 
     // ALU info
     output logic [ ALU_OP_WIDTH-1:0] aluop_o,
-    output logic [ALU_SEL_WIDTH-1:0] alusel_o
+    output logic [ALU_SEL_WIDTH-1:0] alusel_o,
+    output logic is_pri
 
 );
 
@@ -62,6 +63,7 @@ module decoder_2RI14
         reg_read_addr_o = 10'b0;
         use_imm = 1'b1;
         imm_o    = {{18{imm_14[13]}}, imm_14};  // Signed Extension
+        is_pri = 0;
         case (instr[31:24])
             `EXE_LL_W: begin
                 aluop_o = `EXE_LL_OP;
@@ -93,6 +95,7 @@ module decoder_2RI14
                 reg_read_valid_o = 0;
                 reg_read_addr_o = 0;
                 imm_o    = 0;
+                is_pri = 0;
             end
         endcase
     end

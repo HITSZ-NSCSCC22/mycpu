@@ -37,7 +37,8 @@ module decoder_2RI12
 
     // ALU info
     output logic [ ALU_OP_WIDTH-1:0] aluop_o,
-    output logic [ALU_SEL_WIDTH-1:0] alusel_o
+    output logic [ALU_SEL_WIDTH-1:0] alusel_o,
+    output logic is_pri
 
 );
 
@@ -62,6 +63,7 @@ module decoder_2RI12
         reg_read_addr_o = {5'b0, rj};
         use_imm = 1'b1;
         imm_o = 0;
+        is_pri = 0;
         case (instr[31:22])
             `EXE_SLTI: begin
                 aluop_o  = `EXE_SLT_OP;
@@ -172,6 +174,7 @@ module decoder_2RI12
                 aluop_o = `EXE_CACOP_OP;
                 alusel_o = `EXE_RES_NOP;
                 imm_o = {{20{imm_12[11]}}, imm_12};  // Signed Extension
+                is_pri = 1;
             end
             default: begin
                 use_imm = 1'b0;
@@ -182,6 +185,7 @@ module decoder_2RI12
                 reg_read_addr_o = 0;
                 aluop_o = 0;
                 alusel_o = 0;
+                is_pri = 0;
             end
         endcase
     end
