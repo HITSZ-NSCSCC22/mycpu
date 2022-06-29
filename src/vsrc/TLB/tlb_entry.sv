@@ -239,6 +239,20 @@ module tlb_entry
     logic [ 1:0] data_tlb_mat1     [NWAY-1:0];
     logic        data_tlb_d1       [NWAY-1:0];
     logic        data_tlb_v1       [NWAY-1:0];
+    logic [18:0] write_tlb_vppn    ;
+    logic [ 9:0] write_tlb_asid    ;
+    logic        write_tlb_g        ;
+    logic [ 5:0] write_tlb_ps       ;
+    logic [19:0] write_tlb_ppn0     ;
+    logic [ 1:0] write_tlb_plv0     ;
+    logic [ 1:0] write_tlb_mat0     ;
+    logic        write_tlb_d0       ;
+    logic        write_tlb_v0       ;
+    logic [19:0] write_tlb_ppn1     ;
+    logic [ 1:0] write_tlb_plv1    ;
+    logic [ 1:0] write_tlb_mat1     ;
+    logic        write_tlb_d1       ;
+    logic        write_tlb_v1       ;
 
     generate
         for(genvar i=0;i<NWAY;i=i+1)begin
@@ -273,5 +287,19 @@ module tlb_entry
         end
     endgenerate
     
+            assign write_tlb_vppn = write_port.vppn;
+            assign write_tlb_asid = write_port.asid;
+            assign write_tlb_g = write_port.g;
+            assign write_tlb_ps = write_port.ps;
+            assign write_tlb_ppn0 = write_port.ppn0;
+            assign write_tlb_plv0 = write_port.plv0;
+            assign write_tlb_mat0 = write_port.mat0;
+            assign write_tlb_v0 = write_port.v0;
+            assign write_tlb_d0 = write_port.d0;
+            assign write_tlb_ppn1 = write_port.ppn1;
+            assign write_tlb_plv1 = write_port.plv1;
+            assign write_tlb_mat1 = write_port.mat1;
+            assign write_tlb_v1 = write_port.v1;
+            assign write_tlb_d1 = write_port.d1;
 
 endmodule
