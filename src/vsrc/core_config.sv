@@ -13,6 +13,17 @@ package core_config;
     parameter ICACHELINE_WIDTH = 128;
     parameter FRONTEND_FTQ_SIZE = 8;
 
+    // BPU Parameters
+    parameter BPU_TAG_COMPONENT_NUM = 4;
+    parameter integer BPU_COMPONENT_TABLE_DEPTH[BPU_TAG_COMPONENT_NUM+1] = '{
+        8192,
+        2048,
+        2048,
+        2048,
+        2048
+    };
+    parameter integer BPU_COMPONENT_CTR_WIDTH[BPU_TAG_COMPONENT_NUM+1] = '{3, 2, 2, 2, 2};
+
     // ICache parameters
     parameter ICACHE_NWAY = 2;
     parameter ICACHE_NSET = 256;
