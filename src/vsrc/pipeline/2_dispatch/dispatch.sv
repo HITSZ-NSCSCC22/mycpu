@@ -65,6 +65,8 @@ module dispatch
     //判断待发射的两条指令里面有无特权指令,如有有就拉高is_pri_instr,把信号传给ctrl就行阻塞
     logic pri_op[2];
     assign is_pri_instr = pri_op[0] & do_we_issue[0] & ~stall & ~flush;
+
+    //TODO:fix pri_op bug;
     // assign pri_op[0] = id_i[0].special_instr.is_pri != 0;
     // assign pri_op[1] = id_i[1].special_instr.is_pri != 0;
     assign pri_op[0] = aluop_i[0] == `EXE_CSRWR_OP | aluop_i[0] == `EXE_CSRRD_OP | aluop_i[0] == `EXE_CSRXCHG_OP |

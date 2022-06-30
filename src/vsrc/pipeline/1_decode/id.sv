@@ -302,10 +302,10 @@ module id
             special_instr.is_pri = special_instr.is_pri | sub_decoder_is_pri[i];
             special_instr.is_csr = special_instr.is_csr | sub_decoder_is_csr[i];
             special_instr.not_commit_instr = special_instr.not_commit_instr | sub_decoder_not_commit_instr[i];
-            special_instr.mem_load = special_instr.is_pri | sub_decoder_mem_load_instr[i];
-            special_instr.mem_store = special_instr.is_pri | sub_decoder_mem_store_instr[i];
-            special_instr.mem_b_op = special_instr.is_pri | sub_decoder_mem_b_instr[i];
-            special_instr.mem_h_op = special_instr.is_pri | sub_decoder_mem_h_instr[i];
+            special_instr.mem_load = special_instr.mem_load | sub_decoder_mem_load_instr[i];
+            special_instr.mem_store = special_instr.mem_store | sub_decoder_mem_store_instr[i];
+            special_instr.mem_b_op = special_instr.mem_b_op | sub_decoder_mem_b_instr[i];
+            special_instr.mem_h_op = special_instr.mem_h_op | sub_decoder_mem_h_instr[i];
             kernel_instr = kernel_instr | sub_decoder_kernel_instr[i];
         end
     end
