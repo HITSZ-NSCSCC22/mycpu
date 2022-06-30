@@ -2,20 +2,19 @@
 // This is the main predictor
 
 `include "defines.sv"
+`include "core_config.sv"
 `include "BPU/include/bpu_defines.sv"
-`include "BPU/utils/fpa.sv"
+`include "utils/priority_encoder.sv"
 
 // Components
 `include "BPU/components/btb.sv"
 `include "BPU/components/base_predictor.sv"
-`include "BPU/components/tagged_predictor.sv"
+// `include "BPU/components/tagged_predictor.sv"
 
 
-module tage_predictor #(
-    parameter PROVIDER_HISTORY_BUFFER_SIZE = 10,
-    parameter TAGGED_PREDICTOR_USEFUL_WIDTH = 3,
-    parameter GHR_DEPTH = 200
-) (
+module tage_predictor
+    import core_config::*;
+(
     input logic clk,
     input logic rst,
 
@@ -37,6 +36,9 @@ module tage_predictor #(
         $dumpvars(0, tage_predictor);
     end
 `endif
+
+    localparam GHR_DEPTH = BPU_GHR_LENGTH;
+    localparam TAG_COMPONENT_AMOUNT = BPU_TAG_COMPONENT_NUM;
 
 
     // Reset
@@ -81,11 +83,7 @@ module tage_predictor #(
     // Base Predictor
     logic base_taken;
     logic base_update_ctr;
-    base_predictor #(
-        .TABLE_DEPTH_EXP2(14),
-        .CTR_WIDTH       (2),
-        .PC_WIDTH        (`RegWidth)
-    ) u_base_predictor (
+    base_predictor u_base_predictor (
         .clk          (clk),
         .rst          (rst),
         .pc_i         (pc_i),
@@ -96,7 +94,6 @@ module tage_predictor #(
 
     /*
 
-    localparam TAG_COMPONENT_AMOUNT = 4;
 
     // The provider id of the accepted prediction
     logic [$clog2(TAG_COMPONENT_AMOUNT+1)-1:0] pred_prediction_id;
