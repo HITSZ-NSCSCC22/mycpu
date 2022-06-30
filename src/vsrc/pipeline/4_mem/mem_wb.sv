@@ -176,6 +176,7 @@ module mem_wb
             wb_ctrl_signal.cacop_en <= cacop_en;
             wb_ctrl_signal.icache_op_en <= icache_op_en;
             wb_ctrl_signal.cacop_op <= cacop_op;
+            wb_ctrl_signal.special_instr <= mem_signal_o.special_instr;
         end
     end
 

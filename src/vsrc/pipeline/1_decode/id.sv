@@ -334,7 +334,7 @@ module id
     assign dispatch_o.excp = excp;
     assign dispatch_o.excp_num = excp_num;
 
-    assign dispatch_o.spe_instr = special_instr;
+    assign dispatch_o.special_instr = special_instr;
 
     assign excp_ine = ~instr_valid & instr_buffer_i.valid; // If IB input is valid, but no valid decode result, then INE is triggered
     assign excp_ipe = kernel_instr && (csr_plv == 2'b11);

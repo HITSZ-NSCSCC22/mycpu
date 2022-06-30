@@ -90,7 +90,7 @@ package core_types;
         logic [8:0] excp_num;
         logic refetch;
 
-        special_instr_judge spe_instr;
+        special_instr_judge special_instr;
     } id_dispatch_struct;
 
 
@@ -117,7 +117,7 @@ package core_types;
         logic [8:0] excp_num;
         logic refetch;
 
-        special_instr_judge spe_instr;
+        special_instr_judge special_instr;
     } dispatch_ex_struct;
 
     typedef struct packed {
@@ -149,7 +149,7 @@ package core_types;
         logic icache_op_en;
         logic [4:0] cacop_op;
 
-        special_instr_judge spe_instr;
+        special_instr_judge special_instr;
     } ex_mem_struct;
 
     // MEM stage data forwarding
@@ -188,7 +188,7 @@ package core_types;
         logic icache_op_en;
         logic [4:0] cacop_op;
 
-        special_instr_judge spe_instr;
+        special_instr_judge special_instr;
     } mem_wb_struct;
 
     typedef struct packed {
@@ -249,7 +249,7 @@ package core_types;
         logic icache_op_en;
         logic [4:0] cacop_op;
 
-        special_instr_judge spe_instr;
+        special_instr_judge special_instr;
     } wb_ctrl;
 
     typedef struct packed {

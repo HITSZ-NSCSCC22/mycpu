@@ -149,14 +149,16 @@ module ex
     assign ex_o.refetch = dispatch_i.refetch;
 
     //对未对齐例外的判断
+    special_instr_judge special_instr;
+    assign special_instr = dispatch_i.special_instr;
     assign access_mem = mem_load_op || mem_store_op;
 
-    assign mem_load_op = aluop_i == `EXE_LD_B_OP ||  aluop_i == `EXE_LD_BU_OP ||  aluop_i == `EXE_LD_H_OP ||  aluop_i == `EXE_LD_HU_OP ||
-                        aluop_i == `EXE_LD_W_OP ||  aluop_i == `EXE_LL_OP;
+    assign mem_load_op = special_instr.mem_load;//aluop_i == `EXE_LD_B_OP ||  aluop_i == `EXE_LD_BU_OP ||  aluop_i == `EXE_LD_H_OP ||  aluop_i == `EXE_LD_HU_OP ||
+                        //aluop_i == `EXE_LD_W_OP ||  aluop_i == `EXE_LL_OP;
 
-    assign mem_store_op =  aluop_i == `EXE_ST_B_OP ||  aluop_i == `EXE_ST_H_OP ||  aluop_i == `EXE_ST_W_OP ||  aluop_i == `EXE_SC_OP;
-    assign mem_b_op = aluop_i == `EXE_LD_B_OP | aluop_i == `EXE_LD_BU_OP | aluop_i == `EXE_ST_B_OP;
-    assign mem_h_op = aluop_i == `EXE_LD_H_OP | aluop_i == `EXE_LD_HU_OP | aluop_i == `EXE_ST_H_OP;
+    assign mem_store_op = special_instr.mem_store; //aluop_i == `EXE_ST_B_OP ||  aluop_i == `EXE_ST_H_OP ||  aluop_i == `EXE_ST_W_OP ||  aluop_i == `EXE_SC_OP;
+    assign mem_b_op = special_instr.mem_b_op;//aluop_i == `EXE_LD_B_OP | aluop_i == `EXE_LD_BU_OP | aluop_i == `EXE_ST_B_OP;
+    assign mem_h_op = special_instr.mem_h_op; //aluop_i == `EXE_LD_H_OP | aluop_i == `EXE_LD_HU_OP | aluop_i == `EXE_ST_H_OP;
 
     always @(*) begin
         if (rst == `RstEnable) begin
@@ -403,6 +405,7 @@ module ex
         ex_o.icache_op_en = icacop_op_en;
         ex_o.cacop_op = cacop_op;
         ex_o.inv_i = aluop_i == `EXE_INVTLB_OP ? {1'b1, oprand1[9:0], oprand2[31:13], imm[4:0]} : 0;
+        ex_o.special_instr = dispatch_i.special_instr;
         case (alusel_i)
             `EXE_RES_LOGIC: begin
                 ex_o.wdata = logicout;

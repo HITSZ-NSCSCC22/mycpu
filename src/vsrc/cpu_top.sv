@@ -886,7 +886,7 @@ module cpu_top
         debug1_wb_rf_wnum <= reg_o[1].waddr;
         `endif
     end
-
+`ifdef SIMULATION
     logic excp_flush_commit;
     logic ertn_flush_commit;
     logic [`RegBus]excp_pc_commit;
@@ -894,6 +894,7 @@ module cpu_top
     logic [`InstBus] excp_instr_commit;
     logic tlbfill_en_commit;
     logic [4:0] rand_index_commit;
+`endif 
 
     always_ff @(posedge clk) begin 
         excp_flush_commit <= excp_flush;

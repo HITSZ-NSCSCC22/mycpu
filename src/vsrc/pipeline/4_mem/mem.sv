@@ -144,6 +144,7 @@ module mem
         signal_o.cacop_en = cacop_en;
         signal_o.icache_op_en = icache_op_en;
         signal_o.cacop_op = cacop_op;
+        signal_o.special_instr = signal_i.special_instr;
         case (aluop_i)
             `EXE_LD_B_OP: begin
                 signal_cache_o.addr = mem_addr;
