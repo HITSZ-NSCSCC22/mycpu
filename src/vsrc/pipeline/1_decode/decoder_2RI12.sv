@@ -38,7 +38,16 @@ module decoder_2RI12
     // ALU info
     output logic [ ALU_OP_WIDTH-1:0] aluop_o,
     output logic [ALU_SEL_WIDTH-1:0] alusel_o,
-    output logic is_pri
+
+    //special instr judge
+    output logic is_pri,
+    output logic is_csr,
+    output logic not_commit_instr,
+    output logic kernel_instr,
+    output logic mem_load_op,
+    output logic mem_store_op,
+    output logic mem_b_op,
+    output logic mem_h_op
 
 );
 
@@ -63,7 +72,14 @@ module decoder_2RI12
         reg_read_addr_o = {5'b0, rj};
         use_imm = 1'b1;
         imm_o = 0;
-        is_pri = 0;
+        is_pri            = 0;
+        is_csr = 0;
+        not_commit_instr = 0;
+        kernel_instr = 0;
+        mem_load_op = 0;
+        mem_store_op = 0;
+        mem_b_op = 0;
+        mem_h_op = 0;
         case (instr[31:22])
             `EXE_SLTI: begin
                 aluop_o  = `EXE_SLT_OP;
@@ -100,18 +116,23 @@ module decoder_2RI12
                 aluop_o  = `EXE_LD_B_OP;
                 alusel_o = `EXE_RES_LOAD_STORE;
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
+                mem_load_op = 1;
+                mem_b_op = 1;
             end
             `EXE_LD_H: begin
                 use_imm = 1'b0;
                 aluop_o  = `EXE_LD_H_OP;
                 alusel_o = `EXE_RES_LOAD_STORE;
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
+                mem_load_op = 1;
+                mem_h_op = 1;
             end
             `EXE_LD_W: begin
                 use_imm = 1'b0;
                 aluop_o  = `EXE_LD_W_OP;
                 alusel_o = `EXE_RES_LOAD_STORE;
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
+                mem_load_op = 1;
             end
             `EXE_ST_B: begin
                 use_imm = 1'b0;
@@ -123,6 +144,8 @@ module decoder_2RI12
                 reg_read_valid_o = 2'b11;
                 reg_read_addr_o = {rd, rj};
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
+                mem_store_op = 1;
+                mem_b_op = 1;
             end
             `EXE_ST_H: begin
                 use_imm = 1'b0;
@@ -134,6 +157,8 @@ module decoder_2RI12
                 reg_read_valid_o = 2'b11;
                 reg_read_addr_o = {rd, rj};
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
+                mem_store_op = 1;
+                mem_h_op = 1;
             end
             `EXE_ST_W: begin
                 use_imm = 1'b0;
@@ -145,18 +170,23 @@ module decoder_2RI12
                 reg_read_valid_o = 2'b11;
                 reg_read_addr_o = {rd, rj};
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
+                mem_store_op = 1;
             end
             `EXE_LD_BU: begin
                 use_imm = 1'b0;
                 aluop_o  = `EXE_LD_BU_OP;
                 alusel_o = `EXE_RES_LOAD_STORE;
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
+                mem_load_op = 1;
+                mem_b_op = 1;
             end
             `EXE_LD_HU: begin
                 use_imm = 1'b0;
                 aluop_o  = `EXE_LD_HU_OP;
                 alusel_o = `EXE_RES_LOAD_STORE;
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
+                mem_load_op = 1;
+                mem_h_op = 1;
             end
             `EXE_PRELD: begin
                 use_imm = 1'b0;
@@ -186,6 +216,13 @@ module decoder_2RI12
                 aluop_o = 0;
                 alusel_o = 0;
                 is_pri = 0;
+                is_csr = 0;
+                not_commit_instr = 0;
+                kernel_instr = 0;
+                mem_load_op = 0;
+                mem_store_op = 0;
+                mem_b_op = 0;
+                mem_h_op = 0;
             end
         endcase
     end

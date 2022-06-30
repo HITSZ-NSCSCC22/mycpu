@@ -38,7 +38,16 @@ module decoder_CSR
     // ALU info
     output logic [ ALU_OP_WIDTH-1:0] aluop_o,
     output logic [ALU_SEL_WIDTH-1:0] alusel_o,
-    output logic is_pri
+
+    //special instr judge
+    output logic is_pri,
+    output logic is_csr,
+    output logic not_commit_instr,
+    output logic kernel_instr,
+    output logic mem_load_op,
+    output logic mem_store_op,
+    output logic mem_b_op,
+    output logic mem_h_op
 
 );
 
@@ -63,7 +72,14 @@ module decoder_CSR
         reg_read_addr_o = 10'b0;
         use_imm = 1'b0;
         imm_o = {18'b0, csr_num};
-        is_pri = 0;
+        is_pri            = 0;
+        is_csr = 0;
+        not_commit_instr = 0;
+        kernel_instr = 0;
+        mem_load_op = 0;
+        mem_store_op = 0;
+        mem_b_op = 0;
+        mem_h_op = 0;
         case (instr[31:24])
             `EXE_SPECIAL: begin
                 case (rj)
@@ -71,6 +87,8 @@ module decoder_CSR
                         aluop_o  = `EXE_CSRRD_OP;
                         alusel_o = `EXE_RES_CSR;
                         is_pri = 1;
+                        is_csr = 1;
+                        kernel_instr = 1;
                     end
                     `EXE_CSRWR: begin
                         aluop_o = `EXE_CSRWR_OP;
@@ -78,6 +96,8 @@ module decoder_CSR
                         reg_read_valid_o = 2'b01;
                         reg_read_addr_o = {5'b0, rd};
                         is_pri = 1;
+                        is_csr = 1;
+                        kernel_instr = 1;
                     end
                     default: begin  // EXE_CSRXCHG
                         aluop_o = `EXE_CSRXCHG_OP;
@@ -85,6 +105,8 @@ module decoder_CSR
                         reg_read_valid_o = 2'b11;
                         reg_read_addr_o = {rj, rd};
                         is_pri = 1;
+                        is_csr = 1;
+                        kernel_instr = 1;
                     end
                 endcase
             end
@@ -98,6 +120,13 @@ module decoder_CSR
                 reg_read_addr_o = 0;
                 imm_o = 0;
                 is_pri = 0;
+                is_csr = 0;
+                not_commit_instr = 0;
+                kernel_instr = 0;
+                mem_load_op = 0;
+                mem_store_op = 0;
+                mem_b_op = 0;
+                mem_h_op = 0;
             end
         endcase
     end

@@ -179,6 +179,7 @@ module tlb
     assign data_o.tag    = data_addr_trans_en ? ((s1_ps == 6'd12) ? s1_ppn : {s1_ppn[19:10], data_paddr[21:12]}) : data_paddr[31:12];
 
     //debug用
+`ifdef SIMULATION
     logic dmw0_en, dmw1_en, cacop_test;
     assign dmw0 = data_i.dmw0_en;
     assign dmw1 = data_i.dmw1_en;
@@ -189,5 +190,6 @@ module tlb
 
     logic [2:0] tlbehi_debug;
     assign tlbehi_debug = write_signal_i.tlbehi[15:13];
+`endif
 
 endmodule

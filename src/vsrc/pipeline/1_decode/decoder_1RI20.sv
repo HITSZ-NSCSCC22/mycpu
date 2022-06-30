@@ -38,7 +38,16 @@ module decoder_1RI20
     // ALU info
     output logic [ ALU_OP_WIDTH-1:0] aluop_o,
     output logic [ALU_SEL_WIDTH-1:0] alusel_o,
-    output logic is_pri
+    
+    //special instr judge
+    output logic is_pri,
+    output logic is_csr,
+    output logic not_commit_instr,
+    output logic kernel_instr,
+    output logic mem_load_op,
+    output logic mem_store_op,
+    output logic mem_b_op,
+    output logic mem_h_op
 
 );
 
@@ -63,7 +72,14 @@ module decoder_1RI20
         reg_read_addr_o = 10'b0;
         use_imm = 1'b1;
         imm_o = {imm_20, 12'b0};
-        is_pri = 0;
+        is_pri            = 0;
+        is_csr = 0;
+        not_commit_instr = 0;
+        kernel_instr = 0;
+        mem_load_op = 0;
+        mem_store_op = 0;
+        mem_b_op = 0;
+        mem_h_op = 0;
         case (instr[31:25])
             `EXE_LU12I_W: begin
                 aluop_o  = `EXE_LUI_OP;
@@ -87,6 +103,13 @@ module decoder_1RI20
                 reg_read_addr_o = 0;
                 imm_o = 0;
                 is_pri = 0;
+                is_csr = 0;
+                not_commit_instr = 0;
+                kernel_instr = 0;
+                mem_load_op = 0;
+                mem_store_op = 0;
+                mem_b_op = 0;
+                mem_h_op = 0;
             end
         endcase
     end

@@ -60,6 +60,16 @@ package core_types;
     } branch_update_info_t;
 
     typedef struct packed {
+        logic is_pri;
+        logic is_csr;
+        logic mem_load;
+        logic mem_store;
+        logic mem_b_op;
+        logic mem_h_op;
+        logic not_commit_instr;
+    } special_instr_judge;
+
+    typedef struct packed {
         instr_buffer_info_t instr_info;
 
         // Reg read info
@@ -79,6 +89,8 @@ package core_types;
         logic excp;
         logic [8:0] excp_num;
         logic refetch;
+
+        special_instr_judge spe_instr;
     } id_dispatch_struct;
 
 
@@ -104,6 +116,8 @@ package core_types;
         logic excp;
         logic [8:0] excp_num;
         logic refetch;
+
+        special_instr_judge spe_instr;
     } dispatch_ex_struct;
 
     typedef struct packed {
@@ -134,6 +148,8 @@ package core_types;
         logic cacop_en;
         logic icache_op_en;
         logic [4:0] cacop_op;
+
+        special_instr_judge spe_instr;
     } ex_mem_struct;
 
     // MEM stage data forwarding
@@ -171,6 +187,8 @@ package core_types;
         logic cacop_en;
         logic icache_op_en;
         logic [4:0] cacop_op;
+
+        special_instr_judge spe_instr;
     } mem_wb_struct;
 
     typedef struct packed {
@@ -230,6 +248,8 @@ package core_types;
         logic cacop_en;
         logic icache_op_en;
         logic [4:0] cacop_op;
+
+        special_instr_judge spe_instr;
     } wb_ctrl;
 
     typedef struct packed {

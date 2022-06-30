@@ -38,11 +38,20 @@ module decoder_3R
     // ALU info
     output logic [ ALU_OP_WIDTH-1:0] aluop_o,
     output logic [ALU_SEL_WIDTH-1:0] alusel_o,
-    output logic is_pri,
 
     // Special, 1 means valid
     output logic instr_break,
-    output logic instr_syscall
+    output logic instr_syscall,
+
+    //special instr judge
+    output logic is_pri,
+    output logic is_csr,
+    output logic not_commit_instr,
+    output logic kernel_instr,
+    output logic mem_load_op,
+    output logic mem_store_op,
+    output logic mem_b_op,
+    output logic mem_h_op
 );
 
     logic [DATA_WIDTH-1:0] instr;
@@ -63,12 +72,19 @@ module decoder_3R
         reg_read_addr_o = {rk, rj};
         use_imm = 1'b0;
         imm_o = 0;
-        is_pri = 0;
         instr_break = 0;
         instr_syscall = 0;
         // Default
         aluop_o = `EXE_NOP_OP;
         alusel_o = `EXE_RES_NOP;
+        is_pri            = 0;
+        is_csr = 0;
+        not_commit_instr = 0;
+        kernel_instr = 0;
+        mem_load_op = 0;
+        mem_store_op = 0;
+        mem_b_op = 0;
+        mem_h_op = 0;
         case (instr[31:15])
             // These two do not need GPR
             `EXE_BREAK: begin
@@ -79,6 +95,7 @@ module decoder_3R
                 reg_read_addr_o = 0;
                 instr_break = 1;
                 is_pri = 1;
+                not_commit_instr = 1;
             end
             `EXE_SYSCALL: begin
                 if (instr[14:0] != 15'h11) begin // HACK: in nemu difftest, syscall 0x11 is reserved for a stop signal, so as NOP
@@ -89,6 +106,7 @@ module decoder_3R
                     reg_read_addr_o = 0;
                     instr_syscall = 1;
                     is_pri = 1;
+                    not_commit_instr = 1;
                 end else begin
                     reg_write_valid_o = 0;
                     reg_write_addr_o  = 0;
@@ -181,6 +199,7 @@ module decoder_3R
                 aluop_o  = `EXE_IDLE_OP;
                 alusel_o = `EXE_RES_NOP;
                 is_pri = 1;
+                not_commit_instr = 1;
             end
             `EXE_DBAR, `EXE_IBAR: begin
                 reg_write_valid_o = 0;
@@ -212,6 +231,13 @@ module decoder_3R
                 instr_break = 0;
                 instr_syscall = 0;
                 is_pri = 0;
+                is_csr = 0;
+                not_commit_instr = 0;
+                kernel_instr = 0;
+                mem_load_op = 0;
+                mem_store_op = 0;
+                mem_b_op = 0;
+                mem_h_op = 0;
             end
         endcase
     end

@@ -39,7 +39,16 @@ module decoder_2RI14
     // ALU info
     output logic [ ALU_OP_WIDTH-1:0] aluop_o,
     output logic [ALU_SEL_WIDTH-1:0] alusel_o,
-    output logic is_pri
+
+    //special instr judge
+    output logic is_pri,
+    output logic is_csr,
+    output logic not_commit_instr,
+    output logic kernel_instr,
+    output logic mem_load_op,
+    output logic mem_store_op,
+    output logic mem_b_op,
+    output logic mem_h_op
 
 );
 
@@ -63,7 +72,14 @@ module decoder_2RI14
         reg_read_addr_o = 10'b0;
         use_imm = 1'b1;
         imm_o    = {{18{imm_14[13]}}, imm_14};  // Signed Extension
-        is_pri = 0;
+        is_pri            = 0;
+        is_csr = 0;
+        not_commit_instr = 0;
+        kernel_instr = 0;
+        mem_load_op = 0;
+        mem_store_op = 0;
+        mem_b_op = 0;
+        mem_h_op = 0;
         case (instr[31:24])
             `EXE_LL_W: begin
                 aluop_o = `EXE_LL_OP;
@@ -74,6 +90,7 @@ module decoder_2RI14
                 reg_read_addr_o = {5'b0, rj};
                 use_imm = 1'b0;
                 imm_o    = {{18{imm_14[13]}}, imm_14} << 2;  // Signed Extension and << 2
+                mem_load_op = 1;
             end
             `EXE_SC_W: begin
                 aluop_o = `EXE_SC_OP;
@@ -84,6 +101,7 @@ module decoder_2RI14
                 reg_read_addr_o = {rd, rj};
                 use_imm = 1'b0;
                 imm_o    = {{18{imm_14[13]}}, imm_14} << 2;  // Signed Extension and << 2
+                mem_store_op = 1;
             end
             default: begin
                 use_imm = 1'b0;

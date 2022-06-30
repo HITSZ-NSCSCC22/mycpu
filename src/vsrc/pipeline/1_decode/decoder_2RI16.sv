@@ -39,7 +39,16 @@ module decoder_2RI16
     // ALU info
     output logic [ ALU_OP_WIDTH-1:0] aluop_o,
     output logic [ALU_SEL_WIDTH-1:0] alusel_o,
-    output logic is_pri
+    
+    //special instr judge
+    output logic is_pri,
+    output logic is_csr,
+    output logic not_commit_instr,
+    output logic kernel_instr,
+    output logic mem_load_op,
+    output logic mem_store_op,
+    output logic mem_b_op,
+    output logic mem_h_op
 
 );
 
@@ -64,7 +73,14 @@ module decoder_2RI16
         reg_read_addr_o = {rd, rj};
         use_imm = 1'b0;
         imm_o = {{14{imm_16[15]}}, imm_16, 2'b0};
-        is_pri = 0;
+        is_pri            = 0;
+        is_csr = 0;
+        not_commit_instr = 0;
+        kernel_instr = 0;
+        mem_load_op = 0;
+        mem_store_op = 0;
+        mem_b_op = 0;
+        mem_h_op = 0;
         case (instr[31:26])
             `EXE_JIRL: begin
                 aluop_o = `EXE_JIRL_OP;

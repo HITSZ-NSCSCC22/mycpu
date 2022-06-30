@@ -33,7 +33,16 @@ module decoder_2R
     output logic use_imm,
     output logic [ALU_OP_WIDTH-1:0] aluop_o,
     output logic [ALU_SEL_WIDTH-1:0] alusel_o,
-    output logic is_pri
+
+    //special instr judge
+    output logic is_pri,
+    output logic is_csr,
+    output logic not_commit_instr,
+    output logic kernel_instr,
+    output logic mem_load_op,
+    output logic mem_store_op,
+    output logic mem_b_op,
+    output logic mem_h_op
 
 );
 
@@ -53,33 +62,46 @@ module decoder_2R
         alusel_o          = 0;
         aluop_o           = 0;
         is_pri            = 0;
+        is_csr = 0;
+        not_commit_instr = 0;
+        kernel_instr = 0;
+        mem_load_op = 0;
+        mem_store_op = 0;
+        mem_b_op = 0;
+        mem_h_op = 0;
         case (instr[31:10])
             `EXE_TLBWR: begin
                 decode_result_valid_o = 1;
                 aluop_o               = `EXE_TLBWR_OP;
                 is_pri = 1;
+                kernel_instr = 1;
             end
             `EXE_TLBFILL: begin
                 decode_result_valid_o = 1;
                 aluop_o = `EXE_TLBFILL_OP;
                 is_pri = 1;
+                kernel_instr = 1;
             end
             `EXE_TLBRD: begin
                 decode_result_valid_o = 1;
                 aluop_o = `EXE_TLBRD_OP;
                 is_pri = 1;
+                kernel_instr = 1;
 
             end
             `EXE_TLBSRCH: begin
                 decode_result_valid_o = 1;
                 aluop_o = `EXE_TLBSRCH_OP;
                 is_pri = 1;
+                kernel_instr = 1;
             end
 
             `EXE_ERTN: begin
                 decode_result_valid_o = 1;
                 aluop_o = `EXE_ERTN_OP;
                 is_pri = 1;
+                not_commit_instr = 1;
+                kernel_instr = 1;
             end
             `EXE_RDCNTIDV_W: begin
                 decode_result_valid_o = 1;
@@ -107,6 +129,13 @@ module decoder_2R
                 decode_result_valid_o = 0;
                 aluop_o = 0;
                 is_pri = 0;
+                is_csr = 0;
+                not_commit_instr = 0;
+                kernel_instr = 0;
+                mem_load_op = 0;
+                mem_store_op = 0;
+                mem_b_op = 0;
+                mem_h_op = 0;
             end
         endcase
     end
