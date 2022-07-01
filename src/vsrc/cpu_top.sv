@@ -18,6 +18,9 @@
 `include "pipeline/3_execution/ex.sv"
 `include "pipeline/4_mem/mem.sv"
 `include "pipeline/4_mem/mem_wb.sv"
+`include "Reg/regs_file.sv"
+`include "Reg/last_valid_table.sv"
+`include "Reg/reg_lutram.sv"
 
 module cpu_top 
     import core_types::*;
@@ -689,7 +692,28 @@ module cpu_top
     endgenerate
 
 
-    regfile #(
+    // regfile #(
+    //     .READ_PORTS(4)  // 2 for each ID, 2 ID in total, TODO: remove magic number
+    // ) u_regfile (
+    //     .clk(clk),
+
+    //     .we_1   (reg_o[0].we),
+    //     .pc_i_1 (reg_o[0].pc),
+    //     .waddr_1(reg_o[0].waddr),
+    //     .wdata_1(reg_o[0].wdata),
+    //     .we_2   (reg_o[1].we),
+    //     .pc_i_2 (reg_o[1].pc),
+    //     .waddr_2(reg_o[1].waddr),
+    //     .wdata_2(reg_o[1].wdata),
+
+    //     // Read signals
+    //     // Registers are read in dispatch stage
+    //     .read_valid_i(dispatch_regfile_reg_read_valid),
+    //     .read_addr_i (dispatch_regfile_reg_read_addr),
+    //     .read_data_o (regfile_dispatch_reg_read_data)
+    // );
+
+    regs_file #(
         .READ_PORTS(4)  // 2 for each ID, 2 ID in total, TODO: remove magic number
     ) u_regfile (
         .clk(clk),
