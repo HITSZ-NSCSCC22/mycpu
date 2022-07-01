@@ -40,8 +40,9 @@ module ex
 
     output ex_dispatch_struct ex_data_forward,
 
-    // -> Cache
+    // <-> Cache
     output logic icacop_op_en,
+    input logic icacop_op_ack_i,
     output logic dcacop_op_en,
     output logic [1:0] cacop_op_mode,
 
@@ -284,7 +285,8 @@ module ex
     );
 
 
-    assign stallreq = muldiv_op & ~muldiv_finished;
+    assign stallreq = (muldiv_op & ~muldiv_finished) | // Multiply & Division
+                (icacop_inst & ~icacop_op_ack_i); // CACOP
     assign tlb_stallreq = aluop_i == `EXE_TLBRD_OP | aluop_i == `EXE_TLBSRCH_OP;
 
     always @(*) begin

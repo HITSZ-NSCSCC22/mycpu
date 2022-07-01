@@ -17,7 +17,8 @@
         "**/*"
     ],
     "todo-tree.filtering.useBuiltInExcludes": "file and search excludes",
-    "systemverilogFormatter.veribleBuild": "Ubuntu-20.04-focal-x86_64",
+    "systemverilogFormatter.veribleBuild": "none",
     "systemverilogFormatter.commandLineArguments": "--indentation_spaces 4",
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "verilog.ctags.path": "ctags"
 }

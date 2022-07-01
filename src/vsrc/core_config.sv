@@ -4,11 +4,11 @@
 
 package core_config;
 
+    // Global parameters
     parameter ADDR_WIDTH = 32;
     parameter DATA_WIDTH = 32;
     parameter INSTR_WIDTH = 32;
     parameter GPR_NUM = 32;
-
 
     // Frontend Parameters
     parameter FETCH_WIDTH = 4;
@@ -17,6 +17,10 @@ package core_config;
 
 
     parameter DECODE_WIDTH = 2;
+
+    // ICache parameters
+    parameter ICACHE_NWAY = 2;
+    parameter ICACHE_NSET = 256;
 
     // Commit Parameters
     parameter COMMIT_WIDTH = 2;

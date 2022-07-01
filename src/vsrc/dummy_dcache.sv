@@ -12,6 +12,7 @@ module dummy_dcache (
     input logic [3:0] wstrb,  //写字节使能信号
     input logic [31:0] wdata,  //写数据
     input logic [2:0] rd_type_i, //读请求类型：3'b000: 字节；3'b001: 半字；3'b010: 字；3'b100：Cache行
+    input logic [2:0] wr_type_i,
     input logic flush_i, // 冲刷信号，如果出于某种原因需要取消写事务，CPU拉高此信号
     output logic addr_ok,             //该次请求的地址传输OK，读：地址被接收；写：地址和数据被接收
     output logic data_ok,             //该次请求的数据传输Ok，读：数据返回；写：数据写入完成
@@ -97,8 +98,8 @@ module dummy_dcache (
     end
 
 
-    assign rd_type = rd_type_i;
-    assign wr_type = 3'b010;  // word
+    assign rd_type = (uncache==0)?rd_type_i:3'b100;
+    assign wr_type = (uncache==0)?wr_type_i:3'b100;  // word
     always_comb begin
         // Default signal
         rd_addr  = 0;
