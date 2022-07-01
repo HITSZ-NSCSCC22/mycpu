@@ -40,6 +40,12 @@ module mem
 
 );
 
+    // Assign input /////////////////////////////
+    instr_info_t   instr_info;
+    special_info_t special_info;
+    assign instr_info   = signal_i.instr_info;
+    assign special_info = signal_i.instr_info.special_info;
+
     logic [63:0] timer_test;
     assign timer_test = signal_i.timer_64;
 
@@ -47,8 +53,8 @@ module mem
     assign csr_test = signal_i.csr_signal;
 
     reg LLbit;
-    logic access_mem,mem_store_op,mem_load_op;
-    logic cacop_en,icache_op_en;
+    logic access_mem, mem_store_op, mem_load_op;
+    logic cacop_en, icache_op_en;
     logic [4:0] cacop_op;
     assign cacop_en = signal_i.cacop_en;
     assign icache_op_en = signal_i.icache_op_en;
@@ -69,10 +75,10 @@ module mem
     assign mem_addr = signal_i.mem_addr;
     assign reg2_i   = signal_i.reg2;
 
-    logic excp_i;
+    logic excp;
     logic [9:0] excp_num_i;
-    assign excp_i = signal_i.excp;
-    assign excp_num_i = signal_i.excp_num;
+    assign excp = instr_info.excp;
+    assign excp_num_i = instr_info.excp_num;
 
     // Send request to TLB, so result can be used in WB
     assign tlbsrch_en_o = aluop_i == `EXE_TLBSRCH_OP;
@@ -112,10 +118,6 @@ module mem
     // Data forward
     assign mem_data_forward_o = {mem_load_op, signal_o.wreg, signal_o.waddr, signal_o.wdata};
 
-    assign signal_o.excp = excp_i;
-    assign signal_o.excp_num = excp_num_i;
-    assign signal_o.refetch = signal_i.refetch;
-
     always @(*) begin
         if (rst == `RstEnable) LLbit = 1'b0;
         else begin
@@ -144,7 +146,7 @@ module mem
         signal_o.cacop_en = cacop_en;
         signal_o.icache_op_en = icache_op_en;
         signal_o.cacop_op = cacop_op;
-        signal_o.special_instr = signal_i.special_instr;
+        signal_o.instr_info.special_info = special_info;
         case (aluop_i)
             `EXE_LD_B_OP: begin
                 signal_cache_o.addr = mem_addr;

@@ -318,7 +318,7 @@ module cpu_top
 
     // Frontend <-> Instruction Buffer
     logic ib_frontend_stallreq;
-    instr_buffer_info_t frontend_ib_instr_info[FETCH_WIDTH];
+    instr_info_t frontend_ib_instr_info[FETCH_WIDTH];
     logic [`RegBus] next_pc;
 
     // Frontend <-> Backend 
@@ -362,7 +362,7 @@ module cpu_top
         .tlb_i(tlb_inst)
     );
 
-    instr_buffer_info_t ib_backend_instr_info[2];  // IB -> ID
+    instr_info_t ib_backend_instr_info[2];  // IB -> ID
     logic [4:0] stall; // from 4->0 {mem_wb, ex_mem, dispatch_ex, id_dispatch, _}
 
     logic [1:0] dispatch_ib_accept;
@@ -634,7 +634,7 @@ module cpu_top
                 .rst  (rst),
                 .stall(stall[4]),
 
-                .mem_signal_o(mem_signal_o[i]),
+                .mem_i(mem_signal_o[i]),
 
                 .mem_LLbit_we(mem_wb_LLbit_we[i]),
                 .mem_LLbit_value(mem_wb_LLbit_value[i]),
@@ -894,7 +894,6 @@ module cpu_top
     logic [`InstBus] excp_instr_commit;
     logic tlbfill_en_commit;
     logic [4:0] rand_index_commit;
-`endif 
 
     always_ff @(posedge clk) begin 
         excp_flush_commit <= excp_flush;
@@ -905,6 +904,7 @@ module cpu_top
         tlbfill_en_commit <= tlb_write_signal_i.tlbfill_en;
         rand_index_commit <= rand_index_diff;
     end
+`endif 
     // difftest dpi-c
 `ifdef SIMU  // SIMU is defined in chiplab run_func/makefile
     DifftestInstrCommit difftest_instr_commit_0 (  

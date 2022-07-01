@@ -1,5 +1,6 @@
 `include "defines.sv"
 `include "core_types.sv"
+`include "core_config.sv"
 
 // decoder_2RI12 is the decoder for 2RI12-type instructions
 // 2RI12-type {opcode[10], imm[12] ,rj[5], rd[5]}
@@ -7,14 +8,12 @@
 // all combinational circuit
 module decoder_2RI12
     import core_types::*;
+    import core_config::*;
 #(
-    parameter ADDR_WIDTH = 32,
-    parameter DATA_WIDTH = 32,
-    parameter GPR_NUM = 32,
-    parameter ALU_OP_WIDTH = 8,
+    parameter ALU_OP_WIDTH  = 8,
     parameter ALU_SEL_WIDTH = 3
 ) (
-    input instr_buffer_info_t instr_info_i,
+    input logic [INSTR_WIDTH-1:0] instr_i,
 
     // indicates current decoder module result is valid or not
     // 1 means valid
@@ -39,20 +38,13 @@ module decoder_2RI12
     output logic [ ALU_OP_WIDTH-1:0] aluop_o,
     output logic [ALU_SEL_WIDTH-1:0] alusel_o,
 
-    //special instr judge
-    output logic is_pri,
-    output logic is_csr,
-    output logic not_commit_instr,
+    // Special info
     output logic kernel_instr,
-    output logic mem_load_op,
-    output logic mem_store_op,
-    output logic mem_b_op,
-    output logic mem_h_op
-
+    output special_info_t special_info_o
 );
 
     logic [DATA_WIDTH-1:0] instr;
-    assign instr = instr_info_i.instr;
+    assign instr = instr_i;
 
     // 2 Registers
     logic [4:0] rd, rj;
@@ -66,20 +58,16 @@ module decoder_2RI12
     always_comb begin
         // Default decode
         decode_result_valid_o = 1;
-        reg_write_valid_o = 1;
-        reg_write_addr_o = rd;
-        reg_read_valid_o = 2'b01;
-        reg_read_addr_o = {5'b0, rj};
-        use_imm = 1'b1;
-        imm_o = 0;
-        is_pri            = 0;
-        is_csr = 0;
-        not_commit_instr = 0;
-        kernel_instr = 0;
-        mem_load_op = 0;
-        mem_store_op = 0;
-        mem_b_op = 0;
-        mem_h_op = 0;
+        aluop_o               = 0;
+        alusel_o              = 0;
+        reg_write_valid_o     = 1;
+        reg_write_addr_o      = rd;
+        reg_read_valid_o      = 2'b01;
+        reg_read_addr_o       = {5'b0, rj};
+        use_imm               = 1'b1;
+        imm_o                 = 0;
+        kernel_instr          = 0;
+        special_info_o        = 0;
         case (instr[31:22])
             `EXE_SLTI: begin
                 aluop_o  = `EXE_SLT_OP;
@@ -116,23 +104,23 @@ module decoder_2RI12
                 aluop_o  = `EXE_LD_B_OP;
                 alusel_o = `EXE_RES_LOAD_STORE;
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
-                mem_load_op = 1;
-                mem_b_op = 1;
+                special_info_o.mem_load = 1;
+                special_info_o.mem_b_op = 1;
             end
             `EXE_LD_H: begin
                 use_imm = 1'b0;
                 aluop_o  = `EXE_LD_H_OP;
                 alusel_o = `EXE_RES_LOAD_STORE;
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
-                mem_load_op = 1;
-                mem_h_op = 1;
+                special_info_o.mem_load = 1;
+                special_info_o.mem_h_op = 1;
             end
             `EXE_LD_W: begin
                 use_imm = 1'b0;
                 aluop_o  = `EXE_LD_W_OP;
                 alusel_o = `EXE_RES_LOAD_STORE;
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
-                mem_load_op = 1;
+                special_info_o.mem_load = 1;
             end
             `EXE_ST_B: begin
                 use_imm = 1'b0;
@@ -144,8 +132,8 @@ module decoder_2RI12
                 reg_read_valid_o = 2'b11;
                 reg_read_addr_o = {rd, rj};
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
-                mem_store_op = 1;
-                mem_b_op = 1;
+                special_info_o.mem_store = 1;
+                special_info_o.mem_b_op = 1;
             end
             `EXE_ST_H: begin
                 use_imm = 1'b0;
@@ -157,8 +145,8 @@ module decoder_2RI12
                 reg_read_valid_o = 2'b11;
                 reg_read_addr_o = {rd, rj};
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
-                mem_store_op = 1;
-                mem_h_op = 1;
+                special_info_o.mem_store = 1;
+                special_info_o.mem_h_op = 1;
             end
             `EXE_ST_W: begin
                 use_imm = 1'b0;
@@ -170,41 +158,45 @@ module decoder_2RI12
                 reg_read_valid_o = 2'b11;
                 reg_read_addr_o = {rd, rj};
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
-                mem_store_op = 1;
+                special_info_o.mem_store = 1;
             end
             `EXE_LD_BU: begin
                 use_imm = 1'b0;
                 aluop_o  = `EXE_LD_BU_OP;
                 alusel_o = `EXE_RES_LOAD_STORE;
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
-                mem_load_op = 1;
-                mem_b_op = 1;
+                special_info_o.mem_load = 1;
+                special_info_o.mem_b_op = 1;
             end
             `EXE_LD_HU: begin
                 use_imm = 1'b0;
                 aluop_o  = `EXE_LD_HU_OP;
                 alusel_o = `EXE_RES_LOAD_STORE;
                 imm_o    = {{20{imm_12[11]}}, imm_12};  // Signed Extension
-                mem_load_op = 1;
-                mem_h_op = 1;
+                special_info_o.mem_load = 1;
+                special_info_o.mem_h_op = 1;
             end
             `EXE_PRELD: begin
                 use_imm = 1'b0;
                 reg_write_valid_o = 0;
                 reg_write_addr_o = 0;
+                reg_read_valid_o = 0;
+                reg_read_addr_o = 0;
                 aluop_o = `EXE_NOP_OP;
                 alusel_o = `EXE_RES_NOP;
             end
             `EXE_CACOP: begin
-                reg_write_valid_o = 0;
-                reg_write_addr_o = 0;
-                reg_read_valid_o = 2'b00;
-                reg_read_addr_o = {5'b0, rj};
-                use_imm = 1'b1;
-                aluop_o = `EXE_CACOP_OP;
-                alusel_o = `EXE_RES_NOP;
-                imm_o = {{20{imm_12[11]}}, imm_12};  // Signed Extension
-                is_pri = 1;
+                reg_write_valid_o           = 0;
+                reg_write_addr_o            = 0;
+                reg_read_valid_o            = 2'b00;
+                reg_read_addr_o             = {5'b0, rj};
+                use_imm                     = 1'b1;
+                aluop_o                     = `EXE_CACOP_OP;
+                alusel_o                    = `EXE_RES_NOP;
+                imm_o                       = {{20{imm_12[11]}}, imm_12};  // Signed Extension
+                kernel_instr                = 1;
+                special_info_o.is_pri       = 1;
+                special_info_o.need_refetch = 1;  // CACOP may invalid ICache
             end
             default: begin
                 use_imm = 1'b0;
@@ -213,16 +205,6 @@ module decoder_2RI12
                 reg_write_addr_o = 0;
                 reg_read_valid_o = 0;
                 reg_read_addr_o = 0;
-                aluop_o = 0;
-                alusel_o = 0;
-                is_pri = 0;
-                is_csr = 0;
-                not_commit_instr = 0;
-                kernel_instr = 0;
-                mem_load_op = 0;
-                mem_store_op = 0;
-                mem_b_op = 0;
-                mem_h_op = 0;
             end
         endcase
     end

@@ -1,5 +1,6 @@
 `include "defines.sv"
 `include "core_types.sv"
+`include "core_config.sv"
 
 // decoder_2RI16 is the decoder for 2RI16-type instructions
 // 2RI16-type {opcode[6], imm[16] ,rj[5], rd[5]}
@@ -7,14 +8,12 @@
 // all combinational circuit
 module decoder_2RI16
     import core_types::*;
+    import core_config::*;
 #(
-    parameter ADDR_WIDTH = 32,
-    parameter DATA_WIDTH = 32,
-    parameter GPR_NUM = 32,
-    parameter ALU_OP_WIDTH = 8,
+    parameter ALU_OP_WIDTH  = 8,
     parameter ALU_SEL_WIDTH = 3
 ) (
-    input instr_buffer_info_t instr_info_i,
+    input logic [INSTR_WIDTH-1:0] instr_i,
 
     // indicates current decoder module result is valid or not
     // 1 means valid
@@ -39,21 +38,14 @@ module decoder_2RI16
     // ALU info
     output logic [ ALU_OP_WIDTH-1:0] aluop_o,
     output logic [ALU_SEL_WIDTH-1:0] alusel_o,
-    
-    //special instr judge
-    output logic is_pri,
-    output logic is_csr,
-    output logic not_commit_instr,
-    output logic kernel_instr,
-    output logic mem_load_op,
-    output logic mem_store_op,
-    output logic mem_b_op,
-    output logic mem_h_op
 
+    // Special info
+    output logic kernel_instr,
+    output special_info_t special_info_o
 );
 
     logic [DATA_WIDTH-1:0] instr;
-    assign instr = instr_info_i.instr;
+    assign instr = instr_i;
 
     // 3 Registers
     logic [4:0] rd, rj;
@@ -67,20 +59,14 @@ module decoder_2RI16
     always_comb begin
         // Default decode
         decode_result_valid_o = 1;
-        reg_write_valid_o = 0;
-        reg_write_addr_o = 0;
-        reg_read_valid_o = 2'b11;
-        reg_read_addr_o = {rd, rj};
-        use_imm = 1'b0;
-        imm_o = {{14{imm_16[15]}}, imm_16, 2'b0};
-        is_pri            = 0;
-        is_csr = 0;
-        not_commit_instr = 0;
-        kernel_instr = 0;
-        mem_load_op = 0;
-        mem_store_op = 0;
-        mem_b_op = 0;
-        mem_h_op = 0;
+        reg_write_valid_o     = 0;
+        reg_write_addr_o      = 0;
+        reg_read_valid_o      = 2'b11;
+        reg_read_addr_o       = {rd, rj};
+        use_imm               = 1'b0;
+        imm_o                 = {{14{imm_16[15]}}, imm_16, 2'b0};
+        kernel_instr          = 0;
+        special_info_o        = 0;
         case (instr[31:26])
             `EXE_JIRL: begin
                 aluop_o = `EXE_JIRL_OP;
@@ -123,7 +109,6 @@ module decoder_2RI16
                 aluop_o = 0;
                 alusel_o = 0;
                 imm_o = 0;
-                is_pri = 0;
             end
         endcase
     end

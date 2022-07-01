@@ -37,7 +37,7 @@ module ifu
 
     // <-> Frontend <-> Instruction Buffer
     input logic stallreq_i,
-    output instr_buffer_info_t instr_buffer_o[FETCH_WIDTH]
+    output instr_info_t instr_buffer_o[FETCH_WIDTH]
 );
     // P0 signal
     logic p0_send_rreq, p0_send_rreq_delay1;
@@ -220,9 +220,10 @@ module ifu
                     // Exception info
                     instr_buffer_o[i].excp <= excp_tlbr[i] | excp_pif[i] | excp_ppi[i] | excp_adef[i];
                     instr_buffer_o[i].excp_num <= {
-                        excp_ppi[i], excp_pif[i], excp_tlbr[i], excp_adef[i]
+                        11'b0, excp_ppi[i], excp_pif[i], excp_tlbr[i], excp_adef[i], 1'b0
                     };
                     instr_buffer_o[i].ftq_id <= p1_read_transaction.ftq_id;
+                    instr_buffer_o[i].ftq_block_idx <= i;
                 end else begin
                     instr_buffer_o[i] <= 0;
                 end

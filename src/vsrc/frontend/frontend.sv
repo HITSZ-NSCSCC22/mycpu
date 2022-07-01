@@ -31,7 +31,7 @@ module frontend
 
     // <-> Instruction buffer
     input logic instr_buffer_stallreq_i,
-    output instr_buffer_info_t instr_buffer_o[FETCH_WIDTH],
+    output instr_info_t instr_buffer_o[FETCH_WIDTH],
 
     // <- CSR
     input logic csr_pg,
@@ -122,7 +122,7 @@ module frontend
     );
 
 
-    instr_buffer_info_t ifu_instr_output[FETCH_WIDTH];
+    instr_info_t ifu_instr_output[FETCH_WIDTH];
     assign instr_buffer_o = instr_buffer_stallreq_i ? '{FETCH_WIDTH{0}} : ifu_instr_output;
     ifu u_ifu (
         .clk(clk),
