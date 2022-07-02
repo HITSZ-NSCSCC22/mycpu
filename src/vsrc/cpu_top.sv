@@ -716,9 +716,9 @@ module cpu_top
         .clk(clk),
 
         // Write signals
-        .we_i({reg_o[0].we, reg_o[1].we}),
-        .waddr_i({reg_o[0].waddr, reg_o[1].waddr}),
-        .wdata_i({reg_o[0].wdata, reg_o[1].wdata}),
+        .we_i({reg_o[1].we, reg_o[0].we}),
+        .waddr_i({reg_o[1].waddr, reg_o[0].waddr}),
+        .wdata_i({reg_o[1].wdata, reg_o[0].wdata}),
 
         // Read signals
         // Registers are read in dispatch stage
