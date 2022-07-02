@@ -154,16 +154,12 @@ module ex
     assign access_mem = mem_load_op | mem_store_op;
 
     assign mem_load_op = special_info.mem_load;
-    // assign mem_load_op = aluop_i == `EXE_LD_B_OP ||  aluop_i == `EXE_LD_BU_OP ||  aluop_i == `EXE_LD_H_OP ||  aluop_i == `EXE_LD_HU_OP ||
-    // aluop_i == `EXE_LD_W_OP ||  aluop_i == `EXE_LL_OP;
+
 
     assign mem_store_op = special_info.mem_store;
     assign mem_b_op = special_info.mem_b_op;
     assign mem_h_op = special_info.mem_h_op;
-    // assign mem_store_op = aluop_i == `EXE_ST_B_OP ||  aluop_i == `EXE_ST_H_OP ||  aluop_i == `EXE_ST_W_OP ||  aluop_i == `EXE_SC_OP;
-    // assign mem_b_op = aluop_i == `EXE_LD_B_OP | aluop_i == `EXE_LD_BU_OP | aluop_i == `EXE_ST_B_OP;
-    // assign mem_h_op = aluop_i == `EXE_LD_H_OP | aluop_i == `EXE_LD_HU_OP | aluop_i == `EXE_ST_H_OP;
-
+    
     always @(*) begin
         if (rst == `RstEnable) begin
             logicout = `ZeroWord;
