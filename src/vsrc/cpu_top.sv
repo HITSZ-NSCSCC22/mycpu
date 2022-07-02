@@ -1,5 +1,4 @@
 `include "defines.sv"
-`include "regfile.sv"
 `include "csr_defines.sv"
 `include "cs_reg.sv"
 `include "TLB/tlb.sv"
@@ -19,8 +18,6 @@
 `include "pipeline/4_mem/mem.sv"
 `include "pipeline/4_mem/mem_wb.sv"
 `include "Reg/regs_file.sv"
-`include "Reg/last_valid_table.sv"
-`include "Reg/reg_lutram.sv"
 
 module cpu_top 
     import core_types::*;
@@ -718,14 +715,10 @@ module cpu_top
     ) u_regfile (
         .clk(clk),
 
-        .we_1   (reg_o[0].we),
-        .pc_i_1 (reg_o[0].pc),
-        .waddr_1(reg_o[0].waddr),
-        .wdata_1(reg_o[0].wdata),
-        .we_2   (reg_o[1].we),
-        .pc_i_2 (reg_o[1].pc),
-        .waddr_2(reg_o[1].waddr),
-        .wdata_2(reg_o[1].wdata),
+        // Write signals
+        .we_i({reg_o[0].we, reg_o[1].we}),
+        .waddr_i({reg_o[0].waddr, reg_o[1].waddr}),
+        .wdata_i({reg_o[0].wdata, reg_o[1].wdata}),
 
         // Read signals
         // Registers are read in dispatch stage

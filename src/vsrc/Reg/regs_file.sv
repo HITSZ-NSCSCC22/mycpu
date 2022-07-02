@@ -1,23 +1,22 @@
 `include "defines.sv"
+`include "core_config.sv"
 `include "Reg/last_valid_table.sv"
 `include "Reg/reg_lutram.sv"
 
 // Regfile is the architectural register file
 // No hardware reset to generate LUTRAM, is allowed in manual
-module regs_file #(
+module regs_file
+    import core_config::*;
+#(
     parameter WRITE_PORTS = 2,
-    parameter READ_PORTS = 4
+    parameter READ_PORTS  = 4
 ) (
     input wire clk,
 
-    input wire [`InstAddrBus] pc_i_1,
-    input wire we_1,
-    input wire [`RegAddrBus] waddr_1,
-    input wire [`RegBus] wdata_1,
-    input wire [`InstAddrBus] pc_i_2,
-    input wire we_2,
-    input wire [`RegAddrBus] waddr_2,
-    input wire [`RegBus] wdata_2,
+    // Write signals
+    input logic [WRITE_PORTS-1:0] we_i,
+    input logic [WRITE_PORTS-1:0][$clog2(GPR_NUM)-1:0] waddr_i,
+    input logic [WRITE_PORTS-1:0][DATA_WIDTH-1:0] wdata_i,
 
     // Read signals, all packed
     input logic [READ_PORTS-1:0] read_valid_i,
@@ -25,54 +24,70 @@ module regs_file #(
     output logic [READ_PORTS-1:0][`RegBus] read_data_o
 );
 
-    logic [READ_PORTS-1:0] read_valid_bit;        
+    logic [READ_PORTS-1:0] read_valid_bit;  // Indicates where the "live" value is in
     logic [WRITE_PORTS-1:0][READ_PORTS-1:0][`RegBus] rdata_buffer;
 
-    last_valid_table u_lvt(
+`ifdef SIMU
+    // Difftest
+    logic [WRITE_PORTS-1:0][GPR_NUM-1:0][DATA_WIDTH-1:0] write_bank_regs;
+    logic [DATA_WIDTH-1:0] regs[GPR_NUM-1:0];
+    always_comb begin
+        for (integer i = 0; i < GPR_NUM; i++) begin
+            // HACK: have to do manually, since verilator cannot find definition if using write_bank[j]
+            write_bank_regs[0][i] = write_bank[0].read_bank[0].u_reg_lutram.ram[i];
+            write_bank_regs[1][i] = write_bank[1].read_bank[0].u_reg_lutram.ram[i];
+            regs[i] = write_bank_regs[u_lvt.ram[i]][i];
+        end
+    end
+`endif
+
+    last_valid_table u_lvt (
         .clk(clk),
-        .we({we_2,we_1}),
-        .waddr({waddr_2,waddr_1}),
+        .we(we_i),
+        .waddr(waddr_i),
         .raddr(read_addr_i),
         .rdata(read_valid_bit)
     );
 
 
-    for (genvar i = 0; i < READ_PORTS; i = i + 1) begin
-        reg_lutram u_reg_lutram_1 (
-            .clk(clk),
+    generate
+        for (genvar write_idx = 0; write_idx < WRITE_PORTS; write_idx++) begin : write_bank
+            for (genvar read_idx = 0; read_idx < READ_PORTS; read_idx++) begin : read_bank
+                reg_lutram u_reg_lutram (
+                    .clk(clk),
 
-            //write-port
-            .wen(we_1),
-            .waddr(waddr_1),
-            .wdata(wdata_1),
+                    // Write port
+                    .wen  (we_i[write_idx]),
+                    .waddr(waddr_i[write_idx]),
+                    .wdata(wdata_i[write_idx]),
 
-            .raddr(read_addr_i[i]),
-            .rdata(rdata_buffer[0][i])
-        );
-    end
-
-    for (genvar i = 0; i < READ_PORTS; i = i + 1) begin
-        reg_lutram u_reg_lutram_2 (
-            .clk(clk),
-
-            //write-port
-            .wen(we_2),
-            .waddr(waddr_2),
-            .wdata(wdata_2),
-
-            .raddr(read_addr_i[i]),
-            .rdata(rdata_buffer[1][i])
-        );
-    end
+                    .raddr(read_addr_i[read_idx]),
+                    .rdata(rdata_buffer[write_idx][read_idx])
+                );
+            end
+        end
+    endgenerate
 
     // Read Logic
     always_comb begin : read_comb
-        for (integer i = 0; i < READ_PORTS; i++) begin
-            if (read_addr_i[i] == 0) read_data_o[i] = `ZeroWord;  // r0 is always zero
-            else if (waddr_2 == read_addr_i[i] && we_2)read_data_o[i] = wdata_2;  // port 2 has higher priority
-            else if (waddr_1 == read_addr_i[i] && we_1) read_data_o[i] = wdata_1;
-            else if (read_valid_i[i]) read_data_o[i] = read_valid_bit[i] ? rdata_buffer[1][i] : rdata_buffer[0][i];  // Read reg when valid
-            else read_data_o[i] = `ZeroWord;  // Else zero
+        for (integer read_idx = 0; read_idx < READ_PORTS; read_idx++) begin
+            // Normal read
+            if (read_addr_i[read_idx] == 0) read_data_o[read_idx] = 0;  // r0 is always zero
+            else begin
+                // Read regfile
+                // out = rdata_buffer[i][j], i = read_valid_bit[read_idx], j = read_idx
+                read_data_o[read_idx] = rdata_buffer[read_valid_bit[read_idx]][read_idx];
+            end
+
+            // If read while write, do bypass
+            // Higher write port index has higher priority
+            for (integer write_idx = 0; write_idx < WRITE_PORTS; write_idx++) begin
+                if (we_i[write_idx] && waddr_i[write_idx] == read_addr_i[read_idx])
+                    read_data_o[read_idx] = wdata_i[write_idx];
+            end
+
+            // Last thing to do, if no read_valid, always zero
+            if (read_valid_i[read_idx] == 0) read_data_o[read_idx] = 0;
         end
     end
 
