@@ -71,13 +71,9 @@ module regs_file
     // Read Logic
     always_comb begin : read_comb
         for (integer read_idx = 0; read_idx < READ_PORTS; read_idx++) begin
-            // Normal read
-            if (read_addr_i[read_idx] == 0) read_data_o[read_idx] = 0;  // r0 is always zero
-            else begin
-                // Read regfile
-                // out = rdata_buffer[i][j], i = read_valid_bit[read_idx], j = read_idx
-                read_data_o[read_idx] = rdata_buffer[read_valid_bit[read_idx]][read_idx];
-            end
+            // Normal read regfile
+            // out = rdata_buffer[i][j], i = read_valid_bit[read_idx], j = read_idx
+            read_data_o[read_idx] = rdata_buffer[read_valid_bit[read_idx]][read_idx];
 
             // If read while write, do bypass
             // Higher write port index has higher priority
@@ -86,6 +82,8 @@ module regs_file
                     read_data_o[read_idx] = wdata_i[write_idx];
             end
 
+            // r0 is always zero
+            if (read_addr_i[read_idx] == 0) read_data_o[read_idx] = 0;
             // Last thing to do, if no read_valid, always zero
             if (read_valid_i[read_idx] == 0) read_data_o[read_idx] = 0;
         end

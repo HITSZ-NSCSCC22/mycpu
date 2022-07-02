@@ -153,13 +153,13 @@ module ctrl
     end
 
     //判断提交的是否为特权指令,因为特权后不发射其它指令,故必然出现在第一条流水线
-
-    assign pri_commit = aluop == `EXE_CSRWR_OP | aluop == `EXE_CSRRD_OP | aluop == `EXE_CSRXCHG_OP |
-                       aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_ERTN_OP |
-                       aluop == `EXE_TLBRD_OP | aluop == `EXE_TLBWR_OP | aluop == `EXE_TLBSRCH_OP |
-                       aluop == `EXE_TLBFILL_OP | aluop == `EXE_IDLE_OP | aluop == `EXE_INVTLB_OP |
-                       aluop == `EXE_RDCNTID_OP | aluop == `EXE_RDCNTVL_OP | aluop == `EXE_RDCNTVH_OP |
-                       aluop == `EXE_CACOP_OP ;
+    assign pri_commit = wb_i[0].special_instr.is_pri;
+    // assign pri_commit = aluop == `EXE_CSRWR_OP | aluop == `EXE_CSRRD_OP | aluop == `EXE_CSRXCHG_OP |
+    //                    aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_ERTN_OP |
+    //                    aluop == `EXE_TLBRD_OP | aluop == `EXE_TLBWR_OP | aluop == `EXE_TLBSRCH_OP |
+    //                    aluop == `EXE_TLBFILL_OP | aluop == `EXE_IDLE_OP | aluop == `EXE_INVTLB_OP |
+    //                    aluop == `EXE_RDCNTID_OP | aluop == `EXE_RDCNTVL_OP | aluop == `EXE_RDCNTVH_OP |
+    //                    aluop == `EXE_CACOP_OP ;
 
     //特权阻塞信号
     always_ff @(posedge clk) begin
