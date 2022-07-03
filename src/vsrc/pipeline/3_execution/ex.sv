@@ -58,7 +58,7 @@ module ex
     reg [`RegBus] logicout;
     reg [`RegBus] shiftout;
     reg [`RegBus] moveout;
-    reg [DATA_WIDTH-1:0] arithout;
+    reg [63:0] arithout;
 
     ex_mem_struct ex_o;
 
@@ -159,7 +159,7 @@ module ex
     assign mem_store_op = special_info.mem_store;
     assign mem_b_op = special_info.mem_b_op;
     assign mem_h_op = special_info.mem_h_op;
-    
+
     always @(*) begin
         if (rst == `RstEnable) begin
             logicout = `ZeroWord;
@@ -281,8 +281,8 @@ module ex
     );
 
 
-    assign stallreq = (muldiv_op & ~muldiv_finished) | // Multiply & Division
-                (icacop_inst & ~icacop_op_ack_i); // CACOP
+    assign stallreq = (icacop_inst & ~icacop_op_ack_i);  // CACOP
+    //(muldiv_op & ~muldiv_finished) | // Multiply & Division
     assign tlb_stallreq = aluop_i == `EXE_TLBRD_OP | aluop_i == `EXE_TLBSRCH_OP;
 
     always @(*) begin
@@ -290,11 +290,20 @@ module ex
             arithout = 0;
         end else begin
             case (aluop_i)
-                `EXE_ADD_OP: arithout = reg1_i + reg2_i;
-                `EXE_SUB_OP: arithout = reg1_i - reg2_i;
-                `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP,`EXE_MUL_OP,`EXE_MULH_OP,`EXE_MULHU_OP: begin
-                    // Select result from multi-cycle divider
-                    arithout = muldiv_result;
+                `EXE_ADD_OP:   arithout = reg1_i + reg2_i;
+                `EXE_SUB_OP:   arithout = reg1_i - reg2_i;
+                // `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP,`EXE_MUL_OP,`EXE_MULH_OP,`EXE_MULHU_OP: begin
+                //     // Select result from multi-cycle divider
+                //     arithout = muldiv_result;
+                // end
+                `EXE_MUL_OP:   arithout = $signed(reg1_i) * $signed(reg2_i);
+                `EXE_MULH_OP:  arithout = ($signed(reg1_i) * $signed(reg2_i)) >> 32;
+                `EXE_MULHU_OP: arithout = ($unsigned(reg1_i) * $unsigned(reg2_i)) >> 32;
+                `EXE_DIV_OP:   arithout = ($signed(reg1_i) / $signed(reg2_i));
+                `EXE_DIVU_OP:  arithout = ($unsigned(reg1_i) / $unsigned(reg2_i));
+                `EXE_MODU_OP:  arithout = ($unsigned(reg1_i) % $unsigned(reg2_i));
+                `EXE_MOD_OP: begin
+                    arithout = ($signed(reg1_i) % $signed(reg2_i));
                 end
 
                 `EXE_SLT_OP, `EXE_SLTU_OP: arithout = {31'b0, reg1_lt_reg2};
