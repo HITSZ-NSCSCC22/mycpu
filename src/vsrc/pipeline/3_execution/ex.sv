@@ -2,6 +2,9 @@
 `include "core_config.sv"
 `include "csr_defines.sv"
 `include "muldiv/mul.sv"
+`include "muldiv/mul_unit.sv"
+`include "muldiv/div_unit.sv"
+
 
 module ex
     import core_types::*;
@@ -159,7 +162,7 @@ module ex
     assign mem_store_op = special_info.mem_store;
     assign mem_b_op = special_info.mem_b_op;
     assign mem_h_op = special_info.mem_h_op;
-    
+
     always @(*) begin
         if (rst == `RstEnable) begin
             logicout = `ZeroWord;
@@ -225,6 +228,8 @@ module ex
     // Divider and Multiplier
     // Multi-cycle
     logic muldiv_op;  // High effective
+    logic [2:0] mul_op;
+    logic [2:0] div_op;
     always_comb begin
         case (aluop_i)
             `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP,`EXE_MUL_OP,`EXE_MULH_OP,`EXE_MULHU_OP: begin
@@ -234,6 +239,24 @@ module ex
                 muldiv_op = 0;
             end
         endcase
+    end
+    always_comb begin
+        mul_op = 0;
+        div_op = 0;
+        case (aluop_i)
+            `EXE_MUL_OP:   mul_op = 3'h0;
+            `EXE_MULH_OP:  mul_op = 3'h1;
+            `EXE_MULHU_OP: mul_op = 3'h3;
+            `EXE_DIV_OP:   div_op = 3'h4;
+            `EXE_DIVU_OP:  div_op = 3'h5;
+            `EXE_MOD_OP:   div_op = 3'h6;
+            `EXE_MODU_OP:  div_op = 3'h7;
+            default: begin
+                mul_op = 0;
+                div_op = 0;
+            end
+        endcase
+
     end
     logic [2:0] muldiv_para;  // 0-7 muldiv mode selection
     always_comb begin
@@ -275,9 +298,47 @@ module ex
         .mul_rs0(reg1_i),
         .mul_rs1((reg2_i == 0 && (aluop_i == `EXE_DIV_OP || aluop_i == `EXE_DIVU_OP)) ? 1 : reg2_i),
         .mul_ready(muldiv_busy),
-        .mul_finished(muldiv_finished),  // 1 means finished
-        .mul_data(muldiv_result),
-        .mul_ack(muldiv_ack)
+        .mul_finished(muldiv_finished)
+    );
+
+    logic mul_finish;
+    logic mul_busy;
+    logic mul_ack;
+    logic [`RegBus] mul_result;
+
+    mul_unit u_mul_unit (
+        .clk(clk),
+        .rst(rst),
+
+        .rs1(reg1_i),
+        .rs2(reg2_i),
+        .op (mul_op[1:0]),
+
+        .mul_ack(mul_ack),
+
+        .ready(mul_busy),
+        .done(mul_finish),
+        .mul_result(muldiv_result)
+    );
+
+    logic div_finish;
+    logic [`RegBus] quotient;
+    logic [`RegBus] remainder;
+
+    div_unit u_div_unit (
+        .clk(clk),
+        .rst(rst),
+
+        .dividend(reg1_i),
+        .dividend_CLZ(),
+        .divisor((reg2_i == 0 && (aluop_i == `EXE_DIV_OP || aluop_i == `EXE_DIVU_OP)) ? 1 : reg2_i),
+        .divisor_CLZ(),
+        .divisor_is_zero(0),
+        .start(),
+
+        .remainder(remainder),
+        .quotient(quotient),
+        .done(div_finish)
     );
 
 
