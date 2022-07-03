@@ -13,7 +13,7 @@ module div_unit #(
     input logic start,
 
     output logic [DIV_WIDTH-1:0] remainder,
-    output logic [DIV_WIDTH-1:0] quotient,
+    output logic [DIV_WIDTH-1:0] quotient_out,
     output logic done
 );
 
@@ -43,10 +43,11 @@ module div_unit #(
     logic negate_remainder;
     logic [`RegBus] unsigned_dividend;
     logic [`RegBus] unsigned_divisor;
+    logic [`RegBus] quotient;
     logic [$clog2(32)-1:0] dividend_CLZ;
     logic [$clog2(32)-1:0] divisor_CLZ;
 
-    assign signed_divop = op[0];
+    assign signed_divop = ~op[0];
 
     assign negate_dividend = signed_divop & dividend[31];
     assign negate_divisor = signed_divop & divisor[31];
@@ -79,7 +80,7 @@ module div_unit #(
     always_ff @(posedge clk) begin
         if (running) shifted_divisor <= {2'b0, shifted_divisor[DIV_WIDTH-1:2]};
         else
-            shifted_divisor <= divisor << {CLZ_delta[CLZ_W-1:1], 1'b0};//Rounding down when CLZ_delta is odd
+            shifted_divisor <= unsigned_divisor << {CLZ_delta[CLZ_W-1:1], 1'b0};//Rounding down when CLZ_delta is odd
     end
 
     //Subtractions
@@ -104,7 +105,7 @@ module div_unit #(
                 0: remainder <= sub_1x;
                 1: remainder <= sub_2x;
                 default:
-                remainder <= dividend;//Overloading the quotient zero case to fit the initial loading of the dividend in
+                remainder <= unsigned_dividend;//Overloading the quotient zero case to fit the initial loading of the dividend in
             endcase
         end
     end
@@ -121,7 +122,23 @@ module div_unit #(
 
 
 
-    assign done = (running & terminate) | (start & divisor_greater_than_dividend);
+    // assign done = (running & terminate) | (start & divisor_greater_than_dividend);
+
+    logic running_delay;
+    logic terminate_delay;
+    logic start_delay;
+    logic divisor_greater_than_dividend_delay;
+
+    always_ff @(posedge clk) begin
+        running_delay <= running;
+        terminate_delay <= terminate;
+        start_delay <= start;
+        divisor_greater_than_dividend_delay <= divisor_greater_than_dividend;
+    end
+
+    assign quotient_out = negate_quotient ? ~quotient + 1'b1 : quotient;
+
+    assign done = (running_delay & terminate_delay) | (start_delay & divisor_greater_than_dividend_delay);
 
 
 endmodule

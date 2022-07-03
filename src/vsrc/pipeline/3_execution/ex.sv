@@ -279,6 +279,7 @@ module ex
         .op (mul_op[1:0]),
 
         .mul_ack(mul_ack),
+        .valid_i(1),
 
         .ready(mul_busy),
         .done(mul_finish),
@@ -286,6 +287,7 @@ module ex
     );
 
     logic div_start;
+    logic div_already_start;
     logic div_finish;
     logic [`RegBus] quotient;
     logic [`RegBus] remainder;
@@ -301,9 +303,18 @@ module ex
     // end
 
     always_ff @(posedge clk) begin
-        if (rst) div_start <= 0;
-        else if (div_op != 0 && div_start == 0) div_start <= 1;
-        else div_start <= 0;
+        if (rst) begin
+            div_start <= 0;
+            div_already_start <= 0;
+        end else if (div_op != 0 && div_already_start == 0 && div_start == 0) begin
+            div_start <= 1;
+            div_already_start <= 1;
+        end else if (div_finish) begin
+            div_already_start <= 0;
+        end else begin
+            div_start <= 0;
+            div_already_start <= div_already_start;
+        end
     end
 
 
@@ -318,7 +329,7 @@ module ex
         .start(div_start),
 
         .remainder(remainder),
-        .quotient(quotient),
+        .quotient_out(quotient),
         .done(div_finish)
     );
 
