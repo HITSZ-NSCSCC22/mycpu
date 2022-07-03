@@ -41,7 +41,6 @@ module frontend
     input logic [31:0] csr_dmw1,
     input logic [1:0] csr_plv,
     input logic [1:0] csr_datf,
-    input logic disable_cache,
 
     // <-> TLB
     output inst_tlb_t tlb_o,
@@ -137,7 +136,7 @@ module frontend
         .ftq_id_i    (ftq_ifu_id),
         .ftq_accept_o(ifu_ftq_accept),
 
-        .csr_i({csr_pg, csr_da, csr_dmw0, csr_dmw1, csr_plv}),
+        .csr_i({csr_pg, csr_da, csr_dmw0, csr_dmw1, csr_plv, csr_datf}),
         .tlb_i(tlb_i),
         .tlb_o(tlb_o),
 

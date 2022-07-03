@@ -18,6 +18,7 @@ package core_types;
         logic [31:0] dmw0;
         logic [31:0] dmw1;
         logic [1:0] plv;
+        logic [1:0] datf;
     } ifu_csr_t;
 
     // Instruction info types

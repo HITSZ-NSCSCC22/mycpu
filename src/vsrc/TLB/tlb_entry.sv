@@ -88,8 +88,8 @@ module tlb_entry
     logic [NWAY-1:0] s1_odd_page_buffer;
 
     always_ff @(posedge clk) begin
-        inst_entry_buffer <= inst_entry;
-        data_entry_buffer <= data_entry;
+        if (s0_fetch) inst_entry_buffer <= inst_entry;
+        if (s1_fetch) data_entry_buffer <= data_entry;
     end
 
 

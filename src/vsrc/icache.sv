@@ -43,11 +43,7 @@ module icache
     input logic cacop_i,
     input logic [1:0] cacop_mode_i,
     input logic [ADDR_WIDTH-1:0] cacop_addr_i,
-    output cacop_ack_o,
-
-    // TLB related
-    input tlb_inst_t tlb_i,  // <- TLB
-    input inst_tlb_t tlb_rreq_i  // <- IFU
+    output cacop_ack_o
 );
 
     // Reset signal
@@ -297,7 +293,7 @@ module icache
                     if (i[0] == random_r[0]) begin
                         if (axi_rvalid_i) begin
                             tag_bram_we[i][0] = 1;
-                            tag_bram_wdata[i][0] = {1'b1, p1_tlb.tag};
+                            tag_bram_wdata[i][0] = {1'b1, p1_raddr_1[31:12]};
                             data_bram_we[i][0] = 1;
                             data_bram_wdata[i][0] = axi_data_i;
                         end
@@ -309,7 +305,7 @@ module icache
                     if (i[0] == random_r[0]) begin
                         if (axi_rvalid_i) begin
                             tag_bram_we[i][1] = 1;
-                            tag_bram_wdata[i][1] = {1'b1, p1_tlb.tag};
+                            tag_bram_wdata[i][1] = {1'b1, p1_raddr_2[31:12]};
                             data_bram_we[i][1] = 1;
                             data_bram_wdata[i][1] = axi_data_i;
                         end
@@ -369,23 +365,6 @@ module icache
         end
     end
 
-    // TLB miss
-    inst_tlb_t p1_tlb_rreq;
-    always_ff @(posedge clk) begin
-        if (rreq_1_i | rreq_2_i) p1_tlb_rreq <= tlb_rreq_i;
-    end
-    assign p1_tlb_miss = p1_tlb_rreq.trans_en & ~p1_tlb.tlb_found;
-
-    // Store TLB input
-    tlb_inst_t p1_tlb, tlb_i_r;
-    assign p1_tlb = (state == IDLE) ? tlb_i : tlb_i_r;
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            tlb_i_r <= 0;
-        end else if (miss_1_pulse | miss_2_pulse) begin
-            tlb_i_r <= tlb_i;
-        end
-    end
     always_ff @(posedge clk) begin
         if (rreq_1_ack_o) begin
             p1_rreq_1  <= rreq_1_i;
@@ -406,8 +385,8 @@ module icache
     // Hit signal
     always_comb begin
         for (integer i = 0; i < NWAY; i++) begin
-            tag_hit[i][0] = tag_bram_rdata[i][0][19:0] == p1_tlb.tag && tag_bram_rdata[i][0][20];
-            tag_hit[i][1] = tag_bram_rdata[i][1][19:0] == p1_tlb.tag && tag_bram_rdata[i][1][20];
+            tag_hit[i][0] = tag_bram_rdata[i][0][19:0] == p1_raddr_1[31:12] && tag_bram_rdata[i][0][20];
+            tag_hit[i][1] = tag_bram_rdata[i][1][19:0] == p1_raddr_2[31:12] && tag_bram_rdata[i][1][20];
         end
     end
 
@@ -439,11 +418,11 @@ module icache
         case (state)
             REFILL_1_REQ, REFILL_1_WAIT: begin
                 axi_rreq_o = miss_1 & ~axi_rvalid_i & ~axi_rvalid_delay_1;
-                axi_addr_o = miss_1 ? {p1_tlb.tag, p1_raddr_1[11:0]} : 0;
+                axi_addr_o = miss_1 ? p1_raddr_1 : 0;
             end
             REFILL_2_REQ, REFILL_2_WAIT: begin
                 axi_rreq_o = miss_2 & ~axi_rvalid_i & ~axi_rvalid_delay_1;
-                axi_addr_o = miss_2 ? {p1_tlb.tag, p1_raddr_2[11:0]} : 0;
+                axi_addr_o = miss_2 ? p1_raddr_2 : 0;
             end
             default: begin
                 axi_rreq_o = 0;

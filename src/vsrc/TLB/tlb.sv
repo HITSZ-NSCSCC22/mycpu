@@ -69,8 +69,10 @@ module tlb
     assign da_mode = csr_da && !csr_pg;
 
     always @(posedge clk) begin
-        inst_vaddr_buffer <= inst_i.vaddr;
-        inst_i_buffer <= inst_i;
+        if (inst_i.fetch) begin
+            inst_vaddr_buffer <= inst_i.vaddr;
+            inst_i_buffer <= inst_i;
+        end
         data_vaddr_buffer <= data_i.vaddr;
     end
 

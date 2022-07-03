@@ -40,207 +40,243 @@ module ifu
     input logic stallreq_i,
     output instr_info_t instr_buffer_o[FETCH_WIDTH]
 );
-    // P0 signal
-    logic p0_send_rreq, p0_send_rreq_delay1;
+
+    // Pipeline control signals
+    logic p0_advance, p1_advance, p2_advance;
     // P1 signal
-    logic p1_rreq_ack;
-    logic p1_read_done;  // Read done is same cycle as ICache return valid
-    logic p1_in_transaction;  // Currently in transaction and not done yet
+    logic p1_send_rreq, p1_send_rreq_delay1;
+    ftq_ifu_t p1_ftq_block;
+    // P2 signal
+    logic p2_read_done;  // Read done is same cycle as ICache return valid
+    logic p2_in_transaction;  // Currently in transaction and not done yet
+    ftq_ifu_t p2_ftq_block;
     // Flush state
-    logic is_flushing_r, is_flushing;
+    logic is_flushing_r;
+
+
+    // FTQ handshake, FTQ can move to next block
+    assign ftq_accept_o = p0_advance;
+    // Pipeline control signals
+    assign p0_advance   = (p1_advance | ~p1_ftq_block.valid) & ftq_i.valid;
+    assign p1_advance   = p1_ftq_block.valid & ~p2_in_transaction & ~stallreq_i;
+    assign p2_advance   = (p2_read_done | ~p2_read_transaction.sent_req) & ~stallreq_i;
+    // FTQ block
+    assign p1_ftq_block = p1_data.ftq_block;
+    assign p2_ftq_block = p2_read_transaction.ftq_block;
+
 
     /////////////////////////////////////////////////////////////////////////////////
-    // P0, send read req to ICache & TLB
+    // P0, send read req to TLB
     /////////////////////////////////////////////////////////////////////////////////
-    // Condition when to send rreq to ICache, see doc for detail
-    assign p0_send_rreq = ftq_i.valid & ~is_flushing & ~stallreq_i & ~p1_in_transaction;
-    assign ftq_accept_o = p0_send_rreq;  // FTQ handshake, same cycle as ftq_i, FTQ can move to next block
-    always_ff @(posedge clk) begin
-        p0_send_rreq_delay1 <= p0_send_rreq;
-    end
-
     // P0 PC
     logic [ADDR_WIDTH-1:0] p0_pc;
     assign p0_pc = ftq_i.start_pc;
-
     // TLB search req
-    logic dmw0_en, dmw1_en;
+    logic dmw0_en, dmw1_en, trans_en;
     assign dmw0_en = ((csr_i.dmw0[`PLV0] && csr_i.plv == 2'd0) || (csr_i.dmw0[`PLV3] && csr_i.plv == 2'd3)) && (p0_pc[31:29] == csr_i.dmw0[`VSEG]); // Direct map window 0
     assign dmw1_en = ((csr_i.dmw1[`PLV0] && csr_i.plv == 2'd0) || (csr_i.dmw1[`PLV3] && csr_i.plv == 2'd3)) && (p0_pc[31:29] == csr_i.dmw1[`VSEG]); // Direct map window 1
+    assign trans_en = csr_i.pg && !csr_i.da && !dmw0_en && !dmw1_en; // Not in direct map windows, enable paging
+    // Send req to TLB
+    assign tlb_o.fetch = p0_advance;
+    assign tlb_o.dmw0_en = dmw0_en;
+    assign tlb_o.dmw1_en = dmw1_en;
+    assign tlb_o.trans_en = trans_en;
+    assign tlb_o.vaddr = p0_pc;
 
-    // Send read req to ICache & TLB
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // P1, send read req to ICache or generate exception
+    ////////////////////////////////////////////////////////////////////////////////
+    // P1 data structure
+    typedef struct packed {
+        ftq_ifu_t ftq_block;
+        logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_id;
+        inst_tlb_t tlb_rreq;
+        ifu_csr_t csr;
+    } p1_t;
+    p1_t p1_data;
+    logic [ADDR_WIDTH-1:0] p1_pc;
+    logic p1_uncache;  // Fetch request is uncached, generated using csr & tlb
+
+    assign p1_pc = p1_data.ftq_block.start_pc;
+    assign p1_uncache = ~p1_data.tlb_rreq.trans_en ?p1_data.csr.datf == 0:
+                        dmw0_en ? p1_data.csr.dmw0[`DMW_MAT] == 0 :
+                        dmw1_en ? p1_data.csr.dmw1[`DMW_MAT] == 0 : 
+                        tlb_i.tlb_mat == 0;
+    always_ff @(posedge clk) begin
+        if (flush_i) begin
+            p1_data <= 0;
+        end else if (p0_advance) begin
+            p1_data.ftq_block <= ftq_i;
+            p1_data.ftq_id <= ftq_id_i;
+            p1_data.tlb_rreq <= tlb_o;
+            p1_data.csr <= csr_i;
+        end else if (p1_advance) begin
+            p1_data <= 0;
+        end
+    end
+
+    // Condition when to send rreq to ICache
+    // p1_advance and no exception
+    logic excp, excp_tlbr, excp_pif, excp_ppi, excp_adef;
+    assign excp = excp_tlbr | excp_pif | excp_ppi | excp_adef;
+    // TLB not found, trigger a TLBR
+    assign excp_tlbr = !tlb_i.tlb_found && p1_data.tlb_rreq.trans_en;
+    // TLB found with invalid page, trigger a PIF
+    assign excp_pif = !tlb_i.tlb_v && p1_data.tlb_rreq.trans_en;
+    // TLB found with not enough PLV, trigger a PPI
+    assign excp_ppi = (p1_data.csr.plv > tlb_i.tlb_plv) && p1_data.tlb_rreq.trans_en;
+    // PC is not aligned
+    assign excp_adef = (p1_pc[0] || p1_pc[1]) | (p1_pc[31]&& p1_data.csr.plv == 2'd3&& p1_data.tlb_rreq.trans_en);
+    assign p1_send_rreq = p1_advance & ~excp & ~flush_i;
+
+
+
+
+    // Send read req to ICache
     always_comb begin
-        if (p0_send_rreq) begin
+        if (p1_send_rreq) begin
             // Send rreq to ICache if FTQ input is valid and not in flushing state
             icache_rreq_o[0] = 1;
-            icache_rreq_o[1] = ftq_i.is_cross_cacheline ? 1 : 0;
-            icache_raddr_o[0] = {ftq_i.start_pc[ADDR_WIDTH-1:4], 4'b0};
-            icache_raddr_o[1] = ftq_i.is_cross_cacheline ? {ftq_i.start_pc[ADDR_WIDTH-1:4], 4'b0} + 16 : 0; // TODO: remove magic number
-            // Send req to TLB
-            tlb_o.fetch = 1;
-            tlb_o.dmw0_en = dmw0_en;
-            tlb_o.dmw1_en = dmw1_en;
-            tlb_o.trans_en = csr_i.pg && !csr_i.da && !dmw0_en && !dmw1_en; // Not in direct map windows, enable paging
-            tlb_o.vaddr = p0_pc;
-        end else if (p1_in_transaction) begin
+            icache_rreq_o[1] = p1_data.ftq_block.is_cross_cacheline ? 1 : 0;
+            icache_raddr_o[0] = {tlb_i.tag, p1_pc[11:4], 4'b0};
+            icache_raddr_o[1] = p1_data.ftq_block.is_cross_cacheline ? {tlb_i.tag, p1_pc[11:4], 4'b0} + 16 : 0; // TODO: remove magic number
+        end else if (p2_in_transaction) begin
             // Or P1 is in transaction
             icache_rreq_o[0] = 1;
-            icache_rreq_o[1] = p1_read_transaction.is_cross_cacheline ? 1 : 0;
-            icache_raddr_o[0] = {p1_read_transaction.start_pc[ADDR_WIDTH-1:4], 4'b0};
-            icache_raddr_o[1] = p1_read_transaction.is_cross_cacheline ? {p1_read_transaction.start_pc[ADDR_WIDTH-1:4], 4'b0} + 16 : 0; // TODO: remove magic number
-            // Hold output to TLB
-            tlb_o = p1_read_transaction.tlb_rreq;
+            icache_rreq_o[1] = p2_ftq_block.is_cross_cacheline ? 1 : 0;
+            icache_raddr_o[0] = {
+                p2_read_transaction.tlb_result.tag, p2_ftq_block.start_pc[11:4], 4'b0
+            };
+            icache_raddr_o[1] = p2_ftq_block.is_cross_cacheline ? {p2_read_transaction.tlb_result.tag, p2_ftq_block.start_pc[11:4], 4'b0} + 16 : 0; // TODO: remove magic number
         end else begin
-            icache_rreq_o = 0;
+            icache_rreq_o  = 0;
             icache_raddr_o = 0;
-            tlb_o = 0;
         end
     end
 
     /////////////////////////////////////////////////////////////////////////////////
-    // P1
+    // P2, read transaction, wait for read valid from ICache
     /////////////////////////////////////////////////////////////////////////////////
     // Flush state
-    assign is_flushing = is_flushing_r | flush_i;
     always_ff @(posedge clk) begin : is_flushing_ff
         if (rst) begin
             is_flushing_r <= 0;
-        end else if (flush_i & p1_read_transaction.valid & (~p1_read_done | stallreq_i)) begin
+        end else if (flush_i & p2_read_transaction.sent_req & (~p2_read_done | stallreq_i)) begin
             // Enter a flusing state if flush_i and read transaction on-the-fly
             is_flushing_r <= 1;
-        end else if (p1_read_done) begin
+        end else if (p2_read_done) begin
             // Reset when read transaction is done
             is_flushing_r <= 0;
         end
     end
 
-    // P1 data structure
-    tlb_inst_t p1_tlb, tlb_i_r;
-    assign p1_tlb = p0_send_rreq_delay1 ? tlb_i : tlb_i_r;
-    always_ff @(posedge clk) begin
-        if (p0_send_rreq_delay1) tlb_i_r <= tlb_i;
-    end
+    // P2 data structure
     typedef struct packed {
-        logic valid;
-        logic [`InstAddrBus] start_pc;
-        logic is_cross_cacheline;
-        logic [$clog2(`FETCH_WIDTH+1)-1:0] length;
+        logic sent_req;
+        logic excp;
+        logic [15:0] excp_num;
+        ftq_ifu_t ftq_block;
+        logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_id;
         logic [1:0] icache_rreq_ack_r;
         logic [1:0] icache_rvalid_r;
         logic [1:0][ICACHELINE_WIDTH-1:0] icache_rdata_r;
-        logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_id;
         inst_tlb_t tlb_rreq;
+        tlb_inst_t tlb_result;
         ifu_csr_t csr;
     } read_transaction_t;
-    read_transaction_t p1_read_transaction;
+    read_transaction_t p2_read_transaction;
+    logic [ADDR_WIDTH-1:0] p2_pc;
+    assign p2_pc = p2_read_transaction.ftq_block.start_pc;
 
-    logic [ADDR_WIDTH-1:0] p1_pc;
-    assign p1_pc = p1_read_transaction.start_pc;
 
-    assign p1_in_transaction = p1_read_transaction.valid & ~p1_read_done;
-    assign p1_read_done = p1_read_transaction.is_cross_cacheline ?
-            (icache_rvalid_i[0] | p1_read_transaction.icache_rvalid_r[0]) & (icache_rvalid_i[1] | p1_read_transaction.icache_rvalid_r[1]) :
-            (icache_rvalid_i[0] | p1_read_transaction.icache_rvalid_r[0]);
-    assign p1_rreq_ack =  p1_read_transaction.is_cross_cacheline ?
-            (icache_rreq_ack_i[0] | p1_read_transaction.icache_rreq_ack_r[0]) & (icache_rreq_ack_i[1] | p1_read_transaction.icache_rreq_ack_r[1]) :
-            (icache_rreq_ack_i[0] | p1_read_transaction.icache_rreq_ack_r[0]);
-    always_ff @(posedge clk) begin : p1_ff
+    assign p2_in_transaction = p2_read_transaction.sent_req & ~p2_read_done;
+    assign p2_read_done = p2_ftq_block.is_cross_cacheline ?
+            (icache_rvalid_i[0] | p2_read_transaction.icache_rvalid_r[0]) & (icache_rvalid_i[1] | p2_read_transaction.icache_rvalid_r[1]) :
+            (icache_rvalid_i[0] | p2_read_transaction.icache_rvalid_r[0]);
+    assign p2_rreq_ack =  p2_ftq_block.is_cross_cacheline ?
+            (icache_rreq_ack_i[0] | p2_read_transaction.icache_rreq_ack_r[0]) & (icache_rreq_ack_i[1] | p2_read_transaction.icache_rreq_ack_r[1]) :
+            (icache_rreq_ack_i[0] | p2_read_transaction.icache_rreq_ack_r[0]);
+    always_ff @(posedge clk) begin : p2_ff
         if (rst) begin
-            p1_read_transaction <= 0;
-        end else if (p0_send_rreq) begin
-            // If P0 sent rreq to ICache, move info from P0 to P1
-            p1_read_transaction.valid <= 1;
-            p1_read_transaction.start_pc <= ftq_i.start_pc;
-            p1_read_transaction.is_cross_cacheline <= ftq_i.is_cross_cacheline;
-            p1_read_transaction.length <= ftq_i.length;
-            p1_read_transaction.icache_rreq_ack_r <= icache_rreq_ack_i;
-            p1_read_transaction.icache_rvalid_r <= 0;
-            p1_read_transaction.icache_rdata_r <= 0;
-            p1_read_transaction.ftq_id <= ftq_id_i;
-            p1_read_transaction.tlb_rreq <= tlb_o;
-            p1_read_transaction.csr <= csr_i;
-        end else if (p1_read_done & ~stallreq_i) begin
+            p2_read_transaction <= 0;
+        end else if (~p1_send_rreq & p1_advance & flush_i) begin
+            p2_read_transaction <= 0;
+        end else if (p1_advance & ~flush_i) begin
+            p2_read_transaction.sent_req <= p1_send_rreq;
+            p2_read_transaction.excp <= excp;
+            p2_read_transaction.excp_num <= {11'b0, excp_ppi, excp_pif, excp_tlbr, excp_adef, 1'b0};
+            p2_read_transaction.ftq_block <= p1_ftq_block;
+            p2_read_transaction.ftq_id <= p1_data.ftq_id;
+            p2_read_transaction.icache_rreq_ack_r <= icache_rreq_ack_i;
+            p2_read_transaction.icache_rvalid_r <= 0;
+            p2_read_transaction.icache_rdata_r <= 0;
+            p2_read_transaction.tlb_rreq <= p1_data.tlb_rreq;
+            p2_read_transaction.tlb_result <= tlb_i;
+            p2_read_transaction.csr <= p1_data.csr;
+        end else if (p2_advance) begin
             // Reset if done and not stalling
-            p1_read_transaction <= 0;
+            p2_read_transaction <= 0;
         end else begin
             // Store rvalid in P1 data structure
             // This is required since ICache do not guarantee rvalid of the two ports is returned in the same cycle
             if (icache_rvalid_i[0]) begin
-                p1_read_transaction.icache_rvalid_r[0] <= 1;
-                p1_read_transaction.icache_rdata_r[0]  <= icache_rdata_i[0];
+                p2_read_transaction.icache_rvalid_r[0] <= 1;
+                p2_read_transaction.icache_rdata_r[0]  <= icache_rdata_i[0];
             end
             if (icache_rvalid_i[1]) begin
-                p1_read_transaction.icache_rvalid_r[1] <= 1;
-                p1_read_transaction.icache_rdata_r[1]  <= icache_rdata_i[1];
+                p2_read_transaction.icache_rvalid_r[1] <= 1;
+                p2_read_transaction.icache_rdata_r[1]  <= icache_rdata_i[1];
             end
             // Store ACK in P1 data structure
-            if (icache_rreq_ack_i[0]) p1_read_transaction.icache_rreq_ack_r <= 1;
-            if (icache_rreq_ack_i[1]) p1_read_transaction.icache_rreq_ack_r <= 1;
+            if (icache_rreq_ack_i[0]) p2_read_transaction.icache_rreq_ack_r <= 1;
+            if (icache_rreq_ack_i[1]) p2_read_transaction.icache_rreq_ack_r <= 1;
         end
     end
 
     logic [FETCH_WIDTH*2-1:0][DATA_WIDTH-1:0] cacheline_combined; // Same cycle as ICache return, used in P2
     assign cacheline_combined = {
-        icache_rvalid_i[1] ? icache_rdata_i[1] : p1_read_transaction.icache_rdata_r[1],
-        icache_rvalid_i[0] ? icache_rdata_i[0] : p1_read_transaction.icache_rdata_r[0]
+        icache_rvalid_i[1] ? icache_rdata_i[1] : p2_read_transaction.icache_rdata_r[1],
+        icache_rvalid_i[0] ? icache_rdata_i[0] : p2_read_transaction.icache_rdata_r[0]
     };
 
     // P1 debug, for observability
-    logic [1:0] debug_p1_rvalid_r = p1_read_transaction.icache_rvalid_r;
+    logic [1:0] debug_p2_rvalid_r = p2_read_transaction.icache_rvalid_r;
 
 
 
     /////////////////////////////////////////////////////////////////////////////////
-    // P2, send instr info to IB
-    ////////////////////////////// 
-    logic [FETCH_WIDTH-1:0] excp_tlbr, excp_pif, excp_ppi, excp_adef;
-    // TLB not found, trigger a TLBR
-    assign excp_tlbr = {FETCH_WIDTH{!p1_tlb.tlb_found && p1_read_transaction.tlb_rreq.trans_en}};
-    // TLB found with invalid page, trigger a PIF
-    assign excp_pif = {FETCH_WIDTH{!p1_tlb.tlb_v && p1_read_transaction.tlb_rreq.trans_en}};
-    // TLB found with not enough PLV, trigger a PPI
-    assign excp_ppi = {FETCH_WIDTH{(p1_read_transaction.csr.plv > p1_tlb.tlb_plv) && p1_read_transaction.tlb_rreq.trans_en}};
-    // Instr addr not aligned, trigger a ADEF
-    always_comb begin
-        for (integer i = 0; i < FETCH_WIDTH; i++) begin
-            excp_adef[i] = 0;
-            if (i < p1_read_transaction.length) begin
-                excp_adef[i] = (p1_pc[0] || p1_pc[1]) | (p1_pc[31]&& p1_read_transaction.csr.plv == 2'd3&& p1_read_transaction.tlb_rreq.trans_en);
-            end
-        end
-    end
-
-    always_ff @(posedge clk) begin : p2_ff
+    // P3, send instr info to IB
+    /////////////////////////////////////////////////////////////////////////////////
+    always_ff @(posedge clk) begin : p3_ff
         if (rst) begin
             for (integer i = 0; i < FETCH_WIDTH; i++) begin
                 instr_buffer_o[i] <= 0;
             end
-        end else if (is_flushing) begin
+        end else if (flush_i | (is_flushing_r)) begin
             for (integer i = 0; i < FETCH_WIDTH; i++) begin
                 instr_buffer_o[i] <= 0;
             end
         end else if (stallreq_i) begin
             // Hold output
-        end else if (p1_read_done) begin
+        end else if (p2_advance) begin
             // If p1 read done, pass data to IB
             // However, if p1 read done comes from flushing, do not pass down to IB
             for (integer i = 0; i < FETCH_WIDTH; i++) begin
                 // Default
                 instr_buffer_o[i].is_last_in_block <= 0;
 
-                if (i < p1_read_transaction.length) begin
-                    if (i == p1_read_transaction.length - 1) begin
+                if (i < p2_ftq_block.length) begin
+                    if (i == p2_ftq_block.length - 1) begin
                         instr_buffer_o[i].is_last_in_block <= 1; // Mark the instruction as last in block, used when commit
                     end
                     instr_buffer_o[i].valid <= 1;
-                    instr_buffer_o[i].pc <= p1_read_transaction.start_pc + i * 4;  // Instr is 4 bytes long
-                    instr_buffer_o[i].instr <= cacheline_combined[p1_read_transaction.start_pc[3:2]+i];
+                    instr_buffer_o[i].pc <= p2_ftq_block.start_pc + i * 4;  // Instr is 4 bytes long
+                    instr_buffer_o[i].instr <= cacheline_combined[p2_ftq_block.start_pc[3:2]+i];
                     // Exception info
-                    instr_buffer_o[i].excp <= excp_tlbr[i] | excp_pif[i] | excp_ppi[i] | excp_adef[i];
-                    instr_buffer_o[i].excp_num <= {
-                        11'b0, excp_ppi[i], excp_pif[i], excp_tlbr[i], excp_adef[i], 1'b0
-                    };
-                    instr_buffer_o[i].ftq_id <= p1_read_transaction.ftq_id;
+                    instr_buffer_o[i].excp <= p2_read_transaction.excp;
+                    instr_buffer_o[i].excp_num <= p2_read_transaction.excp_num;
+                    instr_buffer_o[i].ftq_id <= p2_read_transaction.ftq_id;
                     instr_buffer_o[i].ftq_block_idx <= i;
                 end else begin
                     instr_buffer_o[i] <= 0;

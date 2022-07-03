@@ -328,12 +328,7 @@ module cpu_top
         .cacop_i(icacop_op_en[0]),
         .cacop_mode_i(cacop_op_mode[0]),
         .cacop_addr_i({tlb_data_o.tag,tlb_data_o.index,tlb_data_o.offset}),
-        .cacop_ack_o(icacop_ack),
-        
-
-       // TLB related
-       .tlb_i(tlb_inst), // <- TLB
-       .tlb_rreq_i(frontend_tlb) // <- Frontend
+        .cacop_ack_o(icacop_ack)
    );
     
 
@@ -377,7 +372,6 @@ module cpu_top
         .csr_dmw1(csr_dmw1),
         .csr_plv(csr_plv),
         .csr_datf(csr_datf),
-        .disable_cache(),
 
         // <-> TLB
         .tlb_o(frontend_tlb),
