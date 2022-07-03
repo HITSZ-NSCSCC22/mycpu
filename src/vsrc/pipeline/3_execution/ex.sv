@@ -4,6 +4,7 @@
 `include "muldiv/mul.sv"
 `include "muldiv/mul_unit.sv"
 `include "muldiv/div_unit.sv"
+`include "muldiv/clz.sv"
 
 
 module ex
@@ -227,13 +228,16 @@ module ex
 
     // Divider and Multiplier
     // Multi-cycle
-    logic muldiv_op;  // High effective
+    logic [1:0] muldiv_op;  // High effective
     logic [2:0] mul_op;
     logic [2:0] div_op;
     always_comb begin
         case (aluop_i)
-            `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP,`EXE_MUL_OP,`EXE_MULH_OP,`EXE_MULHU_OP: begin
-                muldiv_op = 1;
+            `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP: begin
+                muldiv_op = 2'b01;
+            end
+            `EXE_MUL_OP, `EXE_MULH_OP, `EXE_MULHU_OP: begin
+                muldiv_op = 2'b10;
             end
             default: begin
                 muldiv_op = 0;
@@ -242,7 +246,6 @@ module ex
     end
     always_comb begin
         mul_op = 0;
-        div_op = 0;
         case (aluop_i)
             `EXE_MUL_OP:   mul_op = 3'h0;
             `EXE_MULH_OP:  mul_op = 3'h1;
@@ -256,55 +259,16 @@ module ex
                 div_op = 0;
             end
         endcase
+    end
 
-    end
-    logic [2:0] muldiv_para;  // 0-7 muldiv mode selection
-    always_comb begin
-        case (aluop_i)
-            `EXE_MUL_OP:   muldiv_para = 3'h0;
-            `EXE_MULH_OP:  muldiv_para = 3'h1;
-            `EXE_MULHU_OP: muldiv_para = 3'h3;
-            `EXE_DIV_OP:   muldiv_para = 3'h4;
-            `EXE_DIVU_OP:  muldiv_para = 3'h5;
-            `EXE_MOD_OP:   muldiv_para = 3'h6;
-            `EXE_MODU_OP:  muldiv_para = 3'h7;
-            default: begin
-                muldiv_para = 0;
-            end
-        endcase
-    end
-    logic [31:0] muldiv_result;
-    logic muldiv_finished;
-    logic muldiv_ack;
-    logic muldiv_busy_r;
-    logic muldiv_init;
-    logic muldiv_busy;  // Low means busy
-    always_ff @(posedge clk) begin
-        if (rst) muldiv_busy_r <= 0;
-        else if (flush | excp_flush | ertn_flush) muldiv_busy_r <= 0;
-        else if (muldiv_init) muldiv_busy_r <= 1;
-        else if (muldiv_ack) muldiv_busy_r <= 0;
-    end
-    always_comb begin
-        muldiv_init = muldiv_op & ~muldiv_busy_r & ~stall[1];
-        muldiv_ack  = muldiv_finished & muldiv_op & ~stall[1];
-    end
-    mul u_mul (
-        .clk(clk),
-        .rst(rst),
-        .clear_pipeline(flush),
-        .mul_para(muldiv_para),
-        .mul_initial(muldiv_init),
-        .mul_rs0(reg1_i),
-        .mul_rs1((reg2_i == 0 && (aluop_i == `EXE_DIV_OP || aluop_i == `EXE_DIVU_OP)) ? 1 : reg2_i),
-        .mul_ready(muldiv_busy),
-        .mul_finished(muldiv_finished)
-    );
 
     logic mul_finish;
     logic mul_busy;
     logic mul_ack;
     logic [`RegBus] mul_result;
+    always_comb begin
+        mul_ack = mul_finish & muldiv_op == 2'b10 & ~stall[1];
+    end
 
     mul_unit u_mul_unit (
         .clk(clk),
@@ -318,23 +282,40 @@ module ex
 
         .ready(mul_busy),
         .done(mul_finish),
-        .mul_result(muldiv_result)
+        .mul_result(mul_result)
     );
 
+    logic div_start;
     logic div_finish;
     logic [`RegBus] quotient;
     logic [`RegBus] remainder;
+
+    // always_comb begin
+    //     div_start = 0;
+    //     case (aluop_i)
+    //         `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP: div_start = 1;
+    //         default: begin
+    //             div_start = 0;
+    //         end
+    //     endcase
+    // end
+
+    always_ff @(posedge clk) begin
+        if (rst) div_start <= 0;
+        else if (div_op != 0 && div_start == 0) div_start <= 1;
+        else div_start <= 0;
+    end
+
 
     div_unit u_div_unit (
         .clk(clk),
         .rst(rst),
 
+        .op(div_op[1:0]),
         .dividend(reg1_i),
-        .dividend_CLZ(),
         .divisor((reg2_i == 0 && (aluop_i == `EXE_DIV_OP || aluop_i == `EXE_DIVU_OP)) ? 1 : reg2_i),
-        .divisor_CLZ(),
         .divisor_is_zero(0),
-        .start(),
+        .start(div_start),
 
         .remainder(remainder),
         .quotient(quotient),
@@ -342,7 +323,7 @@ module ex
     );
 
 
-    assign stallreq = (muldiv_op & ~muldiv_finished) | // Multiply & Division
+    assign stallreq = (muldiv_op == 2'b01 & ~div_finish) | (muldiv_op == 2'b10 & ~mul_finish) |// Multiply & Division
                 (icacop_inst & ~icacop_op_ack_i); // CACOP
     assign tlb_stallreq = aluop_i == `EXE_TLBRD_OP | aluop_i == `EXE_TLBSRCH_OP;
 
@@ -353,9 +334,15 @@ module ex
             case (aluop_i)
                 `EXE_ADD_OP: arithout = reg1_i + reg2_i;
                 `EXE_SUB_OP: arithout = reg1_i - reg2_i;
-                `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP,`EXE_MUL_OP,`EXE_MULH_OP,`EXE_MULHU_OP: begin
+                `EXE_DIV_OP, `EXE_DIVU_OP: begin
+                    arithout = quotient;
+                end
+                `EXE_MODU_OP, `EXE_MOD_OP: begin
+                    arithout = remainder;
+                end
+                `EXE_MUL_OP, `EXE_MULH_OP, `EXE_MULHU_OP: begin
                     // Select result from multi-cycle divider
-                    arithout = muldiv_result;
+                    arithout = mul_result;
                 end
 
                 `EXE_SLT_OP, `EXE_SLTU_OP: arithout = {31'b0, reg1_lt_reg2};

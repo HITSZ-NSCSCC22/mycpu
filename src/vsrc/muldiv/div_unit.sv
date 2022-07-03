@@ -1,13 +1,14 @@
+`include "defines.sv"
+
 module div_unit #(
     parameter DIV_WIDTH = 32
 ) (
     input logic clk,
     input logic rst,
 
+    input logic [1:0] op,
     input logic [DIV_WIDTH-1:0] dividend,
-    input logic [$clog2(DIV_WIDTH)-1:0] dividend_CLZ,
     input logic [DIV_WIDTH-1:0] divisor,
-    input logic [$clog2(DIV_WIDTH)-1:0] divisor_CLZ,
     input logic [DIV_WIDTH-1:0] divisor_is_zero,
     input logic start,
 
@@ -34,9 +35,45 @@ module div_unit #(
 
     logic running;
     logic terminate;
-    ////////////////////////////////////////////////////
-    //Implementation
-    //First cycle
+
+    logic signed_divop;
+    logic negate_dividend;
+    logic negate_divisor;
+    logic negate_quotient;
+    logic negate_remainder;
+    logic [`RegBus] unsigned_dividend;
+    logic [`RegBus] unsigned_divisor;
+    logic [$clog2(32)-1:0] dividend_CLZ;
+    logic [$clog2(32)-1:0] divisor_CLZ;
+
+    assign signed_divop = op[0];
+
+    assign negate_dividend = signed_divop & dividend[31];
+    assign negate_divisor = signed_divop & divisor[31];
+
+    assign negate_quotient = signed_divop & (dividend[31] ^ divisor[31]);
+    assign negate_remainder = signed_divop & (dividend[31]);
+
+    function logic [31:0] negate_if(input logic [31:0] a, logic b);
+        return ({32{b}} ^ a) + 32'(b);
+    endfunction
+
+
+    assign unsigned_dividend = negate_if(dividend, negate_dividend);
+    assign unsigned_divisor  = negate_if(divisor, negate_divisor);
+
+    //Note: If this becomes the critical path, we can use the one's complemented input instead.
+    //It will potentially overestimate (only when the input is a negative power-of-two), and
+    //the divisor width will need to be increased by one to safely handle the case where the divisor CLZ is overestimated
+    clz dividend_clz_block (
+        .clz_input(unsigned_dividend),
+        .clz_out  (dividend_CLZ)
+    );
+    clz divisor_clz_block (
+        .clz_input(unsigned_divisor),
+        .clz_out  (divisor_CLZ)
+    );
+
     assign {divisor_greater_than_dividend, CLZ_delta} = divisor_CLZ - dividend_CLZ;
 
     always_ff @(posedge clk) begin
@@ -72,10 +109,6 @@ module div_unit #(
         end
     end
 
-    ////////////////////////////////////////////////////
-    //Control Signals
-
-    //can merge with CLZ subtraction and remove mux on divisor if inputs held constant
     assign {terminate, cycles_remaining_next} = cycles_remaining - 1;
     always_ff @(posedge clk) begin
         cycles_remaining <= running ? cycles_remaining_next : CLZ_delta[CLZ_W-1:1];
@@ -86,13 +119,9 @@ module div_unit #(
         else running <= (running & ~terminate) | (start & ~divisor_greater_than_dividend);
     end
 
+
+
     assign done = (running & terminate) | (start & divisor_greater_than_dividend);
 
-    ////////////////////////////////////////////////////
-    //End of Implementation
-    ////////////////////////////////////////////////////
-
-    ////////////////////////////////////////////////////
-    //Assertions
 
 endmodule
