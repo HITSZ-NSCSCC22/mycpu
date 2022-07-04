@@ -49,6 +49,7 @@ module ifu
     ftq_ifu_t p1_ftq_block;
     // P2 signal
     logic p2_read_done;  // Read done is same cycle as ICache return valid
+    logic p2_rreq_ack;  // Read request is accepted by ICache
     logic p2_in_transaction;  // Currently in transaction and not done yet
     ftq_ifu_t p2_ftq_block;
     // Flush state
@@ -198,12 +199,12 @@ module ifu
 
 
     assign p2_in_transaction = p2_read_transaction.sent_req & ~p2_read_done;
-    assign p2_read_done = p2_ftq_block.is_cross_cacheline ?
+    assign p2_read_done = p2_rreq_ack & ( p2_ftq_block.is_cross_cacheline ?
             (icache_rvalid_i[0] | p2_read_transaction.icache_rvalid_r[0]) & (icache_rvalid_i[1] | p2_read_transaction.icache_rvalid_r[1]) :
-            (icache_rvalid_i[0] | p2_read_transaction.icache_rvalid_r[0]);
+            (icache_rvalid_i[0] | p2_read_transaction.icache_rvalid_r[0]));
     assign p2_rreq_ack =  p2_ftq_block.is_cross_cacheline ?
-            (icache_rreq_ack_i[0] | p2_read_transaction.icache_rreq_ack_r[0]) & (icache_rreq_ack_i[1] | p2_read_transaction.icache_rreq_ack_r[1]) :
-            (icache_rreq_ack_i[0] | p2_read_transaction.icache_rreq_ack_r[0]);
+            (p2_read_transaction.icache_rreq_ack_r[0]) & (p2_read_transaction.icache_rreq_ack_r[1]) :
+            (p2_read_transaction.icache_rreq_ack_r[0]);
     always_ff @(posedge clk) begin : p2_ff
         if (rst) begin
             p2_read_transaction <= 0;
@@ -237,8 +238,8 @@ module ifu
                 p2_read_transaction.icache_rdata_r[1]  <= icache_rdata_i[1];
             end
             // Store ACK in P1 data structure
-            if (icache_rreq_ack_i[0]) p2_read_transaction.icache_rreq_ack_r <= 1;
-            if (icache_rreq_ack_i[1]) p2_read_transaction.icache_rreq_ack_r <= 1;
+            if (icache_rreq_ack_i[0]) p2_read_transaction.icache_rreq_ack_r[0] <= 1;
+            if (icache_rreq_ack_i[1]) p2_read_transaction.icache_rreq_ack_r[1] <= 1;
         end
     end
 

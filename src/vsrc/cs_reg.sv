@@ -511,7 +511,7 @@ module cs_reg
             csr_tlbrentry[`TLBRENTRY_PA] <= wdata[`TLBRENTRY_PA];
     end
 
-    logic x,y;
+    logic x, y;
     assign x = wdata[`PLV0];
     assign y = csr_dmw0[`PLV0];
     //dmw0

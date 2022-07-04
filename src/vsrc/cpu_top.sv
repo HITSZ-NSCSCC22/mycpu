@@ -324,7 +324,6 @@ module cpu_top
         .axi_rlast_i  (),
         .axi_data_i   (axi_icache_data),
 
-        .frontend_uncache_i(),
         .invalid_i(),
 
         //-> CACOP
