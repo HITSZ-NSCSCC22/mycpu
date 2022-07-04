@@ -343,8 +343,8 @@ module ex
     );
 
 
-    assign stallreq = (muldiv_op == 2'b01 & ~div_finish) | (muldiv_op == 2'b10 & ~mul_finish) |// Multiply & Division
-                (icacop_inst & ~icacop_op_ack_i); // CACOP
+    assign stallreq = !stall[1] & ((muldiv_op == 2'b01 & ~div_finish) | (muldiv_op == 2'b10 & ~mul_finish) |// Multiply & Division
+                (icacop_inst & ~icacop_op_ack_i)); // CACOP
     assign tlb_stallreq = aluop_i == `EXE_TLBRD_OP | aluop_i == `EXE_TLBSRCH_OP;
 
     always @(*) begin
@@ -496,8 +496,8 @@ module ex
             ex_o_buffer <= 0;
         end else if (flush | excp_flush | ertn_flush) begin
             ex_o_buffer <= 0;
-        end else if (stall[0]) begin
-            // Do nothing
+        end else if (stall == 2'b01) begin
+            ex_o_buffer <= 0;
         end else begin
             ex_o_buffer <= ex_o;
         end

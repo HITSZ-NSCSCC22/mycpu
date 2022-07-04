@@ -142,7 +142,7 @@ module ctrl
         if (rst) stall = 5'b00000;
         else if (inv_stallreq) stall = 5'b11110;
         //访存阶段的暂停请求:进行访存操作时请求暂停,此时将译码和发射阶段阻塞
-        else if (mem_stallreq_i[0] | mem_stallreq_i[1]) stall = 5'b11110;
+        else if (mem_stallreq_i[0] | mem_stallreq_i[1]) stall = 5'b01110;
         //执行阶段的暂停请求:进行乘除法时请求暂停,此时将译码和发射阶段阻塞
         else if (ex_stallreq_i[0] | ex_stallreq_i[1]) stall = 5'b11110;
         //发射阶段的暂停请求:原本用于tlbrd指令的请求暂停,但是会出现bug,目前已经弃用
