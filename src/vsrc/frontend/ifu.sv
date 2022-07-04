@@ -57,9 +57,9 @@ module ifu
     // FTQ handshake, FTQ can move to next block
     assign ftq_accept_o = p0_advance;
     // Pipeline control signals
-    assign p0_advance   = (p1_advance | ~p1_ftq_block.valid) & ftq_i.valid;
-    assign p1_advance   = p1_ftq_block.valid & ~p2_in_transaction & ~stallreq_i;
-    assign p2_advance   = (p2_read_done | ~p2_read_transaction.sent_req) & ~stallreq_i;
+    assign p0_advance = (p1_advance | ~p1_ftq_block.valid) & ftq_i.valid;
+    assign p1_advance = p1_ftq_block.valid & ~p2_in_transaction & ~stallreq_i;
+    assign p2_advance   = p2_ftq_block.valid & (p2_read_done | ~p2_read_transaction.sent_req) & ~stallreq_i;
     // FTQ block
     assign p1_ftq_block = p1_data.ftq_block;
     assign p2_ftq_block = p2_read_transaction.ftq_block;
@@ -162,7 +162,7 @@ module ifu
     always_ff @(posedge clk) begin : is_flushing_ff
         if (rst) begin
             is_flushing_r <= 0;
-        end else if (flush_i & p2_read_transaction.sent_req & (~p2_read_done | stallreq_i)) begin
+        end else if (flush_i & p2_in_transaction) begin
             // Enter a flusing state if flush_i and read transaction on-the-fly
             is_flushing_r <= 1;
         end else if (p2_read_done) begin
@@ -200,7 +200,7 @@ module ifu
     always_ff @(posedge clk) begin : p2_ff
         if (rst) begin
             p2_read_transaction <= 0;
-        end else if (~p1_send_rreq & p1_advance & flush_i) begin
+        end else if (((~p1_send_rreq & p1_advance) | ~p2_in_transaction) & flush_i) begin
             p2_read_transaction <= 0;
         end else if (p1_advance & ~flush_i) begin
             p2_read_transaction.sent_req <= p1_send_rreq;
