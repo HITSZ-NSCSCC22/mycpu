@@ -25,6 +25,11 @@ package core_config;
     // Commit Parameters
     parameter COMMIT_WIDTH = 2;
 
+    // TLB related parameters
+    parameter TLB_NSET = 8;
+    parameter TLB_NWAY = 4;
+    parameter TLB_NUM = TLB_NWAY * TLB_NSET;
+
 endpackage
 
 `endif

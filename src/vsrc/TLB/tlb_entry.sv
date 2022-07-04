@@ -1,8 +1,10 @@
 `include "TLB/tlb_types.sv"
 `include "TLB/tlb_lutram.sv"
+`include "core_config.sv"
 
 module tlb_entry
     import tlb_types::*;
+    import core_config::*;
 (
     input logic clk,
 
@@ -12,7 +14,7 @@ module tlb_entry
     input logic s0_odd_page,
     input logic [9:0] s0_asid,
     output logic s0_found,  // found
-    output logic [$clog2(TLBNUM)-1:0] s0_index,  // TLB index
+    output logic [$clog2(TLB_NUM)-1:0] s0_index,  // TLB index
     output logic [5:0] s0_ps,  // ps
     output logic [19:0] s0_ppn,  // Physical page number, same as tag
     output logic s0_v,  // valid flag
@@ -26,7 +28,7 @@ module tlb_entry
     input logic s1_odd_page,
     input logic [9:0] s1_asid,
     output logic s1_found,
-    output logic [$clog2(TLBNUM)-1:0] s1_index,
+    output logic [$clog2(TLB_NUM)-1:0] s1_index,
     output logic [5:0] s1_ps,
     output logic [19:0] s1_ppn,
     output logic s1_v,
@@ -36,11 +38,11 @@ module tlb_entry
 
     // write port, write on posedge
     input logic we,
-    input logic [$clog2(TLBNUM)-1:0] w_index,
+    input logic [$clog2(TLB_NUM)-1:0] w_index,
     input tlb_wr_port write_port,
 
     // read port, immediate return in same cycle
-    input logic [$clog2(TLBNUM)-1:0] r_index,
+    input logic [$clog2(TLB_NUM)-1:0] r_index,
     output tlb_wr_port read_port,
 
     // invalid port, on posedge
@@ -48,8 +50,11 @@ module tlb_entry
     output logic inv_stallreq
 );
 
+    localparam NWAY = TLB_NWAY;
+    localparam NSET = TLB_NSET;
+
     // Data structure
-    logic [TLBNUM-1:0] tlb_e;
+    logic [TLB_NUM-1:0] tlb_e;
 
     // Match index
     // next cycle after query request

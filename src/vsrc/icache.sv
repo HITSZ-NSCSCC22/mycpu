@@ -14,6 +14,7 @@ module icache
 
     // Read port 1
     input logic rreq_1_i,
+    input logic rreq_1_uncached_i,
     input logic [ADDR_WIDTH-1:0] raddr_1_i,
     output logic rreq_1_ack_o,
     output logic rvalid_1_o,
@@ -21,6 +22,7 @@ module icache
 
     // Read port 2
     input logic rreq_2_i,
+    input logic rreq_2_uncached_i,
     input logic [ADDR_WIDTH-1:0] raddr_2_i,
     output logic rreq_2_ack_o,
     output logic rvalid_2_o,

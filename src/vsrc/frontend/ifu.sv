@@ -30,6 +30,7 @@ module ifu
 
     // <-> Frontend <-> ICache
     output logic [1:0] icache_rreq_o,
+    output logic [1:0] icache_rreq_uncached_o,
     output logic [1:0][ADDR_WIDTH-1:0] icache_raddr_o,
     input logic [1:0] icache_rreq_ack_i,
     input logic [1:0] icache_rvalid_i,
@@ -139,18 +140,23 @@ module ifu
             // Send rreq to ICache if FTQ input is valid and not in flushing state
             icache_rreq_o[0] = 1;
             icache_rreq_o[1] = p1_data.ftq_block.is_cross_cacheline ? 1 : 0;
+            icache_rreq_uncached_o[0] = p1_uncache;
+            icache_rreq_uncached_o[1] = p1_data.ftq_block.is_cross_cacheline ? p1_uncache : 0;
             icache_raddr_o[0] = {tlb_i.tag, p1_pc[11:4], 4'b0};
             icache_raddr_o[1] = p1_data.ftq_block.is_cross_cacheline ? {tlb_i.tag, p1_pc[11:4], 4'b0} + 16 : 0; // TODO: remove magic number
         end else if (p2_in_transaction) begin
             // Or P1 is in transaction
             icache_rreq_o[0] = 1;
             icache_rreq_o[1] = p2_ftq_block.is_cross_cacheline ? 1 : 0;
+            icache_rreq_uncached_o[0] = p2_read_transaction.uncached;
+            icache_rreq_uncached_o[1] = p2_ftq_block.is_cross_cacheline ? p2_read_transaction.uncached : 0;
             icache_raddr_o[0] = {
                 p2_read_transaction.tlb_result.tag, p2_ftq_block.start_pc[11:4], 4'b0
             };
             icache_raddr_o[1] = p2_ftq_block.is_cross_cacheline ? {p2_read_transaction.tlb_result.tag, p2_ftq_block.start_pc[11:4], 4'b0} + 16 : 0; // TODO: remove magic number
         end else begin
-            icache_rreq_o  = 0;
+            icache_rreq_o = 0;
+            icache_rreq_uncached_o = 0;
             icache_raddr_o = 0;
         end
     end
@@ -174,6 +180,7 @@ module ifu
     // P2 data structure
     typedef struct packed {
         logic sent_req;
+        logic uncached;
         logic excp;
         logic [15:0] excp_num;
         ftq_ifu_t ftq_block;
@@ -204,6 +211,7 @@ module ifu
             p2_read_transaction <= 0;
         end else if (p1_advance & ~flush_i) begin
             p2_read_transaction.sent_req <= p1_send_rreq;
+            p2_read_transaction.uncached <= p1_uncache;
             p2_read_transaction.excp <= excp;
             p2_read_transaction.excp_num <= {11'b0, excp_ppi, excp_pif, excp_tlbr, excp_adef, 1'b0};
             p2_read_transaction.ftq_block <= p1_ftq_block;

@@ -276,6 +276,7 @@ module cpu_top
 
     // Frontend -> ICache
     logic [1:0] frontend_icache_rreq;
+    logic [1:0] frontend_icache_rreq_uncached;
     logic [1:0][`InstAddrBus] frontend_icache_addr;
 
     // ICache -> Frontend
@@ -302,12 +303,14 @@ module cpu_top
        
         // Port A
         .rreq_1_i     (frontend_icache_rreq[0]),
+        .rreq_1_uncached_i (frontend_icache_rreq_uncached[0]),
         .raddr_1_i    (frontend_icache_addr[0]),
         .rreq_1_ack_o (icache_frontend_rreq_ack[0]),
         .rvalid_1_o   (icache_frontend_valid[0]),
         .rdata_1_o    (icache_frontend_data[0]),
         // Port B
         .rreq_2_i     (frontend_icache_rreq[1]),
+        .rreq_2_uncached_i (frontend_icache_rreq_uncached[1]),
         .raddr_2_i    (frontend_icache_addr[1]),
         .rreq_2_ack_o (icache_frontend_rreq_ack[1]),
         .rvalid_2_o   (icache_frontend_valid[1]),
@@ -348,8 +351,9 @@ module cpu_top
         .rst(rst),
 
         // <-> ICache
-        .icache_read_addr_o(frontend_icache_addr),  // -> ICache
-        .icache_read_req_o(frontend_icache_rreq),
+        .icache_read_req_o(frontend_icache_rreq), // -> ICache
+        .icache_read_req_uncached_o(frontend_icache_rreq_uncached),
+        .icache_read_addr_o(frontend_icache_addr), 
         .icache_rreq_ack_i(icache_frontend_rreq_ack),
         .icache_read_valid_i(icache_frontend_valid),  // <- ICache
         .icache_read_data_i(icache_frontend_data),  // <- ICache
