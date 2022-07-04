@@ -247,8 +247,8 @@ module ex
     always_comb begin
         mul_op = 0;
         case (aluop_i)
-            `EXE_MUL_OP:   mul_op = 3'h0;
-            `EXE_MULH_OP:  mul_op = 3'h1;
+            `EXE_MUL_OP:   mul_op = 3'h1;
+            `EXE_MULH_OP:  mul_op = 3'h2;
             `EXE_MULHU_OP: mul_op = 3'h3;
             `EXE_DIV_OP:   div_op = 3'h4;
             `EXE_DIVU_OP:  div_op = 3'h5;
@@ -261,11 +261,28 @@ module ex
         endcase
     end
 
-
+    logic mul_start;
+    logic mul_already_start;
     logic mul_finish;
     logic mul_busy;
     logic mul_ack;
     logic [`RegBus] mul_result;
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            mul_start <= 0;
+            mul_already_start <= 0;
+        end else if (mul_op != 0 && mul_already_start == 0 && mul_start == 0) begin
+            mul_start <= 1;
+            mul_already_start <= 1;
+        end else if (mul_finish) begin
+            mul_already_start <= 0;
+        end else begin
+            mul_start <= 0;
+            mul_already_start <= mul_already_start;
+        end
+    end
+
     always_comb begin
         mul_ack = mul_finish & muldiv_op == 2'b10 & ~stall[1];
     end
@@ -274,9 +291,10 @@ module ex
         .clk(clk),
         .rst(rst),
 
+        .start(mul_start),
         .rs1(reg1_i),
         .rs2(reg2_i),
-        .op (mul_op[1:0]),
+        .op(mul_op[1:0]),
 
         .mul_ack(mul_ack),
         .valid_i(1),
@@ -292,15 +310,6 @@ module ex
     logic [`RegBus] quotient;
     logic [`RegBus] remainder;
 
-    // always_comb begin
-    //     div_start = 0;
-    //     case (aluop_i)
-    //         `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP: div_start = 1;
-    //         default: begin
-    //             div_start = 0;
-    //         end
-    //     endcase
-    // end
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -328,7 +337,7 @@ module ex
         .divisor_is_zero(0),
         .start(div_start),
 
-        .remainder(remainder),
+        .remainder_out(remainder),
         .quotient_out(quotient),
         .done(div_finish)
     );

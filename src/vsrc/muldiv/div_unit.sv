@@ -12,7 +12,7 @@ module div_unit #(
     input logic [DIV_WIDTH-1:0] divisor_is_zero,
     input logic start,
 
-    output logic [DIV_WIDTH-1:0] remainder,
+    output logic [DIV_WIDTH-1:0] remainder_out,
     output logic [DIV_WIDTH-1:0] quotient_out,
     output logic done
 );
@@ -44,6 +44,7 @@ module div_unit #(
     logic [`RegBus] unsigned_dividend;
     logic [`RegBus] unsigned_divisor;
     logic [`RegBus] quotient;
+    logic [`RegBus] remainder;
     logic [$clog2(32)-1:0] dividend_CLZ;
     logic [$clog2(32)-1:0] divisor_CLZ;
 
@@ -137,6 +138,7 @@ module div_unit #(
     end
 
     assign quotient_out = negate_quotient ? ~quotient + 1'b1 : quotient;
+    assign remainder_out = negate_remainder ? ~remainder + 1'b1 : remainder;
 
     assign done = (running_delay & terminate_delay) | (start_delay & divisor_greater_than_dividend_delay);
 
