@@ -71,7 +71,8 @@ module icache
     logic invalid_done;
 
     // Random number generator
-    logic [2:0] random_r;
+    // Use 16bits to ensure randomness
+    logic [15:0] random_r;
 
     // BRAM signals
     logic [NWAY-1:0][1:0][ICACHELINE_WIDTH-1:0] data_bram_rdata;
@@ -433,7 +434,7 @@ module icache
 
     // LSFR
     lfsr #(
-        .WIDTH(3)
+        .WIDTH(16)
     ) u_lfsr (
         .clk  (clk),
         .rst  (rst),

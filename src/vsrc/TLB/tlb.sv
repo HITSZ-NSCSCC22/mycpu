@@ -1,6 +1,7 @@
 `include "defines.sv"
 `include "csr_defines.sv"
 `include "TLB/tlb_types.sv"
+`include "utils/lfsr.sv"
 
 
 module tlb
@@ -36,6 +37,19 @@ module tlb
 
     output [4:0] rand_index_diff
 );
+
+    // Random number generator
+    // Use 16bits LFSR to ensure randomness
+    logic [15:0] random_r;
+    lfsr #(
+        .WIDTH(16)
+    ) u_lfsr (
+        .clk  (clk),
+        .rst  (1'b0),
+        .en   (1'b1),
+        .value(random_r)
+    );
+
 
     // TLB search 1 & 2
     logic [18:0] s0_vppn;
@@ -87,7 +101,7 @@ module tlb
     assign we = write_signal_i.tlbfill_en || write_signal_i.tlbwr_en;
     // When TLBFILL, randomly choose a slot for the new tlb entry
     // way is indexed by vppn[11:9] to support 4MB page
-    assign w_index = ({5{write_signal_i.tlbfill_en}} & {write_signal_i.rand_index[1:0],w_port.vppn[11:9]}) | 
+    assign w_index = ({5{write_signal_i.tlbfill_en}} & {random_r[1:0],w_port.vppn[11:9]}) | 
                     ({5{write_signal_i.tlbwr_en}} & {write_signal_i.tlbidx[`INDEX]});
     assign w_port.asid = asid;
     assign w_port.vppn = write_signal_i.tlbehi[`VPPN];
