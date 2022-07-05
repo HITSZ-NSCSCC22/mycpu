@@ -30,13 +30,6 @@ module tage_predictor
     output logic [5*32-1:0] perf_tag_hit_counter
 );
 
-`ifdef DUMP_WAVEFORM
-    initial begin
-        $dumpfile("logs/wave.vcd");
-        $dumpvars(0, tage_predictor);
-    end
-`endif
-
     localparam GHR_DEPTH = BPU_GHR_LENGTH;
     localparam TAG_COMPONENT_AMOUNT = BPU_TAG_COMPONENT_NUM;
 
@@ -67,19 +60,6 @@ module tage_predictor
     end
 
 
-    // BTB
-    logic btb_hit;
-    btb u_btb (
-        .clk                    (clk),
-        .rst                    (rst),
-        .query_pc_i             (pc_i),
-        .update_valid           (update_valid),
-        .update_pc_i            (),                           // TODO: finish up BTB
-        .update_branch_target_i (),
-        .branch_target_address_o(predicted_branch_target_o),
-        .btb_hit                (btb_hit)
-    );
-
     // Base Predictor
     logic base_taken;
     logic base_update_ctr;
@@ -91,6 +71,9 @@ module tage_predictor
         .update_info_i({update_pc, update_branch_taken}),
         .taken        (base_taken)
     );
+
+    assign predict_branch_taken_o = base_taken;
+    assign predict_valid_o = 0;
 
     /*
 

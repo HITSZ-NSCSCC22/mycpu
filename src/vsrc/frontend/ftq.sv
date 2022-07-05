@@ -14,6 +14,7 @@ module ftq
 
     // <-> BPU
     input bpu_ftq_t bpu_i,
+    output ftq_block_t bpu_o,
     output logic bpu_queue_full_o,
 
     // <-> Backend 
@@ -106,6 +107,7 @@ module ftq
     logic [$clog2(QUEUE_SIZE)-1:0] bpu_ptr_plus1;  // Limit the bit width
     assign bpu_ptr_plus1 = bpu_ptr + 1;
     assign bpu_queue_full_o = (bpu_ptr_plus1 == comm_ptr);
+    assign bpu_o = FTQ[bpu_ptr-1];
 
 
 endmodule
