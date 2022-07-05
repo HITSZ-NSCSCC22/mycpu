@@ -608,7 +608,7 @@ module cpu_top
     logic [1:0] data_fetch, mem_tlbsrch;
     generate
         for (genvar i = 0; i < 2; i++) begin : mem
-            mem u_mem (
+            mem1 u_mem1 (
                 .rst(rst),
 
                 .signal_i(ex_signal_o[i]),
@@ -648,12 +648,60 @@ module cpu_top
 
     endgenerate
 
+    generate
+        for(genvar i=0;i<2;i=i+1)begin
+            mem1_mem2 u_mem1_mem2(
+                .clk(clk),
+                .rst(rst),
+
+                .mem1_o(),
+                .mem2_i()
+            );
+        end
+    endgenerate
+
+    generate
+        for(genvar i=0;i<2;i=i+1)begin
+            mem2 u_mem2(
+                .rst(rst),
+
+                .mem1_i(),
+
+                .mem2_data_forward(),
+
+                .mem2_o(),
+
+                .data_ok(),
+                .cache_data()
+
+            );
+        end
+    endgenerate
+
+    generate
+        for(genvar i=0;i<2;i=i+1)begin
+            mem2_wb u_mem2_wb(
+                .rst(rst),
+
+                .mem1_i(),
+
+                .mem2_data_forward(),
+
+                .mem2_o(),
+
+                .data_ok(),
+                .cache_data()
+
+            );
+        end
+    endgenerate
+
 
     wb_ctrl wb_ctrl_signal[2];
 
     generate
         for (genvar i = 0; i < 2; i++) begin : mem_wb
-            mem_wb u_mem_wb (
+            wb u_wb (
                 .clk  (clk),
                 .rst  (rst),
                 .stall(stall[4]),
@@ -685,6 +733,24 @@ module cpu_top
                 //to ctrl
                 .wb_ctrl_signal(wb_ctrl_signal[i]),
                 .ftq_id_o(wb_ctrl_ftq_id[i])
+            );
+        end
+    endgenerate
+
+    generate
+        for(genvar i=0;i<2;i=i+1)begin
+            wb_ctrl u_wb_ctrl(
+                .rst(rst),
+
+                .mem1_i(),
+
+                .mem2_data_forward(),
+
+                .mem2_o(),
+
+                .data_ok(),
+                .cache_data()
+
             );
         end
     endgenerate

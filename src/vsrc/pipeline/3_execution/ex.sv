@@ -28,6 +28,7 @@ module ex
     // <- CSR
     input [63:0] timer_64,
     input [31:0] tid,
+    input csr_to_mem_struct csr_ex_signal,
 
     // Multi-cycle ALU stallreq
     output logic stallreq,
@@ -39,6 +40,14 @@ module ex
     output logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] branch_ftq_id_o,
 
     output ex_dispatch_struct ex_data_forward,
+
+    // ->TLB
+    output data_addr_trans_en,
+    output dmw0_en,
+    output dmw1_en,
+    output data_fetch,
+    output tlbsrch_en_o,
+    output [`RegBus] tlb_vaddr,
 
     // <-> Cache
     output logic icacop_op_en,
@@ -124,7 +133,15 @@ module ex
 
     logic excp_ale, excp_ine, excp_i;
     logic [9:0] excp_num;
-    logic access_mem, mem_load_op, mem_store_op, mem_b_op, mem_h_op;
+    logic
+        access_mem,
+        mem_load_op,
+        mem_store_op,
+        mem_b_op,
+        mem_h_op,
+        pg_mode,
+        da_mode,
+        cacop_op_mode_di;
     assign excp_ale = access_mem && ((mem_b_op & 1'b0)| (mem_h_op & ex_o.mem_addr[0])| 
                     (!(mem_b_op | mem_h_op) & (ex_o.mem_addr[0] | ex_o.mem_addr[1]))) ;
     assign excp_ine = aluop_i == `EXE_INVTLB_OP && imm > 32'd6;
@@ -134,15 +151,29 @@ module ex
     assign ex_o.excp_num = excp_num;
     assign ex_o.refetch = dispatch_i.refetch;
 
-    //对未对齐例外的判断
     assign access_mem = mem_load_op || mem_store_op;
 
     assign mem_load_op = aluop_i == `EXE_LD_B_OP ||  aluop_i == `EXE_LD_BU_OP ||  aluop_i == `EXE_LD_H_OP ||  aluop_i == `EXE_LD_HU_OP ||
                         aluop_i == `EXE_LD_W_OP ||  aluop_i == `EXE_LL_OP;
 
-    assign mem_store_op =  aluop_i == `EXE_ST_B_OP ||  aluop_i == `EXE_ST_H_OP ||  aluop_i == `EXE_ST_W_OP ||  aluop_i == `EXE_SC_OP;
+    assign mem_store_op =  aluop_i == `EXE_ST_B_OP ||  aluop_i == `EXE_ST_H_OP ||  aluop_i == `EXE_ST_W_OP ||  (aluop_i == `EXE_SC_OP && llbit == 1'b1);
     assign mem_b_op = aluop_i == `EXE_LD_B_OP | aluop_i == `EXE_LD_BU_OP | aluop_i == `EXE_ST_B_OP;
     assign mem_h_op = aluop_i == `EXE_LD_H_OP | aluop_i == `EXE_LD_HU_OP | aluop_i == `EXE_ST_H_OP;
+
+    assign dmw0_en = ((csr_ex_signal.csr_dmw0[`PLV0] && csr_ex_signal.csr_plv == 2'd0) || (csr_ex_signal.csr_dmw0[`PLV3] && csr_ex_signal.csr_plv == 2'd3)) && (tlb_vaddr[31:29] == csr_ex_signal.csr_dmw0[`VSEG]);
+    assign dmw1_en = ((csr_ex_signal.csr_dmw1[`PLV0] && csr_ex_signal.csr_plv == 2'd0) || (csr_ex_signal.csr_dmw1[`PLV3] && csr_ex_signal.csr_plv == 2'd3)) && (tlb_vaddr[31:29] == csr_ex_signal.csr_dmw1[`VSEG]);
+
+    assign pg_mode = !csr_ex_signal.csr_da && csr_ex_signal.csr_pg;
+    assign da_mode = csr_ex_signal.csr_da && !csr_ex_signal.csr_pg;
+
+    assign tlbsrch_en_o = aluop_i == `EXE_TLBSRCH_OP;
+    assign data_fetch = access_mem | tlbsrch_en_o;
+
+    assign tlb_vaddr = ex_o.mem_addr;
+
+    // Addr translate mode for DCache, pull down if instr is invalid
+    assign cacop_op_mode_di = dcacop_op_en && ((cacop_op_mode == 2'b0) || (cacop_op_mode == 2'b1));
+    assign data_addr_trans_en = access_mem && pg_mode && !dmw0_en && !dmw1_en && !cacop_op_mode_di && dispatch_i.instr_info.valid;
 
     alu u_alu (
         .rst(rst),
@@ -228,15 +259,6 @@ module ex
         .mul_ack       (muldiv_ack)
     );
 
-    mem_req u_mem_req (
-        .aluop(aluop_i),
-        .mem_addr(ex_o.mem_addr),
-        .mem_data(oprand2),
-        .llbit(llbit),
-
-        .signal_cache_o()
-    );
-
 
     assign stallreq = (muldiv_op & ~muldiv_finished) | // Multiply & Division
                 (icacop_inst & ~icacop_op_ack_i); // CACOP
@@ -313,6 +335,10 @@ module ex
         ex_o.cacop_en = cacop_instr;
         ex_o.icache_op_en = icacop_op_en;
         ex_o.cacop_op = cacop_op;
+        ex_o.data_addr_trans_en = data_addr_trans_en;
+        ex_o.dmw0_en = dmw0_en;
+        ex_o.dmw1_en = dmw1_en;
+        ex_o.cacop_op_mode_di = cacop_op_mode_di;
         ex_o.inv_i = aluop_i == `EXE_INVTLB_OP ? {1'b1, oprand1[9:0], oprand2[31:13], imm[4:0]} : 0;
         case (alusel_i)
             `EXE_RES_LOGIC: begin

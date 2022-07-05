@@ -6,7 +6,8 @@ module dispatch
 #(
     parameter DECODE_WIDTH = 2,
     parameter EXE_STAGE_WIDTH = 2,
-    parameter MEM_STAGE_WIDTH = 2
+    parameter MEM_STAGE_WIDTH = 2,
+    parameter WB_STAGE_WIDTH = 2
 ) (
     input logic clk,
     input logic rst,
@@ -32,7 +33,11 @@ module dispatch
 
     // <- Mem
     // Data forwarding
-    input mem_data_forward_t [MEM_STAGE_WIDTH-1:0] mem_data_forward_i,
+    input mem1_data_forward_t [MEM_STAGE_WIDTH-1:0] mem1_data_forward_i,
+
+    input mem2_data_forward_t [MEM_STAGE_WIDTH-1:0] mem2_data_forward_i,
+
+    input wb_data_forward_t [WB_STAGE_WIDTH-1:0] wb_data_forward_i,
 
     //<-> CSR
     //get wdata from csr
@@ -165,10 +170,26 @@ module dispatch
                         oprand1[i] = ex_data_forward[1].reg_data;
                     else if(ex_data_forward[0].reg_valid == `WriteEnable && ex_data_forward[0].reg_addr == regfile_reg_read_addr_o[i][0] && ex_data_forward[0].reg_addr != 0 && id_i[i].reg_read_valid[0])
                         oprand1[i] = ex_data_forward[0].reg_data;
-                    else if(mem_data_forward_i[1].write_reg == `WriteEnable && mem_data_forward_i[1].write_reg_addr == regfile_reg_read_addr_o[i][0] && mem_data_forward_i[1].write_reg_addr != 0 && id_i[i].reg_read_valid[0])
-                        oprand1[i] = mem_data_forward_i[1].write_reg_data;
-                    else if(mem_data_forward_i[0].write_reg == `WriteEnable && mem_data_forward_i[0].write_reg_addr == regfile_reg_read_addr_o[i][0] && mem_data_forward_i[0].write_reg_addr != 0 && id_i[i].reg_read_valid[0])
-                        oprand1[i] = mem_data_forward_i[0].write_reg_data;
+                    else if(mem1_data_forward_i[1].write_reg == `WriteEnable && mem1_data_forward_i[1].write_reg_addr == regfile_reg_read_addr_o[i][0] && mem1_data_forward_i[1].write_reg_addr != 0 && id_i[i].reg_read_valid[0])
+                        oprand1[i] = mem1_data_forward_i[1].write_reg_data;
+                    else if(mem1_data_forward_i[0].write_reg == `WriteEnable && mem1_data_forward_i[0].write_reg_addr == regfile_reg_read_addr_o[i][0] && mem1_data_forward_i[0].write_reg_addr != 0 && id_i[i].reg_read_valid[0])
+                        oprand1[i] = mem1_data_forward_i[0].write_reg_data;
+                    else if(mem2_data_forward_i[1].write_reg == `WriteEnable && mem2_data_forward_i[1].write_reg_addr == regfile_reg_read_addr_o[i][0] && mem2_data_forward_i[1].write_reg_addr != 0 && id_i[i].reg_read_valid[0])
+                        oprand1[i] = mem2_data_forward_i[1].write_reg_data;
+                    else if(mem2_data_forward_i[0].write_reg == `WriteEnable && mem2_data_forward_i[0].write_reg_addr == regfile_reg_read_addr_o[i][0] && mem2_data_forward_i[0].write_reg_addr != 0 && id_i[i].reg_read_valid[0])
+                        oprand1[i] = mem2_data_forward_i[0].write_reg_data;
+                    else if(mem2_data_forward_i[1].is_load_data == 1'b1 && mem2_data_forward_i[1].load_valid == 1'b1 && mem2_data_forward_i[1].write_reg_addr == regfile_reg_read_addr_o[i][1] && mem2_data_forward_i[1].write_reg_addr != 0 && id_i[i].reg_read_valid[1])
+                        oprand1[i] = mem2_data_forward_i[1].load_data;
+                    else if(mem2_data_forward_i[0].is_load_data == 1'b1 && mem2_data_forward_i[0].load_valid == 1'b1 && mem2_data_forward_i[0].write_reg_addr == regfile_reg_read_addr_o[i][0] && mem2_data_forward_i[0].write_reg_addr != 0 && id_i[i].reg_read_valid[1])
+                        oprand1[i] = mem2_data_forward_i[0].load_data;
+                    else if(wb_data_forward_i[1].write_reg == `WriteEnable && wb_data_forward_i[1].write_reg_addr == regfile_reg_read_addr_o[i][0] && wb_data_forward_i[1].write_reg_addr != 0 && id_i[i].reg_read_valid[0])
+                        oprand1[i] = wb_data_forward_i[1].write_reg_data;
+                    else if(wb_data_forward_i[0].write_reg == `WriteEnable && wb_data_forward_i[0].write_reg_addr == regfile_reg_read_addr_o[i][0] && wb_data_forward_i[0].write_reg_addr != 0 && id_i[i].reg_read_valid[0])
+                        oprand1[i] = wb_data_forward_i[0].write_reg_data;
+                    else if(wb_data_forward_i[1].is_load_data == 1'b1 && wb_data_forward_i[1].load_valid == 1'b1 && wb_data_forward_i[1].write_reg_addr == regfile_reg_read_addr_o[i][1] && wb_data_forward_i[1].write_reg_addr != 0 && id_i[i].reg_read_valid[0])
+                        oprand1[i] = wb_data_forward_i[1].load_data;
+                    else if(wb_data_forward_i[0].is_load_data == 1'b1 && wb_data_forward_i[0].load_valid == 1'b1 && wb_data_forward_i[0].write_reg_addr == regfile_reg_read_addr_o[i][0] && wb_data_forward_i[0].write_reg_addr != 0 && id_i[i].reg_read_valid[0])
+                        oprand1[i] = wb_data_forward_i[0].load_data;
                     else oprand1[i] = regfile_reg_read_data_i[i][0];
                 end
             end
@@ -183,10 +204,26 @@ module dispatch
                         oprand2[i] = ex_data_forward[1].reg_data;
                     else if(ex_data_forward[0].reg_valid == `WriteEnable && ex_data_forward[0].reg_addr == regfile_reg_read_addr_o[i][1] && ex_data_forward[0].reg_addr != 0 && id_i[i].reg_read_valid[1])
                         oprand2[i] = ex_data_forward[0].reg_data;
-                    else if(mem_data_forward_i[1].write_reg == `WriteEnable && mem_data_forward_i[1].write_reg_addr == regfile_reg_read_addr_o[i][1] && mem_data_forward_i[1].write_reg_addr != 0 && id_i[i].reg_read_valid[1])
-                        oprand2[i] = mem_data_forward_i[1].write_reg_data;
-                    else if(mem_data_forward_i[0].write_reg == `WriteEnable && mem_data_forward_i[0].write_reg_addr == regfile_reg_read_addr_o[i][1] && mem_data_forward_i[0].write_reg_addr != 0 && id_i[i].reg_read_valid[1])
-                        oprand2[i] = mem_data_forward_i[0].write_reg_data;
+                    else if(mem1_data_forward_i[1].write_reg == `WriteEnable && mem1_data_forward_i[1].write_reg_addr == regfile_reg_read_addr_o[i][1] && mem1_data_forward_i[1].write_reg_addr != 0 && id_i[i].reg_read_valid[1])
+                        oprand2[i] = mem1_data_forward_i[1].write_reg_data;
+                    else if(mem1_data_forward_i[0].write_reg == `WriteEnable && mem1_data_forward_i[0].write_reg_addr == regfile_reg_read_addr_o[i][1] && mem1_data_forward_i[0].write_reg_addr != 0 && id_i[i].reg_read_valid[1])
+                        oprand2[i] = mem1_data_forward_i[0].write_reg_data;
+                    else if(mem2_data_forward_i[1].write_reg == `WriteEnable && mem2_data_forward_i[1].write_reg_addr == regfile_reg_read_addr_o[i][1] && mem2_data_forward_i[1].write_reg_addr != 0 && id_i[i].reg_read_valid[1])
+                        oprand2[i] = mem2_data_forward_i[1].write_reg_data;
+                    else if(mem2_data_forward_i[0].write_reg == `WriteEnable && mem2_data_forward_i[0].write_reg_addr == regfile_reg_read_addr_o[i][1] && mem2_data_forward_i[0].write_reg_addr != 0 && id_i[i].reg_read_valid[1])
+                        oprand2[i] = mem2_data_forward_i[0].write_reg_data;
+                    else if(mem2_data_forward_i[1].is_load_data == 1'b1 && mem2_data_forward_i[1].load_valid == 1'b1 && mem2_data_forward_i[1].write_reg_addr == regfile_reg_read_addr_o[i][1] && mem2_data_forward_i[1].write_reg_addr != 0 && id_i[i].reg_read_valid[1])
+                        oprand2[i] = mem2_data_forward_i[1].load_data;
+                    else if(mem2_data_forward_i[0].is_load_data == 1'b1 && mem2_data_forward_i[0].load_valid == 1'b1 && mem2_data_forward_i[0].write_reg_addr == regfile_reg_read_addr_o[i][0] && mem2_data_forward_i[0].write_reg_addr != 0 && id_i[i].reg_read_valid[1])
+                        oprand2[i] = mem2_data_forward_i[0].load_data;
+                    else if(wb_data_forward_i[1].write_reg == `WriteEnable && wb_data_forward_i[1].write_reg_addr == regfile_reg_read_addr_o[i][0] && wb_data_forward_i[1].write_reg_addr != 0 && id_i[i].reg_read_valid[0])
+                        oprand2[i] = wb_data_forward_i[1].write_reg_data;
+                    else if(wb_data_forward_i[0].write_reg == `WriteEnable && wb_data_forward_i[0].write_reg_addr == regfile_reg_read_addr_o[i][0] && wb_data_forward_i[0].write_reg_addr != 0 && id_i[i].reg_read_valid[0])
+                        oprand2[i] = wb_data_forward_i[0].write_reg_data;
+                    else if(wb_data_forward_i[1].is_load_data == 1'b1 && wb_data_forward_i[1].load_valid == 1'b1 && wb_data_forward_i[1].write_reg_addr == regfile_reg_read_addr_o[i][1] && wb_data_forward_i[1].write_reg_addr != 0 && id_i[i].reg_read_valid[1])
+                        oprand2[i] = wb_data_forward_i[1].load_data;
+                    else if(wb_data_forward_i[0].is_load_data == 1'b1 && wb_data_forward_i[0].load_valid == 1'b1 && wb_data_forward_i[0].write_reg_addr == regfile_reg_read_addr_o[i][0] && wb_data_forward_i[0].write_reg_addr != 0 && id_i[i].reg_read_valid[1])
+                        oprand2[i] = wb_data_forward_i[0].load_data;
                     else oprand2[i] = regfile_reg_read_data_i[i][1];
                 end
             end
