@@ -1,5 +1,5 @@
 `include "core_types.sv"
-`include "tlb_types.sv"
+`include "TLB/tlb_types.sv"
 `include "csr_defines.sv"
 `include "core_config.sv"
 
@@ -28,7 +28,7 @@ module ctrl
     output logic excp_flush,  //异常指令冲刷信号
     output logic ertn_flush,  //ertn指令冲刷信号
     output logic fetch_flush,  // TLB related instr require instr to be refetch
-    output logic icache_flush, // ICache cacop 指令冲刷流水线
+    output logic icache_flush,  // ICache cacop 指令冲刷流水线
     output logic [`InstAddrBus] idle_pc,  //idle指令pc
 
     // Stall request to each stage
@@ -62,6 +62,7 @@ module ctrl
 
     //invtlb signal to tlb
     output tlb_inv_t inv_o,
+    input logic inv_stallreq,
 
     //regfile-write
     output wb_reg reg_o_0,
@@ -77,7 +78,7 @@ module ctrl
     output diff_commit commit_1
 );
 
-    logic valid,pri_commit,excp;
+    logic valid, pri_commit, excp;
     logic [`AluOpBus] aluop, aluop_1;
     logic [COMMIT_WIDTH-1:0] backend_commit_valid;
     logic [15:0] excp_num;
@@ -85,7 +86,7 @@ module ctrl
 
     assign valid = wb_i[0].valid | wb_i[1].valid;
 
-    
+
     assign backend_commit_valid[0] = wb_i[0].valid;
     assign backend_commit_valid[1] = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | wb_i[0].excp)? 0 : wb_i[1].valid;
 
@@ -97,7 +98,7 @@ module ctrl
     assign backend_flush_ftq_id_o = (wb_i[0].excp | ertn_flush | idle_flush |fetch_flush) ? wb_ftq_id_i[0] :
                                     (wb_i[1].excp) ? wb_ftq_id_i[1] : 0;
 
-    
+
     assign aluop = wb_i[0].aluop;
     assign aluop_1 = wb_i[1].aluop;
 
@@ -139,6 +140,7 @@ module ctrl
     //暂停处理
     always_comb begin
         if (rst) stall = 5'b00000;
+        else if (inv_stallreq) stall = 5'b11110;
         //访存阶段的暂停请求:进行访存操作时请求暂停,此时将译码和发射阶段阻塞
         else if (mem_stallreq_i[0] | mem_stallreq_i[1]) stall = 5'b11110;
         //执行阶段的暂停请求:进行乘除法时请求暂停,此时将译码和发射阶段阻塞
@@ -151,13 +153,13 @@ module ctrl
     end
 
     //判断提交的是否为特权指令,因为特权后不发射其它指令,故必然出现在第一条流水线
-    
-    assign pri_commit = aluop == `EXE_CSRWR_OP | aluop == `EXE_CSRRD_OP | aluop == `EXE_CSRXCHG_OP |
-                       aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_ERTN_OP |
-                       aluop == `EXE_TLBRD_OP | aluop == `EXE_TLBWR_OP | aluop == `EXE_TLBSRCH_OP |
-                       aluop == `EXE_TLBFILL_OP | aluop == `EXE_IDLE_OP | aluop == `EXE_INVTLB_OP |
-                       aluop == `EXE_RDCNTID_OP | aluop == `EXE_RDCNTVL_OP | aluop == `EXE_RDCNTVH_OP |
-                       aluop == `EXE_CACOP_OP ;
+    assign pri_commit = wb_i[0].special_instr.is_pri;
+    // assign pri_commit = aluop == `EXE_CSRWR_OP | aluop == `EXE_CSRRD_OP | aluop == `EXE_CSRXCHG_OP |
+    //                    aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_ERTN_OP |
+    //                    aluop == `EXE_TLBRD_OP | aluop == `EXE_TLBWR_OP | aluop == `EXE_TLBSRCH_OP |
+    //                    aluop == `EXE_TLBFILL_OP | aluop == `EXE_IDLE_OP | aluop == `EXE_INVTLB_OP |
+    //                    aluop == `EXE_RDCNTID_OP | aluop == `EXE_RDCNTVL_OP | aluop == `EXE_RDCNTVH_OP |
+    //                    aluop == `EXE_CACOP_OP ;
 
     //特权阻塞信号
     always_ff @(posedge clk) begin
@@ -184,7 +186,7 @@ module ctrl
     assign csr_w_o_0 = wb_i[0].excp ? 0 : wb_i[0].csr_signal_o;
     assign csr_w_o_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | excp) ? 0 : wb_i[1].csr_signal_o;
 
-    
+
     assign excp = wb_i[0].excp | wb_i[1].excp;
     assign csr_era = aluop == `EXE_IDLE_OP ? pc + 32'h4 : pc;
     //异常处理，优先处理第一条流水线的异常

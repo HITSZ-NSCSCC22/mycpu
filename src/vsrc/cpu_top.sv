@@ -1,9 +1,8 @@
 `include "defines.sv"
-`include "regfile.sv"
 `include "csr_defines.sv"
 `include "cs_reg.sv"
-`include "tlb.sv"
-`include "tlb_entry.sv"
+`include "TLB/tlb.sv"
+`include "TLB/tlb_entry.sv"
 `include "AXI/axi_master.sv"
 `include "frontend/frontend.sv"
 `include "instr_buffer.sv"
@@ -18,6 +17,7 @@
 `include "pipeline/3_execution/ex.sv"
 `include "pipeline/4_mem/mem.sv"
 `include "pipeline/4_mem/mem_wb.sv"
+`include "Reg/regs_file.sv"
 
 module cpu_top 
     import core_types::*;
@@ -276,6 +276,7 @@ module cpu_top
 
     // Frontend -> ICache
     logic [1:0] frontend_icache_rreq;
+    logic [1:0] frontend_icache_rreq_uncached;
     logic [1:0][`InstAddrBus] frontend_icache_addr;
 
     // ICache -> Frontend
@@ -302,12 +303,14 @@ module cpu_top
        
         // Port A
         .rreq_1_i     (frontend_icache_rreq[0]),
+        .rreq_1_uncached_i (frontend_icache_rreq_uncached[0]),
         .raddr_1_i    (frontend_icache_addr[0]),
         .rreq_1_ack_o (icache_frontend_rreq_ack[0]),
         .rvalid_1_o   (icache_frontend_valid[0]),
         .rdata_1_o    (icache_frontend_data[0]),
         // Port B
         .rreq_2_i     (frontend_icache_rreq[1]),
+        .rreq_2_uncached_i (frontend_icache_rreq_uncached[1]),
         .raddr_2_i    (frontend_icache_addr[1]),
         .rreq_2_ack_o (icache_frontend_rreq_ack[1]),
         .rvalid_2_o   (icache_frontend_valid[1]),
@@ -321,25 +324,19 @@ module cpu_top
         .axi_rlast_i  (),
         .axi_data_i   (axi_icache_data),
 
-        .frontend_uncache_i(),
         .invalid_i(),
 
         //-> CACOP
         .cacop_i(icacop_op_en[0]),
         .cacop_mode_i(cacop_op_mode[0]),
         .cacop_addr_i({tlb_data_o.tag,tlb_data_o.index,tlb_data_o.offset}),
-        .cacop_ack_o(icacop_ack),
-        
-
-       // TLB related
-       .tlb_i(tlb_inst), // <- TLB
-       .tlb_rreq_i(frontend_tlb) // <- Frontend
+        .cacop_ack_o(icacop_ack)
    );
     
 
     // Frontend <-> Instruction Buffer
     logic ib_frontend_stallreq;
-    instr_buffer_info_t frontend_ib_instr_info[FETCH_WIDTH];
+    instr_info_t frontend_ib_instr_info[FETCH_WIDTH];
     logic [`RegBus] next_pc;
 
     // Frontend <-> Backend 
@@ -353,8 +350,9 @@ module cpu_top
         .rst(rst),
 
         // <-> ICache
-        .icache_read_addr_o(frontend_icache_addr),  // -> ICache
-        .icache_read_req_o(frontend_icache_rreq),
+        .icache_read_req_o(frontend_icache_rreq), // -> ICache
+        .icache_read_req_uncached_o(frontend_icache_rreq_uncached),
+        .icache_read_addr_o(frontend_icache_addr), 
         .icache_rreq_ack_i(icache_frontend_rreq_ack),
         .icache_read_valid_i(icache_frontend_valid),  // <- ICache
         .icache_read_data_i(icache_frontend_data),  // <- ICache
@@ -377,14 +375,13 @@ module cpu_top
         .csr_dmw1(csr_dmw1),
         .csr_plv(csr_plv),
         .csr_datf(csr_datf),
-        .disable_cache(),
 
         // <-> TLB
         .tlb_o(frontend_tlb),
         .tlb_i(tlb_inst)
     );
 
-    instr_buffer_info_t ib_backend_instr_info[2];  // IB -> ID
+    instr_info_t ib_backend_instr_info[2];  // IB -> ID
     logic [4:0] stall; // from 4->0 {mem_wb, ex_mem, dispatch_ex, id_dispatch, _}
 
     logic [1:0] dispatch_ib_accept;
@@ -603,8 +600,7 @@ module cpu_top
                             tlb_data_o.tlb_d,tlb_data_o.tlb_mat,tlb_data_o.tlb_plv};
 
     assign csr_mem_signal = {csr_pg,csr_da,csr_dmw0,csr_dmw1,csr_plv,csr_datm};
-    //assign tlb_mem_signal = {data_tlb_found,data_tlb_index,data_tlb_v,data_tlb_d,data_tlb_mat,data_tlb_plv};
-
+   
     logic [1:0] data_fetch, mem_tlbsrch;
     generate
         for (genvar i = 0; i < 2; i++) begin : mem
@@ -658,7 +654,7 @@ module cpu_top
                 .rst  (rst),
                 .stall(stall[4]),
 
-                .mem_signal_o(mem_signal_o[i]),
+                .mem_i(mem_signal_o[i]),
 
                 .mem_LLbit_we(mem_wb_LLbit_we[i]),
                 .mem_LLbit_value(mem_wb_LLbit_value[i]),
@@ -690,19 +686,36 @@ module cpu_top
     endgenerate
 
 
-    regfile #(
+    // regfile #(
+    //     .READ_PORTS(4)  // 2 for each ID, 2 ID in total, TODO: remove magic number
+    // ) u_regfile (
+    //     .clk(clk),
+
+    //     .we_1   (reg_o[0].we),
+    //     .pc_i_1 (reg_o[0].pc),
+    //     .waddr_1(reg_o[0].waddr),
+    //     .wdata_1(reg_o[0].wdata),
+    //     .we_2   (reg_o[1].we),
+    //     .pc_i_2 (reg_o[1].pc),
+    //     .waddr_2(reg_o[1].waddr),
+    //     .wdata_2(reg_o[1].wdata),
+
+    //     // Read signals
+    //     // Registers are read in dispatch stage
+    //     .read_valid_i(dispatch_regfile_reg_read_valid),
+    //     .read_addr_i (dispatch_regfile_reg_read_addr),
+    //     .read_data_o (regfile_dispatch_reg_read_data)
+    // );
+
+    regs_file #(
         .READ_PORTS(4)  // 2 for each ID, 2 ID in total, TODO: remove magic number
     ) u_regfile (
         .clk(clk),
 
-        .we_1   (reg_o[0].we),
-        .pc_i_1 (reg_o[0].pc),
-        .waddr_1(reg_o[0].waddr),
-        .wdata_1(reg_o[0].wdata),
-        .we_2   (reg_o[1].we),
-        .pc_i_2 (reg_o[1].pc),
-        .waddr_2(reg_o[1].waddr),
-        .wdata_2(reg_o[1].wdata),
+        // Write signals
+        .we_i({reg_o[1].we, reg_o[0].we}),
+        .waddr_i({reg_o[1].waddr, reg_o[0].waddr}),
+        .wdata_i({reg_o[1].wdata, reg_o[0].wdata}),
 
         // Read signals
         // Registers are read in dispatch stage
@@ -723,6 +736,7 @@ module cpu_top
     logic tlbrd_en;
 
     wb_llbit llbit_i;
+    logic inv_stallreq;
 
     ctrl u_ctrl(
         .clk(clk),
@@ -771,6 +785,7 @@ module cpu_top
         .llbit_signal(llbit_i),
 
         .inv_o(tlb_inv_signal_i),
+        .inv_stallreq(inv_stallreq),
 
         .tlbwr_en(tlb_write_signal_i.tlbwr_en),
         .tlbsrch_en(tlbsrch_en),
@@ -856,6 +871,8 @@ module cpu_top
     tlb_data_t tlb_data_o;
     tlb_write_in_struct tlb_write_signal_i;
     tlb_read_out_struct tlb_read_signal_o;
+
+    logic [4:0] rand_index_diff;
     
     tlb u_tlb (
         .clk               (clk),
@@ -874,11 +891,14 @@ module cpu_top
         .read_signal_o(tlb_read_signal_o),
         //invtlb 
         .inv_signal_i(tlb_inv_signal_i),
+        .inv_stallreq(inv_stallreq),
         //from csr
         .csr_dmw0(csr_dmw0),
         .csr_dmw1(csr_dmw1),
         .csr_da(csr_da),
-        .csr_pg(csr_pg)
+        .csr_pg(csr_pg),
+
+        .rand_index_diff(rand_index_diff)
     );
 
     // Difftest Delay signals
@@ -903,7 +923,7 @@ module cpu_top
         debug1_wb_rf_wnum <= reg_o[1].waddr;
         `endif
     end
-
+`ifdef SIMULATION
     logic excp_flush_commit;
     logic ertn_flush_commit;
     logic [`RegBus]excp_pc_commit;
@@ -919,8 +939,9 @@ module cpu_top
         csr_ecode_commit <= csr_ecode_i;
         excp_instr_commit <= excp_instr;
         tlbfill_en_commit <= tlb_write_signal_i.tlbfill_en;
-        rand_index_commit <= tlb_write_signal_i.rand_index;
+        rand_index_commit <= rand_index_diff;
     end
+`endif 
     // difftest dpi-c
 `ifdef SIMU  // SIMU is defined in chiplab run_func/makefile
     DifftestInstrCommit difftest_instr_commit_0 (  

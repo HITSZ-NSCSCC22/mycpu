@@ -3,7 +3,26 @@
 
 package tlb_types;
 
-    parameter TLBNUM = 32;
+    //TLB-ENTRY parameter
+    `define ENTRY_LEN 89 
+    `define ENTRYWAYLEN 26
+    `define ENTRY_E 0
+    `define ENTRY_ASID 10:1
+    `define ENTRY_G 11
+    `define ENTRY_PS 17:12
+    `define ENTRY_VPPN 36:18
+    `define ENTRY_VPPN_H0 36:27
+    `define ENTRY_VPPN_H1 36:28
+    `define ENTRY_V0 37
+    `define ENTRY_D0 38
+    `define ENTRY_MAT0 40:39
+    `define ENTRY_PLV0 42:41
+    `define ENTRY_PPN0 62:43
+    `define ENTRY_V1 63
+    `define ENTRY_D1 64
+    `define ENTRY_MAT1 66:65
+    `define ENTRY_PLV1 68:67
+    `define ENTRY_PPN1 88:69
 
     // Frontend -> TLB
     typedef struct packed {
@@ -76,11 +95,11 @@ package tlb_types;
     } tlb_inv_t;
 
     typedef struct packed {
-        logic [18:0] vppn;
+        logic e;
         logic [9:0] asid;
         logic g;
         logic [5:0] ps;
-        logic e;
+        logic [18:0] vppn;
         logic v0;
         logic d0;
         logic [1:0] mat0;

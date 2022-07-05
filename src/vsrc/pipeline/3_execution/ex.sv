@@ -63,9 +63,13 @@ module ex
     ex_mem_struct ex_o;
 
     // Assign input /////////////////////////////
+    instr_info_t instr_info;
+    special_info_t special_info;
+    assign instr_info   = dispatch_i.instr_info;
+    assign special_info = dispatch_i.instr_info.special_info;
 
     // ALU 
-    logic [`AluOpBus] aluop_i;
+    logic [ `AluOpBus] aluop_i;
     logic [`AluSelBus] alusel_i;
     assign aluop_i  = dispatch_i.aluop;
     assign alusel_i = dispatch_i.alusel;
@@ -132,32 +136,29 @@ module ex
     assign cacop_op = inst_i[4:0];
     assign cacop_instr = aluop_i == `EXE_CACOP_OP;
     assign icacop_inst = cacop_instr && (cacop_op[2:0] == 3'b0);
-    assign icacop_op_en = icacop_inst && !excp_i && !(flush | excp_flush | ertn_flush);
+    assign icacop_op_en = icacop_inst && !excp && !(flush | excp_flush | ertn_flush);
     assign dcacop_inst = cacop_instr && (cacop_op[2:0] == 3'b1);
-    assign dcacop_op_en = dcacop_inst && !excp_i && !(flush | excp_flush | ertn_flush);
+    assign dcacop_op_en = dcacop_inst && !excp && !(flush | excp_flush | ertn_flush);
     assign cacop_op_mode = cacop_op[4:3];
 
-    logic excp_ale, excp_ine, excp_i;
+    logic excp_ale, excp_ine, excp;
     logic [9:0] excp_num;
     logic access_mem, mem_load_op, mem_store_op, mem_b_op, mem_h_op;
+    //对未对齐例外的判断
     assign excp_ale = access_mem && ((mem_b_op & 1'b0)| (mem_h_op & ex_o.mem_addr[0])| 
                     (!(mem_b_op | mem_h_op) & (ex_o.mem_addr[0] | ex_o.mem_addr[1]))) ;
     assign excp_ine = aluop_i == `EXE_INVTLB_OP && imm > 32'd6;
-    assign excp_num = {excp_ale, dispatch_i.excp_num | {1'b0, excp_ine, 7'b0}};
-    assign excp_i = dispatch_i.excp || excp_ale || excp_ine;
-    assign ex_o.excp = excp_i;
-    assign ex_o.excp_num = excp_num;
-    assign ex_o.refetch = dispatch_i.refetch;
+    assign excp_num = {excp_ale, instr_info.excp_num[8:0] | {1'b0, excp_ine, 7'b0}};
+    assign excp = instr_info.excp | excp_ale | excp_ine;
 
-    //对未对齐例外的判断
-    assign access_mem = mem_load_op || mem_store_op;
+    assign access_mem = mem_load_op | mem_store_op;
 
-    assign mem_load_op = aluop_i == `EXE_LD_B_OP ||  aluop_i == `EXE_LD_BU_OP ||  aluop_i == `EXE_LD_H_OP ||  aluop_i == `EXE_LD_HU_OP ||
-                        aluop_i == `EXE_LD_W_OP ||  aluop_i == `EXE_LL_OP;
+    assign mem_load_op = special_info.mem_load;
 
-    assign mem_store_op =  aluop_i == `EXE_ST_B_OP ||  aluop_i == `EXE_ST_H_OP ||  aluop_i == `EXE_ST_W_OP ||  aluop_i == `EXE_SC_OP;
-    assign mem_b_op = aluop_i == `EXE_LD_B_OP | aluop_i == `EXE_LD_BU_OP | aluop_i == `EXE_ST_B_OP;
-    assign mem_h_op = aluop_i == `EXE_LD_H_OP | aluop_i == `EXE_LD_HU_OP | aluop_i == `EXE_ST_H_OP;
+
+    assign mem_store_op = special_info.mem_store;
+    assign mem_b_op = special_info.mem_b_op;
+    assign mem_h_op = special_info.mem_h_op;
 
     always @(*) begin
         if (rst == `RstEnable) begin
@@ -226,7 +227,7 @@ module ex
     logic muldiv_op;  // High effective
     always_comb begin
         case (aluop_i)
-            `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP: begin
+            `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP,`EXE_MUL_OP,`EXE_MULH_OP,`EXE_MULHU_OP: begin
                 muldiv_op = 1;
             end
             default: begin
@@ -266,22 +267,22 @@ module ex
         muldiv_ack  = muldiv_finished & muldiv_op & ~stall[1];
     end
     mul u_mul (
-        .clk           (clk),
-        .rst           (rst),
+        .clk(clk),
+        .rst(rst),
         .clear_pipeline(flush),
-        .mul_para      (muldiv_para),
-        .mul_initial   (muldiv_init),
-        .mul_rs0       (reg1_i),
-        .mul_rs1       (reg2_i == 0 ? 1 : reg2_i),
-        .mul_ready     (muldiv_busy),
-        .mul_finished  (muldiv_finished),           // 1 means finished
-        .mul_data      (muldiv_result),
-        .mul_ack       (muldiv_ack)
+        .mul_para(muldiv_para),
+        .mul_initial(muldiv_init),
+        .mul_rs0(reg1_i),
+        .mul_rs1((reg2_i == 0 && (aluop_i == `EXE_DIV_OP || aluop_i == `EXE_DIVU_OP)) ? 1 : reg2_i),
+        .mul_ready(muldiv_busy),
+        .mul_finished(muldiv_finished),  // 1 means finished
+        .mul_data(muldiv_result),
+        .mul_ack(muldiv_ack)
     );
 
 
-    assign stallreq = (muldiv_op & ~muldiv_finished) | // Multiply & Division
-                (icacop_inst & ~icacop_op_ack_i); // CACOP
+    assign stallreq = (icacop_inst & ~icacop_op_ack_i);  // CACOP
+    //(muldiv_op & ~muldiv_finished) | // Multiply & Division
     assign tlb_stallreq = aluop_i == `EXE_TLBRD_OP | aluop_i == `EXE_TLBSRCH_OP;
 
     always @(*) begin
@@ -289,22 +290,22 @@ module ex
             arithout = 0;
         end else begin
             case (aluop_i)
-                `EXE_ADD_OP: arithout = reg1_i + reg2_i;
-                `EXE_SUB_OP: arithout = reg1_i - reg2_i;
-                `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP: begin
-                    // Select result from multi-cycle divider
-                    arithout = muldiv_result;
+                `EXE_ADD_OP:   arithout = reg1_i + reg2_i;
+                `EXE_SUB_OP:   arithout = reg1_i - reg2_i;
+                // `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP,`EXE_MUL_OP,`EXE_MULH_OP,`EXE_MULHU_OP: begin
+                //     // Select result from multi-cycle divider
+                //     arithout = muldiv_result;
+                // end
+                `EXE_MUL_OP:   arithout = $signed(reg1_i) * $signed(reg2_i);
+                `EXE_MULH_OP:  arithout = ($signed(reg1_i) * $signed(reg2_i)) >> 32;
+                `EXE_MULHU_OP: arithout = ($unsigned(reg1_i) * $unsigned(reg2_i)) >> 32;
+                `EXE_DIV_OP:   arithout = ($signed(reg1_i) / $signed(reg2_i));
+                `EXE_DIVU_OP:  arithout = ($unsigned(reg1_i) / $unsigned(reg2_i));
+                `EXE_MODU_OP:  arithout = ($unsigned(reg1_i) % $unsigned(reg2_i));
+                `EXE_MOD_OP: begin
+                    arithout = ($signed(reg1_i) % $signed(reg2_i));
                 end
 
-                `EXE_MUL_OP: arithout = $signed(reg1_i) * $signed(reg2_i);
-                `EXE_MULH_OP: arithout = ($signed(reg1_i) * $signed(reg2_i)) >> 32;
-                `EXE_MULHU_OP: arithout = ($unsigned(reg1_i) * $unsigned(reg2_i)) >> 32;
-                // `EXE_DIV_OP: arithout = ($signed(reg1_i) / $signed(reg2_i));
-                // `EXE_DIVU_OP: arithout = ($unsigned(reg1_i) / $unsigned(reg2_i));
-                // `EXE_MODU_OP: arithout = ($unsigned(reg1_i) % $unsigned(reg2_i));
-                // `EXE_MOD_OP: begin
-                //     arithout = ($signed(reg1_i) % $signed(reg2_i));
-                // end
                 `EXE_SLT_OP, `EXE_SLTU_OP: arithout = {31'b0, reg1_lt_reg2};
                 default: begin
                     arithout = 0;
@@ -374,8 +375,6 @@ module ex
         if (rst == `RstEnable) begin
             moveout = `ZeroWord;
         end else begin
-            //   inst_pc_o = inst_pc_i;
-            //   inst_valid_o = inst_valid_i;
             case (aluop_i)
                 `EXE_LUI_OP: begin
                     moveout = reg2_i;
@@ -394,6 +393,8 @@ module ex
 
     always_comb begin
         ex_o.instr_info = stallreq ? 0 : dispatch_i.instr_info;
+        ex_o.instr_info.excp = excp;
+        ex_o.instr_info.excp_num = excp_num;
 
         // If the branch taken, then this basic block should be ended
         if (branch_flag) ex_o.instr_info.is_last_in_block = 1;

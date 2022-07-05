@@ -17,6 +17,7 @@ module frontend
     // <-> ICache
     // ICache is fixed dual port
     output logic [1:0] icache_read_req_o,
+    output logic [1:0] icache_read_req_uncached_o,
     output logic [1:0][ADDR_WIDTH-1:0] icache_read_addr_o,
     input logic [1:0] icache_rreq_ack_i,
     input logic [1:0] icache_read_valid_i,
@@ -32,7 +33,7 @@ module frontend
 
     // <-> Instruction buffer
     input logic instr_buffer_stallreq_i,
-    output instr_buffer_info_t instr_buffer_o[FETCH_WIDTH],
+    output instr_info_t instr_buffer_o[FETCH_WIDTH],
 
     // <- CSR
     input logic csr_pg,
@@ -41,7 +42,6 @@ module frontend
     input logic [31:0] csr_dmw1,
     input logic [1:0] csr_plv,
     input logic [1:0] csr_datf,
-    input logic disable_cache,
 
     // <-> TLB
     output inst_tlb_t tlb_o,
@@ -123,7 +123,7 @@ module frontend
     );
 
 
-    instr_buffer_info_t ifu_instr_output[FETCH_WIDTH];
+    instr_info_t ifu_instr_output[FETCH_WIDTH];
     assign instr_buffer_o = instr_buffer_stallreq_i ? '{FETCH_WIDTH{0}} : ifu_instr_output;
     ifu u_ifu (
         .clk(clk),
@@ -137,12 +137,13 @@ module frontend
         .ftq_id_i    (ftq_ifu_id),
         .ftq_accept_o(ifu_ftq_accept),
 
-        .csr_i({csr_pg, csr_da, csr_dmw0, csr_dmw1, csr_plv}),
+        .csr_i({csr_pg, csr_da, csr_dmw0, csr_dmw1, csr_plv, csr_datf}),
         .tlb_i(tlb_i),
         .tlb_o(tlb_o),
 
         // <-> Frontend <-> ICache
         .icache_rreq_o(icache_read_req_o),
+        .icache_rreq_uncached_o(icache_read_req_uncached_o),
         .icache_raddr_o(icache_read_addr_o),
         .icache_rreq_ack_i(icache_rreq_ack_i),
         .icache_rvalid_i(icache_read_valid_i),

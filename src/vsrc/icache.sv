@@ -1,5 +1,5 @@
 `include "core_config.sv"
-`include "tlb_types.sv"
+`include "TLB/tlb_types.sv"
 `include "utils/bram.sv"
 `include "utils/lfsr.sv"
 
@@ -14,6 +14,7 @@ module icache
 
     // Read port 1
     input logic rreq_1_i,
+    input logic rreq_1_uncached_i,
     input logic [ADDR_WIDTH-1:0] raddr_1_i,
     output logic rreq_1_ack_o,
     output logic rvalid_1_o,
@@ -21,14 +22,13 @@ module icache
 
     // Read port 2
     input logic rreq_2_i,
+    input logic rreq_2_uncached_i,
     input logic [ADDR_WIDTH-1:0] raddr_2_i,
     output logic rreq_2_ack_o,
     output logic rvalid_2_o,
     output logic [ICACHELINE_WIDTH-1:0] rdata_2_o,
 
     // Frontend Uncache
-    // DATF or DMW generated uncache
-    input logic frontend_uncache_i,
     input logic invalid_i,  // For some reason, frontend want to reset whole ICache
 
     // <-> AXI Controller
@@ -43,11 +43,7 @@ module icache
     input logic cacop_i,
     input logic [1:0] cacop_mode_i,
     input logic [ADDR_WIDTH-1:0] cacop_addr_i,
-    output cacop_ack_o,
-
-    // TLB related
-    input tlb_inst_t tlb_i,  // <- TLB
-    input inst_tlb_t tlb_rreq_i  // <- IFU
+    output cacop_ack_o
 );
 
     // Reset signal
@@ -75,7 +71,8 @@ module icache
     logic invalid_done;
 
     // Random number generator
-    logic [2:0] random_r;
+    // Use 16bits to ensure randomness
+    logic [15:0] random_r;
 
     // BRAM signals
     logic [NWAY-1:0][1:0][ICACHELINE_WIDTH-1:0] data_bram_rdata;
@@ -95,9 +92,8 @@ module icache
 
     // P1 signal
     logic miss_1_pulse, miss_2_pulse, miss_1_r, miss_2_r, miss_1, miss_2;  // miss signal
-    logic p1_rreq_1, p1_rreq_2;  // P1 rreq reg
+    logic p1_rreq_1, p1_rreq_2, p1_rreq_1_uncached, p1_rreq_2_uncached;  // P1 rreq reg
     logic [ADDR_WIDTH-1:0] p1_raddr_1, p1_raddr_2;  // P1 raddr reg
-    logic p1_tlb_miss;  // P1 TLB result miss
     logic [1:0] hit;
     logic [NWAY-1:0][1:0] tag_hit;  // P1 hit signal
     logic axi_rvalid_delay_1;
@@ -163,13 +159,13 @@ module icache
                 else next_state = REFILL_2_REQ;
             end
             REFILL_1_WAIT: begin
-                if (hit[0]) begin
+                if (axi_rvalid_i) begin
                     if (miss_2) next_state = REFILL_2_REQ;
                     else next_state = IDLE;
                 end else next_state = REFILL_1_WAIT;
             end
             REFILL_2_WAIT: begin
-                if (hit[1]) next_state = IDLE;
+                if (axi_rvalid_i) next_state = IDLE;
                 else next_state = REFILL_2_WAIT;
             end
             INVALID: begin
@@ -227,7 +223,7 @@ module icache
                         data_bram_en[i][1] = 1;
                         tag_bram_addr[i][1] = raddr_2_i[11:4];
                         data_bram_addr[i][1] = raddr_2_i[11:4];
-                    end else begin
+                    end else if (miss_2) begin
                         tag_bram_addr[i][1]  = p1_raddr_2[11:4];
                         data_bram_addr[i][1] = p1_raddr_2[11:4];
                     end
@@ -235,10 +231,10 @@ module icache
             end
             REFILL_1_REQ, REFILL_2_REQ, REFILL_1_WAIT, REFILL_2_WAIT: begin
                 for (integer i = 0; i < NWAY; i++) begin
-                    tag_bram_en[i][0]  = axi_rvalid_delay_1 | axi_rvalid_i;
-                    tag_bram_en[i][1]  = axi_rvalid_delay_1 | axi_rvalid_i;
-                    data_bram_en[i][0] = axi_rvalid_delay_1 | axi_rvalid_i;
-                    data_bram_en[i][1] = axi_rvalid_delay_1 | axi_rvalid_i;
+                    tag_bram_en[i][0]  = axi_rvalid_i;
+                    tag_bram_en[i][1]  = axi_rvalid_i;
+                    data_bram_en[i][0] = axi_rvalid_i;
+                    data_bram_en[i][1] = axi_rvalid_i;
                     // Port 1
                     if (miss_1) begin
                         tag_bram_addr[i][0]  = p1_raddr_1[11:4];
@@ -295,9 +291,9 @@ module icache
             REFILL_1_WAIT: begin
                 for (integer i = 0; i < NWAY; i++) begin
                     if (i[0] == random_r[0]) begin
-                        if (axi_rvalid_i) begin
+                        if (axi_rvalid_i & ~p1_rreq_1_uncached) begin
                             tag_bram_we[i][0] = 1;
-                            tag_bram_wdata[i][0] = {1'b1, p1_tlb.tag};
+                            tag_bram_wdata[i][0] = {1'b1, p1_raddr_1[31:12]};
                             data_bram_we[i][0] = 1;
                             data_bram_wdata[i][0] = axi_data_i;
                         end
@@ -307,9 +303,9 @@ module icache
             REFILL_2_WAIT: begin
                 for (integer i = 0; i < NWAY; i++) begin
                     if (i[0] == random_r[0]) begin
-                        if (axi_rvalid_i) begin
+                        if (axi_rvalid_i & ~p1_rreq_2_uncached) begin
                             tag_bram_we[i][1] = 1;
-                            tag_bram_wdata[i][1] = {1'b1, p1_tlb.tag};
+                            tag_bram_wdata[i][1] = {1'b1, p1_raddr_2[31:12]};
                             data_bram_we[i][1] = 1;
                             data_bram_wdata[i][1] = axi_data_i;
                         end
@@ -341,8 +337,8 @@ module icache
     ///////////////////////////////////////////////////
 
     // Miss signal
-    assign miss_1_pulse = p1_rreq_1 & ~hit[0] & (state == IDLE) & ~p1_tlb_miss;
-    assign miss_2_pulse = p1_rreq_2 & ~hit[1] & (state == IDLE) & ~p1_tlb_miss;
+    assign miss_1_pulse = p1_rreq_1 & ~hit[0] & (state == IDLE);
+    assign miss_2_pulse = p1_rreq_2 & ~hit[1] & (state == IDLE);
     assign miss_1 = miss_1_pulse | miss_1_r;
     assign miss_2 = miss_2_pulse | miss_2_r;
     always_ff @(posedge clk) begin
@@ -352,16 +348,14 @@ module icache
         end else begin
             case (state)
                 IDLE: begin
-                    if (~p1_tlb_miss) begin
-                        miss_1_r <= miss_1_pulse;
-                        miss_2_r <= miss_2_pulse;
-                    end
+                    miss_1_r <= miss_1_pulse;
+                    miss_2_r <= miss_2_pulse;
                 end
                 REFILL_1_WAIT: begin
-                    if (axi_rvalid_delay_1) miss_1_r <= 0;
+                    if (axi_rvalid_i) miss_1_r <= 0;
                 end
                 REFILL_2_WAIT: begin
-                    if (axi_rvalid_delay_1) miss_2_r <= 0;
+                    if (axi_rvalid_i) miss_2_r <= 0;
                 end
                 default: begin
                 end
@@ -369,57 +363,44 @@ module icache
         end
     end
 
-    // TLB miss
-    inst_tlb_t p1_tlb_rreq;
     always_ff @(posedge clk) begin
-        if (rreq_1_i | rreq_2_i) p1_tlb_rreq <= tlb_rreq_i;
-    end
-    assign p1_tlb_miss = p1_tlb_rreq.trans_en & ~p1_tlb.tlb_found;
-
-    // Store TLB input
-    tlb_inst_t p1_tlb, tlb_i_r;
-    assign p1_tlb = (state == IDLE) ? tlb_i : tlb_i_r;
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            tlb_i_r <= 0;
-        end else if (miss_1_pulse | miss_2_pulse) begin
-            tlb_i_r <= tlb_i;
-        end
-    end
-    always_ff @(posedge clk) begin
-        if (rreq_1_ack_o) begin
-            p1_rreq_1  <= rreq_1_i;
-            p1_raddr_1 <= raddr_1_i;
-        end else if (rvalid_1_o) begin
-            p1_rreq_1  <= 0;
+        if (rvalid_1_o) begin
+            p1_rreq_1 <= 0;
+            p1_rreq_1_uncached <= 0;
             p1_raddr_1 <= 0;
+        end else if (rreq_1_ack_o) begin
+            p1_rreq_1 <= rreq_1_i;
+            p1_rreq_1_uncached <= rreq_1_uncached_i;
+            p1_raddr_1 <= raddr_1_i;
         end
-        if (rreq_2_ack_o) begin
-            p1_rreq_2  <= rreq_2_i;
-            p1_raddr_2 <= raddr_2_i;
-        end else if (rvalid_2_o) begin
-            p1_rreq_2  <= 0;
+        if (rvalid_2_o) begin
+            p1_rreq_2 <= 0;
+            p1_rreq_2_uncached <= 0;
             p1_raddr_2 <= 0;
+        end else if (rreq_2_ack_o) begin
+            p1_rreq_2 <= rreq_2_i;
+            p1_rreq_2_uncached <= rreq_2_uncached_i;
+            p1_raddr_2 <= raddr_2_i;
         end
     end
 
     // Hit signal
     always_comb begin
         for (integer i = 0; i < NWAY; i++) begin
-            tag_hit[i][0] = tag_bram_rdata[i][0][19:0] == p1_tlb.tag && tag_bram_rdata[i][0][20];
-            tag_hit[i][1] = tag_bram_rdata[i][1][19:0] == p1_tlb.tag && tag_bram_rdata[i][1][20];
+            tag_hit[i][0] = tag_bram_rdata[i][0][19:0] == p1_raddr_1[31:12] && tag_bram_rdata[i][0][20];
+            tag_hit[i][1] = tag_bram_rdata[i][1][19:0] == p1_raddr_2[31:12] && tag_bram_rdata[i][1][20];
         end
     end
 
     // IDLE & WAIT can return rvalid_o, but REQ must not return rvalid_o
-    assign rvalid_1_o = (hit[0] && p1_rreq_1 && state != REFILL_1_REQ && state != CACOP_INVALID_1) | (p1_tlb_miss && state == IDLE);
-    assign rvalid_2_o = (hit[1] && p1_rreq_2 && state != REFILL_2_REQ && state != CACOP_INVALID_1) | (p1_tlb_miss && state == IDLE);
+    assign rvalid_1_o = (p1_rreq_1 && (state == REFILL_1_WAIT && axi_rvalid_i) | (state == IDLE && hit[0]));
+    assign rvalid_2_o = (p1_rreq_2 && (state == REFILL_2_WAIT && axi_rvalid_i) | (state == IDLE && hit[1]));
     // Generate read output
     always_comb begin
         hit[0] = 0;
-        rdata_1_o = 0;
+        rdata_1_o = axi_data_i;
         hit[1] = 0;
-        rdata_2_o = 0;
+        rdata_2_o = axi_data_i;
         for (integer i = 0; i < NWAY; i++) begin
             if (tag_hit[i][0]) begin
                 hit[0] = 1;
@@ -439,11 +420,11 @@ module icache
         case (state)
             REFILL_1_REQ, REFILL_1_WAIT: begin
                 axi_rreq_o = miss_1 & ~axi_rvalid_i & ~axi_rvalid_delay_1;
-                axi_addr_o = miss_1 ? {p1_tlb.tag, p1_raddr_1[11:0]} : 0;
+                axi_addr_o = miss_1 ? p1_raddr_1 : 0;
             end
             REFILL_2_REQ, REFILL_2_WAIT: begin
                 axi_rreq_o = miss_2 & ~axi_rvalid_i & ~axi_rvalid_delay_1;
-                axi_addr_o = miss_2 ? {p1_tlb.tag, p1_raddr_2[11:0]} : 0;
+                axi_addr_o = miss_2 ? p1_raddr_2 : 0;
             end
             default: begin
                 axi_rreq_o = 0;
@@ -454,7 +435,7 @@ module icache
 
     // LSFR
     lfsr #(
-        .WIDTH(3)
+        .WIDTH(16)
     ) u_lfsr (
         .clk  (clk),
         .rst  (rst),

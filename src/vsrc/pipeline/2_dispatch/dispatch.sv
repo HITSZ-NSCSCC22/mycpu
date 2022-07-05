@@ -1,10 +1,10 @@
-
+`include "core_config.sv"
 `include "core_types.sv"
 
 module dispatch
     import core_types::*;
+    import core_config::*;
 #(
-    parameter DECODE_WIDTH = 2,
     parameter EXE_STAGE_WIDTH = 2,
     parameter MEM_STAGE_WIDTH = 2
 ) (
@@ -59,29 +59,35 @@ module dispatch
     assign aluop_i[0] = id_i[0].aluop;
     assign aluop_i[1] = id_i[1].aluop;
 
+    logic single_issue;
+    logic is_both_mem_instr;
     logic [EXE_STAGE_WIDTH-1:0] do_we_issue;
 
     //assign stallreq = aluop_i == `EXE_TLBRD_OP;
-    //判断待发射的两条指令里面有无特权指令,如有有就拉高is_pri_instr,把信号传给ctrl就行阻塞
+    //判断待发射的两条指令里面有无特权指令,如有有就拉高is_pri_instr,把信号传给ctrl进行阻塞
     logic pri_op[2];
     assign is_pri_instr = pri_op[0] & do_we_issue[0] & ~stall & ~flush;
-    assign pri_op[0] = aluop_i[0] == `EXE_CSRWR_OP | aluop_i[0] == `EXE_CSRRD_OP | aluop_i[0] == `EXE_CSRXCHG_OP |
-                       aluop_i[0] == `EXE_SYSCALL_OP | aluop_i[0] == `EXE_BREAK_OP | aluop_i[0] == `EXE_ERTN_OP |
-                       aluop_i[0] == `EXE_TLBRD_OP | aluop_i[0] == `EXE_TLBWR_OP | aluop_i[0] == `EXE_TLBSRCH_OP |
-                       aluop_i[0] == `EXE_TLBFILL_OP | aluop_i[0] == `EXE_IDLE_OP | aluop_i[0] == `EXE_INVTLB_OP |
-                       aluop_i[0] == `EXE_RDCNTID_OP | aluop_i[0] == `EXE_RDCNTVL_OP | aluop_i[0] == `EXE_RDCNTVH_OP |
-                       aluop_i[0] == `EXE_CACOP_OP ;
 
-    assign pri_op[1] = aluop_i[1] == `EXE_CSRWR_OP | aluop_i[1] == `EXE_CSRRD_OP | aluop_i[1] == `EXE_CSRXCHG_OP |
-                       aluop_i[1] == `EXE_SYSCALL_OP | aluop_i[1] == `EXE_BREAK_OP | aluop_i[1] == `EXE_ERTN_OP |
-                       aluop_i[1] == `EXE_TLBRD_OP | aluop_i[1] == `EXE_TLBWR_OP | aluop_i[1] == `EXE_TLBSRCH_OP |
-                       aluop_i[1] == `EXE_TLBFILL_OP | aluop_i[1] == `EXE_IDLE_OP | aluop_i[1] == `EXE_INVTLB_OP |
-                       aluop_i[1] == `EXE_RDCNTID_OP | aluop_i[1] == `EXE_RDCNTVL_OP | aluop_i[1] == `EXE_RDCNTVH_OP |
-                       aluop_i[1] == `EXE_CACOP_OP ;
+    //TODO:fix pri_op bug;
+    assign pri_op[0] = id_i[0].instr_info.special_info.is_pri;
+    assign pri_op[1] = id_i[1].instr_info.special_info.is_pri;
+    // assign pri_op[0] = aluop_i[0] == `EXE_CSRWR_OP | aluop_i[0] == `EXE_CSRRD_OP | aluop_i[0] == `EXE_CSRXCHG_OP |
+    //                    aluop_i[0] == `EXE_SYSCALL_OP | aluop_i[0] == `EXE_BREAK_OP | aluop_i[0] == `EXE_ERTN_OP |
+    //                    aluop_i[0] == `EXE_TLBRD_OP | aluop_i[0] == `EXE_TLBWR_OP | aluop_i[0] == `EXE_TLBSRCH_OP |
+    //                    aluop_i[0] == `EXE_TLBFILL_OP | aluop_i[0] == `EXE_IDLE_OP | aluop_i[0] == `EXE_INVTLB_OP |
+    //                    aluop_i[0] == `EXE_RDCNTID_OP | aluop_i[0] == `EXE_RDCNTVL_OP | aluop_i[0] == `EXE_RDCNTVH_OP |
+    //                    aluop_i[0] == `EXE_CACOP_OP ;
+
+    // assign pri_op[1] = aluop_i[1] == `EXE_CSRWR_OP | aluop_i[1] == `EXE_CSRRD_OP | aluop_i[1] == `EXE_CSRXCHG_OP |
+    //                    aluop_i[1] == `EXE_SYSCALL_OP | aluop_i[1] == `EXE_BREAK_OP | aluop_i[1] == `EXE_ERTN_OP |
+    //                    aluop_i[1] == `EXE_TLBRD_OP | aluop_i[1] == `EXE_TLBWR_OP | aluop_i[1] == `EXE_TLBSRCH_OP |
+    //                    aluop_i[1] == `EXE_TLBFILL_OP | aluop_i[1] == `EXE_IDLE_OP | aluop_i[1] == `EXE_INVTLB_OP |
+    //                    aluop_i[1] == `EXE_RDCNTID_OP | aluop_i[1] == `EXE_RDCNTVL_OP | aluop_i[1] == `EXE_RDCNTVH_OP |
+    //                    aluop_i[1] == `EXE_CACOP_OP ;
 
     logic csr_op[2], is_both_csr_write;
-    assign csr_op[0] = aluop_i[0] == `EXE_CSRWR_OP | aluop_i[0] == `EXE_CSRRD_OP | aluop_i[0] == `EXE_CSRXCHG_OP;
-    assign csr_op[1] = aluop_i[1] == `EXE_CSRWR_OP | id_i[1].aluop == `EXE_CSRRD_OP | id_i[1].aluop == `EXE_CSRXCHG_OP;
+    assign csr_op[0] = id_i[0].instr_info.special_info.is_csr;
+    assign csr_op[1] = id_i[1].instr_info.special_info.is_csr;
     assign is_both_csr_write = csr_op[0] & csr_op[1];
 
     //assume two csr write instr not come together
@@ -89,8 +95,7 @@ module dispatch
     assign csr_read_addr = csr_op[0] ? id_i[0].imm[13:0] : csr_op[1] ? id_i[1].imm[13:0] : 14'b0;
 
     // Force most branch, mem, privilege instr to issue only 1 instr per cycle
-    logic is_both_mem_instr;
-    assign is_both_mem_instr = alusel_i[0] == `EXE_RES_LOAD_STORE | alusel_i[1] == `EXE_RES_LOAD_STORE | aluop_i[0] == `EXE_LL_OP | aluop_i[1] == `EXE_LL_OP | aluop_i[0] == `EXE_SC_OP | aluop_i[1] == `EXE_SC_OP | alusel_i[0] == `EXE_RES_JUMP | alusel_i[1] == `EXE_RES_JUMP;
+    assign is_both_mem_instr = id_i[0].instr_info.special_info.mem_load | id_i[0].instr_info.special_info.mem_store | id_i[1].instr_info.special_info.mem_load | id_i[1].instr_info.special_info.mem_store;
 
     // Dispatch flag
     logic [EXE_STAGE_WIDTH-1:0] issue_valid;
@@ -113,7 +118,8 @@ module dispatch
         end
     end
 
-    // Stall
+    // Do we issue ?
+    assign single_issue = pri_op[0] | csr_op[0] | is_both_mem_instr;
     always_comb begin
         if (block) begin
             do_we_issue = 2'b00;
@@ -125,9 +131,7 @@ module dispatch
             // If P1 instr read reg2 && P0 instr write reg && reg addr is the same
             // Only P0 is issued
             do_we_issue = 2'b01;
-        end else if (is_both_mem_instr | pri_op[0] | pri_op[1]) begin
-            do_we_issue = 2'b01;
-        end else if (is_both_csr_write) begin
+        end else if (single_issue) begin
             do_we_issue = 2'b01;
         end else if (aluop_i[1] == `EXE_ERTN_OP || aluop_i[1] == `EXE_SYSCALL_OP || aluop_i[1] == `EXE_BREAK_OP) begin
             do_we_issue = 2'b01;
@@ -220,10 +224,6 @@ module dispatch
                     exe_o[i].oprand2 <= id_i[i].use_imm ? id_i[i].imm : oprand2[i];
 
                     exe_o[i].imm <= id_i[i].imm;
-
-                    exe_o[i].excp <= id_i[i].excp;
-                    exe_o[i].excp_num <= id_i[i].excp_num;
-                    exe_o[i].refetch <= id_i[i].refetch;
 
                     exe_o[i].csr_signal.we <= csr_op[i] && aluop_i[i] != `EXE_CSRRD_OP;
                     exe_o[i].csr_signal.addr <= id_i[i].imm[13:0];

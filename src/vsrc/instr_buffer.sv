@@ -11,13 +11,13 @@ module instr_buffer
     input logic rst,
 
     // <-> Frontend
-    input instr_buffer_info_t frontend_instr_i[IF_WIDTH],
+    input instr_info_t frontend_instr_i[IF_WIDTH],
     output logic frontend_stallreq_o,  // Require frontend to stop
 
     // <-> Backend
     input logic [ID_WIDTH-1:0] backend_accept_i,  // Backend can accept 0 or more instructions, must return in the next cycle!
     input logic backend_flush_i,  // Backend require flush, maybe branch miss
-    output instr_buffer_info_t backend_instr_o[ID_WIDTH]
+    output instr_info_t backend_instr_o[ID_WIDTH]
 
 );
 
@@ -25,7 +25,7 @@ module instr_buffer
     logic rst_n;
     assign rst_n = ~rst;
 
-    instr_buffer_info_t buffer_queue[BUFFER_SIZE], next_buffer_queue[BUFFER_SIZE];
+    instr_info_t buffer_queue[BUFFER_SIZE], next_buffer_queue[BUFFER_SIZE];
 
     logic [$clog2(BUFFER_SIZE)-1:0] read_ptr, write_ptr;
 
