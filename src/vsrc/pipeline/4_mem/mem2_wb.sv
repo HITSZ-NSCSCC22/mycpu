@@ -1,7 +1,7 @@
 `include "core_types.sv"
 `include "core_config.sv"
 
-module mem_wb
+module mem2_wb
     import core_types::*;
     import core_config::*;
     import csr_defines::*;
@@ -60,7 +60,7 @@ module mem_wb
     logic [15:0] excp_num;
     logic access_mem, mem_store_op, mem_load_op;
     logic excp_tlbr, excp_pil, excp_pis, excp_pme, excp_ppi, excp_adem;
-    logic cacop_en,icache_op_en;
+    logic cacop_en, icache_op_en;
     logic [1:0] cacop_op_mode;
     logic [4:0] cacop_op;
     assign cacop_en = mem_signal_o.cacop_en;

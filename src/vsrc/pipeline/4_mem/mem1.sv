@@ -1,7 +1,7 @@
 `include "core_types.sv"
 `include "csr_defines.sv"
 
-module mem
+module mem1
     import core_types::*;
     import csr_defines::*;
 (
@@ -47,8 +47,8 @@ module mem
     assign csr_test = signal_i.csr_signal;
 
     reg LLbit;
-    logic access_mem,mem_store_op,mem_load_op;
-    logic cacop_en,icache_op_en;
+    logic access_mem, mem_store_op, mem_load_op;
+    logic cacop_en, icache_op_en;
     logic [4:0] cacop_op;
     assign cacop_en = signal_i.cacop_en;
     assign icache_op_en = signal_i.icache_op_en;
@@ -141,7 +141,7 @@ module mem
         signal_cache_o = 0;
         signal_o.store_data = 0;
         signal_cache_o.rd_type = 0;
-        signal_cache_o.wr_type=0;
+        signal_cache_o.wr_type = 0;
         signal_o.cacop_en = cacop_en;
         signal_o.icache_op_en = icache_op_en;
         signal_o.cacop_op = cacop_op;
@@ -254,7 +254,7 @@ module mem
                 signal_o.wreg = `WriteEnable;
                 signal_cache_o.we = `WriteEnable;
                 signal_cache_o.ce = `ChipEnable;
-                signal_cache_o.wr_type=3'b000;
+                signal_cache_o.wr_type = 3'b000;
                 signal_cache_o.data = {reg2_i[7:0], reg2_i[7:0], reg2_i[7:0], reg2_i[7:0]};
                 case (mem_addr[1:0])
                     2'b11: begin
@@ -280,7 +280,7 @@ module mem
                 signal_o.wreg = `WriteEnable;
                 signal_cache_o.we = `WriteEnable;
                 signal_cache_o.ce = `ChipEnable;
-                signal_cache_o.wr_type=3'b001;
+                signal_cache_o.wr_type = 3'b001;
                 signal_cache_o.data = {reg2_i[15:0], reg2_i[15:0]};
                 case (mem_addr[1:0])
                     2'b10: begin
@@ -301,7 +301,7 @@ module mem
                 signal_o.wreg = `WriteEnable;
                 signal_cache_o.we = `WriteEnable;
                 signal_cache_o.ce = `ChipEnable;
-                signal_cache_o.wr_type=3'b010;
+                signal_cache_o.wr_type = 3'b010;
                 signal_cache_o.data = reg2_i;
                 signal_cache_o.sel = 4'b1111;
                 signal_o.store_data = reg2_i;
@@ -323,7 +323,7 @@ module mem
                     signal_cache_o.ce = `ChipEnable;
                     signal_cache_o.data = reg2_i;
                     signal_cache_o.sel = 4'b1111;
-                    signal_cache_o.wr_type=3'b010;
+                    signal_cache_o.wr_type = 3'b010;
                     LLbit_we_o = 1'b1;
                     LLbit_value_o = 1'b0;
                     signal_o.wreg = `WriteEnable;
@@ -334,7 +334,7 @@ module mem
                     signal_o.wreg = `WriteEnable;
                     signal_o.store_data = 0;
                     signal_o.wdata = 32'b0;
-                    signal_cache_o.wr_type=3'b000;
+                    signal_cache_o.wr_type = 3'b000;
                 end
             end
             default: begin
