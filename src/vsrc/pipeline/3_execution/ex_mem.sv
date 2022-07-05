@@ -8,11 +8,19 @@ module ex_mem
     input logic clk,
     input logic rst,
 
+    input logic stall,
+    input logic flush,
+
     input  ex_mem_struct ex_o,
     output ex_mem_struct mem_i
 );
     always_ff @(posedge clk) begin
-        mem_i <= ex_o;
+        if(rst)
+            mem_i <= 0;
+        else if(stall | flush)
+            mem_i <= 0;
+        else 
+            mem_i <= ex_o;
     end
 
 endmodule

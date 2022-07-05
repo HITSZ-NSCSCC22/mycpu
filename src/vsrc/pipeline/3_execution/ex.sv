@@ -2,7 +2,7 @@
 `include "core_config.sv"
 `include "csr_defines.sv"
 `include "muldiv/mul.sv"
-`include "alu.sv"
+`include "pipeline/3_execution/alu.sv"
 
 module ex
     import core_types::*;

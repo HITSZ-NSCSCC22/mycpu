@@ -16,8 +16,11 @@
 `include "pipeline/1_decode/id_dispatch.sv"
 `include "pipeline/2_dispatch/dispatch.sv"
 `include "pipeline/3_execution/ex.sv"
+`include "pipeline/3_execution/alu.sv"
+`include "pipeline/3_execution/ex_mem.sv"
 `include "pipeline/4_mem/mem1.sv"
 `include "pipeline/4_mem/mem1_mem2.sv"
+`include "pipeline/4_mem/mem2.sv"
 `include "pipeline/4_mem/mem2_wb.sv"
 `include "pipeline/5_wb/wb.sv"
 `include "pipeline/5_wb/wb_ctrl.sv"
@@ -388,7 +391,7 @@ module cpu_top
     );
 
     instr_buffer_info_t ib_backend_instr_info[2];  // IB -> ID
-    logic [4:0] stall; // from 4->0 {mem_wb, ex_mem, dispatch_ex, id_dispatch, _}
+    logic [5:0] stall; // from 4->0 {mem_wb, ex_mem, dispatch_ex, id_dispatch, _}
 
     logic [1:0] dispatch_ib_accept;
 
@@ -442,7 +445,7 @@ module cpu_top
     id_dispatch u_id_dispatch (
         .clk       (clk),
         .rst       (rst),
-        .stall     (stall[1]),
+        .stall     (stall[0]),
         .flush     (backend_flush), // FIXME: does not carefully designed
         .id_i      (id_id_dispatch),
         .dispatch_o(id_dispatch_dispatch)
@@ -453,7 +456,9 @@ module cpu_top
 
     // Data forwarding
     ex_dispatch_struct [1:0] ex_data_forward;
-    mem1_data_forward_t [1:0] mem_data_forward;
+    mem1_data_forward_t [1:0] mem1_data_forward;
+    mem2_data_forward_t [1:0] mem2_data_forward;
+    wb_data_forward_t [1:0] wb_data_forward;
 
     logic stallreq_from_dispatch,is_pri_instr,pri_stall;
 
@@ -474,14 +479,14 @@ module cpu_top
         .is_pri_instr(is_pri_instr),
         .stallreq(stallreq_from_dispatch),
         .block(pri_stall),
-        .stall(stall[2]),
+        .stall(stall[1]),
         .flush(backend_flush),
 
         // Data forwarding    
         .ex_data_forward(ex_data_forward),
-        .mem1_data_forward_i(mem_data_forward),
-        .mem2_data_forward_i(),
-        .wb_data_forward_i(),
+        .mem1_data_forward_i(mem1_data_forward),
+        .mem2_data_forward_i(mem2_data_forward),
+        .wb_data_forward_i(wb_data_forward),
 
         // <-> Regfile
         .regfile_reg_read_valid_o(dispatch_regfile_reg_read_valid),
@@ -519,11 +524,11 @@ module cpu_top
     logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ctrl_frontend_ftq_id;
 
     // Redirect signal for frontend
-    assign backend_flush = excp_flush | ertn_flush | idle_flush |((branch_flag[0] | branch_flag[1]) & ~stall[2]) | fetch_flush;
+    assign backend_flush = excp_flush | ertn_flush | idle_flush |((branch_flag[0] | branch_flag[1]) & ~stall[1]) | fetch_flush;
 
     assign backend_flush_ftq_id = (excp_flush | ertn_flush | idle_flush | fetch_flush) ? ctrl_frontend_ftq_id :
-                                (branch_flag[0] & ~stall[2]) ? branch_ftq_id[0] : 
-                                (branch_flag[1] & ~stall[2]) ? branch_ftq_id[1] : 0;
+                                (branch_flag[0] & ~stall[1]) ? branch_ftq_id[0] : 
+                                (branch_flag[1] & ~stall[1]) ? branch_ftq_id[1] : 0;
 
     // If ex is stalling, means that the branch flag maybe invalid and waiting for the right data
     // so no jumping if ex is stalling
@@ -532,8 +537,8 @@ module cpu_top
                      ertn_flush ? csr_era :
                      idle_flush ? idle_pc : 
                      fetch_flush ? idle_pc +4 :
-                     (branch_flag[0] & ~stall[2]) ? branch_target_address[0] : 
-                     (branch_flag[1] & ~stall[2]) ? branch_target_address[1] : 0;
+                     (branch_flag[0] & ~stall[1]) ? branch_target_address[0] : 
+                     (branch_flag[1] & ~stall[1]) ? branch_target_address[1] : 0;
 
 
     ex_mem_struct ex_signal_o[2];
@@ -543,6 +548,7 @@ module cpu_top
     logic [1:0] ex_stallreq;
     logic [63:0] csr_timer_64;
     logic [31:0] csr_tid;
+    logic [`RegBus][1:0] ex_tlb_vaddr;
     generate
         for (genvar i = 0; i < 2; i++) begin : ex
             ex u_ex (
@@ -552,8 +558,6 @@ module cpu_top
                 .dispatch_i(dispatch_exe[i]),
                 .csr_vppn  (csr_vppn_o),
 
-                .mem_data_forward_i(mem_data_forward),
-
                 .ex_o_buffer(ex_signal_o[i]),
 
                 .stallreq(ex_stallreq[i]),
@@ -561,6 +565,16 @@ module cpu_top
 
                 .timer_64(csr_timer_64),
                 .tid(csr_tid),
+
+                .csr_ex_signal(csr_mem_signal),
+                .llbit(LLbit_o),
+
+                .data_addr_trans_en(ex_data_addr_trans_en[i]),
+                .dmw0_en(ex_data_dmw0_en[i]),
+                .dmw1_en(ex_data_dmw1_en[i]),
+                .data_fetch(data_fetch[i]),
+                .tlbsrch_en_o(ex_tlbsrch[i]),
+                .tlb_vaddr(ex_tlb_vaddr),
 
                 // -> Ctrl
                 .branch_flag_o(branch_flag[i]),
@@ -586,9 +600,9 @@ module cpu_top
         end
     endgenerate
 
-    logic mem_data_addr_trans_en[2];
-    logic mem_data_dmw0_en[2];
-    logic mem_data_dmw1_en[2];
+    logic ex_data_addr_trans_en[2];
+    logic ex_data_dmw0_en[2];
+    logic ex_data_dmw1_en[2];
 
     logic [1:0] ex_mem_flush;
 
@@ -611,17 +625,36 @@ module cpu_top
                             tlb_data_o.tlb_d,tlb_data_o.tlb_mat,tlb_data_o.tlb_plv};
 
     assign csr_mem_signal = {csr_pg,csr_da,csr_dmw0,csr_dmw1,csr_plv,csr_datm};
-    //assign tlb_mem_signal = {data_tlb_found,data_tlb_index,data_tlb_v,data_tlb_d,data_tlb_mat,data_tlb_plv};
 
-    logic [1:0] data_fetch, mem_tlbsrch;
+
+    logic [1:0] data_fetch, ex_tlbsrch;
+
+    ex_mem_struct [1:0] mem1_signal_i;
+
     generate
-        for (genvar i = 0; i < 2; i++) begin : mem
+        for(genvar i=0;i<2;i=i+1)begin : ex_mem
+            ex_mem u_ex_mem(
+                .clk(clk),
+                .rst(rst),
+
+                .stall(stall[2]),
+                .flush(flush),
+
+                .ex_o(ex_signal_o[i]),
+                .mem_i(mem1_signal_i[i])
+            );
+        end
+    endgenerate
+
+
+    generate
+        for (genvar i = 0; i < 2; i++) begin : mem1
             mem1 u_mem1 (
                 .rst(rst),
 
-                .signal_i(ex_signal_o[i]),
+                .signal_i(mem1_signal_i[i]),
 
-                .signal_o(mem_signal_o[i]),
+                .signal_o(mem1_signal_o[i]),
 
                 // -> cache 
                 .signal_cache_o(mem_cache_signal[i]),
@@ -630,10 +663,7 @@ module cpu_top
                 .addr_ok(mem_addr_ok),
                 .data_ok(mem_data_ok),
                 .mem_data_i(cache_mem_data),
-
-                // -> TLB
-                .data_fetch(data_fetch[i]),
-                .tlbsrch_en_o(mem_tlbsrch[i]),
+                .tlb_mem_signal(tlb_data_o),
 
                 // -> Ctrl
                 .stallreq(mem_stallreq[i]),
@@ -649,7 +679,7 @@ module cpu_top
                 // Data forward
                 // -> Dispatch
                 // -> EX
-                .mem_data_forward_o(mem_data_forward[i])
+                .mem_data_forward_o(mem1_data_forward[i])
 
             );
         end
@@ -657,10 +687,13 @@ module cpu_top
     endgenerate
 
     generate
-        for(genvar i=0;i<2;i=i+1)begin
+        for(genvar i=0;i<2;i=i+1)begin : mem1_mem2
             mem1_mem2 u_mem1_mem2(
                 .clk(clk),
                 .rst(rst),
+
+                .stall(stall[3]),
+                .flush(flush),
 
                 .mem1_o(mem1_signal_o[i]),
                 .mem2_i(mem2_signal_i[i])
@@ -669,31 +702,33 @@ module cpu_top
     endgenerate
 
     generate
-        for(genvar i=0;i<2;i=i+1)begin
+        for(genvar i=0;i<2;i=i+1)begin : mem2
             mem2 u_mem2(
                 .rst(rst),
 
                 .mem1_i(mem2_signal_i[i]),
 
-                .mem2_data_forward(),
+                .mem2_data_forward(mem2_data_forward[i]),
 
                 .mem2_o(mem2_signal_o[i]),
 
-                .data_ok(),
-                .cache_data()
+                .data_ok(mem_data_ok),
+                .cache_data(mem_cache_data)
 
             );
         end
     endgenerate
 
     generate
-        for(genvar i=0;i<2;i=i+1)begin
+        for(genvar i=0;i<2;i=i+1)begin : mem2_wb
             mem2_wb u_mem2_wb(
+                .clk(clk),
                 .rst(rst),
 
-                .mem1_i(mem2_signal_o[i]),
+                .stall(stall[4]),
+                .flush(flush),
 
-                .mem2_data_forward(),
+                .mem2_o(mem2_signal_o[i]),
 
                 .wb_i(wb_signal_i[i])
 
@@ -702,17 +737,17 @@ module cpu_top
     endgenerate
 
 
-    wb_ctrl_struct wb_signal_o[2];
-    wb_ctrl_struct ctrl_signal_i[2];
+    wb_ctrl_struct [1:0] wb_signal_o;
+    wb_ctrl_struct [1:0] ctrl_signal_i;
 
     generate
-        for (genvar i = 0; i < 2; i++) begin
+        for (genvar i = 0; i < 2; i++) begin : wb
             wb u_wb (
                 .clk  (clk),
                 .rst  (rst),
                 .stall(stall[4]),
 
-                .mem_signal_o(mem1_signal_o[i]),
+                .mem_signal_o(wb_signal_i[i]),
 
                 .mem_LLbit_we(mem_wb_LLbit_we[i]),
                 .mem_LLbit_value(mem_wb_LLbit_value[i]),
@@ -725,29 +760,29 @@ module cpu_top
                 .LLbit_we_i(llbit_i.we),
                 .LLbit_value_i(llbit_i.value),
 
-                //<- tlb
-                .data_addr_trans_en(mem_data_addr_trans_en[i]),
-                .dmw0_en(mem_data_dmw0_en[i]),
-                .dmw1_en(mem_data_dmw1_en[i]),
-                .cacop_op_mode_di(cacop_op_mode_di[i]),
-                //-> tlb
-                .tlb_mem_signal(tlb_mem_signal),
-
                 // -> DCache
                 .dcache_flush_o(wb_dcache_flush[i]),
 
+                .data_ok(mem_data_ok),
+                .cache_data(mem_cache_data),
+
+                .wb_forward(wb_data_forward[i]),
+
                 //to ctrl
-                .wb_ctrl_struct(wb_ctrl_signal[i]),
+                .wb_ctrl_signal(wb_signal_o[i]),
                 .ftq_id_o(wb_ctrl_ftq_id[i])
             );
         end
     endgenerate
 
     generate
-        for(genvar i=0;i<2;i=i+1)begin
+        for(genvar i=0;i<2;i=i+1)begin : wb_ctrl
             wb_ctrl u_wb_ctrl(
                 .clk(clk),
                 .rst(rst),
+
+                .stall(stall[5]),
+                .flush(flush),
 
                 .wb_o(wb_signal_o[i]),
                 .ctrl_i(ctrl_signal_i[i])
@@ -791,6 +826,7 @@ module cpu_top
 
     wb_llbit llbit_i;
 
+
     ctrl u_ctrl(
         .clk(clk),
         .rst(rst),
@@ -800,16 +836,14 @@ module cpu_top
         .backend_flush_ftq_id_o(ctrl_frontend_ftq_id),
 
         // <- WB
-        .wb_i(wb_ctrl_signal),
+        .wb_i(ctrl_signal_i),
         .wb_ftq_id_i(wb_ctrl_ftq_id),
 
         // <- EX
     	.ex_branch_flag_i (stall[2] ? 2'b0: branch_flag),
         .ex_stallreq_i (ex_stallreq),
-        .tlb_stallreq(tlb_stallreq),
 
-        .stallreq_from_dispatch(stallreq_from_dispatch),
-        .mem_stallreq_i(mem_stallreq),
+        .wb_stallreq_i(mem_stallreq),
 
         .excp_flush(excp_flush),
         .ertn_flush(ertn_flush),
@@ -912,13 +946,13 @@ module cpu_top
         .asid_in(tlb_read_signal_o.asid)
     );
 
-    assign data_addr_trans_en = mem_data_addr_trans_en[0];
+    assign data_addr_trans_en = ex_data_addr_trans_en[0];
     data_tlb_t tlb_data_i;
-    assign tlb_data_i.dmw0_en = mem_data_dmw0_en[0];
-    assign tlb_data_i.dmw1_en = mem_data_dmw1_en[0];
-    assign tlb_data_i.vaddr = mem_cache_addr;
+    assign tlb_data_i.dmw0_en = ex_data_dmw0_en[0];
+    assign tlb_data_i.dmw1_en = ex_data_dmw1_en[0];
+    assign tlb_data_i.vaddr = ex_tlb_vaddr[0];
     assign tlb_data_i.fetch = data_fetch[0];
-    assign tlb_data_i.tlbsrch = mem_tlbsrch[0];
+    assign tlb_data_i.tlbsrch = ex_tlbsrch[0];
 
     tlb_data_t tlb_data_o;
     tlb_write_in_struct tlb_write_signal_i;
@@ -971,23 +1005,6 @@ module cpu_top
         `endif
     end
 
-    logic excp_flush_commit;
-    logic ertn_flush_commit;
-    logic [`RegBus]excp_pc_commit;
-    logic [5:0] csr_ecode_commit;
-    logic [`InstBus] excp_instr_commit;
-    logic tlbfill_en_commit;
-    logic [4:0] rand_index_commit;
-
-    always_ff @(posedge clk) begin 
-        excp_flush_commit <= excp_flush;
-        ertn_flush_commit <= ertn_flush;
-        excp_pc_commit <= csr_era_i;
-        csr_ecode_commit <= csr_ecode_i;
-        excp_instr_commit <= excp_instr;
-        tlbfill_en_commit <= tlb_write_signal_i.tlbfill_en;
-        rand_index_commit <= tlb_write_signal_i.rand_index;
-    end
     // difftest dpi-c
 `ifdef SIMU  // SIMU is defined in chiplab run_func/makefile
     DifftestInstrCommit difftest_instr_commit_0 (  
