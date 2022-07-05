@@ -109,7 +109,7 @@ module instr_buffer
     always_comb begin : backend_instr_o_comb
         for (integer i = 0; i < ID_WIDTH; i++) begin
             // verilator lint_off WIDTH
-            backend_instr_o[i] = buffer_queue[read_ptr+i+backend_accept_num];
+            backend_instr_o[i] = buffer_queue[read_ptr+i];
             // verilator lint_on WIDTH
         end
     end

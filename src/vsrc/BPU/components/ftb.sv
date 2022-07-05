@@ -39,7 +39,8 @@ module ftb
 
 `ifdef BRAM_IP
     bram_ftb u_bram (
-        .clk  (clk),
+        .clka (clk),
+        .clkb (clk),
         .ena  (1'b1),
         .enb  (update_valid_i),
         .wea  (0),

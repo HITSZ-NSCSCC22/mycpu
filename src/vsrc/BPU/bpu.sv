@@ -31,7 +31,7 @@ module bpu
 
     // PC
     output logic main_redirect_o,
-    output [ADDR_WIDTH-1:0] main_redirect_pc_o
+    output logic [ADDR_WIDTH-1:0] main_redirect_pc_o
 
     // PMU
     // TODO: use PMU to monitor miss-prediction rate and each component useful rate

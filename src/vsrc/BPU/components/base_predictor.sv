@@ -52,7 +52,8 @@ module base_predictor
     // Port A as read port, Port B as write port
 `ifdef BRAM_IP
     bram_bpu_base_predictor pht_table (
-        .clk  (clk),
+        .clka (clk),
+        .clkb (clk),
         .ena  (1'b1),
         .enb  (1'b1),
         .wea  (1'b0),

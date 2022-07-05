@@ -439,6 +439,8 @@ module cpu_top
         .stall     (stall[1]),
         .flush     (backend_flush), // FIXME: does not carefully designed
         .id_i      (id_id_dispatch),
+        // Dispatch
+        .dispatch_issue_i(dispatch_ib_accept),
         .dispatch_o(id_dispatch_dispatch)
     );
 
