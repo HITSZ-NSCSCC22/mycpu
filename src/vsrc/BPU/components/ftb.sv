@@ -28,7 +28,9 @@ module ftb
     assign query_index = query_pc_i[$clog2(FTB_DEPTH)+1:2];
 
     ftb_entry_t query_entry;
-    assign hit = query_entry.tag == query_pc_i[ADDR_WIDTH-1:$clog2(FTB_DEPTH)+2];
+    assign hit = (query_entry.tag == query_pc_i[ADDR_WIDTH-1:$clog2(
+        FTB_DEPTH
+    )+2]) && query_entry.valid;
     assign query_entry_o = query_entry;
 
     // Update logic //////////////////////////////////////////////////////////////////////////

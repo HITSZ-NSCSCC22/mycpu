@@ -27,7 +27,11 @@ module bpu
     input logic ftq_full_i,
     output bpu_ftq_t ftq_predict_o,
     // Train
-    input ftq_bpu_meta_t ftq_meta_i
+    input ftq_bpu_meta_t ftq_meta_i,
+
+    // PC
+    output logic main_redirect_o,
+    output [ADDR_WIDTH-1:0] main_redirect_pc_o
 
     // PMU
     // TODO: use PMU to monitor miss-prediction rate and each component useful rate
@@ -47,7 +51,9 @@ module bpu
     logic is_cross_page;
     assign is_cross_page = pc_i[11:0] > 12'hff0;  // if 4 instr already cross the page limit
     always_comb begin
-        if (ftb_hit & predict_valid) begin  // There is a branch within FETCH_WIDTH
+        if (ftq_full_i) begin
+            ftq_predict_o = 0;
+        end else if (ftb_hit & predict_valid) begin  // There is a branch within FETCH_WIDTH
             // TODO: check cross page
             ftq_predict_o.valid = 1;
             ftq_predict_o.is_cross_cacheline = ftb_entry.is_cross_cacheline;
@@ -64,6 +70,15 @@ module bpu
             // If cross page, length will be cut, so ensures no cacheline cross
             ftq_predict_o.is_cross_cacheline = (pc_i[3:2] != 2'b00) & ~is_cross_page;
         end
+    end
+    // DEBUG
+    logic [ADDR_WIDTH-1:0] bpu_pc;
+    assign bpu_pc = ftq_predict_o.start_pc;
+
+    // PC output
+    always_comb begin
+        main_redirect_o = predict_taken;
+        main_redirect_pc_o = predict_taken ? ftb_entry.jump_target_address : 0;
     end
 
     ftb u_ftb (

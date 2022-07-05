@@ -54,8 +54,8 @@ module frontend
     assign rst_n = ~rst;
 
 
-
-    logic [ADDR_WIDTH-1:0] pc, next_pc, sequential_pc;
+    logic main_bpu_redirect;
+    logic [ADDR_WIDTH-1:0] pc, next_pc, sequential_pc, main_bpu_redirect_pc;
     assign sequential_pc = pc + 4 * bpu_ftq_block.length;
 
     always_ff @(posedge clk or negedge rst_n) begin : pc_ff
@@ -73,6 +73,8 @@ module frontend
             next_pc = backend_next_pc_i;
         end else if (ftq_full) begin
             next_pc = pc;
+        end else if (main_bpu_redirect) begin
+            next_pc = main_bpu_redirect_pc;
         end else begin
             next_pc = sequential_pc;
         end
@@ -87,9 +89,12 @@ module frontend
         // FTQ
         .ftq_full_i(ftq_full),
         .ftq_predict_o(bpu_ftq_block),
-
         // Train
-        .ftq_meta_i()
+        .ftq_meta_i(),
+
+        // PC
+        .main_redirect_o(main_bpu_redirect),
+        .main_redirect_pc_o(main_bpu_redirect_pc)
 
     );
 

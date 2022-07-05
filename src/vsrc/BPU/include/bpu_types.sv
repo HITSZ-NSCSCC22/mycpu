@@ -8,6 +8,7 @@ package bpu_types;
     import core_config::*;
 
     typedef struct packed {
+        logic valid;
         // Virtual tag, pc[1:0] is always 0, so not used in index or tag
         logic [ADDR_WIDTH-3-$clog2(FTB_DEPTH):0] tag;
         logic [ADDR_WIDTH-1:0] fall_through_address;
