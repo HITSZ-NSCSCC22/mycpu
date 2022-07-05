@@ -10,6 +10,7 @@
 `include "frontend/frontend_defines.sv"
 
 `include "BPU/components/ftb.sv"
+`include "BPU/tage_predictor.sv"
 
 
 module bpu
@@ -42,14 +43,27 @@ module bpu
     logic predict_taken, predict_valid;
 
 
-    // Output generate
+    // FTQ Output generate
+    logic is_cross_page;
+    assign is_cross_page = pc_i[11:0] > 12'hff0;  // if 4 instr already cross the page limit
     always_comb begin
-        if (ftb_hit & predict_valid) begin
+        if (ftb_hit & predict_valid) begin  // There is a branch within FETCH_WIDTH
+            // TODO: check cross page
             ftq_predict_o.valid = 1;
             ftq_predict_o.is_cross_cacheline = ftb_entry.is_cross_cacheline;
             ftq_predict_o.start_pc = pc_i;
             ftq_predict_o.length = predict_taken ? ftb_entry.fall_through_address - pc_i : FETCH_WIDTH;
-        end else ftq_predict_o = 0;
+        end else begin  // No branch is recorded, generate full FETCH_WIDTH
+            if (is_cross_page) begin
+                ftq_predict_o.length = (12'h000 - pc_i[11:0]) >> 2;
+            end else begin
+                ftq_predict_o.length = 4;
+            end
+            ftq_predict_o.start_pc = pc_i;
+            ftq_predict_o.valid = 1;
+            // If cross page, length will be cut, so ensures no cacheline cross
+            ftq_predict_o.is_cross_cacheline = (pc_i[3:2] != 2'b00) & ~is_cross_page;
+        end
     end
 
     ftb u_ftb (
@@ -58,16 +72,20 @@ module bpu
 
         // Query
         .query_pc_i(pc_i),
-        .quert_entry(ftb_entry),
-        .hit(ftb_hit)
+        .query_entry_o(ftb_entry),
+        .hit(ftb_hit),
 
+        // Update
+        .update_pc_i(),
+        .update_valid_i(),
+        .update_entry_i()
     );
 
     tage_predictor u_tage_predictor (
         .clk                      (clk),
         .rst                      (rst),
         .pc_i                     (pc_i),
-        .branch_update_info_i     (),
+        .base_predictor_update_i  (),
         .predicted_branch_target_o(),
         .predict_branch_taken_o   (predict_taken),
         .predict_valid_o          (predict_valid_o),

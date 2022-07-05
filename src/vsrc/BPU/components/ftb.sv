@@ -10,16 +10,17 @@ module ftb
 (
     input logic clk,
     input logic rst,
+
+    // Query
     input logic [ADDR_WIDTH-1:0] query_pc_i,
+    output ftb_entry_t query_entry_o,
+    output logic hit,
 
     // Update signals
     input logic [ADDR_WIDTH-1:0] update_pc_i,
     input logic update_valid_i,
-    input ftb_entry_t update_entry_i,
+    input ftb_entry_t update_entry_i
 
-    // Search result, 1 cycle after input
-    output ftb_entry_t bpu_entry_o,
-    output logic hit
 );
 
     // Query logic //////////////////////////////////////////////////////////////////////////
@@ -28,7 +29,7 @@ module ftb
 
     ftb_entry_t query_entry;
     assign hit = query_entry.tag == query_pc_i[ADDR_WIDTH-1:$clog2(FTB_DEPTH)+2];
-    assign bpu_entry_o = query_entry;
+    assign query_entry_o = query_entry;
 
     // Update logic //////////////////////////////////////////////////////////////////////////
     logic [$clog2(FTB_DEPTH)-1:0] update_index;

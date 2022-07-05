@@ -4,6 +4,7 @@
 
 `include "frontend/ftq.sv"
 `include "frontend/ifu.sv"
+`include "BPU/bpu.sv"
 
 module frontend
     import core_types::*;
@@ -79,23 +80,19 @@ module frontend
 
     // BPU
     bpu_ftq_t bpu_ftq_block;
-    logic is_cross_page;
-    assign is_cross_page = pc[11:0] > 12'hff0;  // if 4 instr already cross the page limit
-    always_comb begin
-        if (~ftq_full) begin
-            if (is_cross_page) begin
-                bpu_ftq_block.length = (12'h000 - pc[11:0]) >> 2;
-            end else begin
-                bpu_ftq_block.length = 4;
-            end
-            bpu_ftq_block.start_pc = pc;
-            bpu_ftq_block.valid = 1;
-            // If cross page, length will be cut, so ensures no cacheline cross
-            bpu_ftq_block.is_cross_cacheline = (pc[3:2] != 2'b00) & ~is_cross_page;
-        end else begin
-            bpu_ftq_block = 0;
-        end
-    end
+    bpu u_bpu (
+        .clk(clk),
+        .rst(rst),
+        .pc_i(pc),
+        // FTQ
+        .ftq_full_i(ftq_full),
+        .ftq_predict_o(bpu_ftq_block),
+
+        // Train
+        .ftq_meta_i()
+
+    );
+
 
     ftq_ifu_t ftq_ifu_block;
     logic ifu_ftq_accept;

@@ -14,7 +14,6 @@ module ftq
 
     // <-> BPU
     input bpu_ftq_t bpu_i,
-    output ftq_block_t bpu_o,
     output logic bpu_queue_full_o,
 
     // <-> Backend 

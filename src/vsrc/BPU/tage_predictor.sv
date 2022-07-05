@@ -4,16 +4,18 @@
 `include "defines.sv"
 `include "core_config.sv"
 `include "BPU/include/bpu_defines.sv"
+`include "BPU/include/bpu_types.sv"
+
 `include "utils/priority_encoder.sv"
 
 // Components
-`include "BPU/components/btb.sv"
 `include "BPU/components/base_predictor.sv"
 // `include "BPU/components/tagged_predictor.sv"
 
 
 module tage_predictor
     import core_config::*;
+    import bpu_types::*;
 (
     input logic clk,
     input logic rst,
@@ -22,7 +24,7 @@ module tage_predictor
     input logic [`RegBus] pc_i,
 
     // Update signals
-    input branch_update_info_t branch_update_info_i,
+    input base_predictor_update_info_t base_predictor_update_i,
 
     output logic [`RegBus] predicted_branch_target_o,
     output logic predict_branch_taken_o,
@@ -40,13 +42,13 @@ module tage_predictor
 
     // Extract packed signals
     // update-prefixed signals are updated related 
-    logic update_valid = branch_update_info_i.valid;
-    logic update_predict_correct = branch_update_info_i.predict_correct;
-    logic update_branch_taken = branch_update_info_i.branch_taken;
-    logic update_is_conditional = branch_update_info_i.is_conditional;
+    logic update_valid = base_predictor_update_i.valid;
+    logic update_predict_correct = 1;
+    logic update_branch_taken = base_predictor_update_i.taken;
+    logic update_is_conditional = 0;
     // logic [$clog2(TAG_COMPONENT_AMOUNT+1)-1:0] update_provider_id;
     // assign update_provider_id = branch_update_info_i.provider_id;
-    logic [`RegBus] update_pc = branch_update_info_i.pc;
+    logic [`RegBus] update_pc = base_predictor_update_i.pc;
 
     // Global History Register
     bit [GHR_DEPTH-1:0] GHR;
