@@ -45,9 +45,21 @@ module dummy_dcache (
     }
         state, next_state;
 
+    enum int {
+        WB_IDLE,
+        WB_WRITE
+
+    }
+        wb_state, wb_next_state;
+
     always_ff @(posedge clk) begin
-        if (rst) state <= IDLE;
-        else state <= next_state;
+        if (rst) begin
+            state <= IDLE;
+            wb_state <= WB_IDLE;
+        end else begin
+            state <= next_state;
+            wb_state <= wb_next_state;
+        end
     end
 
     // State transition
@@ -79,8 +91,57 @@ module dummy_dcache (
         endcase
     end
 
+    logic op_buffer;
+    logic uncache_buffer;
+    logic [7:0] index_buffer;
+    logic [19:0] tag_buffer;
+    logic [3:0] offset_buffer;
+    logic [3:0] wstrb_buffer;
+    logic [31:0] wdata_buffer;
+    logic [2:0] rd_type_buffer;
+    logic [2:0] wr_type_buffer;
+
+    always_comb begin
+        if (rst) begin
+            op_buffer = 0;
+            uncache_buffer = 0;
+            index_buffer = 0;
+            tag_buffer = 0;
+            offset_buffer = 0;
+            wstrb_buffer = 0;
+            wdata_buffer = 0;
+            rd_type_buffer = 0;
+            wr_type_buffer = 0;
+        end
+        case (state)
+            IDLE: begin
+                op_buffer = op;
+                uncache_buffer = uncache;
+                index_buffer = index;
+                tag_buffer = tag;
+                offset_buffer = offset;
+                wstrb_buffer = wstrb;
+                wdata_buffer = wdata;
+                rd_type_buffer = rd_type;
+                wr_type_buffer = wr_type;
+            end
+            READ_REQ: begin
+
+            end
+            READ_WAIT: begin
+
+            end
+            WRITE_REQ: begin
+
+            end
+            default: begin
+
+            end
+        endcase
+    end
+
     logic [31:0] cpu_addr;
-    assign cpu_addr = {tag, index, offset};
+    assign cpu_addr = {tag_buffer, index_buffer, offset_buffer};
 
     logic rd_req_r;
     logic [31:0] rd_addr_r;
@@ -98,8 +159,8 @@ module dummy_dcache (
     end
 
 
-    assign rd_type = (uncache==0)?rd_type_i:3'b100;
-    assign wr_type = (uncache==0)?wr_type_i:3'b100;  // word
+    assign rd_type = (uncache == 0) ? rd_type_i : 3'b100;
+    assign wr_type = (uncache == 0) ? wr_type_i : 3'b100;  // word
     always_comb begin
         // Default signal
         rd_addr  = 0;
