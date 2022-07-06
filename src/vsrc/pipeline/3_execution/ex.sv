@@ -23,7 +23,7 @@ module ex
     input logic llbit,
 
     // -> MEM
-    output ex_mem_struct ex_o,
+    output ex_mem_struct ex_o_buffer,
 
     // <- CSR
     input [63:0] timer_64,
@@ -62,6 +62,7 @@ module ex
     input logic flush
 
 );
+    ex_mem_struct ex_o;
 
     reg [`RegBus] logicout;
     reg [`RegBus] shiftout;
@@ -359,6 +360,14 @@ module ex
                 ex_o.wdata = `ZeroWord;
             end
         endcase
+    end
+
+
+
+    always_ff @(posedge clk) begin
+        if (rst) ex_o_buffer <= 0;
+        else if (flush | stall[0] | stall[1]) ex_o_buffer <= 0;
+        else ex_o_buffer <= ex_o;
     end
 
 

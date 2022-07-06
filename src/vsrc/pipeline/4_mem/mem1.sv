@@ -7,11 +7,14 @@ module mem1
     import csr_defines::*;
     import tlb_types::*;
 (
+    input logic clk,
     input logic rst,
+    input logic stall,
+    input logic flush,
 
     input ex_mem_struct signal_i,
 
-    output mem1_mem2_struct signal_o,
+    output mem1_mem2_struct signal_o_buffer,
 
     output mem_cache_struct signal_cache_o,
 
@@ -33,6 +36,7 @@ module mem1
 
 );
 
+    mem1_mem2_struct signal_o;
 
     reg LLbit;
     logic access_mem, mem_store_op, mem_load_op;
@@ -314,6 +318,13 @@ module mem1
                 end
             endcase
         end
+    end
+
+
+    always_ff @(posedge clk) begin
+        if (rst) signal_o_buffer <= 0;
+        else if (stall | flush) signal_o_buffer <= 0;
+        else signal_o_buffer <= signal_o;
     end
 
 endmodule

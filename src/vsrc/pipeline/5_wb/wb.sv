@@ -10,6 +10,8 @@ module wb
 (
     input logic clk,
     input logic rst,
+    input logic stall,
+    input logic flush,
 
     input mem2_wb_struct mem_signal_o,
 
@@ -111,12 +113,15 @@ module wb
 
     always_ff @(posedge clk) begin
         if (rst == `RstEnable) wb_ctrl_signal.wb_reg_o.wdata <= 0;
+        else if (flush | stall) wb_ctrl_signal.wb_reg_o.wdata <= 0;
         else if (mem_load_op && data_ok) wb_ctrl_signal.wb_reg_o.wdata <= cache_data;
         else wb_ctrl_signal.wb_reg_o.wdata <= mem_signal_o.wdata;
     end
 
     always @(posedge clk) begin
         if (rst == `RstEnable) begin
+            wb_ctrl_signal <= 0;
+        end else if (flush | stall) begin
             wb_ctrl_signal <= 0;
         end else begin
             // -> Frontend

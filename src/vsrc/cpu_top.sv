@@ -17,13 +17,9 @@
 `include "pipeline/2_dispatch/dispatch.sv"
 `include "pipeline/3_execution/ex.sv"
 `include "pipeline/3_execution/alu.sv"
-`include "pipeline/3_execution/ex_mem.sv"
 `include "pipeline/4_mem/mem1.sv"
-`include "pipeline/4_mem/mem1_mem2.sv"
 `include "pipeline/4_mem/mem2.sv"
-`include "pipeline/4_mem/mem2_wb.sv"
 `include "pipeline/5_wb/wb.sv"
-`include "pipeline/5_wb/wb_ctrl.sv"
 
 module cpu_top 
     import core_types::*;
@@ -541,7 +537,7 @@ module cpu_top
                      (branch_flag[1] & ~stall[1]) ? branch_target_address[1] : 0;
 
 
-    ex_mem_struct ex_signal_o[2];
+    ex_mem_struct ex_mem_signal[2];
     logic [1:0] tlb_stallreq;
 
     // EXE Stage
@@ -558,7 +554,7 @@ module cpu_top
                 .dispatch_i(dispatch_exe[i]),
                 .csr_vppn  (csr_vppn_o),
 
-                .ex_o(ex_signal_o[i]),
+                .ex_o_buffer(ex_mem_signal[i]),
 
                 .stallreq(ex_stallreq[i]),
 
@@ -605,10 +601,8 @@ module cpu_top
 
     logic [1:0] ex_mem_flush;
 
-    mem1_mem2_struct mem1_signal_o[2];
-    mem1_mem2_struct mem2_signal_i[2];
-    mem2_wb_struct mem2_signal_o[2];
-    mem2_wb_struct wb_signal_i[2];
+    mem1_mem2_struct mem1_mem2_signal[2];
+    mem2_wb_struct mem2_wb_signal[2];
 
     logic mem_wb_LLbit_we[2];
     logic mem_wb_LLbit_value[2];
@@ -628,30 +622,19 @@ module cpu_top
 
     ex_mem_struct [1:0] mem1_signal_i;
 
-    generate
-        for(genvar i=0;i<2;i=i+1)begin : ex_mem
-            ex_mem u_ex_mem(
-                .clk(clk),
-                .rst(rst),
-
-                .stall(stall[2]),
-                .flush(flush),
-
-                .ex_o(ex_signal_o[i]),
-                .mem_i(mem1_signal_i[i])
-            );
-        end
-    endgenerate
 
 
     generate
         for (genvar i = 0; i < 2; i++) begin : mem1
             mem1 u_mem1 (
+                .clk(clk),
                 .rst(rst),
+                .stall(stall[3]),
+                .flush(flush),
 
-                .signal_i(mem1_signal_i[i]),
+                .signal_i(ex_mem_signal[i]),
 
-                .signal_o(mem1_signal_o[i]),
+                .signal_o_buffer(mem1_mem2_signal[i]),
 
                 // -> cache 
                 .signal_cache_o(mem_cache_signal[i]),
@@ -676,31 +659,20 @@ module cpu_top
 
     endgenerate
 
-    generate
-        for(genvar i=0;i<2;i=i+1)begin : mem1_mem2
-            mem1_mem2 u_mem1_mem2(
-                .clk(clk),
-                .rst(rst),
-
-                .stall(stall[3]),
-                .flush(flush),
-
-                .mem1_o(mem1_signal_o[i]),
-                .mem2_i(mem2_signal_i[i])
-            );
-        end
-    endgenerate
 
     generate
         for(genvar i=0;i<2;i=i+1)begin : mem2
             mem2 u_mem2(
+                .clk(clk),
                 .rst(rst),
+                .stall(stall[4]),
+                .flush(flush),
 
-                .mem1_i(mem2_signal_i[i]),
+                .mem1_i(mem1_mem2_signal[i]),
 
                 .mem2_data_forward(mem2_data_forward[i]),
 
-                .mem2_o(mem2_signal_o[i]),
+                .mem2_o_buffer(mem2_wb_signal[i]),
 
                 .data_ok(mem_data_ok),
                 .cache_data(mem_cache_data)
@@ -709,26 +681,7 @@ module cpu_top
         end
     endgenerate
 
-    generate
-        for(genvar i=0;i<2;i=i+1)begin : mem2_wb
-            mem2_wb u_mem2_wb(
-                .clk(clk),
-                .rst(rst),
-
-                .stall(stall[4]),
-                .flush(flush),
-
-                .mem2_o(mem2_signal_o[i]),
-
-                .wb_i(wb_signal_i[i])
-
-            );
-        end
-    endgenerate
-
-
-    wb_ctrl_struct [1:0] wb_signal_o;
-    wb_ctrl_struct [1:0] ctrl_signal_i;
+    wb_ctrl_struct [1:0] wb_ctrl_signal;
     logic [1:0] wb_stallreq;
 
     generate
@@ -736,8 +689,10 @@ module cpu_top
             wb u_wb (
                 .clk  (clk),
                 .rst  (rst),
+                .stall(stall[5]),
+                .flush(flush),
 
-                .mem_signal_o(wb_signal_i[i]),
+                .mem_signal_o(mem2_wb_signal[i]),
 
                 .mem_LLbit_we(mem_wb_LLbit_we[i]),
                 .mem_LLbit_value(mem_wb_LLbit_value[i]),
@@ -760,24 +715,8 @@ module cpu_top
                 .wb_forward(wb_data_forward[i]),
 
                 //to ctrl
-                .wb_ctrl_signal(wb_signal_o[i]),
+                .wb_ctrl_signal(wb_ctrl_signal[i]),
                 .ftq_id_o(wb_ctrl_ftq_id[i])
-            );
-        end
-    endgenerate
-
-    generate
-        for(genvar i=0;i<2;i=i+1)begin : wb_ctrl
-            wb_ctrl u_wb_ctrl(
-                .clk(clk),
-                .rst(rst),
-
-                .stall(stall[5]),
-                .flush(flush),
-
-                .wb_o(wb_signal_o[i]),
-                .ctrl_i(ctrl_signal_i[i])
-
             );
         end
     endgenerate
@@ -827,7 +766,7 @@ module cpu_top
         .backend_flush_ftq_id_o(ctrl_frontend_ftq_id),
 
         // <- WB
-        .wb_i(ctrl_signal_i),
+        .wb_i(wb_ctrl_signal),
         .wb_ftq_id_i(wb_ctrl_ftq_id),
 
         // <- EX

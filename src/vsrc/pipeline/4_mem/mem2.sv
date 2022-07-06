@@ -5,18 +5,22 @@ module mem2
     import core_types::*;
     import core_config::*;
 (
+    input logic clk,
     input logic rst,
+    input logic stall,
+    input logic flush,
 
     input mem1_mem2_struct mem1_i,
 
     output mem2_data_forward_t mem2_data_forward,
 
-    output mem2_wb_struct mem2_o,
+    output mem2_wb_struct mem2_o_buffer,
 
     input logic data_ok,
     input logic [`RegBus] cache_data
 
 );
+    mem2_wb_struct mem2_o;
 
     logic [`AluOpBus] aluop_i;
     assign aluop_i = mem1_i.aluop;
@@ -104,7 +108,11 @@ module mem2
         end
     end
 
-
+    always_ff @(posedge clk) begin
+        if (rst) mem2_o_buffer <= 0;
+        else if (stall | flush) mem2_o_buffer <= 0;
+        else mem2_o_buffer <= mem2_o;
+    end
 
 
 
