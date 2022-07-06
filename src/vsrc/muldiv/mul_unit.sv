@@ -30,10 +30,8 @@ module mul_unit
 
     logic rs1_is_signed, rs2_is_signed;
     logic signed [32:0] rs1_ext, rs2_ext;
-    logic signed [32:0] rs1_r, rs2_r;
 
     logic stage1_advance;
-    logic stage2_advance;
 
     assign rs1_is_signed = op[1:0] inside {2'b01, 2'b10};  //MUL doesn't matter
     assign rs2_is_signed = op[1:0] inside {2'b01, 2'b10};  //MUL doesn't matter
@@ -44,27 +42,13 @@ module mul_unit
     assign ready = stage1_advance;
     assign stage1_advance = start;
 
-    // always_ff @(posedge clk) begin
-    //     if (stage1_advance) begin
-    //         rs1_r <= rs1_ext;
-    //         rs2_r <= rs2_ext;
-    //     end
-    //     if (stage2_advance) begin
-    //         result <= 64'(rs1_r * rs2_r);
-    //     end
-    // end
-
     always_ff @(posedge clk) begin
         if (stage1_advance) begin
             result <= 64'(rs1_ext * rs2_ext);
         end
     end
 
-    always_ff @(posedge clk) begin
-        if (stage1_advance) begin
-            mulh[0] <= (op[1:0] != 2'b01);
-        end
-    end
+    assign mulh[0] = (op[1:0] != 2'b01);
 
     always_ff @(posedge clk) begin
         if (rst) valid <= '{default: 0};
