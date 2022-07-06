@@ -10,14 +10,11 @@ module wb
 (
     input logic clk,
     input logic rst,
-    input logic stall,
 
     input mem2_wb_struct mem_signal_o,
 
     input logic mem_LLbit_we,
     input logic mem_LLbit_value,
-
-    input logic flush,
 
     //<-> csr 
     input csr_to_mem_struct csr_mem_signal,
@@ -36,6 +33,9 @@ module wb
     input data_ok,
     input [`RegBus] cache_data,
     output logic dcache_flush_o,
+
+    //<- ctrl
+    output logic stallreq,
 
     // <-> Frontend
     output logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_id_o
@@ -106,16 +106,18 @@ module wb
         mem_load_op, data_ok, mem_signal_o.wreg, mem_signal_o.waddr, mem_signal_o.wdata, cache_data
     };
 
+    assign stallreq = mem_load_op & !data_ok;
+
+
+    always_ff @(posedge clk) begin
+        if (rst == `RstEnable) wb_ctrl_signal.wb_reg_o.wdata <= 0;
+        else if (mem_load_op && data_ok) wb_ctrl_signal.wb_reg_o.wdata <= cache_data;
+        else wb_ctrl_signal.wb_reg_o.wdata <= mem_signal_o.wdata;
+    end
+
     always @(posedge clk) begin
         if (rst == `RstEnable) begin
             wb_ctrl_signal <= 0;
-        end else if (flush) begin
-            wb_ctrl_signal <= 0;
-        end else if (stall == `Stop) begin
-            wb_ctrl_signal.valid <= 1'b0;
-            wb_ctrl_signal.diff_commit_o.instr <= `ZeroWord;
-            wb_ctrl_signal.diff_commit_o.pc <= `ZeroWord;
-            wb_ctrl_signal.diff_commit_o.valid <= `InstInvalid;
         end else begin
             // -> Frontend
             // If marked as exception, the basic block is ended
@@ -126,7 +128,6 @@ module wb
             wb_ctrl_signal.aluop <= mem_signal_o.aluop;
             wb_ctrl_signal.wb_reg_o.waddr <= mem_signal_o.waddr;
             wb_ctrl_signal.wb_reg_o.we <= mem_signal_o.wreg;
-            wb_ctrl_signal.wb_reg_o.wdata <= mem_signal_o.wdata;
             wb_ctrl_signal.wb_reg_o.pc <= mem_signal_o.instr_info.pc;
             wb_ctrl_signal.llbit_o.we <= mem_LLbit_we;
             wb_ctrl_signal.llbit_o.value <= mem_LLbit_value;

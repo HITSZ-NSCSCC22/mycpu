@@ -460,7 +460,7 @@ module cpu_top
     mem2_data_forward_t [1:0] mem2_data_forward;
     wb_data_forward_t [1:0] wb_data_forward;
 
-    logic stallreq_from_dispatch,is_pri_instr,pri_stall;
+    logic is_pri_instr,pri_stall;
 
 
     // Dispatch Stage, Sequential logic
@@ -477,7 +477,7 @@ module cpu_top
 
         // <-> Ctrl
         .is_pri_instr(is_pri_instr),
-        .stallreq(stallreq_from_dispatch),
+        .stallreq(),
         .block(pri_stall),
         .stall(stall[1]),
         .flush(backend_flush),
@@ -548,7 +548,7 @@ module cpu_top
     logic [1:0] ex_stallreq;
     logic [63:0] csr_timer_64;
     logic [31:0] csr_tid;
-    logic [`RegBus][1:0] ex_tlb_vaddr;
+    logic [1:0][`RegBus] ex_tlb_vaddr;
     generate
         for (genvar i = 0; i < 2; i++) begin : ex
             ex u_ex (
@@ -558,10 +558,9 @@ module cpu_top
                 .dispatch_i(dispatch_exe[i]),
                 .csr_vppn  (csr_vppn_o),
 
-                .ex_o_buffer(ex_signal_o[i]),
+                .ex_o(ex_signal_o[i]),
 
                 .stallreq(ex_stallreq[i]),
-                .tlb_stallreq(tlb_stallreq[i]),
 
                 .timer_64(csr_timer_64),
                 .tid(csr_tid),
@@ -574,7 +573,7 @@ module cpu_top
                 .dmw1_en(ex_data_dmw1_en[i]),
                 .data_fetch(data_fetch[i]),
                 .tlbsrch_en_o(ex_tlbsrch[i]),
-                .tlb_vaddr(ex_tlb_vaddr),
+                .tlb_vaddr(ex_tlb_vaddr[i]),
 
                 // -> Ctrl
                 .branch_flag_o(branch_flag[i]),
@@ -593,7 +592,7 @@ module cpu_top
                 .cacop_op_mode(cacop_op_mode[i]),
 
                 // <-> Ctrl
-                .stall({mem_stallreq[0] | mem_stallreq[1] ,stall[3]}),
+                .stall({wb_stallreq[0] | wb_stallreq[1] ,stall[3]}),
                 .flush(ex_mem_flush[i])
 
             );
@@ -610,8 +609,6 @@ module cpu_top
     mem1_mem2_struct mem2_signal_i[2];
     mem2_wb_struct mem2_signal_o[2];
     mem2_wb_struct wb_signal_i[2];
-
-    logic [1:0] mem_stallreq;
 
     logic mem_wb_LLbit_we[2];
     logic mem_wb_LLbit_value[2];
@@ -659,14 +656,7 @@ module cpu_top
                 // -> cache 
                 .signal_cache_o(mem_cache_signal[i]),
 
-                // <- AXI Controller
-                .addr_ok(mem_addr_ok),
-                .data_ok(mem_data_ok),
-                .mem_data_i(cache_mem_data),
                 .tlb_mem_signal(tlb_data_o),
-
-                // -> Ctrl
-                .stallreq(mem_stallreq[i]),
 
                 .LLbit_i(LLbit_o),
                 // <- CSR
@@ -739,26 +729,27 @@ module cpu_top
 
     wb_ctrl_struct [1:0] wb_signal_o;
     wb_ctrl_struct [1:0] ctrl_signal_i;
+    logic [1:0] wb_stallreq;
 
     generate
         for (genvar i = 0; i < 2; i++) begin : wb
             wb u_wb (
                 .clk  (clk),
                 .rst  (rst),
-                .stall(stall[4]),
 
                 .mem_signal_o(wb_signal_i[i]),
 
                 .mem_LLbit_we(mem_wb_LLbit_we[i]),
                 .mem_LLbit_value(mem_wb_LLbit_value[i]),
 
-                .flush(flush),
 
                 .csr_mem_signal(csr_mem_signal),
                 .disable_cache(1'b0),
                 .LLbit_i(LLbit_o),
                 .LLbit_we_i(llbit_i.we),
                 .LLbit_value_i(llbit_i.value),
+                
+                .stallreq(wb_stallreq[i]),
 
                 // -> DCache
                 .dcache_flush_o(wb_dcache_flush[i]),
@@ -843,7 +834,7 @@ module cpu_top
     	.ex_branch_flag_i (stall[2] ? 2'b0: branch_flag),
         .ex_stallreq_i (ex_stallreq),
 
-        .wb_stallreq_i(mem_stallreq),
+        .wb_stallreq_i(wb_stallreq),
 
         .excp_flush(excp_flush),
         .ertn_flush(ertn_flush),

@@ -23,7 +23,7 @@ module ex
     input logic llbit,
 
     // -> MEM
-    output ex_mem_struct ex_o_buffer,
+    output ex_mem_struct ex_o,
 
     // <- CSR
     input [63:0] timer_64,
@@ -32,7 +32,6 @@ module ex
 
     // Multi-cycle ALU stallreq
     output logic stallreq,
-    output logic tlb_stallreq,
 
     // -> Ctrl
     output logic branch_flag_o,
@@ -68,8 +67,6 @@ module ex
     reg [`RegBus] shiftout;
     reg [`RegBus] moveout;
     reg [63:0] arithout;
-
-    ex_mem_struct ex_o;
 
     logic [`AluOpBus] aluop_i;
     logic [`AluSelBus] alusel_i;
@@ -262,7 +259,6 @@ module ex
 
     assign stallreq = (muldiv_op & ~muldiv_finished) | // Multiply & Division
                 (icacop_inst & ~icacop_op_ack_i); // CACOP
-    assign tlb_stallreq = aluop_i == `EXE_TLBRD_OP | aluop_i == `EXE_TLBSRCH_OP;
 
     always @(*) begin
         if (rst == `RstEnable) begin
@@ -365,17 +361,5 @@ module ex
         endcase
     end
 
-
-    always_ff @(posedge clk) begin
-        if (rst == `RstEnable) begin
-            ex_o_buffer <= 0;
-        end else if (flush | excp_flush | ertn_flush) begin
-            ex_o_buffer <= 0;
-        end else if (stall[0]) begin
-            // Do nothing
-        end else begin
-            ex_o_buffer <= ex_o;
-        end
-    end
 
 endmodule
