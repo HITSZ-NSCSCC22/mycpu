@@ -73,7 +73,7 @@ module mem1
     assign excp_i = signal_i.excp;
     assign excp_num_i = signal_i.excp_num;
 
-    assign access_mem = signal_cache_o.ce;
+    assign access_mem = mem_load_op | mem_store_op;
 
     // Anything can trigger stall and modify register is considerd a "load" instr
     assign mem_load_op = aluop_i == `EXE_LD_B_OP || aluop_i == `EXE_LD_BU_OP || aluop_i == `EXE_LD_H_OP || aluop_i == `EXE_LD_HU_OP ||

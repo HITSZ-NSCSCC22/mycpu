@@ -122,8 +122,8 @@ module dummy_dcache (
             offset_buffer <= offset;
             wstrb_buffer <= wstrb;
             wdata_buffer <= wdata;
-            rd_type_buffer <= rd_type;
-            wr_type_buffer <= wr_type;
+            rd_type_buffer <= rd_type_i;
+            wr_type_buffer <= wr_type_i;
         end else if (next_state == IDLE) begin  //means that cache will finish work,so flush the buffered signal
             valid_buffer   <= 0;
             op_buffer      <= 0;
@@ -176,8 +176,8 @@ module dummy_dcache (
     end
 
 
-    assign rd_type = (uncache == 0) ? rd_type_i : 3'b100;
-    assign wr_type = (uncache == 0) ? wr_type_i : 3'b100;  // word
+    assign rd_type = (uncache == 0) ? rd_type_buffer : 3'b100;
+    assign wr_type = (uncache == 0) ? wr_type_buffer : 3'b100;  // word
     always_comb begin
         // Default signal
         rd_addr  = 0;
@@ -207,20 +207,20 @@ module dummy_dcache (
                     wr_addr = cpu_addr;  // DO NOT align addr, 128b -> 32b translate need info from addr
                     case (cpu_addr[3:2])
                         2'b00: begin
-                            wr_data  = {{96{1'b0}}, wdata};
+                            wr_data  = {{96{1'b0}}, wdata_buffer};
                             wr_wstrb = {12'b0, wstrb};
                         end
                         2'b01: begin
-                            wr_data  = {{64{1'b0}}, wdata, {32{1'b0}}};
-                            wr_wstrb = {8'b0, wstrb, 4'b0};
+                            wr_data  = {{64{1'b0}}, wdata_buffer, {32{1'b0}}};
+                            wr_wstrb = {8'b0, wstrb_buffer, 4'b0};
                         end
                         2'b10: begin
-                            wr_data  = {32'b0, wdata, {64{1'b0}}};
-                            wr_wstrb = {4'b0, wstrb, 8'b0};
+                            wr_data  = {32'b0, wdata_buffer, {64{1'b0}}};
+                            wr_wstrb = {4'b0, wstrb_buffer, 8'b0};
                         end
                         2'b11: begin
-                            wr_data  = {wdata, {96{1'b0}}};
-                            wr_wstrb = {wstrb, 12'b0};
+                            wr_data  = {wdata_buffer, {96{1'b0}}};
+                            wr_wstrb = {wstrb_buffer, 12'b0};
                         end
                     endcase
                 end
