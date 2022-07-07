@@ -101,55 +101,61 @@ module dummy_dcache (
 
 
 
-    always_comb begin
+    always_ff @(posedge clk) begin : data_buffer
         if (rst) begin
-            valid_buffer = 0;
-            op_buffer = 0;
-            uncache_buffer = 0;
-            index_buffer = 0;
-            tag_buffer = 0;
-            offset_buffer = 0;
-            wstrb_buffer = 0;
-            wdata_buffer = 0;
-            rd_type_buffer = 0;
-            wr_type_buffer = 0;
-        end else if (valid) begin
-            valid_buffer = valid;
-            op_buffer = op;
-            uncache_buffer = uncache;
-            index_buffer = index;
-            tag_buffer = tag;
-            offset_buffer = offset;
-            wstrb_buffer = wstrb;
-            wdata_buffer = wdata;
-            rd_type_buffer = rd_type;
-            wr_type_buffer = wr_type;
-        end else if (state != IDLE) begin  //means that cache finish work,so flush the buffered signal
-            valid_buffer   = 0;
-            op_buffer      = 0;
-            uncache_buffer = 0;
-            index_buffer   = 0;
-            tag_buffer     = 0;
-            offset_buffer  = 0;
-            wstrb_buffer   = 0;
-            wdata_buffer   = 0;
-            rd_type_buffer = 0;
-            wr_type_buffer = 0;
+            valid_buffer <= 0;
+            op_buffer <= 0;
+            uncache_buffer <= 0;
+            index_buffer <= 0;
+            tag_buffer <= 0;
+            offset_buffer <= 0;
+            wstrb_buffer <= 0;
+            wdata_buffer <= 0;
+            rd_type_buffer <= 0;
+            wr_type_buffer <= 0;
+        end else if (valid & !cache_ack) begin  // not accept new request while working
+            valid_buffer <= valid;
+            op_buffer <= op;
+            uncache_buffer <= uncache;
+            index_buffer <= index;
+            tag_buffer <= tag;
+            offset_buffer <= offset;
+            wstrb_buffer <= wstrb;
+            wdata_buffer <= wdata;
+            rd_type_buffer <= rd_type;
+            wr_type_buffer <= wr_type;
+        end else if (next_state == IDLE) begin  //means that cache will finish work,so flush the buffered signal
+            valid_buffer   <= 0;
+            op_buffer      <= 0;
+            uncache_buffer <= 0;
+            index_buffer   <= 0;
+            tag_buffer     <= 0;
+            offset_buffer  <= 0;
+            wstrb_buffer   <= 0;
+            wdata_buffer   <= 0;
+            rd_type_buffer <= 0;
+            wr_type_buffer <= 0;
         end else begin
-            valid_buffer = valid_buffer;
-            op_buffer = op_buffer;
-            uncache_buffer = uncache_buffer;
-            index_buffer = index_buffer;
-            tag_buffer = tag_buffer;
-            offset_buffer = offset_buffer;
-            wstrb_buffer = wstrb_buffer;
-            wdata_buffer = wdata_buffer;
-            rd_type_buffer = rd_type_buffer;
-            wr_type_buffer = wr_type_buffer;
+            valid_buffer <= valid_buffer;
+            op_buffer <= op_buffer;
+            uncache_buffer <= uncache_buffer;
+            index_buffer <= index_buffer;
+            tag_buffer <= tag_buffer;
+            offset_buffer <= offset_buffer;
+            wstrb_buffer <= wstrb_buffer;
+            wdata_buffer <= wdata_buffer;
+            rd_type_buffer <= rd_type_buffer;
+            wr_type_buffer <= wr_type_buffer;
         end
     end
 
-    assign cache_ack = valid_buffer & state != IDLE;
+
+    always_ff @(posedge clk) begin
+        if (rst) cache_ack <= 0;
+        else if (valid | valid_buffer) cache_ack <= 1;
+        else if (state == IDLE) cache_ack <= 0;
+        else cache_ack <= cache_ack;
+    end
 
     logic [31:0] cpu_addr;
     assign cpu_addr = {tag_buffer, index_buffer, offset_buffer};

@@ -104,8 +104,10 @@ module wb
     always @(posedge clk) begin
         if (rst == `RstEnable) begin
             wb_ctrl_signal <= 0;
-        end else if (flush | stall) begin
+        end else if (flush) begin
             wb_ctrl_signal <= 0;
+        end else if (stall) begin
+            wb_ctrl_signal <= wb_ctrl_signal;
         end else begin
             // -> Frontend
             // If marked as exception, the basic block is ended

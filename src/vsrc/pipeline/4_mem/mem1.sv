@@ -155,7 +155,10 @@ module mem1
         signal_o.icache_op_en = icache_op_en;
         signal_o.cacop_op = cacop_op;
         signal_o.tlb_signal = tlb_mem_signal;
-        if (!excp & (!signal_i.data_addr_trans_en | tlb_mem_signal.found)) begin // if tlb miss,then do nothing
+        if (cache_ack) begin  // if cache is working ,then not issue request
+            signal_cache_o = 0;
+        end
+        else if (!excp & (!signal_i.data_addr_trans_en | tlb_mem_signal.found)) begin // if tlb miss,then do nothing
             case (aluop_i)
                 `EXE_LD_B_OP: begin
                     signal_cache_o.addr = mem_addr;
@@ -345,7 +348,8 @@ module mem1
 
     always_ff @(posedge clk) begin
         if (rst) signal_o_buffer <= 0;
-        else if (stall | flush) signal_o_buffer <= 0;
+        else if (flush) signal_o_buffer <= 0;
+        else if (stall) signal_o_buffer <= signal_o_buffer;
         else signal_o_buffer <= signal_o;
     end
 
