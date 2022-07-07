@@ -17,7 +17,6 @@ module dispatch
 
     // <- Ctrl
     output logic is_pri_instr,
-    output logic stallreq,
     input  logic stall,
     input  logic block,
     input  logic flush,

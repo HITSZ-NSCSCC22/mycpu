@@ -326,6 +326,7 @@ module ex
         // If the branch taken, then this basic block should be ended
         if (branch_flag) ex_o.instr_info.is_last_in_block = 1;
 
+        ex_o.aluop = aluop_i;
         ex_o.waddr = wd_i;
         ex_o.wreg = wreg_i;
         ex_o.timer_64 = timer_64;

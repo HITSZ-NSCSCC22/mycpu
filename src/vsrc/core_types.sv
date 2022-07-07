@@ -183,7 +183,7 @@ package core_types;
         logic [`RegBus] store_data;
 
         logic excp;
-        logic [9:0] excp_num;
+        logic [15:0] excp_num;
         logic refetch;
 
         tlb_inv_t inv_i;
@@ -218,7 +218,7 @@ package core_types;
         logic [`RegBus] store_data;
 
         logic excp;
-        logic [9:0] excp_num;
+        logic [15:0] excp_num;
         logic refetch;
 
         tlb_inv_t inv_i;

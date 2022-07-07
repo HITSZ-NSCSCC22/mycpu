@@ -30,6 +30,13 @@ module mem1
     // -> EX
     output mem1_data_forward_t mem_data_forward_o,
 
+    //if cache is working
+    input cache_ack,
+
+    output stallreq,
+
+    input [1:0] csr_plv,
+
 
     output reg LLbit_we_o,
     output reg LLbit_value_o
@@ -74,6 +81,17 @@ module mem1
 
     assign mem_store_op = aluop_i == `EXE_ST_B_OP || aluop_i == `EXE_ST_H_OP || aluop_i == `EXE_ST_W_OP || aluop_i == `EXE_SC_OP;
 
+    logic excp, excp_adem, excp_tlbr, excp_pil, excp_pis, excp_ppi, excp_pme;
+    logic [15:0] excp_num;
+    assign excp_adem = (access_mem || cacop_en) && signal_i.data_addr_trans_en && (csr_plv == 2'd3) && mem_addr[31];
+    assign excp_tlbr = (access_mem || cacop_en) && !tlb_mem_signal.found && signal_i.data_addr_trans_en;
+    assign excp_pil  = mem_load_op  && !tlb_mem_signal.tlb_v && signal_i.data_addr_trans_en;  //cache will generate pil exception??
+    assign excp_pis = mem_store_op && !tlb_mem_signal.tlb_v && signal_i.data_addr_trans_en;
+    assign excp_ppi = access_mem && tlb_mem_signal.tlb_v && (csr_plv > tlb_mem_signal.tlb_plv) && signal_i.data_addr_trans_en;
+    assign excp_pme  = mem_store_op && tlb_mem_signal.tlb_v && (csr_plv <= tlb_mem_signal.tlb_plv) && !tlb_mem_signal.tlb_d && signal_i.data_addr_trans_en;
+    assign excp = excp_tlbr || excp_pil || excp_pis || excp_ppi || excp_pme || excp_adem || excp_i;
+    assign excp_num = {excp_pil, excp_pis, excp_ppi, excp_pme, excp_tlbr, excp_adem, excp_num_i};
+
     //difftest
     assign signal_o.inst_ld_en = access_mem ? {
         2'b0,
@@ -99,9 +117,13 @@ module mem1
     // Data forward
     assign mem_data_forward_o = {mem_load_op, signal_o.wreg, signal_o.waddr, signal_o.wdata};
 
-    assign signal_o.excp = excp_i;
-    assign signal_o.excp_num = excp_num_i;
+    assign signal_o.excp = excp;
+    assign signal_o.excp_num = excp_num;
     assign signal_o.refetch = signal_i.refetch;
+
+    //if mem1 has a mem request and cache is working 
+    //then wait until cache finish its work
+    assign stallreq = cache_ack & access_mem;
 
     always @(*) begin
         if (rst == `RstEnable) LLbit = 1'b0;
@@ -133,7 +155,7 @@ module mem1
         signal_o.icache_op_en = icache_op_en;
         signal_o.cacop_op = cacop_op;
         signal_o.tlb_signal = tlb_mem_signal;
-        if (!signal_i.data_addr_trans_en | tlb_mem_signal.found) begin // if tlb miss,then do nothing
+        if (!excp & (!signal_i.data_addr_trans_en | tlb_mem_signal.found)) begin // if tlb miss,then do nothing
             case (aluop_i)
                 `EXE_LD_B_OP: begin
                     signal_cache_o.addr = mem_addr;

@@ -200,6 +200,7 @@ module cpu_top
     logic [31:0] mem_cache_addr,mem_cache_data;
     logic [1:0] wb_dcache_flush; // flush dcache if excp
     logic [2:0]mem_cache_wr_type;
+    logic cache_ack;
     
     assign mem_cache_ce = mem_cache_signal[0].ce | mem_cache_signal[1].ce;
     assign mem_cache_we = mem_cache_signal[0].we | mem_cache_signal[1].we;
@@ -224,6 +225,7 @@ module cpu_top
         .rd_type_i (mem_cache_rd_type),
         .wr_type_i (mem_cache_wr_type),
         .flush_i    (wb_dcache_flush!=2'b0), // If excp occurs, flush DCache
+        .cache_ack  (cache_ack),
         .addr_ok   (mem_addr_ok),
         .data_ok   (mem_data_ok),
         .rdata     (cache_mem_data),
@@ -473,7 +475,6 @@ module cpu_top
 
         // <-> Ctrl
         .is_pri_instr(is_pri_instr),
-        .stallreq(),
         .block(pri_stall),
         .stall(stall[1]),
         .flush(backend_flush),
@@ -622,7 +623,7 @@ module cpu_top
 
     ex_mem_struct [1:0] mem1_signal_i;
 
-
+    logic [1:0] mem1_stallreq;
 
     generate
         for (genvar i = 0; i < 2; i++) begin : mem1
@@ -648,6 +649,11 @@ module cpu_top
 
                 .LLbit_we_o(mem_wb_LLbit_we[i]),
                 .LLbit_value_o(mem_wb_LLbit_value[i]),
+                
+                .csr_plv(csr_plv),
+
+                .cache_ack(cache_ack),
+                .stallreq(mem1_stallreq[i]),
 
                 // Data forward
                 // -> Dispatch
@@ -697,8 +703,6 @@ module cpu_top
                 .mem_LLbit_we(mem_wb_LLbit_we[i]),
                 .mem_LLbit_value(mem_wb_LLbit_value[i]),
 
-
-                .csr_mem_signal(csr_mem_signal),
                 .disable_cache(1'b0),
                 .LLbit_i(LLbit_o),
                 .LLbit_we_i(llbit_i.we),
@@ -772,7 +776,7 @@ module cpu_top
         // <- EX
     	.ex_branch_flag_i (stall[2] ? 2'b0: branch_flag),
         .ex_stallreq_i (ex_stallreq),
-
+        .mem1_stallreq_i (mem1_stallreq),
         .wb_stallreq_i(wb_stallreq),
 
         .excp_flush(excp_flush),

@@ -19,7 +19,6 @@ module wb
     input logic mem_LLbit_value,
 
     //<-> csr 
-    input csr_to_mem_struct csr_mem_signal,
     input logic disable_cache,
     input logic LLbit_i,
     input logic LLbit_we_i,
@@ -59,10 +58,9 @@ module wb
         end
     end
 
-    logic excp, pg_mode, da_mode;
+    logic excp;
     logic [15:0] excp_num;
     logic access_mem, mem_store_op, mem_load_op;
-    logic excp_tlbr, excp_pil, excp_pis, excp_pme, excp_ppi, excp_adem;
     logic cacop_en, icache_op_en;
     logic [4:0] cacop_op;
     assign cacop_en = mem_signal_o.cacop_en;
@@ -74,12 +72,6 @@ module wb
     logic is_CNTinst;
     assign is_CNTinst = aluop == `EXE_RDCNTVL_OP | aluop == `EXE_RDCNTID_OP | aluop == `EXE_RDCNTVH_OP;
 
-    //debug用的,无实际作用
-    logic [2:0] mem_addr;
-    assign mem_addr = mem_signal_o.mem_addr[31:29];
-
-    logic data_addr_trans_en;
-    assign data_addr_trans_en = mem_signal_o.data_addr_trans_en;
 
     assign access_mem = mem_load_op || mem_store_op;
 
@@ -90,17 +82,8 @@ module wb
 
     // Addr translate mode for DCache, pull down if instr is invalid
 
-    assign excp_adem = (access_mem || cacop_en) && data_addr_trans_en && (csr_mem_signal.csr_plv == 2'd3) && mem_signal_o.mem_addr[31];
-    assign excp_tlbr = (access_mem || cacop_en) && !tlb_signal.found && data_addr_trans_en;
-    assign excp_pil  = mem_load_op  && !tlb_signal.tlb_v && data_addr_trans_en;  //cache will generate pil exception??
-    assign excp_pis = mem_store_op && !tlb_signal.tlb_v && data_addr_trans_en;
-    assign excp_ppi = access_mem && tlb_signal.tlb_v && (csr_mem_signal.csr_plv > tlb_signal.tlb_plv) && data_addr_trans_en;
-    assign excp_pme  = mem_store_op && tlb_signal.tlb_v && (csr_mem_signal.csr_plv <= tlb_signal.tlb_plv) && !tlb_signal.tlb_d && data_addr_trans_en;
-
-    assign excp = excp_tlbr || excp_pil || excp_pis || excp_ppi || excp_pme || excp_adem || mem_signal_o.excp;
-    assign excp_num = {
-        excp_pil, excp_pis, excp_ppi, excp_pme, excp_tlbr, excp_adem, mem_signal_o.excp_num
-    };
+    assign excp = mem_signal_o.excp;
+    assign excp_num = mem_signal_o.excp_num;
 
     assign dcache_flush_o = excp;
 
