@@ -31,6 +31,8 @@ package core_types;
         logic mem_h_op;
         logic not_commit_instr;
         logic need_refetch;  // Instruction modify IF logic, any instr after it may be totaly wrong
+        // Difftest only
+        logic csr_rstat;
     } special_info_t;
 
     typedef struct packed {
@@ -201,6 +203,7 @@ package core_types;
         logic [31:0] st_data;
         logic is_CNTinst;
         logic [63:0] timer_64;
+        logic csr_rstat;
     } diff_commit;
 
     typedef struct packed {

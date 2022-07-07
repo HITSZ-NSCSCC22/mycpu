@@ -911,8 +911,8 @@ module cpu_top
     logic [`RegBus] csr_data_commit[2];
     always_ff @(posedge clk) begin
         difftest_commit_info_delay1 <= difftest_commit_info;
-        csr_rstat_commit[0] <= csr_w_o[0].we && (csr_w_o[0].addr == 14'h5);
-        csr_data_commit[1] <= csr_w_o[1].data;
+        csr_rstat_commit[0] <= csr_w_o[0].we && (csr_w_o[0].addr == 14'h5) | difftest_commit_info[0].csr_rstat;
+        csr_data_commit[0] <= difftest_commit_info[0].csr_rstat ? u_cs_reg.csr_estat : csr_w_o[0].data;
     end
 
     always_ff @(posedge clk) begin

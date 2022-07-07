@@ -74,6 +74,7 @@ module decoder_CSR
                         alusel_o = `EXE_RES_CSR;
                         special_info_o.is_pri = 1;
                         special_info_o.is_csr = 1;
+                        special_info_o.csr_rstat = csr_num == 5;
                         kernel_instr = 1;
                     end
                     `EXE_CSRWR: begin
@@ -83,6 +84,8 @@ module decoder_CSR
                         reg_read_addr_o = {5'b0, rd};
                         special_info_o.is_pri = 1;
                         special_info_o.is_csr = 1;
+                        special_info_o.csr_rstat = csr_num == 5;
+                        special_info_o.need_refetch = 1;  // May change mode or trigger soft intrpt
                         kernel_instr = 1;
                     end
                     default: begin  // EXE_CSRXCHG
@@ -92,6 +95,8 @@ module decoder_CSR
                         reg_read_addr_o = {rj, rd};
                         special_info_o.is_pri = 1;
                         special_info_o.is_csr = 1;
+                        special_info_o.csr_rstat = csr_num == 5;
+                        special_info_o.need_refetch = 1;  // May change mode
                         kernel_instr = 1;
                     end
                 endcase

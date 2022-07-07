@@ -178,6 +178,7 @@ module mem_wb
             };
             wb_ctrl_signal.diff_commit_o.st_vaddr <= mem_i.store_addr;
             wb_ctrl_signal.diff_commit_o.st_data <= mem_i.store_data;
+            wb_ctrl_signal.diff_commit_o.csr_rstat <= special_info.csr_rstat;
             wb_ctrl_signal.cacop_en <= cacop_en;
             wb_ctrl_signal.icache_op_en <= icache_op_en;
             wb_ctrl_signal.cacop_op <= cacop_op;

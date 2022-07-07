@@ -120,7 +120,7 @@ module dispatch
     end
 
     // Do we issue ?
-    assign single_issue = pri_op[0] | csr_op[0] | is_both_mem_instr;
+    assign single_issue = pri_op[0]| pri_op[1] | csr_op[0] | csr_op[1] | is_both_mem_instr | id_i[0].instr_info.excp | id_i[1].instr_info.excp;
     always_comb begin
         if (block) begin
             do_we_issue = 2'b00;
