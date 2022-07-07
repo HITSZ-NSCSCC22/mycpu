@@ -384,7 +384,8 @@ module cpu_top
     instr_info_t ib_backend_instr_info[2];  // IB -> ID
     logic [4:0] stall; // from 4->0 {mem_wb, ex_mem, dispatch_ex, id_dispatch, _}
 
-    logic [1:0] dispatch_ib_accept;
+    logic [DECODE_WIDTH-1:0] id_ib_accept;
+    logic [DECODE_WIDTH-1:0] dispatch_id_accept;
 
     // Instruction Buffer
     // FIFO buffer
@@ -400,7 +401,7 @@ module cpu_top
         .frontend_stallreq_o(ib_frontend_stallreq),
 
         // <-> Backend
-        .backend_accept_i(dispatch_ib_accept),  // FIXME: does not carefully designed
+        .backend_accept_i(id_ib_accept),  // FIXME: does not carefully designed
         .backend_flush_i(backend_flush),  // Assure output is reset the next cycle
         .backend_instr_o(ib_backend_instr_info)  // -> ID
     );
@@ -439,8 +440,9 @@ module cpu_top
         .stall     (stall[1]),
         .flush     (backend_flush), // FIXME: does not carefully designed
         .id_i      (id_id_dispatch),
+        .id_dispatch_accept_o(id_ib_accept),
         // Dispatch
-        .dispatch_issue_i(dispatch_ib_accept),
+        .dispatch_issue_i(dispatch_id_accept),
         .dispatch_o(id_dispatch_dispatch)
     );
 
@@ -488,7 +490,7 @@ module cpu_top
         .csr_data(dispatch_csr_data),
 
         // -> IB
-        .ib_accept_o(dispatch_ib_accept),
+        .ib_accept_o(dispatch_id_accept),
 
         // -> EXE
         .exe_o(dispatch_exe)

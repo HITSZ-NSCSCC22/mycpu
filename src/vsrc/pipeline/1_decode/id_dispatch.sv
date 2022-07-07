@@ -24,6 +24,7 @@ module id_dispatch
 
     // <- ID stage
     input id_dispatch_struct [DECODE_WIDTH-1:0] id_i,
+    output logic [DECODE_WIDTH-1:0] id_dispatch_accept_o,
 
     // <-> Dispatch stage
     input logic [DECODE_WIDTH-1:0] dispatch_issue_i,
@@ -40,6 +41,12 @@ module id_dispatch
             dispatch_issue_num = dispatch_issue_num + dispatch_issue_i[i];
         end
     end
+    always_comb begin
+        id_dispatch_accept_o = 0;
+        for (integer i = 0; i < DECODE_WIDTH; i++) begin
+            if (i < dispatch_issue_num) id_dispatch_accept_o[i] = id_i[i].instr_info.valid;
+        end
+    end
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -52,9 +59,15 @@ module id_dispatch
             for (integer i = 0; i < DECODE_WIDTH; i++) begin
                 if (i < DECODE_WIDTH - dispatch_issue_num)
                     dispatch_o[i] <= dispatch_o[i+dispatch_issue_num];
-                else dispatch_o[i] <= id_i[i+DECODE_WIDTH-dispatch_issue_num];
+                else dispatch_o[i] <= id_i[i-DECODE_WIDTH+dispatch_issue_num];
             end
         end
     end
+
+    // DEBUG
+    logic [ADDR_WIDTH-1:0] debug_pc0, debug_pc1;
+    assign debug_pc0 = id_i[0].instr_info.pc;
+    assign debug_pc1 = id_i[1].instr_info.pc;
+
 
 endmodule

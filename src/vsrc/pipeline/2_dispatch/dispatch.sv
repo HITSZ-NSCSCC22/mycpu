@@ -107,7 +107,8 @@ module dispatch
             instr_valid[i] = id_i[i].instr_info.valid;
         end
     end
-    assign ib_accept_o = stall ? 0 : do_we_issue;
+    assign ib_accept_o = stall ? 0 : 
+                        do_we_issue == 2'b01 ? do_we_issue | ~instr_valid : do_we_issue;
 
 
     // DEBUG signal
