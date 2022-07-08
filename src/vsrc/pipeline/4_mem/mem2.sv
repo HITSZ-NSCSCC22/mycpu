@@ -137,8 +137,8 @@ module mem2
     always_ff @(posedge clk) begin
         if (rst) mem2_o_buffer <= 0;
         else if (flush) mem2_o_buffer <= 0;
-        else if (stall & stallreq == 1'b1) begin
-            mem2_o_buffer <= 0;
+        else if (stall) begin
+            mem2_o_buffer <= mem2_o_buffer;
         end else mem2_o_buffer <= mem2_o;
     end
 

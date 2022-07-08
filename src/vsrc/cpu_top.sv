@@ -910,7 +910,7 @@ module cpu_top
             difftest_commit_info_delay1[0] <= difftest_commit_info[0];
         end
         else if(difftest_commit_info_already_delay[0] == difftest_commit_info_delay1[0])begin
-            difftest_commit_info_delay1[1] <= 0;
+            difftest_commit_info_delay1[0] <= 0;
         end
     end
 

@@ -76,6 +76,15 @@ module ctrl
     output diff_commit commit_1
 );
 
+
+    logic [`RegBus] commit_pc0, commit_pc1, commit_pc0_delay, commit_pc1_delay;
+    assign commit_pc0 = commit_0.pc;
+    assign commit_pc1 = commit_1.pc;
+    always_ff @(posedge clk) begin
+        commit_pc0_delay <= commit_pc0;
+        commit_pc1_delay <= commit_pc1;
+    end
+
     logic valid, pri_commit, excp;
     logic [`AluOpBus] aluop, aluop_1;
     logic [COMMIT_WIDTH-1:0] backend_commit_valid;
@@ -85,8 +94,9 @@ module ctrl
     assign valid = wb_i[0].valid | wb_i[1].valid;
 
 
-    assign backend_commit_valid[0] = wb_i[0].valid;
-    assign backend_commit_valid[1] = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | wb_i[0].excp)? 0 : wb_i[1].valid;
+    assign backend_commit_valid[0] = wb_i[0].valid & (commit_pc0 != commit_pc0_delay);
+    assign backend_commit_valid[1] = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | wb_i[0].excp)
+                                    ? 0 : wb_i[1].valid & (commit_pc1 != commit_pc1_delay);
 
     // Backend commit basic block
     assign backend_commit_block_o = backend_commit_valid & (wb_i[0].excp ? 2'b01:

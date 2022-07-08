@@ -208,65 +208,65 @@ module ex
 
     // Divider and Multiplier
     // Multi-cycle
-    logic muldiv_op;  // High effective
-    always_comb begin
-        case (aluop_i)
-            `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP: begin
-                muldiv_op = 1;
-            end
-            default: begin
-                muldiv_op = 0;
-            end
-        endcase
-    end
-    logic [2:0] muldiv_para;  // 0-7 muldiv mode selection
-    always_comb begin
-        case (aluop_i)
-            `EXE_MUL_OP:   muldiv_para = 3'h0;
-            `EXE_MULH_OP:  muldiv_para = 3'h1;
-            `EXE_MULHU_OP: muldiv_para = 3'h3;
-            `EXE_DIV_OP:   muldiv_para = 3'h4;
-            `EXE_DIVU_OP:  muldiv_para = 3'h5;
-            `EXE_MOD_OP:   muldiv_para = 3'h6;
-            `EXE_MODU_OP:  muldiv_para = 3'h7;
-            default: begin
-                muldiv_para = 0;
-            end
-        endcase
-    end
-    logic [31:0] muldiv_result;
-    logic muldiv_finished;
-    logic muldiv_ack;
-    logic muldiv_busy_r;
-    logic muldiv_init;
-    logic muldiv_busy;  // Low means busy
-    always_ff @(posedge clk) begin
-        if (rst) muldiv_busy_r <= 0;
-        else if (flush | excp_flush | ertn_flush) muldiv_busy_r <= 0;
-        else if (muldiv_init) muldiv_busy_r <= 1;
-        else if (muldiv_ack) muldiv_busy_r <= 0;
-    end
-    always_comb begin
-        muldiv_init = muldiv_op & ~muldiv_busy_r & ~stall[1];
-        muldiv_ack  = muldiv_finished & muldiv_op & ~stall[1];
-    end
-    mul u_mul (
-        .clk           (clk),
-        .rst           (rst),
-        .clear_pipeline(flush),
-        .mul_para      (muldiv_para),
-        .mul_initial   (muldiv_init),
-        .mul_rs0       (oprand1),
-        .mul_rs1       (oprand2 == 0 ? 1 : oprand2),
-        .mul_ready     (muldiv_busy),
-        .mul_finished  (muldiv_finished),             // 1 means finished
-        .mul_data      (muldiv_result),
-        .mul_ack       (muldiv_ack)
-    );
+    // logic muldiv_op;  // High effective
+    // always_comb begin
+    //     case (aluop_i)
+    //         `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP: begin
+    //             muldiv_op = 1;
+    //         end
+    //         default: begin
+    //             muldiv_op = 0;
+    //         end
+    //     endcase
+    // end
+    // logic [2:0] muldiv_para;  // 0-7 muldiv mode selection
+    // always_comb begin
+    //     case (aluop_i)
+    //         `EXE_MUL_OP:   muldiv_para = 3'h0;
+    //         `EXE_MULH_OP:  muldiv_para = 3'h1;
+    //         `EXE_MULHU_OP: muldiv_para = 3'h3;
+    //         `EXE_DIV_OP:   muldiv_para = 3'h4;
+    //         `EXE_DIVU_OP:  muldiv_para = 3'h5;
+    //         `EXE_MOD_OP:   muldiv_para = 3'h6;
+    //         `EXE_MODU_OP:  muldiv_para = 3'h7;
+    //         default: begin
+    //             muldiv_para = 0;
+    //         end
+    //     endcase
+    // end
+    // logic [31:0] muldiv_result;
+    // logic muldiv_finished;
+    // logic muldiv_ack;
+    // logic muldiv_busy_r;
+    // logic muldiv_init;
+    // logic muldiv_busy;  // Low means busy
+    // always_ff @(posedge clk) begin
+    //     if (rst) muldiv_busy_r <= 0;
+    //     else if (flush | excp_flush | ertn_flush) muldiv_busy_r <= 0;
+    //     else if (muldiv_init) muldiv_busy_r <= 1;
+    //     else if (muldiv_ack) muldiv_busy_r <= 0;
+    // end
+    // always_comb begin
+    //     muldiv_init = muldiv_op & ~muldiv_busy_r & ~stall[1];
+    //     muldiv_ack  = muldiv_finished & muldiv_op & ~stall[1];
+    // end
+    // mul u_mul (
+    //     .clk           (clk),
+    //     .rst           (rst),
+    //     .clear_pipeline(flush),
+    //     .mul_para      (muldiv_para),
+    //     .mul_initial   (muldiv_init),
+    //     .mul_rs0       (oprand1),
+    //     .mul_rs1       (oprand2 == 0 ? 1 : oprand2),
+    //     .mul_ready     (muldiv_busy),
+    //     .mul_finished  (muldiv_finished),             // 1 means finished
+    //     .mul_data      (muldiv_result),
+    //     .mul_ack       (muldiv_ack)
+    // );
 
 
-    assign stallreq = (muldiv_op & ~muldiv_finished) | // Multiply & Division
-                (icacop_inst & ~icacop_op_ack_i); // CACOP
+    // assign stallreq = (muldiv_op & ~muldiv_finished) | // Multiply & Division
+    //             (icacop_inst & ~icacop_op_ack_i); // CACOP
 
     always @(*) begin
         if (rst == `RstEnable) begin
@@ -275,20 +275,20 @@ module ex
             case (aluop_i)
                 `EXE_ADD_OP: arithout = oprand1 + oprand2;
                 `EXE_SUB_OP: arithout = oprand1 - oprand2;
-                `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP: begin
-                    // Select result from multi-cycle divider
-                    arithout = muldiv_result;
-                end
+                // `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP: begin
+                //     // Select result from multi-cycle divider
+                //     arithout = muldiv_result;
+                // end
 
                 `EXE_MUL_OP: arithout = $signed(oprand1) * $signed(oprand2);
                 `EXE_MULH_OP: arithout = ($signed(oprand1) * $signed(oprand2)) >> 32;
                 `EXE_MULHU_OP: arithout = ($unsigned(oprand1) * $unsigned(oprand2)) >> 32;
-                // `EXE_DIV_OP: arithout = ($signed(oprand1) / $signed(oprand2));
-                // `EXE_DIVU_OP: arithout = ($unsigned(oprand1) / $unsigned(oprand2));
-                // `EXE_MODU_OP: arithout = ($unsigned(oprand1) % $unsigned(oprand2));
-                // `EXE_MOD_OP: begin
-                //     arithout = ($signed(oprand1) % $signed(oprand2));
-                // end
+                `EXE_DIV_OP: arithout = ($signed(oprand1) / $signed(oprand2));
+                `EXE_DIVU_OP: arithout = ($unsigned(oprand1) / $unsigned(oprand2));
+                `EXE_MODU_OP: arithout = ($unsigned(oprand1) % $unsigned(oprand2));
+                `EXE_MOD_OP: begin
+                    arithout = ($signed(oprand1) % $signed(oprand2));
+                end
                 `EXE_SLT_OP, `EXE_SLTU_OP: arithout = {31'b0, reg1_lt_reg2};
                 default: begin
                     arithout = 0;
