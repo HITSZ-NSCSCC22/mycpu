@@ -18,7 +18,7 @@ module mem2
 
     output logic stallreq,
     input logic data_ok,
-    input logic [`RegBus] cache_data
+    input logic [`RegBus] cache_data_i
 
 );
     mem2_wb_struct mem2_o;
@@ -34,16 +34,39 @@ module mem2
         mem_load_op, data_ok, mem1_i.wreg, mem1_i.waddr, mem1_i.wdata, cache_data
     };
 
-    logic [`RegBus] mem_addr;
+    logic [`RegBus] mem_addr, pc, pc_delay;
+    assign pc = mem1_i.instr_info.pc;
     assign mem_addr = mem1_i.mem_addr;
+    always_ff @(posedge clk) begin
+        pc_delay <= pc;
+    end
 
-    assign stallreq = mem_load_op & !data_ok;
+    logic data_already_ok;
+    always_comb begin
+        if (rst) data_already_ok = 0;
+        else if (pc != pc_delay) data_already_ok = 0;
+        else if (data_ok) data_already_ok = 1;
+        else data_already_ok = data_already_ok;
+    end
+
+    logic data_ok_delay;
+    logic [`RegBus] cache_data_delay, cache_data;
+    assign cache_data = cache_data_delay | cache_data_i;
+    always_ff @(posedge clk) begin
+        cache_data_delay <= cache_data_i;
+        data_ok_delay <= data_ok;
+    end
+
+    assign stallreq = mem_load_op & !data_ok & !data_already_ok;
+
+    logic [`RegBus] debug_wdata;
+    assign debug_wdata = mem2_o.wdata;
 
     always_comb begin
         if (rst) mem2_o = 0;
         else begin
             mem2_o = mem1_i;
-            if (mem_load_op & data_ok)
+            if (mem_load_op & (data_ok | data_ok_delay))
                 case (aluop_i)
                     `EXE_LD_B_OP: begin
                         case (mem_addr[1:0])
@@ -114,8 +137,10 @@ module mem2
     always_ff @(posedge clk) begin
         if (rst) mem2_o_buffer <= 0;
         else if (flush) mem2_o_buffer <= 0;
-        else if (stall) mem2_o_buffer <= mem2_o_buffer;
-        else mem2_o_buffer <= mem2_o;
+        else if (stall) begin
+            if (stallreq == 1'b1) mem2_o_buffer <= 0;
+            else mem2_o_buffer <= mem2_o_buffer;
+        end else mem2_o_buffer <= mem2_o;
     end
 
 

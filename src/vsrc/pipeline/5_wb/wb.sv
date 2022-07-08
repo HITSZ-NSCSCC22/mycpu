@@ -43,6 +43,12 @@ module wb
     tlb_data_t tlb_signal;
     assign tlb_signal = mem_signal_o.tlb_signal;
 
+    logic [`RegBus] debug_pc;
+    assign debug_pc = mem_signal_o.instr_info.pc;
+
+    wb_reg debug_reg_write;
+    assign debug_reg_write = wb_ctrl_signal.wb_reg_o;
+
     //sc只有llbit为1才执行，如果llbit为0，sc就不算访存指令
     logic LLbit;
     always @(*) begin
@@ -85,12 +91,6 @@ module wb
     assign wb_forward = {mem_signal_o.wreg, mem_signal_o.waddr, mem_signal_o.wdata};
 
 
-    always_ff @(posedge clk) begin
-        if (rst == `RstEnable) wb_ctrl_signal.wb_reg_o.wdata <= 0;
-        else if (flush | stall) wb_ctrl_signal.wb_reg_o.wdata <= 0;
-        else wb_ctrl_signal.wb_reg_o.wdata <= mem_signal_o.wdata;
-    end
-
     always @(posedge clk) begin
         if (rst == `RstEnable) begin
             wb_ctrl_signal <= 0;
@@ -106,6 +106,7 @@ module wb
             wb_ctrl_signal.valid <= 1'b1;
             wb_ctrl_signal.is_last_in_block <= mem_signal_o.instr_info.is_last_in_block;
             wb_ctrl_signal.aluop <= mem_signal_o.aluop;
+            wb_ctrl_signal.wb_reg_o.wdata <= mem_signal_o.wdata;
             wb_ctrl_signal.wb_reg_o.waddr <= mem_signal_o.waddr;
             wb_ctrl_signal.wb_reg_o.we <= mem_signal_o.wreg;
             wb_ctrl_signal.wb_reg_o.pc <= mem_signal_o.instr_info.pc;

@@ -669,7 +669,7 @@ module cpu_top
 
                 .stallreq(mem2_stallreq[i]),
                 .data_ok(mem_data_ok),
-                .cache_data(mem_cache_data)
+                .cache_data_i(cache_mem_data)
 
             );
         end
@@ -901,10 +901,21 @@ module cpu_top
 
     // Difftest Delay signals
     diff_commit difftest_commit_info_delay1[2];
+    diff_commit difftest_commit_info_already_delay[2];
     logic csr_rstat_commit[2];
     logic [`RegBus] csr_data_commit[2];
     always_ff @(posedge clk) begin
-        difftest_commit_info_delay1 <= difftest_commit_info;
+        if(difftest_commit_info_already_delay != difftest_commit_info)begin
+            difftest_commit_info_already_delay <= difftest_commit_info;
+            difftest_commit_info_delay1 <= difftest_commit_info;
+        end
+        else if(difftest_commit_info_already_delay == difftest_commit_info)begin
+            difftest_commit_info_delay1 <= {0,0};
+        end
+        
+    end
+
+    always_ff @( posedge clk ) begin 
         csr_rstat_commit[0] <= csr_w_o[0].we && (csr_w_o[0].addr == 14'h5);
         csr_data_commit[1] <= csr_w_o[1].data;
     end

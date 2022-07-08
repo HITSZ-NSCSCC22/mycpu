@@ -60,6 +60,8 @@ module mem1
     assign debug_wdata_o = signal_o.wdata;
     logic debug_instr_valid;
     assign debug_instr_valid = signal_i.instr_info.valid;
+    logic [`RegBus] debug_cache_data;
+    assign debug_cache_data = signal_cache_o.data;
 
     logic [`AluOpBus] aluop_i;
     assign aluop_i = signal_i.aluop;
