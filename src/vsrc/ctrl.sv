@@ -22,7 +22,7 @@ module ctrl
     input logic [1:0] ex_branch_flag_i,  //执行阶段跳转信号
     input logic [1:0] ex_stallreq_i,  //执行阶段暂停请求信号
     input logic [1:0] mem1_stallreq_i,
-    input logic [1:0] wb_stallreq_i,  //访存阶段暂停请求信号
+    input logic [1:0] mem2_stallreq_i,  //访存阶段暂停请求信号
     output logic idle_flush,  //idle指令冲刷信号
     output logic excp_flush,  //异常指令冲刷信号
     output logic ertn_flush,  //ertn指令冲刷信号
@@ -139,7 +139,7 @@ module ctrl
     always_comb begin
         if (rst) stall = 6'b000000;
         //访存阶段的暂停请求:进行访存操作时请求暂停,此时将译码和发射阶段阻塞
-        else if (wb_stallreq_i[0] | wb_stallreq_i[1]) stall = 6'b111111;
+        else if (mem2_stallreq_i[0] | mem2_stallreq_i[1]) stall = 6'b111111;
         //执行阶段的暂停请求:进行乘除法时请求暂停,此时将译码和发射阶段阻塞
         else if (mem1_stallreq_i[0] | mem1_stallreq_i[1]) stall = 6'b001111;
         else if (ex_stallreq_i[0] | ex_stallreq_i[1]) stall = 6'b111111;

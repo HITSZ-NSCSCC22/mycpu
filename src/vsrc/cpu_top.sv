@@ -545,7 +545,7 @@ module cpu_top
     logic [1:0] ex_stallreq;
     logic [63:0] csr_timer_64;
     logic [31:0] csr_tid;
-    logic [1:0][`RegBus] ex_tlb_vaddr;
+    ex_to_tlb_struct [1:0] ex_tlb_signal;
     generate
         for (genvar i = 0; i < 2; i++) begin : ex
             ex u_ex (
@@ -565,12 +565,7 @@ module cpu_top
                 .csr_ex_signal(csr_mem_signal),
                 .llbit(LLbit_o),
 
-                .data_addr_trans_en(ex_data_addr_trans_en[i]),
-                .dmw0_en(ex_data_dmw0_en[i]),
-                .dmw1_en(ex_data_dmw1_en[i]),
-                .data_fetch(data_fetch[i]),
-                .tlbsrch_en_o(ex_tlbsrch[i]),
-                .tlb_vaddr(ex_tlb_vaddr[i]),
+                .ex_tlb_signal(ex_tlb_signal[i]),
 
                 // -> Ctrl
                 .branch_flag_o(branch_flag[i]),
@@ -589,16 +584,12 @@ module cpu_top
                 .cacop_op_mode(cacop_op_mode[i]),
 
                 // <-> Ctrl
-                .stall({wb_stallreq[0] | wb_stallreq[1] ,stall[3]}),
+                .stall({mem2_stallreq[0] | mem2_stallreq[1] ,stall[3]}),
                 .flush(ex_mem_flush[i])
 
             );
         end
     endgenerate
-
-    logic ex_data_addr_trans_en[2];
-    logic ex_data_dmw0_en[2];
-    logic ex_data_dmw1_en[2];
 
     logic [1:0] ex_mem_flush;
 
@@ -618,10 +609,6 @@ module cpu_top
 
     assign csr_mem_signal = {csr_pg,csr_da,csr_dmw0,csr_dmw1,csr_plv,csr_datm};
 
-
-    logic [1:0] data_fetch, ex_tlbsrch;
-
-    ex_mem_struct [1:0] mem1_signal_i;
 
     logic [1:0] mem1_stallreq;
 
@@ -680,6 +667,7 @@ module cpu_top
 
                 .mem2_o_buffer(mem2_wb_signal[i]),
 
+                .stallreq(mem2_stallreq[i]),
                 .data_ok(mem_data_ok),
                 .cache_data(mem_cache_data)
 
@@ -688,7 +676,7 @@ module cpu_top
     endgenerate
 
     wb_ctrl_struct [1:0] wb_ctrl_signal;
-    logic [1:0] wb_stallreq;
+    logic [1:0] mem2_stallreq;
 
     generate
         for (genvar i = 0; i < 2; i++) begin : wb
@@ -707,14 +695,9 @@ module cpu_top
                 .LLbit_i(LLbit_o),
                 .LLbit_we_i(llbit_i.we),
                 .LLbit_value_i(llbit_i.value),
-                
-                .stallreq(wb_stallreq[i]),
 
                 // -> DCache
                 .dcache_flush_o(wb_dcache_flush[i]),
-
-                .data_ok(mem_data_ok),
-                .cache_data(mem_cache_data),
 
                 .wb_forward(wb_data_forward[i]),
 
@@ -777,7 +760,7 @@ module cpu_top
     	.ex_branch_flag_i (stall[2] ? 2'b0: branch_flag),
         .ex_stallreq_i (ex_stallreq),
         .mem1_stallreq_i (mem1_stallreq),
-        .wb_stallreq_i(wb_stallreq),
+        .mem2_stallreq_i(mem2_stallreq),
 
         .excp_flush(excp_flush),
         .ertn_flush(ertn_flush),
@@ -880,13 +863,13 @@ module cpu_top
         .asid_in(tlb_read_signal_o.asid)
     );
 
-    assign data_addr_trans_en = ex_data_addr_trans_en[0];
+    assign data_addr_trans_en = ex_tlb_signal[0].data_addr_trans_en;
     data_tlb_t tlb_data_i;
-    assign tlb_data_i.dmw0_en = ex_data_dmw0_en[0];
-    assign tlb_data_i.dmw1_en = ex_data_dmw1_en[0];
-    assign tlb_data_i.vaddr = ex_tlb_vaddr[0];
-    assign tlb_data_i.fetch = data_fetch[0];
-    assign tlb_data_i.tlbsrch = ex_tlbsrch[0];
+    assign tlb_data_i.dmw0_en = ex_tlb_signal[0].dmw0_en;
+    assign tlb_data_i.dmw1_en = ex_tlb_signal[0].dmw1_en;
+    assign tlb_data_i.vaddr = ex_tlb_signal[0].tlb_vaddr;
+    assign tlb_data_i.fetch = ex_tlb_signal[0].data_fetch;
+    assign tlb_data_i.tlbsrch = ex_tlb_signal[0].tlbsrch_en_o;
 
     tlb_data_t tlb_data_o;
     tlb_write_in_struct tlb_write_signal_i;

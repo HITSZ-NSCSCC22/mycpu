@@ -158,12 +158,9 @@ package core_types;
     } mem2_data_forward_t;
 
     typedef struct packed {
-        logic is_load_data;
-        logic load_valid;
         logic write_reg;
         logic [`RegAddrBus] write_reg_addr;
         logic [`RegBus] write_reg_data;
-        logic [`RegBus] load_data;
     } wb_data_forward_t;
 
     typedef struct packed {
@@ -313,6 +310,15 @@ package core_types;
         logic [1:0] data_tlb_mat;
         logic [1:0] data_tlb_plv;
     } tlb_to_mem_struct;
+
+    typedef struct packed {
+        logic data_addr_trans_en;
+        logic dmw0_en;
+        logic dmw1_en;
+        logic data_fetch;
+        logic tlbsrch_en_o;
+        logic [`RegBus] tlb_vaddr;
+    } ex_to_tlb_struct;
 
 endpackage
 `endif

@@ -16,6 +16,7 @@ module mem2
 
     output mem2_wb_struct mem2_o_buffer,
 
+    output logic stallreq,
     input logic data_ok,
     input logic [`RegBus] cache_data
 
@@ -35,6 +36,8 @@ module mem2
 
     logic [`RegBus] mem_addr;
     assign mem_addr = mem1_i.mem_addr;
+
+    assign stallreq = mem_load_op & !data_ok;
 
     always_comb begin
         if (rst) mem2_o = 0;

@@ -30,13 +30,8 @@ module wb
     //<- dispatch
     output wb_data_forward_t wb_forward,
 
-    // <-> DCache
-    input data_ok,
-    input [`RegBus] cache_data,
     output logic dcache_flush_o,
 
-    //<- ctrl
-    output logic stallreq,
 
     // <-> Frontend
     output logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_id_o
@@ -87,17 +82,12 @@ module wb
 
     assign dcache_flush_o = excp;
 
-    assign wb_forward = {
-        mem_load_op, data_ok, mem_signal_o.wreg, mem_signal_o.waddr, mem_signal_o.wdata, cache_data
-    };
-
-    assign stallreq = mem_load_op & !data_ok;
+    assign wb_forward = {mem_signal_o.wreg, mem_signal_o.waddr, mem_signal_o.wdata};
 
 
     always_ff @(posedge clk) begin
         if (rst == `RstEnable) wb_ctrl_signal.wb_reg_o.wdata <= 0;
         else if (flush | stall) wb_ctrl_signal.wb_reg_o.wdata <= 0;
-        else if (mem_load_op && data_ok) wb_ctrl_signal.wb_reg_o.wdata <= cache_data;
         else wb_ctrl_signal.wb_reg_o.wdata <= mem_signal_o.wdata;
     end
 
