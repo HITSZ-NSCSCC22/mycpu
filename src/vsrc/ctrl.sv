@@ -77,14 +77,6 @@ module ctrl
 );
 
 
-    logic [`RegBus] commit_pc0, commit_pc1, commit_pc0_delay, commit_pc1_delay;
-    assign commit_pc0 = commit_0.pc;
-    assign commit_pc1 = commit_1.pc;
-    always_ff @(posedge clk) begin
-        commit_pc0_delay <= commit_pc0;
-        commit_pc1_delay <= commit_pc1;
-    end
-
     logic valid, pri_commit, excp;
     logic [`AluOpBus] aluop, aluop_1;
     logic [COMMIT_WIDTH-1:0] backend_commit_valid;
@@ -94,9 +86,9 @@ module ctrl
     assign valid = wb_i[0].valid | wb_i[1].valid;
 
 
-    assign backend_commit_valid[0] = wb_i[0].valid & (commit_pc0 != commit_pc0_delay);
+    assign backend_commit_valid[0] = wb_i[0].valid ;//& (commit_pc0 != commit_pc0_delay);
     assign backend_commit_valid[1] = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | wb_i[0].excp)
-                                    ? 0 : wb_i[1].valid & (commit_pc1 != commit_pc1_delay);
+                                    ? 0 : wb_i[1].valid ;//& (commit_pc1 != commit_pc1_delay);
 
     // Backend commit basic block
     assign backend_commit_block_o = backend_commit_valid & (wb_i[0].excp ? 2'b01:
@@ -149,9 +141,9 @@ module ctrl
     always_comb begin
         if (rst) stall = 6'b000000;
         //访存阶段的暂停请求:进行访存操作时请求暂停,此时将译码和发射阶段阻塞
-        else if (mem2_stallreq_i[0] | mem2_stallreq_i[1]) stall = 6'b011111;
+        else if (mem2_stallreq_i[0] | mem2_stallreq_i[1]) stall = 6'b111111;
         //执行阶段的暂停请求:进行乘除法时请求暂停,此时将译码和发射阶段阻塞
-        else if (mem1_stallreq_i[0] | mem1_stallreq_i[1]) stall = 6'b001111;
+        else if (mem1_stallreq_i[0] | mem1_stallreq_i[1]) stall = 6'b111111;
         else if (ex_stallreq_i[0] | ex_stallreq_i[1]) stall = 6'b111111;
         else stall = 6'b000000;
     end
