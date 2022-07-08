@@ -351,8 +351,10 @@ module mem1
     always_ff @(posedge clk) begin
         if (rst) signal_o_buffer <= 0;
         else if (flush) signal_o_buffer <= 0;
-        else if (stall) signal_o_buffer <= signal_o_buffer;
-        else signal_o_buffer <= signal_o;
+        else if (stall) begin
+            if (stallreq == 1'b1) signal_o_buffer <= 0;
+            else signal_o_buffer <= signal_o_buffer;
+        end else signal_o_buffer <= signal_o;
     end
 
 endmodule

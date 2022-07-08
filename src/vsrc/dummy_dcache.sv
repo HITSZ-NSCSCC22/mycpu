@@ -213,7 +213,7 @@ module dummy_dcache (
                     case (cpu_addr[3:2])
                         2'b00: begin
                             wr_data  = {{96{1'b0}}, wdata_buffer};
-                            wr_wstrb = {12'b0, wstrb};
+                            wr_wstrb = {12'b0, wstrb_buffer};
                         end
                         2'b01: begin
                             wr_data  = {{64{1'b0}}, wdata_buffer, {32{1'b0}}};

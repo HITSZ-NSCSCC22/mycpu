@@ -375,9 +375,9 @@ module ex
     always_ff @(posedge clk) begin
         if (rst) ex_o_buffer <= 0;
         else if (flush) ex_o_buffer <= 0;
-        else
-        if (stall[0] | stall[1]) begin
-
+        else if (stall[0] | stall[1]) begin
+            if (stallreq == 1'b1) ex_o_buffer <= 0;
+            else ex_o_buffer <= ex_o_buffer;
         end else ex_o_buffer <= ex_o;
     end
 

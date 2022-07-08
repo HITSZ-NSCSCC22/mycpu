@@ -905,14 +905,23 @@ module cpu_top
     logic csr_rstat_commit[2];
     logic [`RegBus] csr_data_commit[2];
     always_ff @(posedge clk) begin
-        if(difftest_commit_info_already_delay != difftest_commit_info)begin
-            difftest_commit_info_already_delay <= difftest_commit_info;
-            difftest_commit_info_delay1 <= difftest_commit_info;
+        if(difftest_commit_info_already_delay[0] != difftest_commit_info[0])begin
+            difftest_commit_info_already_delay[0] <= difftest_commit_info[0];
+            difftest_commit_info_delay1[0] <= difftest_commit_info[0];
         end
-        else if(difftest_commit_info_already_delay == difftest_commit_info)begin
-            difftest_commit_info_delay1 <= {0,0};
+        else if(difftest_commit_info_already_delay[0] == difftest_commit_info_delay1[0])begin
+            difftest_commit_info_delay1[1] <= 0;
         end
-        
+    end
+
+    always_ff @(posedge clk) begin
+        if(difftest_commit_info_already_delay[1] != difftest_commit_info[1])begin
+            difftest_commit_info_already_delay[1] <= difftest_commit_info[1];
+            difftest_commit_info_delay1[1] <= difftest_commit_info[1];
+        end
+        else if(difftest_commit_info_already_delay[1] == difftest_commit_info_delay1[1])begin
+            difftest_commit_info_delay1[1] <= 0;
+        end
     end
 
     always_ff @( posedge clk ) begin 
