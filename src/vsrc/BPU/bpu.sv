@@ -59,6 +59,7 @@ module bpu
             ftq_predict_o.is_cross_cacheline = ftb_entry.is_cross_cacheline;
             ftq_predict_o.start_pc = pc_i;
             ftq_predict_o.length = predict_taken ? ftb_entry.fall_through_address - pc_i : FETCH_WIDTH;
+            ftq_predict_o.predicted_taken = predict_taken;
         end else begin  // No branch is recorded, generate full FETCH_WIDTH
             if (is_cross_page) begin
                 ftq_predict_o.length = (12'h000 - pc_i[11:0]) >> 2;
@@ -69,6 +70,7 @@ module bpu
             ftq_predict_o.valid = 1;
             // If cross page, length will be cut, so ensures no cacheline cross
             ftq_predict_o.is_cross_cacheline = (pc_i[3:2] != 2'b00) & ~is_cross_page;
+            ftq_predict_o.predicted_taken = 0;
         end
     end
     // DEBUG

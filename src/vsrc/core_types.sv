@@ -31,6 +31,10 @@ package core_types;
         logic mem_h_op;
         logic not_commit_instr;
         logic need_refetch;  // Instruction modify IF logic, any instr after it may be totaly wrong
+        logic is_branch;
+        logic is_conditional;
+        logic is_taken;
+        logic predicted_taken;  // Comes from BPU
         // Difftest only
         logic csr_rstat;
     } special_info_t;

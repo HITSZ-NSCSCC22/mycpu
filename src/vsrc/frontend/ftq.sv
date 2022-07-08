@@ -1,9 +1,11 @@
 `include "defines.sv"
 `include "frontend/frontend_defines.sv"
 `include "core_config.sv"
+`include "BPU/include/bpu_types.sv"
 
 module ftq
     import core_config::*;
+    import bpu_types::*;
 (
     input logic clk,
     input logic rst,
@@ -14,6 +16,7 @@ module ftq
 
     // <-> BPU
     input bpu_ftq_t bpu_i,
+    input ftq_bpu_meta_t bpu_meta_i,
     output logic bpu_queue_full_o,
 
     // <-> Backend 
@@ -106,7 +109,14 @@ module ftq
     logic [$clog2(QUEUE_SIZE)-1:0] bpu_ptr_plus1;  // Limit the bit width
     assign bpu_ptr_plus1 = bpu_ptr + 1;
     assign bpu_queue_full_o = (bpu_ptr_plus1 == comm_ptr);
-    assign bpu_o = FTQ[bpu_ptr-1];
+
+
+    // BPU meta ram
+    ftq_bpu_meta_entry_t [QUEUE_SIZE-1:0] FTQ_meta;
+    always_ff @(posedge clk) begin
+        FTQ_meta[bpu_ptr] <= {bpu_meta_i, 64'b0};
+    end
+
 
 
 endmodule

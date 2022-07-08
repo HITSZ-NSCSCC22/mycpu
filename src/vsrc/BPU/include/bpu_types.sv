@@ -45,6 +45,19 @@ package bpu_types;
         logic [3:0] provider_ctr_bits;
     } ftq_bpu_meta_t;
 
+    typedef struct packed {
+        logic valid;
+        logic [$clog2(BPU_TAG_COMPONENT_NUM+1)-1:0] provider_id;
+        logic [$clog2(BPU_TAG_COMPONENT_NUM+1)-1:0] alt_provider_id;
+        logic predict_taken;
+        logic useful;
+        logic [$clog2(8192)-1:0] provider_entry_id;  // TODO: hard-coded
+        logic [3:0] provider_useful_bits;
+        logic [3:0] provider_ctr_bits;
+        logic [ADDR_WIDTH-1:0] jump_target_address;
+        logic [ADDR_WIDTH-1:0] fall_through_address;
+    } ftq_bpu_meta_entry_t;
+
 endpackage
 
 `endif

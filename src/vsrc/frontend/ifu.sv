@@ -287,6 +287,7 @@ module ifu
                     instr_buffer_o[i].excp_num <= p2_read_transaction.excp_num;
                     instr_buffer_o[i].ftq_id <= p2_read_transaction.ftq_id;
                     instr_buffer_o[i].ftq_block_idx <= i;
+                    instr_buffer_o[i].special_info.predicted_taken <= p2_ftq_block.predicted_taken;
                 end else begin
                     instr_buffer_o[i] <= 0;
                 end

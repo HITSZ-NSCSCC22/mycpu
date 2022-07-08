@@ -34,9 +34,10 @@ module ex
     output logic tlb_stallreq,
 
     // -> Ctrl
-    output logic branch_flag_o,
-    output logic [`RegBus] branch_target_address,
-    output logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] branch_ftq_id_o,
+    // Redirect is only triggered when mispredict happens
+    output logic ex_redirect_o,
+    output logic [ADDR_WIDTH-1:0] ex_redirect_target_o,
+    output logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ex_redirect_ftq_id_o,
 
     output ex_dispatch_struct ex_data_forward,
 
@@ -314,57 +315,53 @@ module ex
         end
     end
 
-
+    // Branch Unit
     // means do we branch under current condition
     // however, this signal is not accurate because maybe waiting for load or other stalling condition
     logic branch_flag;
-    assign branch_flag_o   = branch_flag;
-    assign branch_ftq_id_o = branch_flag ? dispatch_i.instr_info.ftq_id : 0;
-    always @(*) begin
-        if (rst == `RstEnable) begin
-            branch_flag = 1'b0;
-            branch_target_address = `ZeroWord;
-        end else begin
-            // Default is not branching
-            branch_flag = 1'b0;
-            branch_target_address = `ZeroWord;
+    // Only when taken & not predicted taken can ex do redirect
+    assign ex_redirect_o = branch_flag && ~special_info.predicted_taken;
+    assign ex_redirect_ftq_id_o = ex_redirect_o ? instr_info.ftq_id : 0;
+    always_comb begin
+        begin
             case (aluop_i)
                 `EXE_B_OP, `EXE_BL_OP: begin
                     branch_flag = 1'b1;
-                    branch_target_address = inst_pc_i + imm;
+                    ex_redirect_target_o = inst_pc_i + imm;
                 end
                 `EXE_JIRL_OP: begin
                     branch_flag = 1'b1;
-                    branch_target_address = reg1_i + imm;
+                    ex_redirect_target_o = reg1_i + imm;
                 end
                 `EXE_BEQ_OP: begin
                     if (oprand1 == oprand2) branch_flag = 1'b1;
-                    branch_target_address = inst_pc_i + imm;
+                    ex_redirect_target_o = inst_pc_i + imm;
                 end
                 `EXE_BNE_OP: begin
                     if (oprand1 != oprand2) branch_flag = 1'b1;
-                    branch_target_address = inst_pc_i + imm;
+                    ex_redirect_target_o = inst_pc_i + imm;
                 end
                 `EXE_BLT_OP: begin
                     if ({~reg1_i[31], reg1_i[30:0]} < {~reg2_i[31], reg2_i[30:0]})
                         branch_flag = 1'b1;
-                    branch_target_address = inst_pc_i + imm;
+                    ex_redirect_target_o = inst_pc_i + imm;
                 end
                 `EXE_BGE_OP: begin
                     if ({~reg1_i[31], reg1_i[30:0]} >= {~reg2_i[31], reg2_i[30:0]})
                         branch_flag = 1'b1;
-                    branch_target_address = inst_pc_i + imm;
+                    ex_redirect_target_o = inst_pc_i + imm;
                 end
                 `EXE_BLTU_OP: begin
                     if (reg1_i < reg2_i) branch_flag = 1'b1;
-                    branch_target_address = inst_pc_i + imm;
+                    ex_redirect_target_o = inst_pc_i + imm;
                 end
                 `EXE_BGEU_OP: begin
                     if (reg1_i >= reg2_i) branch_flag = 1'b1;
-                    branch_target_address = inst_pc_i + imm;
+                    ex_redirect_target_o = inst_pc_i + imm;
                 end
                 default: begin
-
+                    branch_flag = 1'b0;
+                    ex_redirect_target_o = 0;
                 end
             endcase
         end
