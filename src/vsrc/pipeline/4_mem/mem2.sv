@@ -12,7 +12,7 @@ module mem2
 
     input mem1_mem2_struct mem1_i,
 
-    output mem2_data_forward_t mem2_data_forward,
+    output data_forward_t data_forward_o,
 
     output mem2_wb_struct mem2_o_buffer,
 
@@ -30,9 +30,9 @@ module mem2
     assign mem_load_op = aluop_i == `EXE_LD_B_OP || aluop_i == `EXE_LD_BU_OP || aluop_i == `EXE_LD_H_OP || aluop_i == `EXE_LD_HU_OP ||
                        aluop_i == `EXE_LD_W_OP || aluop_i == `EXE_LL_OP ;
 
-    assign mem2_data_forward = !mem_load_op ? {1'b0,1'b0,mem1_i.wreg, mem1_i.waddr, mem1_i.wdata} :
+    assign data_forward_o = !mem_load_op ? {mem1_i.wreg, 1'b1, mem1_i.waddr, mem1_i.wdata} :
       (data_ok | data_ok_delay) ? {
-        mem_load_op, data_ok | data_ok_delay, mem2_o.wreg, mem2_o.waddr, mem2_o.wdata
+        mem2_o.wreg,data_ok | data_ok_delay, mem2_o.waddr, mem2_o.wdata
     } : 0;
 
     logic [`RegBus] mem_addr, pc, pc_delay;
