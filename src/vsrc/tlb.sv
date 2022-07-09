@@ -71,8 +71,10 @@ module tlb
             inst_vaddr_buffer <= inst_i.vaddr;
             inst_i_buffer <= inst_i;
         end
-        data_vaddr_buffer <= data_i.vaddr;
-        data_i_buffer <= data_i;
+        if (data_i.fetch) begin
+            data_vaddr_buffer <= data_i.vaddr;
+            data_i_buffer <= data_i;
+        end
     end
 
     //trans search port sig

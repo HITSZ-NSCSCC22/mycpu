@@ -173,12 +173,13 @@ module ex
     always_comb begin
         if (rst) ex_tlb_signal = 0;
         else if (flush) ex_tlb_signal = 0;
-        else if (stall[0] | stall[1]) ex_tlb_signal = ex_tlb_signal;
+        else if (stall[0] | stall[1]) ex_tlb_signal = 0;
         else
             ex_tlb_signal = {
                 data_addr_trans_en, dmw0_en, dmw1_en, data_fetch, tlbsrch_en_o, tlb_vaddr
             };
     end
+
 
     alu u_alu (
         .rst(rst),
