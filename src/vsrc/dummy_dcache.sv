@@ -120,6 +120,18 @@ module dummy_dcache (
             wdata_buffer <= 0;
             rd_type_buffer <= 0;
             wr_type_buffer <= 0;
+        end else if (flush) begin
+            valid_buffer <= 0;
+            op_buffer <= 0;
+            uncache_buffer <= 0;
+            pc_buffer <= 0;
+            index_buffer <= 0;
+            tag_buffer <= 0;
+            offset_buffer <= 0;
+            wstrb_buffer <= 0;
+            wdata_buffer <= 0;
+            rd_type_buffer <= 0;
+            wr_type_buffer <= 0;
         end else if (valid & !cache_ack) begin  // not accept new request while working
             valid_buffer <= valid;
             op_buffer <= op;

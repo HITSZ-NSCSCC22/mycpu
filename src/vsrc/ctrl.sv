@@ -170,7 +170,8 @@ module ctrl
     //提交difftest
     always_comb begin
         commit_0 = wb_i[0].valid ? wb_i[0].diff_commit_o : 0;
-        if (wb_i[0].excp & aluop != `EXE_SYSCALL_OP & aluop != `EXE_BREAK_OP) commit_0.valid = 0;
+        //if the excp is syscall,break or int,the commit this instr
+        if (wb_i[0].excp) commit_0.valid = 0;
         commit_1 = (!wb_i[1].valid |aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP) ? 0 : wb_i[1].diff_commit_o;
         if (wb_i[1].excp) commit_1.valid = 0;
     end

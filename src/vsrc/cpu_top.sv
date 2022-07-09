@@ -204,14 +204,14 @@ module cpu_top
     logic [2:0]mem_cache_wr_type;
     logic cache_ack;
     
-    assign mem_cache_ce = mem_cache_signal[0].ce | mem_cache_signal[1].ce;
-    assign mem_cache_we = mem_cache_signal[0].we | mem_cache_signal[1].we;
-    assign mem_cache_pc = mem_cache_signal[0].pc;
-    assign mem_cache_sel = mem_cache_signal[0].we ? mem_cache_signal[0].sel : mem_cache_signal[1].we ? mem_cache_signal[1].sel : 0;
-    assign mem_cache_rd_type = mem_cache_signal[0].ce ? mem_cache_signal[0].rd_type : mem_cache_signal[1].ce ? mem_cache_signal[1].rd_type : 0;
-    assign mem_cache_wr_type = mem_cache_signal[0].ce ? mem_cache_signal[0].wr_type : mem_cache_signal[1].ce ? mem_cache_signal[1].wr_type : 0;
-    assign mem_cache_addr = mem_cache_signal[0].addr | mem_cache_signal[1].addr;
-    assign mem_cache_data = mem_cache_signal[0].we ? mem_cache_signal[0].data : mem_cache_signal[1].we ? mem_cache_signal[1].data : 0;
+    assign mem_cache_ce = flush ? 0 : mem_cache_signal[0].ce | mem_cache_signal[1].ce;
+    assign mem_cache_we = flush ? 0 : mem_cache_signal[0].we | mem_cache_signal[1].we;
+    assign mem_cache_pc = flush ? 0 : mem_cache_signal[0].pc;
+    assign mem_cache_sel = flush ? 0 : mem_cache_signal[0].we ? mem_cache_signal[0].sel : mem_cache_signal[1].we ? mem_cache_signal[1].sel : 0;
+    assign mem_cache_rd_type = flush ? 0 : mem_cache_signal[0].ce ? mem_cache_signal[0].rd_type : mem_cache_signal[1].ce ? mem_cache_signal[1].rd_type : 0;
+    assign mem_cache_wr_type = flush ? 0 : mem_cache_signal[0].ce ? mem_cache_signal[0].wr_type : mem_cache_signal[1].ce ? mem_cache_signal[1].wr_type : 0;
+    assign mem_cache_addr = flush ? 0 : mem_cache_signal[0].addr | mem_cache_signal[1].addr;
+    assign mem_cache_data = flush ? 0 : mem_cache_signal[0].we ? mem_cache_signal[0].data : mem_cache_signal[1].we ? mem_cache_signal[1].data : 0;
    
     dummy_dcache u_dcache(
     	.clk       (clk       ),
@@ -929,7 +929,24 @@ module cpu_top
         `endif
     end
 
-    // difftest dpi-c
+    logic excp_flush_commit;
+    logic ertn_flush_commit;
+    logic [`RegBus] excp_pc_commit;
+    logic [5:0] csr_ecode_commit;
+    logic [`InstBus] excp_instr_commit;
+    logic tlbfill_en_commit;
+    logic [4:0] rand_index_commit;
+
+    always_ff @( posedge clk ) begin 
+        excp_flush_commit <= excp_flush;
+        ertn_flush_commit <= ertn_flush;
+        excp_pc_commit <= csr_era_i;
+        csr_ecode_commit <= csr_ecode_i;
+        excp_instr_commit <= excp_instr;
+        tlbfill_en_commit <= tlb_write_signal_i.tlbfill_en;
+        rand_index_commit <= tlb_write_signal_i.rand_index;
+    end
+    
 `ifdef SIMU  // SIMU is defined in chiplab run_func/makefile
     DifftestInstrCommit difftest_instr_commit_0 (  
         .clock         (aclk),

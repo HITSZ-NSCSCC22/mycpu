@@ -58,7 +58,8 @@ module mem2
         data_ok_delay <= data_ok;
     end
 
-    assign stallreq = mem_load_op & !data_ok & !data_already_ok;
+    logic excp = mem1_i.excp;
+    assign stallreq = mem_load_op & !excp & !data_ok & !data_already_ok;
 
     logic [`RegBus] debug_wdata;
     assign debug_wdata = mem2_o.wdata;
