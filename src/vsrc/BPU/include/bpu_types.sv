@@ -43,6 +43,21 @@ package bpu_types;
         logic [$clog2(8192)-1:0] provider_entry_id;  // TODO: hard-coded
         logic [3:0] provider_useful_bits;
         logic [3:0] provider_ctr_bits;
+    } bpu_ftq_meta_t;
+
+    typedef struct packed {
+        logic valid;
+        logic [$clog2(BPU_TAG_COMPONENT_NUM+1)-1:0] provider_id;
+        logic [$clog2(BPU_TAG_COMPONENT_NUM+1)-1:0] alt_provider_id;
+        logic predict_taken;
+        logic useful;
+        logic [$clog2(8192)-1:0] provider_entry_id;  // TODO: hard-coded
+        logic [3:0] provider_useful_bits;
+        logic [3:0] provider_ctr_bits;
+        logic is_branch;
+        logic is_conditional;
+        logic is_taken;
+        logic predicted_taken;  // Comes from BPU
     } ftq_bpu_meta_t;
 
     typedef struct packed {

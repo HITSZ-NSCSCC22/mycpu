@@ -16,11 +16,14 @@ module ftq
 
     // <-> BPU
     input bpu_ftq_t bpu_i,
-    input ftq_bpu_meta_t bpu_meta_i,
+    input bpu_ftq_meta_t bpu_meta_i,
     output logic bpu_queue_full_o,
+    output ftq_bpu_meta_t bpu_meta_o,
 
     // <-> Backend 
-    input logic [COMMIT_WIDTH-1:0] backend_commit_i,
+    input logic [COMMIT_WIDTH-1:0] backend_commit_bitmask_i,
+    input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_commit_ftq_id_i,
+    input backend_commit_meta_t [COMMIT_WIDTH-1:0] backend_commit_meta_i,
 
     // <-> IFU
     output ftq_ifu_t ifu_o,
@@ -32,7 +35,7 @@ module ftq
     always_comb begin
         backend_commit_num = 0;
         for (integer i = 0; i < COMMIT_WIDTH; i++) begin
-            backend_commit_num += backend_commit_i[i];
+            backend_commit_num += backend_commit_bitmask_i[i];
         end
     end
 
@@ -109,6 +112,19 @@ module ftq
     logic [$clog2(QUEUE_SIZE)-1:0] bpu_ptr_plus1;  // Limit the bit width
     assign bpu_ptr_plus1 = bpu_ptr + 1;
     assign bpu_queue_full_o = (bpu_ptr_plus1 == comm_ptr);
+
+    // Training meta to BPU
+    always_ff @(posedge clk) begin
+        if (rst) bpu_meta_o <= 0;
+        else begin
+            bpu_meta_o <= 0;
+            for (integer i = 0; i < COMMIT_WIDTH; i++) begin
+                if (backend_commit_bitmask_i[i] & backend_commit_meta_i[i].is_branch) begin
+                    bpu_meta_o.valid <= 1;
+                end
+            end
+        end
+    end
 
 
     // BPU meta ram

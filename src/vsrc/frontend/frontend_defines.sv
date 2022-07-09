@@ -29,4 +29,11 @@ typedef struct packed {
     logic predicted_taken;
 } ftq_ifu_t;
 
+typedef struct packed {
+    logic is_branch;
+    logic is_conditional;
+    logic is_taken;
+    logic predicted_taken;  // Comes from BPU
+} backend_commit_meta_t;
+
 `endif

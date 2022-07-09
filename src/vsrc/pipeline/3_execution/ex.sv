@@ -320,7 +320,7 @@ module ex
     // however, this signal is not accurate because maybe waiting for load or other stalling condition
     logic branch_flag;
     // Only when taken & not predicted taken can ex do redirect
-    assign ex_redirect_o = branch_flag && ~special_info.predicted_taken;
+    assign ex_redirect_o = branch_flag && ~special_info.predicted_taken && ~stall[0];
     assign ex_redirect_ftq_id_o = ex_redirect_o ? instr_info.ftq_id : 0;
     always_comb begin
         begin

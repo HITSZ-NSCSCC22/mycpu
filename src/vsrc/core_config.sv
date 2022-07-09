@@ -32,6 +32,7 @@ package core_config;
     parameter integer FTB_DEPTH = 512;
 
     parameter DECODE_WIDTH = 2;
+    parameter ISSUE_WIDTH = 2;
 
     // ICache parameters
     parameter ICACHE_NWAY = 2;

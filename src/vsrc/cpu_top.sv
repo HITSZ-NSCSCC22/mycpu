@@ -96,6 +96,11 @@ module cpu_top
     assign rst_n = aresetn;
     assign rst   = ~aresetn;
 
+    // EX
+    logic [ISSUE_WIDTH-1:0] ex_redirect;
+    logic [ISSUE_WIDTH-1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] ex_redirect_ftq_id;
+    logic [ISSUE_WIDTH-1:0][ADDR_WIDTH-1:0] ex_redirect_target;
+
     // ICache <-> AXI Controller
     logic icache_axi_rreq;
     logic axi_icache_rdy, axi_icache_rvalid;
@@ -340,9 +345,10 @@ module cpu_top
     logic [`RegBus] next_pc;
 
     // Frontend <-> Backend 
-    logic backend_flush;
-    logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_flush_ftq_id;
-    logic [COMMIT_WIDTH-1:0] ctrl_frontend_commit_block; // <- WB, suggest whether last instr in basic block is committed
+    logic backend_redirect;
+    logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_redirect_ftq_id;
+    logic [COMMIT_WIDTH-1:0] backend_commit_bitmask; // suggest whether last instr in basic block is committed
+    logic [COMMIT_WIDTH-1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_commit_ftq_id;
 
     // All frontend structures
     frontend u_frontend (
@@ -360,9 +366,9 @@ module cpu_top
         // <-> Backend
         .branch_update_info_i(),              // branch update signals, <- EXE Stage, unused
         .backend_next_pc_i   (next_pc),       // backend PC, <- pc_gen
-        .backend_flush_i     (backend_flush), // backend flush, usually come with next_pc
-        .backend_flush_ftq_id_i(backend_flush_ftq_id),
-        .backend_commit_i (ctrl_frontend_commit_block),
+        .backend_flush_i     (backend_redirect), // backend flush, usually come with next_pc
+        .backend_flush_ftq_id_i(backend_redirect_ftq_id),
+        .backend_commit_i (backend_commit_bitmask),
 
         // <-> Instruction Buffer
         .instr_buffer_stallreq_i(ib_frontend_stallreq),   // instruction buffer is full
@@ -402,7 +408,7 @@ module cpu_top
 
         // <-> Backend
         .backend_accept_i(id_ib_accept),  // FIXME: does not carefully designed
-        .backend_flush_i(backend_flush),  // Assure output is reset the next cycle
+        .backend_flush_i(backend_redirect),  // Assure output is reset the next cycle
         .backend_instr_o(ib_backend_instr_info)  // -> ID
     );
 
@@ -438,7 +444,7 @@ module cpu_top
         .clk       (clk),
         .rst       (rst),
         .stall     (stall[1]),
-        .flush     (backend_flush), // FIXME: does not carefully designed
+        .flush     (backend_redirect), // FIXME: does not carefully designed
         .id_i      (id_id_dispatch),
         .id_dispatch_accept_o(id_ib_accept),
         // Dispatch
@@ -473,7 +479,7 @@ module cpu_top
         .stallreq(stallreq_from_dispatch),
         .block(pri_stall),
         .stall(stall[2]),
-        .flush(backend_flush),
+        .flush(backend_redirect),
 
         // Data forwarding    
         .ex_data_forward(ex_data_forward),
@@ -497,7 +503,6 @@ module cpu_top
     );
 
 
-    logic [`RegBus] branch_target_address[2];
     logic flush;
 
     //tlb
@@ -508,18 +513,15 @@ module cpu_top
     logic [`InstAddrBus] idle_pc;
 
     logic disable_cache;
-    logic [1:0] branch_flag;
-
-    logic [1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] branch_ftq_id;
-    logic [1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] wb_ctrl_ftq_id;
+    logic [ISSUE_WIDTH-1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] wb_ctrl_ftq_id;
     logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ctrl_frontend_ftq_id;
 
     // Redirect signal for frontend
-    assign backend_flush = excp_flush | ertn_flush | idle_flush |((branch_flag[0] | branch_flag[1]) & ~stall[2]) | fetch_flush;
+    assign backend_redirect = excp_flush | ertn_flush | idle_flush | (ex_redirect != 0 && ~stall[2]) | fetch_flush;
 
-    assign backend_flush_ftq_id = (excp_flush | ertn_flush | idle_flush | fetch_flush) ? ctrl_frontend_ftq_id :
-                                (branch_flag[0] & ~stall[2]) ? branch_ftq_id[0] : 
-                                (branch_flag[1] & ~stall[2]) ? branch_ftq_id[1] : 0;
+    assign backend_redirect_ftq_id = (excp_flush | ertn_flush | idle_flush | fetch_flush) ? ctrl_frontend_ftq_id :
+                                (ex_redirect[0] & ~stall[2]) ? ex_redirect_ftq_id[0] : 
+                                (ex_redirect[1] & ~stall[2]) ? ex_redirect_ftq_id[1] : 0;
 
     // If ex is stalling, means that the branch flag maybe invalid and waiting for the right data
     // so no jumping if ex is stalling
@@ -528,8 +530,8 @@ module cpu_top
                      ertn_flush ? csr_era :
                      idle_flush ? idle_pc : 
                      fetch_flush ? idle_pc +4 :
-                     (branch_flag[0] & ~stall[2]) ? branch_target_address[0] : 
-                     (branch_flag[1] & ~stall[2]) ? branch_target_address[1] : 0;
+                     (ex_redirect[0] & ~stall[2]) ? ex_redirect_target[0] : 
+                     (ex_redirect[1] & ~stall[2]) ? ex_redirect_target[1] : 0;
 
 
     ex_mem_struct ex_signal_o[2];
@@ -559,9 +561,9 @@ module cpu_top
                 .tid(csr_tid),
 
                 // -> Ctrl
-                .branch_flag_o(branch_flag[i]),
-                .branch_target_address(branch_target_address[i]),
-                .branch_ftq_id_o(branch_ftq_id[i]),
+                .ex_redirect_o(ex_redirect[i]),
+                .ex_redirect_target_o(ex_redirect_target[i]),
+                .ex_redirect_ftq_id_o(ex_redirect_ftq_id[i]),
 
                 .ex_data_forward(ex_data_forward[i]),
 
@@ -690,27 +692,6 @@ module cpu_top
     endgenerate
 
 
-    // regfile #(
-    //     .READ_PORTS(4)  // 2 for each ID, 2 ID in total, TODO: remove magic number
-    // ) u_regfile (
-    //     .clk(clk),
-
-    //     .we_1   (reg_o[0].we),
-    //     .pc_i_1 (reg_o[0].pc),
-    //     .waddr_1(reg_o[0].waddr),
-    //     .wdata_1(reg_o[0].wdata),
-    //     .we_2   (reg_o[1].we),
-    //     .pc_i_2 (reg_o[1].pc),
-    //     .waddr_2(reg_o[1].waddr),
-    //     .wdata_2(reg_o[1].wdata),
-
-    //     // Read signals
-    //     // Registers are read in dispatch stage
-    //     .read_valid_i(dispatch_regfile_reg_read_valid),
-    //     .read_addr_i (dispatch_regfile_reg_read_addr),
-    //     .read_data_o (regfile_dispatch_reg_read_data)
-    // );
-
     regs_file #(
         .READ_PORTS(4)  // 2 for each ID, 2 ID in total, TODO: remove magic number
     ) u_regfile (
@@ -747,7 +728,7 @@ module cpu_top
         .rst(rst),
 
         // -> Frontend
-        .backend_commit_block_o(ctrl_frontend_commit_block),
+        .backend_commit_block_o(backend_commit_bitmask),
         .backend_flush_ftq_id_o(ctrl_frontend_ftq_id),
 
         // <- WB
@@ -755,7 +736,7 @@ module cpu_top
         .wb_ftq_id_i(wb_ctrl_ftq_id),
 
         // <- EX
-    	.ex_branch_flag_i (stall[2] ? 2'b0: branch_flag),
+    	.ex_branch_flag_i (stall[2] ? 2'b0: ex_redirect),
         .ex_stallreq_i (ex_stallreq),
         .tlb_stallreq(tlb_stallreq),
 
