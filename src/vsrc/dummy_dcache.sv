@@ -5,6 +5,7 @@ module dummy_dcache (
     //cache与CPU流水线的交互接
     input logic valid,  //表明请求有效
     input logic op,  // 1:write 0: read
+    input logic [31:0] pc,
     input logic uncache,  //标志uncache指令，高位有效
     input logic [7:0] index,  // 地址的index域(addr[11:4])
     input logic [19:0] tag,  //从TLB查到的pfn形成的tag
@@ -13,6 +14,7 @@ module dummy_dcache (
     input logic [31:0] wdata,  //写数据
     input logic [2:0] rd_type_i, //读请求类型：3'b000: 字节；3'b001: 半字；3'b010: 字；3'b100：Cache行
     input logic [2:0] wr_type_i,
+    input logic [31:0] flush_pc,
     input logic flush_i, // 冲刷信号，如果出于某种原因需要取消写事务，CPU拉高此信号
     output logic cache_ack,
     output logic addr_ok,             //该次请求的地址传输OK，读：地址被接收；写：地址和数据被接收
@@ -41,6 +43,7 @@ module dummy_dcache (
     logic valid_buffer;
     logic op_buffer;
     logic uncache_buffer;
+    logic [31:0] pc_buffer;
     logic [7:0] index_buffer;
     logic [19:0] tag_buffer;
     logic [3:0] offset_buffer;
@@ -48,6 +51,9 @@ module dummy_dcache (
     logic [31:0] wdata_buffer;
     logic [2:0] rd_type_buffer;
     logic [2:0] wr_type_buffer;
+
+    logic flush;
+    assign flush = flush_i & (flush_pc <= pc_buffer);
 
     enum int {
         IDLE,
@@ -90,7 +96,7 @@ module dummy_dcache (
             WRITE_REQ: begin
                 // If AXI is ready, then write req is accept this cycle, back to IDLE
                 // If flushed, back to IDLE
-                if (wr_rdy | flush_i) next_state = IDLE;
+                if (wr_rdy | flush) next_state = IDLE;
                 else next_state = WRITE_REQ;
             end
             default: begin
@@ -106,6 +112,7 @@ module dummy_dcache (
             valid_buffer <= 0;
             op_buffer <= 0;
             uncache_buffer <= 0;
+            pc_buffer <= 0;
             index_buffer <= 0;
             tag_buffer <= 0;
             offset_buffer <= 0;
@@ -117,6 +124,7 @@ module dummy_dcache (
             valid_buffer <= valid;
             op_buffer <= op;
             uncache_buffer <= uncache;
+            pc_buffer <= pc;
             index_buffer <= index;
             tag_buffer <= tag;
             offset_buffer <= offset;
@@ -128,6 +136,7 @@ module dummy_dcache (
             valid_buffer   <= 0;
             op_buffer      <= 0;
             uncache_buffer <= 0;
+            pc_buffer      <= 0;
             index_buffer   <= 0;
             tag_buffer     <= 0;
             offset_buffer  <= 0;
@@ -139,6 +148,7 @@ module dummy_dcache (
             valid_buffer <= valid_buffer;
             op_buffer <= op_buffer;
             uncache_buffer <= uncache_buffer;
+            pc_buffer <= pc_buffer;
             index_buffer <= index_buffer;
             tag_buffer <= tag_buffer;
             offset_buffer <= offset_buffer;
@@ -204,7 +214,7 @@ module dummy_dcache (
                 rd_addr = rd_addr_r;
             end
             WRITE_REQ: begin
-                if (flush_i) begin
+                if (flush) begin
                     wr_req  = 0;
                     wr_addr = 0;
                 end else if (wr_rdy) begin

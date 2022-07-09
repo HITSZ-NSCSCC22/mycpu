@@ -164,6 +164,7 @@ module mem1
             case (aluop_i)
                 `EXE_LD_B_OP: begin
                     signal_cache_o.addr = mem_addr;
+                    signal_cache_o.pc = signal_i.instr_info.pc;
                     signal_o.wreg = `WriteEnable;
                     signal_cache_o.ce = `ChipEnable;
                     signal_cache_o.sel = 4'b1111;
@@ -188,6 +189,7 @@ module mem1
                 end
                 `EXE_LD_H_OP: begin
                     signal_cache_o.addr = mem_addr;
+                    signal_cache_o.pc = signal_i.instr_info.pc;
                     signal_o.wreg = `WriteEnable;
                     signal_cache_o.ce = `ChipEnable;
                     signal_cache_o.rd_type = 3'b001;
@@ -207,6 +209,7 @@ module mem1
                 end
                 `EXE_LD_W_OP: begin
                     signal_cache_o.addr = mem_addr;
+                    signal_cache_o.pc = signal_i.instr_info.pc;
                     signal_o.wreg = `WriteEnable;
                     signal_cache_o.ce = `ChipEnable;
                     signal_cache_o.sel = 4'b1111;
@@ -214,6 +217,7 @@ module mem1
                 end
                 `EXE_LD_BU_OP: begin
                     signal_cache_o.addr = mem_addr;
+                    signal_cache_o.pc = signal_i.instr_info.pc;
                     signal_o.wreg = `WriteEnable;
                     signal_cache_o.ce = `ChipEnable;
                     signal_cache_o.rd_type = 3'b000;
@@ -237,6 +241,7 @@ module mem1
                 end
                 `EXE_LD_HU_OP: begin
                     signal_cache_o.addr = mem_addr;
+                    signal_cache_o.pc = signal_i.instr_info.pc;
                     signal_o.wreg = `WriteEnable;
                     signal_cache_o.ce = `ChipEnable;
                     signal_cache_o.rd_type = 3'b001;
@@ -254,6 +259,7 @@ module mem1
                 end
                 `EXE_ST_B_OP: begin
                     signal_cache_o.addr = mem_addr;
+                    signal_cache_o.pc = signal_i.instr_info.pc;
                     signal_o.wreg = `WriteEnable;
                     signal_cache_o.we = `WriteEnable;
                     signal_cache_o.ce = `ChipEnable;
@@ -280,6 +286,7 @@ module mem1
                 end
                 `EXE_ST_H_OP: begin
                     signal_cache_o.addr = mem_addr;
+                    signal_cache_o.pc = signal_i.instr_info.pc;
                     signal_o.wreg = `WriteEnable;
                     signal_cache_o.we = `WriteEnable;
                     signal_cache_o.ce = `ChipEnable;
@@ -301,6 +308,7 @@ module mem1
                 end
                 `EXE_ST_W_OP: begin
                     signal_cache_o.addr = mem_addr;
+                    signal_cache_o.pc = signal_i.instr_info.pc;
                     signal_o.wreg = `WriteEnable;
                     signal_cache_o.we = `WriteEnable;
                     signal_cache_o.ce = `ChipEnable;
@@ -311,6 +319,7 @@ module mem1
                 end
                 `EXE_LL_OP: begin
                     signal_cache_o.addr = mem_addr;
+                    signal_cache_o.pc = signal_i.instr_info.pc;
                     signal_o.wreg = `WriteEnable;
                     signal_cache_o.ce = `ChipEnable;
                     signal_cache_o.sel = 4'b1111;
@@ -321,6 +330,7 @@ module mem1
                 `EXE_SC_OP: begin
                     if (LLbit == 1'b1) begin
                         signal_cache_o.addr = mem_addr;
+                        signal_cache_o.pc = signal_i.instr_info.pc;
                         signal_cache_o.we = `WriteEnable;
                         signal_cache_o.ce = `ChipEnable;
                         signal_cache_o.data = reg2_i;
@@ -333,6 +343,7 @@ module mem1
                         signal_o.wdata = 32'b1;
                     end else begin
                         signal_cache_o = 0;
+                        signal_cache_o.pc = 0;
                         signal_o.wreg = `WriteEnable;
                         signal_o.store_data = 0;
                         signal_o.wdata = 32'b0;

@@ -95,8 +95,40 @@ module dispatch
     // Force most branch, mem, privilege instr to issue only 1 instr per cycle
     logic is_both_mem_instr;
     assign is_both_mem_instr = alusel_i[0] == `EXE_RES_LOAD_STORE | alusel_i[1] == `EXE_RES_LOAD_STORE | aluop_i[0] == `EXE_LL_OP | aluop_i[1] == `EXE_LL_OP | aluop_i[0] == `EXE_SC_OP | aluop_i[1] == `EXE_SC_OP | alusel_i[0] == `EXE_RES_JUMP | alusel_i[1] == `EXE_RES_JUMP;
+    //store instr don't write regs,so not need to mark
+    logic [1:0] is_store;
+    assign is_store[0] = aluop_i[0] == `EXE_ST_B_OP || aluop_i[0] == `EXE_ST_H_OP || aluop_i[0] == `EXE_ST_W_OP || aluop_i[0] == `EXE_SC_OP;
+    assign is_store[1] = aluop_i[1] == `EXE_ST_B_OP || aluop_i[1] == `EXE_ST_H_OP || aluop_i[1] == `EXE_ST_W_OP || aluop_i[1] == `EXE_SC_OP;
 
-    logic load_block;
+    logic [`RegBus] regs_available;
+    logic [`RegAddrBus] reg_write_addr0, reg_write_addr1;
+    logic ex_reg_valid0, ex_reg_valid1, mem_reg_valid;
+    logic [`RegAddrBus] ex_reg_addr0, ex_reg_addr1, mem_reg_addr;
+    assign ex_reg_valid0 = ex_data_forward[0].reg_valid;
+    assign ex_reg_valid1 = ex_data_forward[1].reg_valid;
+    assign mem_reg_valid = mem2_data_forward_i[0].write_reg;
+    assign reg_write_addr0 = id_i[0].reg_write_addr;
+    assign reg_write_addr1 = id_i[1].reg_write_addr;
+    assign ex_reg_addr0 = ex_data_forward[0].reg_addr;
+    assign ex_reg_addr1 = ex_data_forward[1].reg_addr;
+    assign mem_reg_addr = mem2_data_forward_i[0].write_reg_addr != 0;
+    always_ff @(posedge clk) begin
+        if (rst) regs_available <= 32'b0;
+        else if (flush) regs_available <= 32'b0;
+        else if (stall) regs_available <= regs_available;
+        else begin
+            if (ex_data_forward[0].reg_valid == `WriteEnable)
+                regs_available[ex_data_forward[0].reg_addr] <= 0;
+            if (ex_data_forward[1].reg_valid == `WriteEnable)
+                regs_available[ex_data_forward[1].reg_addr] <= 0;
+            if (mem2_data_forward_i[0].mem_load_op == 1'b1 & mem2_data_forward_i[0].load_valid == 1'b1 & mem2_data_forward_i[0].write_reg_addr != 0)
+                regs_available[mem2_data_forward_i[0].write_reg_addr] <= 0;
+            if (issue_valid[0] & reg_write_addr0 != 0 & !is_store[0])
+                regs_available[reg_write_addr0] <= 1'b1;
+            if (issue_valid[1] & reg_write_addr1 != 0 & !is_store[1])
+                regs_available[reg_write_addr1] <= 1'b1;
+        end
+    end
 
     // Dispatch flag
     logic [EXE_STAGE_WIDTH-1:0] issue_valid;
@@ -123,6 +155,12 @@ module dispatch
     always_comb begin
         if (block) begin
             do_we_issue = 2'b00;
+        end else if(regs_available[id_i[0].reg_read_addr[0]] == 1'b1 | regs_available[id_i[0].reg_read_addr[1]] == 1'b1)begin
+            //If the oprand of P1 is not ready,then wait until it ready
+            do_we_issue = 2'b00;
+        end else if(regs_available[id_i[1].reg_read_addr[0]] == 1'b1 | regs_available[id_i[0].reg_read_addr[1]] == 1'b1)begin
+            //If the oprand of P2 is not ready,then only P1 is issued
+            do_we_issue = 2'b01;
         end else if (id_i[1].reg_read_addr[0] == id_i[0].reg_write_addr && id_i[1].reg_read_valid[0] && id_i[0].reg_write_valid) begin
             // If P1 instr read reg1 && P0 instr write reg && reg addr is the same
             // Only P0 is issued
@@ -159,6 +197,7 @@ module dispatch
             end
         end
     endgenerate
+
 
     // Data dependecies
     logic [1:0][`RegBus] oprand1, oprand2;
@@ -205,9 +244,9 @@ module dispatch
                         oprand2[i] = mem2_data_forward_i[1].write_reg_data;
                     else if(mem2_data_forward_i[0].write_reg == `WriteEnable && mem2_data_forward_i[0].write_reg_addr == regfile_reg_read_addr_o[i][1] && mem2_data_forward_i[0].write_reg_addr != 0 && id_i[i].reg_read_valid[1])
                         oprand2[i] = mem2_data_forward_i[0].write_reg_data;
-                    else if(wb_data_forward_i[1].write_reg == `WriteEnable && wb_data_forward_i[1].write_reg_addr == regfile_reg_read_addr_o[i][0] && wb_data_forward_i[1].write_reg_addr != 0 && id_i[i].reg_read_valid[0])
+                    else if(wb_data_forward_i[1].write_reg == `WriteEnable && wb_data_forward_i[1].write_reg_addr == regfile_reg_read_addr_o[i][1] && wb_data_forward_i[1].write_reg_addr != 0 && id_i[i].reg_read_valid[1])
                         oprand2[i] = wb_data_forward_i[1].write_reg_data;
-                    else if(wb_data_forward_i[0].write_reg == `WriteEnable && wb_data_forward_i[0].write_reg_addr == regfile_reg_read_addr_o[i][0] && wb_data_forward_i[0].write_reg_addr != 0 && id_i[i].reg_read_valid[0])
+                    else if(wb_data_forward_i[0].write_reg == `WriteEnable && wb_data_forward_i[0].write_reg_addr == regfile_reg_read_addr_o[i][1] && wb_data_forward_i[0].write_reg_addr != 0 && id_i[i].reg_read_valid[1])
                         oprand2[i] = wb_data_forward_i[0].write_reg_data;
                     else oprand2[i] = regfile_reg_read_data_i[i][1];
                 end

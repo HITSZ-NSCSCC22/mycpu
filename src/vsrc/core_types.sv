@@ -149,12 +149,11 @@ package core_types;
     } mem1_data_forward_t;
 
     typedef struct packed {
-        logic is_load_data;
+        logic mem_load_op;
         logic load_valid;
         logic write_reg;
         logic [`RegAddrBus] write_reg_addr;
         logic [`RegBus] write_reg_data;
-        logic [`RegBus] load_data;
     } mem2_data_forward_t;
 
     typedef struct packed {
@@ -241,6 +240,8 @@ package core_types;
         logic uncache_en;
         logic [2:0] rd_type;
         logic [2:0] wr_type;
+
+        logic [`RegBus] pc;  //For flush arbitrate
     } mem_cache_struct;
 
     typedef struct packed {

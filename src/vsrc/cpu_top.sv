@@ -198,12 +198,15 @@ module cpu_top
     logic [2:0] mem_cache_rd_type;
     logic [3:0] mem_cache_sel;
     logic [31:0] mem_cache_addr,mem_cache_data;
+    logic [`RegBus] mem_cache_pc;
     logic [1:0] wb_dcache_flush; // flush dcache if excp
+    logic [1:0][`RegBus] wb_dcache_flush_pc;
     logic [2:0]mem_cache_wr_type;
     logic cache_ack;
     
     assign mem_cache_ce = mem_cache_signal[0].ce | mem_cache_signal[1].ce;
     assign mem_cache_we = mem_cache_signal[0].we | mem_cache_signal[1].we;
+    assign mem_cache_pc = mem_cache_signal[0].pc;
     assign mem_cache_sel = mem_cache_signal[0].we ? mem_cache_signal[0].sel : mem_cache_signal[1].we ? mem_cache_signal[1].sel : 0;
     assign mem_cache_rd_type = mem_cache_signal[0].ce ? mem_cache_signal[0].rd_type : mem_cache_signal[1].ce ? mem_cache_signal[1].rd_type : 0;
     assign mem_cache_wr_type = mem_cache_signal[0].ce ? mem_cache_signal[0].wr_type : mem_cache_signal[1].ce ? mem_cache_signal[1].wr_type : 0;
@@ -216,6 +219,7 @@ module cpu_top
 
         .valid     (mem_cache_ce),
         .op        (mem_cache_we),
+        .pc        (mem_cache_pc),
         .uncache   (1'b0),
         .index     (mem_cache_addr[11:4]),
         .tag       (tlb_data_o.tag),
@@ -224,6 +228,7 @@ module cpu_top
         .wdata     (mem_cache_data),
         .rd_type_i (mem_cache_rd_type),
         .wr_type_i (mem_cache_wr_type),
+        .flush_pc(wb_dcache_flush[0] ? wb_dcache_flush_pc[0] : wb_dcache_flush[1] ? wb_dcache_flush_pc[1] :0),
         .flush_i    (wb_dcache_flush!=2'b0), // If excp occurs, flush DCache
         .cache_ack  (cache_ack),
         .addr_ok   (mem_addr_ok),
@@ -698,6 +703,7 @@ module cpu_top
 
                 // -> DCache
                 .dcache_flush_o(wb_dcache_flush[i]),
+                .dcache_flush_pc(wb_dcache_flush_pc[i]),
 
                 .wb_forward(wb_data_forward[i]),
 

@@ -30,9 +30,10 @@ module mem2
     assign mem_load_op = aluop_i == `EXE_LD_B_OP || aluop_i == `EXE_LD_BU_OP || aluop_i == `EXE_LD_H_OP || aluop_i == `EXE_LD_HU_OP ||
                        aluop_i == `EXE_LD_W_OP || aluop_i == `EXE_LL_OP ;
 
-    assign mem2_data_forward = {
-        mem_load_op, data_ok, mem1_i.wreg, mem1_i.waddr, mem1_i.wdata, cache_data
-    };
+    assign mem2_data_forward = !mem_load_op ? {1'b0,1'b0,mem1_i.wreg, mem1_i.waddr, mem1_i.wdata} :
+      (data_ok | data_ok_delay) ? {
+        mem_load_op, data_ok | data_ok_delay, mem2_o.wreg, mem2_o.waddr, mem2_o.wdata
+    } : 0;
 
     logic [`RegBus] mem_addr, pc, pc_delay;
     assign pc = mem1_i.instr_info.pc;
@@ -119,6 +120,21 @@ module mem2
                             2'b00: begin
                                 mem2_o.wdata = {{24{1'b0}}, cache_data[7:0]};
                             end
+                            default: begin
+                                mem2_o.wdata = `ZeroWord;
+                            end
+                        endcase
+                    end
+                    `EXE_LD_HU_OP: begin
+                        case (mem_addr[1:0])
+                            2'b10: begin
+                                mem2_o.wdata = {{16{1'b0}}, cache_data[31:16]};
+                            end
+
+                            2'b00: begin
+                                mem2_o.wdata = {{16{1'b0}}, cache_data[15:0]};
+                            end
+
                             default: begin
                                 mem2_o.wdata = `ZeroWord;
                             end

@@ -95,7 +95,7 @@ module ex
     assign ex_o.mem_addr = oprand1 + imm;
     assign ex_o.reg2 = oprand2;
 
-    assign ex_data_forward = {ex_o.wreg, ex_o.waddr, ex_o.wdata, ex_o.aluop};
+    assign ex_data_forward = {ex_o.wreg & !mem_load_op, ex_o.waddr, ex_o.wdata, ex_o.aluop};
 
     csr_write_signal csr_signal_i, csr_test;
     assign csr_signal_i = dispatch_i.csr_signal;
@@ -375,7 +375,7 @@ module ex
     always_ff @(posedge clk) begin
         if (rst) ex_o_buffer <= 0;
         else if (flush) ex_o_buffer <= 0;
-        else if (stall[0] | stall[1])ex_o_buffer <= ex_o_buffer;
+        else if (stall[0] | stall[1]) ex_o_buffer <= ex_o_buffer;
         else ex_o_buffer <= ex_o;
     end
 

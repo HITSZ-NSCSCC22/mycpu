@@ -31,6 +31,7 @@ module wb
     output wb_data_forward_t wb_forward,
 
     output logic dcache_flush_o,
+    output logic [`RegBus] dcache_flush_pc,
 
 
     // <-> Frontend
@@ -87,6 +88,7 @@ module wb
     assign excp_num = mem_signal_o.excp_num;
 
     assign dcache_flush_o = excp;
+    assign dcache_flush_pc = mem_signal_o.instr_info.pc;
 
     assign wb_forward = {mem_signal_o.wreg, mem_signal_o.waddr, mem_signal_o.wdata};
 
