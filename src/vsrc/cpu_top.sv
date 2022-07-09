@@ -881,7 +881,7 @@ module cpu_top
         .read_signal_o(tlb_read_signal_o),
         //invtlb 
         .inv_signal_i(tlb_inv_signal_i),
-        .inv_stallreq(inv_stallreq),
+        .inv_ack_o(tlb_inv_ack),
         //from csr
         .csr_dmw0(csr_dmw0),
         .csr_dmw1(csr_dmw1),

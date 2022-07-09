@@ -45,9 +45,10 @@ module tlb_entry
     input logic [$clog2(TLB_NUM)-1:0] r_index,
     output tlb_wr_port read_port,
 
-    // invalid port, on posedge
+    // invalid port
     input tlb_inv_t inv_i,
-    output logic inv_stallreq
+    // ack is pulled up when invalid done
+    output logic inv_ack_o
 );
 
     localparam NWAY = TLB_NWAY;
@@ -88,6 +89,9 @@ module tlb_entry
     logic [$clog2(NSET)-1:0] raddr;
     logic [`ENTRY_LEN-1:0] rdata[NWAY-1:0];
 
+    // Invalid counter
+    logic [$clog2(NSET)-1:0] inv_cnt;
+
 
     logic [NWAY-1:0] s0_odd_page_buffer;
     logic [NWAY-1:0] s1_odd_page_buffer;
@@ -124,7 +128,7 @@ module tlb_entry
     assign data_addr = s1_vppn[11:9];
 
     always_comb begin
-        if (inv_i.en == 1'b1) raddr = inv_cal;
+        if (inv_i.en == 1'b1) raddr = inv_cnt;
         else raddr = r_index[2:0];
     end
 
@@ -243,21 +247,15 @@ module tlb_entry
                                                                 data_entry_buffer[data_index][`ENTRY_MAT0], 
                                                                 data_entry_buffer[data_index][`ENTRY_PLV0]};
 
-    // Invalid
-    logic [2:0] inv_cal;
+    // Invalid counter
     always @(posedge clk) begin
         if (inv_i.en) begin
-            inv_cal <= inv_cal + 1'b1;
-            inv_stallreq <= 1'b1;
-            if (inv_cal == 3'b111) begin
-                inv_cal <= 3'b0;
-                inv_stallreq <= 1'b0;
-            end
+            inv_cnt <= inv_cnt + 1'b1;
         end else begin
-            inv_cal <= 3'b0;
-            inv_stallreq <= 1'b0;
+            inv_cnt <= 0;
         end
     end
+    assign inv_ack_o = inv_cnt == {$clog2(NSET) {1'b1}};
 
 
     always @(posedge clk) begin
@@ -266,17 +264,17 @@ module tlb_entry
         end else if (inv_i.en) begin
             // invalid search
             for (integer i = 0; i < NWAY; i = i + 1) begin
-                if (inv_i.op == 5'd0 || inv_i.op == 5'd1) tlb_e[i] <= 1'b0;
-                else if (inv_i.op == 5'd2 && rdata[i][`ENTRY_G]) tlb_e[i] <= 1'b0;
-                else if (inv_i.op == 5'd3 && !rdata[i][`ENTRY_G]) tlb_e[i] <= 1'b0;
+                if (inv_i.op == 5'd0 || inv_i.op == 5'd1) tlb_e[i*NSET+raddr] <= 1'b0;
+                else if (inv_i.op == 5'd2 && rdata[i][`ENTRY_G]) tlb_e[i*NSET+raddr] <= 1'b0;
+                else if (inv_i.op == 5'd3 && !rdata[i][`ENTRY_G]) tlb_e[i*NSET+raddr] <= 1'b0;
                 else if (inv_i.op == 5'd4 && !rdata[i][`ENTRY_G] && (rdata[i][`ENTRY_ASID] == inv_i.asid))
-                    tlb_e[i] <= 1'b0;
+                    tlb_e[i*NSET+raddr] <= 1'b0;
                 else if (inv_i.op == 5'd5 && !rdata[i][`ENTRY_G] && (rdata[i][`ENTRY_ASID] == inv_i.asid) && 
                            ((rdata[i][`ENTRY_PS] == 6'd12) ? (rdata[i][`ENTRY_VPPN] == inv_i.vpn) : (rdata[i][`ENTRY_VPPN_H1] == inv_i.vpn[18:10])))
-                    tlb_e[i] <= 1'b0;
+                    tlb_e[i*NSET+raddr] <= 1'b0;
                 else if (inv_i.op == 5'd6 && (rdata[i][`ENTRY_G] || (rdata[i][`ENTRY_ASID] == inv_i.asid)) && 
                            ((rdata[i][`ENTRY_PS] == 6'd12) ? (rdata[i][`ENTRY_VPPN] == inv_i.vpn) : (rdata[i][`ENTRY_VPPN_H1] == inv_i.vpn[18:10])))
-                    tlb_e[i] <= 1'b0;
+                    tlb_e[i*NSET+raddr] <= 1'b0;
             end
         end
     end

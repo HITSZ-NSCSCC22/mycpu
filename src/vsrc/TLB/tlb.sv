@@ -27,7 +27,7 @@ module tlb
     output tlb_read_out_struct read_signal_o,
     //invtlb 
     input tlb_inv_t inv_signal_i,
-    output logic inv_stallreq,
+    output logic inv_ack_o,
 
     //from csr
     input logic [31:0] csr_dmw0,
@@ -160,24 +160,24 @@ module tlb
         .s1_asid    (asid),
 
         // <-
-        .s1_found    (data_o.found),
-        .s1_index    (data_o.tlb_index),
-        .s1_ps       (s1_ps),
-        .s1_ppn      (s1_ppn),
-        .s1_v        (data_o.tlb_v),
-        .s1_d        (data_o.tlb_d),
-        .s1_mat      (data_o.tlb_mat),
-        .s1_plv      (data_o.tlb_plv),
+        .s1_found  (data_o.found),
+        .s1_index  (data_o.tlb_index),
+        .s1_ps     (s1_ps),
+        .s1_ppn    (s1_ppn),
+        .s1_v      (data_o.tlb_v),
+        .s1_d      (data_o.tlb_d),
+        .s1_mat    (data_o.tlb_mat),
+        .s1_plv    (data_o.tlb_plv),
         // write port 
-        .we          (we),
-        .w_index     (w_index),
-        .write_port  (w_port),
+        .we        (we),
+        .w_index   (w_index),
+        .write_port(w_port),
         //read port 
-        .r_index     (r_index),
-        .read_port   (r_port),
+        .r_index   (r_index),
+        .read_port (r_port),
         //invalid port
-        .inv_i       (inv_signal_i),
-        .inv_stallreq(inv_stallreq)
+        .inv_i     (inv_signal_i),
+        .inv_ack_o (inv_ack_o)
     );
 
     assign inst_paddr = (pg_mode && inst_i_buffer.dmw0_en) ? {csr_dmw0[`PSEG], inst_vaddr_buffer[28:0]} :
