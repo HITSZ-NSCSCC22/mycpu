@@ -139,6 +139,10 @@ package core_types;
         logic cacop_en;
         logic icache_op_en;
         logic [4:0] cacop_op;
+        logic data_addr_trans_en;
+        logic dmw0_en;
+        logic dmw1_en;
+        logic cacop_op_mode_di;
     } ex_mem_struct;
 
     // MEM stage data forwarding
@@ -147,7 +151,55 @@ package core_types;
         logic write_reg;
         logic [`RegAddrBus] write_reg_addr;
         logic [`RegBus] write_reg_data;
-    } mem_data_forward_t;
+    } mem1_data_forward_t;
+
+    typedef struct packed {
+        logic mem_load_op;
+        logic load_valid;
+        logic write_reg;
+        logic [`RegAddrBus] write_reg_addr;
+        logic [`RegBus] write_reg_data;
+    } mem2_data_forward_t;
+
+    typedef struct packed {
+        logic write_reg;
+        logic [`RegAddrBus] write_reg_addr;
+        logic [`RegBus] write_reg_data;
+    } wb_data_forward_t;
+
+    typedef struct packed {
+        instr_info_t instr_info;
+
+        logic [`RegAddrBus] waddr;
+        logic [`RegBus] wdata;
+        logic wreg;
+        logic [`AluOpBus] aluop;
+        csr_write_signal csr_signal;
+
+        logic [7:0] inst_ld_en;
+        logic [7:0] inst_st_en;
+        logic [`DataAddrBus] load_addr;
+        logic [`DataAddrBus] store_addr;
+        logic [`DataAddrBus] mem_addr;
+        logic [`RegBus] store_data;
+
+        logic excp;
+        logic [15:0] excp_num;
+        logic refetch;
+
+        tlb_inv_t inv_i;
+        logic [63:0] timer_64;
+
+        logic cacop_en;
+        logic icache_op_en;
+        logic [4:0] cacop_op;
+        logic data_addr_trans_en;
+        logic dmw0_en;
+        logic dmw1_en;
+        logic cacop_op_mode_di;
+
+        tlb_data_t tlb_signal;
+    } mem1_mem2_struct;
 
     typedef struct packed {
         instr_info_t instr_info;
@@ -172,7 +224,13 @@ package core_types;
         logic cacop_en;
         logic icache_op_en;
         logic [4:0] cacop_op;
-    } mem_wb_struct;
+        logic data_addr_trans_en;
+        logic dmw0_en;
+        logic dmw1_en;
+        logic cacop_op_mode_di;
+
+        tlb_data_t tlb_signal;
+    } mem2_wb_struct;
 
     typedef struct packed {
         logic we;
@@ -183,6 +241,8 @@ package core_types;
         logic uncache_en;
         logic [2:0] rd_type;
         logic [2:0] wr_type;
+
+        logic [`RegBus] pc;  //For flush arbitrate
     } mem_cache_struct;
 
     typedef struct packed {
@@ -234,7 +294,7 @@ package core_types;
         logic icache_op_en;
         logic [4:0] cacop_op;
         special_info_t special_instr;
-    } wb_ctrl;
+    } wb_ctrl_struct;
 
     typedef struct packed {
         logic csr_pg;
@@ -254,6 +314,15 @@ package core_types;
         logic [1:0] data_tlb_mat;
         logic [1:0] data_tlb_plv;
     } tlb_to_mem_struct;
+
+    typedef struct packed {
+        logic data_addr_trans_en;
+        logic dmw0_en;
+        logic dmw1_en;
+        logic data_fetch;
+        logic tlbsrch_en_o;
+        logic [`RegBus] tlb_vaddr;
+    } ex_to_tlb_struct;
 
 endpackage
 `endif

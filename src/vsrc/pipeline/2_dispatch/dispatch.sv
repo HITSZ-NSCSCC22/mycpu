@@ -4,10 +4,7 @@
 module dispatch
     import core_types::*;
     import core_config::*;
-#(
-    parameter EXE_STAGE_WIDTH = 2,
-    parameter MEM_STAGE_WIDTH = 2
-) (
+(
     input logic clk,
     input logic rst,
 
@@ -16,7 +13,6 @@ module dispatch
 
     // <- Ctrl
     output logic is_pri_instr,
-    output logic stallreq,
     input  logic stall,
     input  logic block,
     input  logic flush,
@@ -28,11 +24,15 @@ module dispatch
 
     // <- EXE
     // Data forwarding
-    input ex_dispatch_struct [EXE_STAGE_WIDTH-1:0] ex_data_forward,
+    input ex_dispatch_struct [ISSUE_WIDTH-1:0] ex_data_forward,
 
     // <- Mem
     // Data forwarding
-    input mem_data_forward_t [MEM_STAGE_WIDTH-1:0] mem_data_forward_i,
+    input mem1_data_forward_t [ISSUE_WIDTH-1:0] mem1_data_forward_i,
+
+    input mem2_data_forward_t [ISSUE_WIDTH-1:0] mem2_data_forward_i,
+
+    input wb_data_forward_t [ISSUE_WIDTH-1:0] wb_data_forward_i,
 
     //<-> CSR
     //get wdata from csr
@@ -61,7 +61,7 @@ module dispatch
 
     logic single_issue;
     logic is_both_mem_instr;
-    logic [EXE_STAGE_WIDTH-1:0] do_we_issue;
+    logic [ISSUE_WIDTH-1:0] do_we_issue;
 
     //assign stallreq = aluop_i == `EXE_TLBRD_OP;
     //判断待发射的两条指令里面有无特权指令,如有有就拉高is_pri_instr,把信号传给ctrl进行阻塞
@@ -71,19 +71,7 @@ module dispatch
     //TODO:fix pri_op bug;
     assign pri_op[0] = id_i[0].instr_info.special_info.is_pri;
     assign pri_op[1] = id_i[1].instr_info.special_info.is_pri;
-    // assign pri_op[0] = aluop_i[0] == `EXE_CSRWR_OP | aluop_i[0] == `EXE_CSRRD_OP | aluop_i[0] == `EXE_CSRXCHG_OP |
-    //                    aluop_i[0] == `EXE_SYSCALL_OP | aluop_i[0] == `EXE_BREAK_OP | aluop_i[0] == `EXE_ERTN_OP |
-    //                    aluop_i[0] == `EXE_TLBRD_OP | aluop_i[0] == `EXE_TLBWR_OP | aluop_i[0] == `EXE_TLBSRCH_OP |
-    //                    aluop_i[0] == `EXE_TLBFILL_OP | aluop_i[0] == `EXE_IDLE_OP | aluop_i[0] == `EXE_INVTLB_OP |
-    //                    aluop_i[0] == `EXE_RDCNTID_OP | aluop_i[0] == `EXE_RDCNTVL_OP | aluop_i[0] == `EXE_RDCNTVH_OP |
-    //                    aluop_i[0] == `EXE_CACOP_OP ;
 
-    // assign pri_op[1] = aluop_i[1] == `EXE_CSRWR_OP | aluop_i[1] == `EXE_CSRRD_OP | aluop_i[1] == `EXE_CSRXCHG_OP |
-    //                    aluop_i[1] == `EXE_SYSCALL_OP | aluop_i[1] == `EXE_BREAK_OP | aluop_i[1] == `EXE_ERTN_OP |
-    //                    aluop_i[1] == `EXE_TLBRD_OP | aluop_i[1] == `EXE_TLBWR_OP | aluop_i[1] == `EXE_TLBSRCH_OP |
-    //                    aluop_i[1] == `EXE_TLBFILL_OP | aluop_i[1] == `EXE_IDLE_OP | aluop_i[1] == `EXE_INVTLB_OP |
-    //                    aluop_i[1] == `EXE_RDCNTID_OP | aluop_i[1] == `EXE_RDCNTVL_OP | aluop_i[1] == `EXE_RDCNTVH_OP |
-    //                    aluop_i[1] == `EXE_CACOP_OP ;
 
     logic csr_op[2], is_both_csr_write;
     assign csr_op[0] = id_i[0].instr_info.special_info.is_csr;
@@ -96,9 +84,42 @@ module dispatch
 
     // Force most branch, mem, privilege instr to issue only 1 instr per cycle
     assign is_both_mem_instr = id_i[0].instr_info.special_info.mem_load | id_i[0].instr_info.special_info.mem_store | id_i[1].instr_info.special_info.mem_load | id_i[1].instr_info.special_info.mem_store;
+    logic [1:0] is_store;
+    assign is_store[0] = aluop_i[0] == `EXE_ST_B_OP || aluop_i[0] == `EXE_ST_H_OP || aluop_i[0] == `EXE_ST_W_OP || aluop_i[0] == `EXE_SC_OP;
+    assign is_store[1] = aluop_i[1] == `EXE_ST_B_OP || aluop_i[1] == `EXE_ST_H_OP || aluop_i[1] == `EXE_ST_W_OP || aluop_i[1] == `EXE_SC_OP;
+
+    logic [`RegBus] regs_available;
+    logic [`RegAddrBus] reg_write_addr0, reg_write_addr1;
+    logic ex_reg_valid0, ex_reg_valid1, mem_reg_valid;
+    logic [`RegAddrBus] ex_reg_addr0, ex_reg_addr1, mem_reg_addr;
+    assign ex_reg_valid0 = ex_data_forward[0].reg_valid;
+    assign ex_reg_valid1 = ex_data_forward[1].reg_valid;
+    assign mem_reg_valid = mem2_data_forward_i[0].write_reg;
+    assign reg_write_addr0 = id_i[0].reg_write_addr;
+    assign reg_write_addr1 = id_i[1].reg_write_addr;
+    assign ex_reg_addr0 = ex_data_forward[0].reg_addr;
+    assign ex_reg_addr1 = ex_data_forward[1].reg_addr;
+    assign mem_reg_addr = mem2_data_forward_i[0].write_reg_addr != 0;
+    always_ff @(posedge clk) begin
+        if (rst) regs_available <= 32'b0;
+        else if (flush) regs_available <= 32'b0;
+        else if (stall) regs_available <= regs_available;
+        else begin
+            if (ex_data_forward[0].reg_valid == `WriteEnable)
+                regs_available[ex_data_forward[0].reg_addr] <= 0;
+            if (ex_data_forward[1].reg_valid == `WriteEnable)
+                regs_available[ex_data_forward[1].reg_addr] <= 0;
+            if (mem2_data_forward_i[0].mem_load_op == 1'b1 & mem2_data_forward_i[0].load_valid == 1'b1 & mem2_data_forward_i[0].write_reg_addr != 0)
+                regs_available[mem2_data_forward_i[0].write_reg_addr] <= 0;
+            if (issue_valid[0] & reg_write_addr0 != 0 & !is_store[0])
+                regs_available[reg_write_addr0] <= 1'b1;
+            if (issue_valid[1] & reg_write_addr1 != 0 & !is_store[1])
+                regs_available[reg_write_addr1] <= 1'b1;
+        end
+    end
 
     // Dispatch flag
-    logic [EXE_STAGE_WIDTH-1:0] issue_valid;
+    logic [ISSUE_WIDTH-1:0] issue_valid;
     assign issue_valid = do_we_issue & {id_i[1].instr_info.valid, id_i[0].instr_info.valid};
     // If stall, tell IB no more instructions can be accepted
     logic [DECODE_WIDTH-1:0] instr_valid;  // For observability
@@ -124,6 +145,12 @@ module dispatch
     always_comb begin
         if (block) begin
             do_we_issue = 2'b00;
+        end else if(regs_available[id_i[0].reg_read_addr[0]] == 1'b1 | regs_available[id_i[0].reg_read_addr[1]] == 1'b1)begin
+            //If the oprand of P1 is not ready,then wait until it ready
+            do_we_issue = 2'b00;
+        end else if(regs_available[id_i[1].reg_read_addr[0]] == 1'b1 | regs_available[id_i[0].reg_read_addr[1]] == 1'b1)begin
+            //If the oprand of P2 is not ready,then only P1 is issued
+            do_we_issue = 2'b01;
         end else if (id_i[1].reg_read_addr[0] == id_i[0].reg_write_addr && id_i[1].reg_read_valid[0] && id_i[0].reg_write_valid) begin
             // If P1 instr read reg1 && P0 instr write reg && reg addr is the same
             // Only P0 is issued
@@ -159,6 +186,7 @@ module dispatch
         end
     endgenerate
 
+
     // Data dependecies
     logic [1:0][`RegBus] oprand1, oprand2;
 
@@ -170,10 +198,18 @@ module dispatch
                         oprand1[i] = ex_data_forward[1].reg_data;
                     else if(ex_data_forward[0].reg_valid == `WriteEnable && ex_data_forward[0].reg_addr == regfile_reg_read_addr_o[i][0] && ex_data_forward[0].reg_addr != 0 && id_i[i].reg_read_valid[0])
                         oprand1[i] = ex_data_forward[0].reg_data;
-                    else if(mem_data_forward_i[1].write_reg == `WriteEnable && mem_data_forward_i[1].write_reg_addr == regfile_reg_read_addr_o[i][0] && mem_data_forward_i[1].write_reg_addr != 0 && id_i[i].reg_read_valid[0])
-                        oprand1[i] = mem_data_forward_i[1].write_reg_data;
-                    else if(mem_data_forward_i[0].write_reg == `WriteEnable && mem_data_forward_i[0].write_reg_addr == regfile_reg_read_addr_o[i][0] && mem_data_forward_i[0].write_reg_addr != 0 && id_i[i].reg_read_valid[0])
-                        oprand1[i] = mem_data_forward_i[0].write_reg_data;
+                    else if(mem1_data_forward_i[1].write_reg == `WriteEnable && mem1_data_forward_i[1].write_reg_addr == regfile_reg_read_addr_o[i][0] && mem1_data_forward_i[1].write_reg_addr != 0 && id_i[i].reg_read_valid[0])
+                        oprand1[i] = mem1_data_forward_i[1].write_reg_data;
+                    else if(mem1_data_forward_i[0].write_reg == `WriteEnable && mem1_data_forward_i[0].write_reg_addr == regfile_reg_read_addr_o[i][0] && mem1_data_forward_i[0].write_reg_addr != 0 && id_i[i].reg_read_valid[0])
+                        oprand1[i] = mem1_data_forward_i[0].write_reg_data;
+                    else if(mem2_data_forward_i[1].write_reg == `WriteEnable && mem2_data_forward_i[1].write_reg_addr == regfile_reg_read_addr_o[i][0] && mem2_data_forward_i[1].write_reg_addr != 0 && id_i[i].reg_read_valid[0])
+                        oprand1[i] = mem2_data_forward_i[1].write_reg_data;
+                    else if(mem2_data_forward_i[0].write_reg == `WriteEnable && mem2_data_forward_i[0].write_reg_addr == regfile_reg_read_addr_o[i][0] && mem2_data_forward_i[0].write_reg_addr != 0 && id_i[i].reg_read_valid[0])
+                        oprand1[i] = mem2_data_forward_i[0].write_reg_data;
+                    else if(wb_data_forward_i[1].write_reg == `WriteEnable && wb_data_forward_i[1].write_reg_addr == regfile_reg_read_addr_o[i][0] && wb_data_forward_i[1].write_reg_addr != 0 && id_i[i].reg_read_valid[0])
+                        oprand1[i] = wb_data_forward_i[1].write_reg_data;
+                    else if(wb_data_forward_i[0].write_reg == `WriteEnable && wb_data_forward_i[0].write_reg_addr == regfile_reg_read_addr_o[i][0] && wb_data_forward_i[0].write_reg_addr != 0 && id_i[i].reg_read_valid[0])
+                        oprand1[i] = wb_data_forward_i[0].write_reg_data;
                     else oprand1[i] = regfile_reg_read_data_i[i][0];
                 end
             end
@@ -188,10 +224,18 @@ module dispatch
                         oprand2[i] = ex_data_forward[1].reg_data;
                     else if(ex_data_forward[0].reg_valid == `WriteEnable && ex_data_forward[0].reg_addr == regfile_reg_read_addr_o[i][1] && ex_data_forward[0].reg_addr != 0 && id_i[i].reg_read_valid[1])
                         oprand2[i] = ex_data_forward[0].reg_data;
-                    else if(mem_data_forward_i[1].write_reg == `WriteEnable && mem_data_forward_i[1].write_reg_addr == regfile_reg_read_addr_o[i][1] && mem_data_forward_i[1].write_reg_addr != 0 && id_i[i].reg_read_valid[1])
-                        oprand2[i] = mem_data_forward_i[1].write_reg_data;
-                    else if(mem_data_forward_i[0].write_reg == `WriteEnable && mem_data_forward_i[0].write_reg_addr == regfile_reg_read_addr_o[i][1] && mem_data_forward_i[0].write_reg_addr != 0 && id_i[i].reg_read_valid[1])
-                        oprand2[i] = mem_data_forward_i[0].write_reg_data;
+                    else if(mem1_data_forward_i[1].write_reg == `WriteEnable && mem1_data_forward_i[1].write_reg_addr == regfile_reg_read_addr_o[i][1] && mem1_data_forward_i[1].write_reg_addr != 0 && id_i[i].reg_read_valid[1])
+                        oprand2[i] = mem1_data_forward_i[1].write_reg_data;
+                    else if(mem1_data_forward_i[0].write_reg == `WriteEnable && mem1_data_forward_i[0].write_reg_addr == regfile_reg_read_addr_o[i][1] && mem1_data_forward_i[0].write_reg_addr != 0 && id_i[i].reg_read_valid[1])
+                        oprand2[i] = mem1_data_forward_i[0].write_reg_data;
+                    else if(mem2_data_forward_i[1].write_reg == `WriteEnable && mem2_data_forward_i[1].write_reg_addr == regfile_reg_read_addr_o[i][1] && mem2_data_forward_i[1].write_reg_addr != 0 && id_i[i].reg_read_valid[1])
+                        oprand2[i] = mem2_data_forward_i[1].write_reg_data;
+                    else if(mem2_data_forward_i[0].write_reg == `WriteEnable && mem2_data_forward_i[0].write_reg_addr == regfile_reg_read_addr_o[i][1] && mem2_data_forward_i[0].write_reg_addr != 0 && id_i[i].reg_read_valid[1])
+                        oprand2[i] = mem2_data_forward_i[0].write_reg_data;
+                    else if(wb_data_forward_i[1].write_reg == `WriteEnable && wb_data_forward_i[1].write_reg_addr == regfile_reg_read_addr_o[i][1] && wb_data_forward_i[1].write_reg_addr != 0 && id_i[i].reg_read_valid[1])
+                        oprand2[i] = wb_data_forward_i[1].write_reg_data;
+                    else if(wb_data_forward_i[0].write_reg == `WriteEnable && wb_data_forward_i[0].write_reg_addr == regfile_reg_read_addr_o[i][1] && wb_data_forward_i[0].write_reg_addr != 0 && id_i[i].reg_read_valid[1])
+                        oprand2[i] = wb_data_forward_i[0].write_reg_data;
                     else oprand2[i] = regfile_reg_read_data_i[i][1];
                 end
             end

@@ -17,13 +17,12 @@ module ctrl
     output logic [COMMIT_WIDTH-1:0] backend_commit_block_o,  // do backend commit a basic block
     output logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_flush_ftq_id_o,
 
-    input wb_ctrl wb_i[2],  //流水线传来的信号
+    input wb_ctrl_struct [1:0] wb_i,  //流水线传来的信号
     input logic [1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] wb_ftq_id_i,
     input logic [1:0] ex_branch_flag_i,  //执行阶段跳转信号
     input logic [1:0] ex_stallreq_i,  //执行阶段暂停请求信号
-    input logic [1:0] tlb_stallreq,  //tlb暂停请求信号(未用到)
-    input logic stallreq_from_dispatch,  //发射阶段暂停请求信号
-    input logic [1:0] mem_stallreq_i,  //访存阶段暂停请求信号
+    input logic [1:0] mem1_stallreq_i,
+    input logic [1:0] mem2_stallreq_i,  //访存阶段暂停请求信号
     output logic idle_flush,  //idle指令冲刷信号
     output logic excp_flush,  //异常指令冲刷信号
     output logic ertn_flush,  //ertn指令冲刷信号
@@ -32,7 +31,7 @@ module ctrl
     output logic [`InstAddrBus] idle_pc,  //idle指令pc
 
     // Stall request to each stage
-    output logic [4:0] stall,  // from 4->0 {mem_wb, ex_mem, dispatch_ex, id_dispatch, _}
+    output logic [5:0] stall,  // from 4->0 {mem_wb, ex_mem, dispatch_ex, id_dispatch, _}
 
     input logic is_pri_instr,  //是否为特权指令
     output logic pri_stall,   //当特权指令发射时把此信号拉高,提交后拉低,确保特权指令后没有其它指令
@@ -139,17 +138,14 @@ module ctrl
 
     //暂停处理
     always_comb begin
-        if (rst) stall = 5'b00000;
-        else if (inv_stallreq) stall = 5'b11110;
+        if (rst) stall = 6'b000000;
+        else if (inv_stallreq) stall = 6'b111111;
         //访存阶段的暂停请求:进行访存操作时请求暂停,此时将译码和发射阶段阻塞
-        else if (mem_stallreq_i[0] | mem_stallreq_i[1]) stall = 5'b11110;
+        else if (mem2_stallreq_i[0] | mem2_stallreq_i[1]) stall = 6'b111111;
         //执行阶段的暂停请求:进行乘除法时请求暂停,此时将译码和发射阶段阻塞
-        else if (ex_stallreq_i[0] | ex_stallreq_i[1]) stall = 5'b11110;
-        //发射阶段的暂停请求:原本用于tlbrd指令的请求暂停,但是会出现bug,目前已经弃用
-        else if (stallreq_from_dispatch) stall = 5'b11100;
-        //else if (tlb_stallreq[0] | tlb_stallreq[1]) stall = 5'b11000;
-        else
-            stall = 5'b00000;
+        else if (mem1_stallreq_i[0] | mem1_stallreq_i[1]) stall = 6'b111111;
+        else if (ex_stallreq_i[0] | ex_stallreq_i[1]) stall = 6'b111111;
+        else stall = 6'b000000;
     end
 
     //判断提交的是否为特权指令,因为特权后不发射其它指令,故必然出现在第一条流水线
@@ -174,6 +170,7 @@ module ctrl
     //提交difftest
     always_comb begin
         commit_0 = wb_i[0].valid ? wb_i[0].diff_commit_o : 0;
+        //if the excp is syscall,break or int,the commit this instr
         if (wb_i[0].excp) commit_0.valid = 0;
         commit_1 = (!wb_i[1].valid |aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP) ? 0 : wb_i[1].diff_commit_o;
         if (wb_i[1].excp) commit_1.valid = 0;

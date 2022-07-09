@@ -13,13 +13,15 @@
 `include "icache.sv"
 `include "dummy_dcache.sv"
 `include "ctrl.sv"
+`include "Reg/regs_file.sv"
 `include "pipeline/1_decode/id.sv"
 `include "pipeline/1_decode/id_dispatch.sv"
 `include "pipeline/2_dispatch/dispatch.sv"
 `include "pipeline/3_execution/ex.sv"
-`include "pipeline/4_mem/mem.sv"
-`include "pipeline/4_mem/mem_wb.sv"
-`include "Reg/regs_file.sv"
+`include "pipeline/3_execution/alu.sv"
+`include "pipeline/4_mem/mem1.sv"
+`include "pipeline/4_mem/mem2.sv"
+`include "pipeline/5_wb/wb.sv"
 
 module cpu_top 
     import core_types::*;
@@ -203,16 +205,20 @@ module cpu_top
     logic [2:0] mem_cache_rd_type;
     logic [3:0] mem_cache_sel;
     logic [31:0] mem_cache_addr,mem_cache_data;
+    logic [`RegBus] mem_cache_pc;
     logic [1:0] wb_dcache_flush; // flush dcache if excp
+    logic [1:0][`RegBus] wb_dcache_flush_pc;
     logic [2:0]mem_cache_wr_type;
+    logic cache_ack;
     
-    assign mem_cache_ce = mem_cache_signal[0].ce | mem_cache_signal[1].ce;
-    assign mem_cache_we = mem_cache_signal[0].we | mem_cache_signal[1].we;
-    assign mem_cache_sel = mem_cache_signal[0].we ? mem_cache_signal[0].sel : mem_cache_signal[1].we ? mem_cache_signal[1].sel : 0;
-    assign mem_cache_rd_type = mem_cache_signal[0].ce ? mem_cache_signal[0].rd_type : mem_cache_signal[1].ce ? mem_cache_signal[1].rd_type : 0;
-    assign mem_cache_wr_type = mem_cache_signal[0].ce ? mem_cache_signal[0].wr_type : mem_cache_signal[1].ce ? mem_cache_signal[1].wr_type : 0;
-    assign mem_cache_addr = mem_cache_signal[0].addr | mem_cache_signal[1].addr;
-    assign mem_cache_data = mem_cache_signal[0].we ? mem_cache_signal[0].data : mem_cache_signal[1].we ? mem_cache_signal[1].data : 0;
+    assign mem_cache_ce = flush ? 0 : mem_cache_signal[0].ce | mem_cache_signal[1].ce;
+    assign mem_cache_we = flush ? 0 : mem_cache_signal[0].we | mem_cache_signal[1].we;
+    assign mem_cache_pc = flush ? 0 : mem_cache_signal[0].pc;
+    assign mem_cache_sel = flush ? 0 : mem_cache_signal[0].we ? mem_cache_signal[0].sel : mem_cache_signal[1].we ? mem_cache_signal[1].sel : 0;
+    assign mem_cache_rd_type = flush ? 0 : mem_cache_signal[0].ce ? mem_cache_signal[0].rd_type : mem_cache_signal[1].ce ? mem_cache_signal[1].rd_type : 0;
+    assign mem_cache_wr_type = flush ? 0 : mem_cache_signal[0].ce ? mem_cache_signal[0].wr_type : mem_cache_signal[1].ce ? mem_cache_signal[1].wr_type : 0;
+    assign mem_cache_addr = flush ? 0 : mem_cache_signal[0].addr | mem_cache_signal[1].addr;
+    assign mem_cache_data = flush ? 0 : mem_cache_signal[0].we ? mem_cache_signal[0].data : mem_cache_signal[1].we ? mem_cache_signal[1].data : 0;
    
     dummy_dcache u_dcache(
     	.clk       (clk       ),
@@ -220,6 +226,7 @@ module cpu_top
 
         .valid     (mem_cache_ce),
         .op        (mem_cache_we),
+        .pc        (mem_cache_pc),
         .uncache   (1'b0),
         .index     (mem_cache_addr[11:4]),
         .tag       (tlb_data_o.tag),
@@ -228,7 +235,9 @@ module cpu_top
         .wdata     (mem_cache_data),
         .rd_type_i (mem_cache_rd_type),
         .wr_type_i (mem_cache_wr_type),
+        .flush_pc(wb_dcache_flush[0] ? wb_dcache_flush_pc[0] : wb_dcache_flush[1] ? wb_dcache_flush_pc[1] :0),
         .flush_i    (wb_dcache_flush!=2'b0), // If excp occurs, flush DCache
+        .cache_ack  (cache_ack),
         .addr_ok   (mem_addr_ok),
         .data_ok   (mem_data_ok),
         .rdata     (cache_mem_data),
@@ -392,7 +401,7 @@ module cpu_top
     );
 
     instr_info_t ib_backend_instr_info[2];  // IB -> ID
-    logic [4:0] stall; // from 4->0 {mem_wb, ex_mem, dispatch_ex, id_dispatch, _}
+    logic [5:0] stall; // from 4->0 {mem_wb, ex_mem, dispatch_ex, id_dispatch, _}
 
     logic [DECODE_WIDTH-1:0] id_ib_accept;
     logic [DECODE_WIDTH-1:0] dispatch_id_accept;
@@ -448,8 +457,8 @@ module cpu_top
     id_dispatch u_id_dispatch (
         .clk       (clk),
         .rst       (rst),
-        .stall     (stall[1]),
-        .flush     (backend_redirect), // FIXME: does not carefully designed
+        .stall     (stall[0]),
+        .flush     (backend_redirect),
         .id_i      (id_id_dispatch),
         .id_dispatch_accept_o(id_ib_accept),
         // Dispatch
@@ -462,17 +471,15 @@ module cpu_top
 
     // Data forwarding
     ex_dispatch_struct [1:0] ex_data_forward;
-    mem_data_forward_t [1:0] mem_data_forward;
+    mem1_data_forward_t [1:0] mem1_data_forward;
+    mem2_data_forward_t [1:0] mem2_data_forward;
+    wb_data_forward_t [1:0] wb_data_forward;
 
-    logic stallreq_from_dispatch,is_pri_instr,pri_stall;
+    logic is_pri_instr,pri_stall;
 
 
     // Dispatch Stage, Sequential logic
-    dispatch #(
-        .DECODE_WIDTH(2),
-        .EXE_STAGE_WIDTH(2),
-        .MEM_STAGE_WIDTH(2)
-    ) u_dispatch (
+    dispatch u_dispatch (
         .clk (clk),
         .rst (rst),
 
@@ -481,14 +488,15 @@ module cpu_top
 
         // <-> Ctrl
         .is_pri_instr(is_pri_instr),
-        .stallreq(stallreq_from_dispatch),
         .block(pri_stall),
-        .stall(stall[2]),
+        .stall(stall[1]),
         .flush(backend_redirect),
 
         // Data forwarding    
         .ex_data_forward(ex_data_forward),
-        .mem_data_forward_i(mem_data_forward),
+        .mem1_data_forward_i(mem1_data_forward),
+        .mem2_data_forward_i(mem2_data_forward),
+        .wb_data_forward_i(wb_data_forward),
 
         // <-> Regfile
         .regfile_reg_read_valid_o(dispatch_regfile_reg_read_valid),
@@ -522,11 +530,11 @@ module cpu_top
     logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ctrl_frontend_ftq_id;
 
     // Redirect signal for frontend
-    assign backend_redirect = excp_flush | ertn_flush | idle_flush | (ex_redirect != 0 && ~stall[2]) | fetch_flush;
+    assign backend_redirect = excp_flush | ertn_flush | idle_flush | (ex_redirect != 0 && ~stall[1]) | fetch_flush;
 
     assign backend_redirect_ftq_id = (excp_flush | ertn_flush | idle_flush | fetch_flush) ? ctrl_frontend_ftq_id :
-                                (ex_redirect[0] & ~stall[2]) ? ex_redirect_ftq_id[0] : 
-                                (ex_redirect[1] & ~stall[2]) ? ex_redirect_ftq_id[1] : 0;
+                                (ex_redirect[0] & ~stall[1]) ? ex_redirect_ftq_id[0] : 
+                                (ex_redirect[1] & ~stall[1]) ? ex_redirect_ftq_id[1] : 0;
 
     // If ex is stalling, means that the branch flag maybe invalid and waiting for the right data
     // so no jumping if ex is stalling
@@ -535,17 +543,18 @@ module cpu_top
                      ertn_flush ? csr_era :
                      idle_flush ? idle_pc : 
                      fetch_flush ? idle_pc +4 :
-                     (ex_redirect[0] & ~stall[2]) ? ex_redirect_target[0] : 
-                     (ex_redirect[1] & ~stall[2]) ? ex_redirect_target[1] : 0;
+                     (ex_redirect[0] & ~stall[1]) ? ex_redirect_target[0] : 
+                     (ex_redirect[1] & ~stall[1]) ? ex_redirect_target[1] : 0;
 
 
-    ex_mem_struct ex_signal_o[2];
+    ex_mem_struct ex_mem_signal[2];
     logic [1:0] tlb_stallreq;
 
     // EXE Stage
     logic [1:0] ex_stallreq;
     logic [63:0] csr_timer_64;
     logic [31:0] csr_tid;
+    ex_to_tlb_struct [1:0] ex_tlb_signal;
     generate
         for (genvar i = 0; i < 2; i++) begin : ex
             ex u_ex (
@@ -555,15 +564,17 @@ module cpu_top
                 .dispatch_i(dispatch_exe[i]),
                 .csr_vppn  (csr_vppn_o),
 
-                .mem_data_forward_i(mem_data_forward),
-
-                .ex_o_buffer(ex_signal_o[i]),
+                .ex_o_buffer(ex_mem_signal[i]),
 
                 .stallreq(ex_stallreq[i]),
-                .tlb_stallreq(tlb_stallreq[i]),
 
                 .timer_64(csr_timer_64),
                 .tid(csr_tid),
+
+                .csr_ex_signal(csr_mem_signal),
+                .llbit(LLbit_o),
+
+                .ex_tlb_signal(ex_tlb_signal[i]),
 
                 // -> Ctrl
                 .ex_redirect_o(ex_redirect[i]),
@@ -582,22 +593,17 @@ module cpu_top
                 .cacop_op_mode(cacop_op_mode[i]),
 
                 // <-> Ctrl
-                .stall({mem_stallreq[0] | mem_stallreq[1] ,stall[3]}),
+                .stall({mem2_stallreq[0] | mem2_stallreq[1] ,stall[3]}),
                 .flush(ex_mem_flush[i])
 
             );
         end
     endgenerate
 
-    logic mem_data_addr_trans_en[2];
-    logic mem_data_dmw0_en[2];
-    logic mem_data_dmw1_en[2];
-
     logic [1:0] ex_mem_flush;
 
-    mem_wb_struct mem_signal_o[2];
-
-    logic [1:0] mem_stallreq;
+    mem1_mem2_struct mem1_mem2_signal[2];
+    mem2_wb_struct mem2_wb_signal[2];
 
     logic mem_wb_LLbit_we[2];
     logic mem_wb_LLbit_value[2];
@@ -613,29 +619,26 @@ module cpu_top
     assign csr_mem_signal = {csr_pg,csr_da,csr_dmw0,csr_dmw1,csr_plv,csr_datm};
    
     logic [1:0] data_fetch, mem_tlbsrch;
+
+
+    logic [1:0] mem1_stallreq;
+
     generate
-        for (genvar i = 0; i < 2; i++) begin : mem
-            mem u_mem (
+        for (genvar i = 0; i < 2; i++) begin : mem1
+            mem1 u_mem1 (
+                .clk(clk),
                 .rst(rst),
+                .stall(stall[3]),
+                .flush(flush),
 
-                .signal_i(ex_signal_o[i]),
+                .signal_i(ex_mem_signal[i]),
 
-                .signal_o(mem_signal_o[i]),
+                .signal_o_buffer(mem1_mem2_signal[i]),
 
                 // -> cache 
                 .signal_cache_o(mem_cache_signal[i]),
 
-                // <- AXI Controller
-                .addr_ok(mem_addr_ok),
-                .data_ok(mem_data_ok),
-                .mem_data_i(cache_mem_data),
-
-                // -> TLB
-                .data_fetch(data_fetch[i]),
-                .tlbsrch_en_o(mem_tlbsrch[i]),
-
-                // -> Ctrl
-                .stallreq(mem_stallreq[i]),
+                .tlb_mem_signal(tlb_data_o),
 
                 .LLbit_i(LLbit_o),
                 // <- CSR
@@ -644,11 +647,16 @@ module cpu_top
 
                 .LLbit_we_o(mem_wb_LLbit_we[i]),
                 .LLbit_value_o(mem_wb_LLbit_value[i]),
+                
+                .csr_plv(csr_plv),
+
+                .cache_ack(cache_ack),
+                .stallreq(mem1_stallreq[i]),
 
                 // Data forward
                 // -> Dispatch
                 // -> EX
-                .mem_data_forward_o(mem_data_forward[i])
+                .mem_data_forward_o(mem1_data_forward[i])
 
             );
         end
@@ -656,38 +664,54 @@ module cpu_top
     endgenerate
 
 
-    wb_ctrl wb_ctrl_signal[2];
+    generate
+        for(genvar i=0;i<2;i=i+1)begin : mem2
+            mem2 u_mem2(
+                .clk(clk),
+                .rst(rst),
+                .stall(stall[4]),
+                .flush(flush),
+
+                .mem1_i(mem1_mem2_signal[i]),
+
+                .mem2_data_forward(mem2_data_forward[i]),
+
+                .mem2_o_buffer(mem2_wb_signal[i]),
+
+                .stallreq(mem2_stallreq[i]),
+                .data_ok(mem_data_ok),
+                .cache_data_i(cache_mem_data)
+
+            );
+        end
+    endgenerate
+
+    wb_ctrl_struct [1:0] wb_ctrl_signal;
+    logic [1:0] mem2_stallreq;
 
     generate
-        for (genvar i = 0; i < 2; i++) begin : mem_wb
-            mem_wb u_mem_wb (
+        for (genvar i = 0; i < 2; i++) begin : wb
+            wb u_wb (
                 .clk  (clk),
                 .rst  (rst),
-                .stall(stall[4]),
+                .stall(stall[5]),
+                .flush(flush),
 
-                .mem_i(mem_signal_o[i]),
+                .mem_i(mem2_wb_signal[i]),
 
                 .mem_LLbit_we(mem_wb_LLbit_we[i]),
                 .mem_LLbit_value(mem_wb_LLbit_value[i]),
 
-                .flush(flush),
-
-                .csr_mem_signal(csr_mem_signal),
                 .disable_cache(1'b0),
                 .LLbit_i(LLbit_o),
                 .LLbit_we_i(llbit_i.we),
                 .LLbit_value_i(llbit_i.value),
 
-                //<- tlb
-                .data_addr_trans_en(mem_data_addr_trans_en[i]),
-                .dmw0_en(mem_data_dmw0_en[i]),
-                .dmw1_en(mem_data_dmw1_en[i]),
-                .cacop_op_mode_di(cacop_op_mode_di[i]),
-                //-> tlb
-                .tlb_mem_signal(tlb_mem_signal),
-
                 // -> DCache
                 .dcache_flush_o(wb_dcache_flush[i]),
+                .dcache_flush_pc(wb_dcache_flush_pc[i]),
+
+                .wb_forward(wb_data_forward[i]),
 
                 //to ctrl
                 .wb_ctrl_signal(wb_ctrl_signal[i]),
@@ -728,6 +752,7 @@ module cpu_top
     wb_llbit llbit_i;
     logic inv_stallreq;
 
+
     ctrl u_ctrl(
         .clk(clk),
         .rst(rst),
@@ -743,10 +768,8 @@ module cpu_top
         // <- EX
     	.ex_branch_flag_i (stall[2] ? 2'b0: ex_redirect),
         .ex_stallreq_i (ex_stallreq),
-        .tlb_stallreq(tlb_stallreq),
-
-        .stallreq_from_dispatch(stallreq_from_dispatch),
-        .mem_stallreq_i(mem_stallreq),
+        .mem1_stallreq_i (mem1_stallreq),
+        .mem2_stallreq_i(mem2_stallreq),
 
         .excp_flush(excp_flush),
         .ertn_flush(ertn_flush),
@@ -850,13 +873,13 @@ module cpu_top
         .asid_in(tlb_read_signal_o.asid)
     );
 
-    assign data_addr_trans_en = mem_data_addr_trans_en[0];
+    assign data_addr_trans_en = ex_tlb_signal[0].data_addr_trans_en;
     data_tlb_t tlb_data_i;
-    assign tlb_data_i.dmw0_en = mem_data_dmw0_en[0];
-    assign tlb_data_i.dmw1_en = mem_data_dmw1_en[0];
-    assign tlb_data_i.vaddr = mem_cache_addr;
-    assign tlb_data_i.fetch = data_fetch[0];
-    assign tlb_data_i.tlbsrch = mem_tlbsrch[0];
+    assign tlb_data_i.dmw0_en = ex_tlb_signal[0].dmw0_en;
+    assign tlb_data_i.dmw1_en = ex_tlb_signal[0].dmw1_en;
+    assign tlb_data_i.vaddr = ex_tlb_signal[0].tlb_vaddr;
+    assign tlb_data_i.fetch = ex_tlb_signal[0].data_fetch;
+    assign tlb_data_i.tlbsrch = ex_tlb_signal[0].tlbsrch_en_o;
 
     tlb_data_t tlb_data_o;
     tlb_write_in_struct tlb_write_signal_i;
@@ -895,7 +918,8 @@ module cpu_top
     diff_commit difftest_commit_info_delay1[2];
     logic csr_rstat_commit[2];
     logic [`RegBus] csr_data_commit[2];
-    always_ff @(posedge clk) begin
+
+    always_ff @( posedge clk ) begin 
         difftest_commit_info_delay1 <= difftest_commit_info;
         csr_rstat_commit[0] <= csr_w_o[0].we && (csr_w_o[0].addr == 14'h5) | difftest_commit_info[0].csr_rstat;
         csr_data_commit[0] <= difftest_commit_info[0].csr_rstat ? u_cs_reg.csr_estat : csr_w_o[0].data;
@@ -916,13 +940,13 @@ module cpu_top
 `ifdef SIMULATION
     logic excp_flush_commit;
     logic ertn_flush_commit;
-    logic [`RegBus]excp_pc_commit;
+    logic [`RegBus] excp_pc_commit;
     logic [5:0] csr_ecode_commit;
     logic [`InstBus] excp_instr_commit;
     logic tlbfill_en_commit;
     logic [4:0] rand_index_commit;
 
-    always_ff @(posedge clk) begin 
+    always_ff @( posedge clk ) begin 
         excp_flush_commit <= excp_flush;
         ertn_flush_commit <= ertn_flush;
         excp_pc_commit <= csr_era_i;

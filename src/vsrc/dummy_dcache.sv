@@ -5,6 +5,7 @@ module dummy_dcache (
     //cache与CPU流水线的交互接
     input logic valid,  //表明请求有效
     input logic op,  // 1:write 0: read
+    input logic [31:0] pc,
     input logic uncache,  //标志uncache指令，高位有效
     input logic [7:0] index,  // 地址的index域(addr[11:4])
     input logic [19:0] tag,  //从TLB查到的pfn形成的tag
@@ -13,7 +14,9 @@ module dummy_dcache (
     input logic [31:0] wdata,  //写数据
     input logic [2:0] rd_type_i, //读请求类型：3'b000: 字节；3'b001: 半字；3'b010: 字；3'b100：Cache行
     input logic [2:0] wr_type_i,
+    input logic [31:0] flush_pc,
     input logic flush_i, // 冲刷信号，如果出于某种原因需要取消写事务，CPU拉高此信号
+    output logic cache_ack,
     output logic addr_ok,             //该次请求的地址传输OK，读：地址被接收；写：地址和数据被接收
     output logic data_ok,             //该次请求的数据传输Ok，读：数据返回；写：数据写入完成
     output logic [31:0] rdata,  //读Cache的结果
@@ -37,25 +40,48 @@ module dummy_dcache (
     //还需对类SRAM-AXI转接桥模块进行调整，随后确定实现
 );
 
+    logic valid_buffer;
+    logic op_buffer;
+    logic uncache_buffer;
+    logic [31:0] pc_buffer;
+    logic [7:0] index_buffer;
+    logic [19:0] tag_buffer;
+    logic [3:0] offset_buffer;
+    logic [3:0] wstrb_buffer;
+    logic [31:0] wdata_buffer;
+    logic [2:0] rd_type_buffer;
+    logic [2:0] wr_type_buffer;
+
+    logic flush;
+    assign flush = flush_i & (flush_pc <= pc_buffer);
+
     enum int {
         IDLE,
+        LOOK_UP,
         READ_REQ,
         READ_WAIT,
         WRITE_REQ
     }
         state, next_state;
 
+
     always_ff @(posedge clk) begin
-        if (rst) state <= IDLE;
-        else state <= next_state;
+        if (rst) begin
+            state <= IDLE;
+        end else begin
+            state <= next_state;
+        end
     end
 
     // State transition
     always_comb begin : transition_comb
         case (state)
             IDLE: begin
-                if (valid) begin
-                    if (op) next_state = WRITE_REQ;
+                if (valid) next_state = LOOK_UP;
+            end
+            LOOK_UP: begin
+                if (valid_buffer) begin
+                    if (op_buffer) next_state = WRITE_REQ;
                     else next_state = READ_REQ;
                 end else next_state = IDLE;
             end
@@ -70,7 +96,7 @@ module dummy_dcache (
             WRITE_REQ: begin
                 // If AXI is ready, then write req is accept this cycle, back to IDLE
                 // If flushed, back to IDLE
-                if (wr_rdy | flush_i) next_state = IDLE;
+                if (wr_rdy | flush) next_state = IDLE;
                 else next_state = WRITE_REQ;
             end
             default: begin
@@ -79,8 +105,87 @@ module dummy_dcache (
         endcase
     end
 
+
+
+    always_ff @(posedge clk) begin : data_buffer
+        if (rst) begin
+            valid_buffer <= 0;
+            op_buffer <= 0;
+            uncache_buffer <= 0;
+            pc_buffer <= 0;
+            index_buffer <= 0;
+            tag_buffer <= 0;
+            offset_buffer <= 0;
+            wstrb_buffer <= 0;
+            wdata_buffer <= 0;
+            rd_type_buffer <= 0;
+            wr_type_buffer <= 0;
+        end else if (flush) begin
+            valid_buffer <= 0;
+            op_buffer <= 0;
+            uncache_buffer <= 0;
+            pc_buffer <= 0;
+            index_buffer <= 0;
+            tag_buffer <= 0;
+            offset_buffer <= 0;
+            wstrb_buffer <= 0;
+            wdata_buffer <= 0;
+            rd_type_buffer <= 0;
+            wr_type_buffer <= 0;
+        end else if (valid & !cache_ack) begin  // not accept new request while working
+            valid_buffer <= valid;
+            op_buffer <= op;
+            uncache_buffer <= uncache;
+            pc_buffer <= pc;
+            index_buffer <= index;
+            tag_buffer <= tag;
+            offset_buffer <= offset;
+            wstrb_buffer <= wstrb;
+            wdata_buffer <= wdata;
+            rd_type_buffer <= rd_type_i;
+            wr_type_buffer <= wr_type_i;
+        end else if (next_state == IDLE) begin  //means that cache will finish work,so flush the buffered signal
+            valid_buffer   <= 0;
+            op_buffer      <= 0;
+            uncache_buffer <= 0;
+            pc_buffer      <= 0;
+            index_buffer   <= 0;
+            tag_buffer     <= 0;
+            offset_buffer  <= 0;
+            wstrb_buffer   <= 0;
+            wdata_buffer   <= 0;
+            rd_type_buffer <= 0;
+            wr_type_buffer <= 0;
+        end else begin
+            valid_buffer <= valid_buffer;
+            op_buffer <= op_buffer;
+            uncache_buffer <= uncache_buffer;
+            pc_buffer <= pc_buffer;
+            index_buffer <= index_buffer;
+            tag_buffer <= tag_buffer;
+            offset_buffer <= offset_buffer;
+            wstrb_buffer <= wstrb_buffer;
+            wdata_buffer <= wdata_buffer;
+            rd_type_buffer <= rd_type_buffer;
+            wr_type_buffer <= wr_type_buffer;
+        end
+    end
+
+
+    // always_ff @(posedge clk) begin
+    //     if (rst) cache_ack <= 0;
+    //     else if (valid | valid_buffer) cache_ack <= 1;
+    //     else if (state == IDLE) cache_ack <= 0;
+    //     else cache_ack <= cache_ack;
+    // end
+    always_comb begin
+        if (rst) cache_ack = 0;
+        else if (state != IDLE) cache_ack = 1;
+        else cache_ack = 0;
+    end
+
     logic [31:0] cpu_addr;
-    assign cpu_addr = {tag, index, offset};
+    assign cpu_addr = {tag_buffer, index_buffer, offset_buffer};
 
     logic rd_req_r;
     logic [31:0] rd_addr_r;
@@ -98,8 +203,8 @@ module dummy_dcache (
     end
 
 
-    assign rd_type = (uncache==0)?rd_type_i:3'b100;
-    assign wr_type = (uncache==0)?wr_type_i:3'b100;  // word
+    assign rd_type = (uncache == 0) ? rd_type_buffer : 3'b100;
+    assign wr_type = (uncache == 0) ? wr_type_buffer : 3'b100;  // word
     always_comb begin
         // Default signal
         rd_addr  = 0;
@@ -121,7 +226,7 @@ module dummy_dcache (
                 rd_addr = rd_addr_r;
             end
             WRITE_REQ: begin
-                if (flush_i) begin
+                if (flush) begin
                     wr_req  = 0;
                     wr_addr = 0;
                 end else if (wr_rdy) begin
@@ -129,20 +234,20 @@ module dummy_dcache (
                     wr_addr = cpu_addr;  // DO NOT align addr, 128b -> 32b translate need info from addr
                     case (cpu_addr[3:2])
                         2'b00: begin
-                            wr_data  = {{96{1'b0}}, wdata};
-                            wr_wstrb = {12'b0, wstrb};
+                            wr_data  = {{96{1'b0}}, wdata_buffer};
+                            wr_wstrb = {12'b0, wstrb_buffer};
                         end
                         2'b01: begin
-                            wr_data  = {{64{1'b0}}, wdata, {32{1'b0}}};
-                            wr_wstrb = {8'b0, wstrb, 4'b0};
+                            wr_data  = {{64{1'b0}}, wdata_buffer, {32{1'b0}}};
+                            wr_wstrb = {8'b0, wstrb_buffer, 4'b0};
                         end
                         2'b10: begin
-                            wr_data  = {32'b0, wdata, {64{1'b0}}};
-                            wr_wstrb = {4'b0, wstrb, 8'b0};
+                            wr_data  = {32'b0, wdata_buffer, {64{1'b0}}};
+                            wr_wstrb = {4'b0, wstrb_buffer, 8'b0};
                         end
                         2'b11: begin
-                            wr_data  = {wdata, {96{1'b0}}};
-                            wr_wstrb = {wstrb, 12'b0};
+                            wr_data  = {wdata_buffer, {96{1'b0}}};
+                            wr_wstrb = {wstrb_buffer, 12'b0};
                         end
                     endcase
                 end

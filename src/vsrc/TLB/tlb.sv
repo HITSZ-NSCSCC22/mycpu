@@ -74,6 +74,7 @@ module tlb
     logic [31:0] inst_vaddr_buffer;
     logic [31:0] data_vaddr_buffer;
     inst_tlb_t inst_i_buffer;
+    data_tlb_t data_i_buffer;
     logic [31:0] inst_paddr;
     logic [31:0] data_paddr;
 
@@ -88,6 +89,7 @@ module tlb
             inst_i_buffer <= inst_i;
         end
         data_vaddr_buffer <= data_i.vaddr;
+        data_i_buffer <= data_i;
     end
 
     //trans search port sig
@@ -187,8 +189,8 @@ module tlb
     assign inst_o.index = inst_vaddr_buffer[11:4];
     assign inst_o.tag    = inst_i_buffer.trans_en ? ((s0_ps == 6'd12) ? s0_ppn : {s0_ppn[19:10], inst_paddr[21:12]}) : inst_paddr[31:12];
 
-    assign data_paddr = (pg_mode && data_i.dmw0_en && !data_i.cacop_op_mode_di) ? {csr_dmw0[`PSEG], data_vaddr_buffer[28:0]} : 
-                    (pg_mode && data_i.dmw1_en && !data_i.cacop_op_mode_di) ? {csr_dmw1[`PSEG], data_vaddr_buffer[28:0]} : data_vaddr_buffer;
+    assign data_paddr = (pg_mode && data_i_buffer.dmw0_en && !data_i_buffer.cacop_op_mode_di) ? {csr_dmw0[`PSEG], data_vaddr_buffer[28:0]} : 
+                    (pg_mode && data_i_buffer.dmw1_en && !data_i_buffer.cacop_op_mode_di) ? {csr_dmw1[`PSEG], data_vaddr_buffer[28:0]} : data_vaddr_buffer;
 
     assign data_o.offset = data_vaddr_buffer[3:0];
     assign data_o.index = data_vaddr_buffer[11:4];

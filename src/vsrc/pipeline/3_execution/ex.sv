@@ -2,6 +2,7 @@
 `include "core_config.sv"
 `include "csr_defines.sv"
 `include "muldiv/mul.sv"
+`include "pipeline/3_execution/alu.sv"
 
 module ex
     import core_types::*;
@@ -16,8 +17,7 @@ module ex
     input dispatch_ex_struct dispatch_i,
 
     // <- MEM 
-    // Data forward
-    input mem_data_forward_t [1:0] mem_data_forward_i,  // TODO: remove magic number
+
 
     input logic [18:0] csr_vppn,
     input logic llbit,
@@ -28,10 +28,10 @@ module ex
     // <- CSR
     input [63:0] timer_64,
     input [31:0] tid,
+    input csr_to_mem_struct csr_ex_signal,
 
     // Multi-cycle ALU stallreq
     output logic stallreq,
-    output logic tlb_stallreq,
 
     // -> Ctrl
     // Redirect is only triggered when mispredict happens
@@ -40,6 +40,9 @@ module ex
     output logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ex_redirect_ftq_id_o,
 
     output ex_dispatch_struct ex_data_forward,
+
+    // ->TLB
+    output ex_to_tlb_struct ex_tlb_signal,
 
     // <-> Cache
     output logic icacop_op_en,
@@ -55,13 +58,12 @@ module ex
     input logic flush
 
 );
+    ex_mem_struct ex_o;
 
     reg [`RegBus] logicout;
     reg [`RegBus] shiftout;
     reg [`RegBus] moveout;
     reg [63:0] arithout;
-
-    ex_mem_struct ex_o;
 
     // Assign input /////////////////////////////
     instr_info_t instr_info;
@@ -79,21 +81,9 @@ module ex
     assign read_reg_addr = dispatch_i.read_reg_addr;
 
     // Determine oprands
-    logic [`RegBus] reg1_i, reg2_i, imm, oprand1, oprand2;
-    always_comb begin
-        if(mem_data_forward_i[1].write_reg == `WriteEnable && mem_data_forward_i[1].is_load_data && mem_data_forward_i[1].write_reg_addr == dispatch_i.read_reg_addr[0] && mem_data_forward_i[1].write_reg_addr != 0)
-            oprand1 = mem_data_forward_i[1].write_reg_data;
-        else if(mem_data_forward_i[0].write_reg == `WriteEnable && mem_data_forward_i[0].is_load_data && mem_data_forward_i[0].write_reg_addr == dispatch_i.read_reg_addr[0] && mem_data_forward_i[0].write_reg_addr != 0)
-            oprand1 = mem_data_forward_i[0].write_reg_data;
-        else oprand1 = dispatch_i.oprand1;
-        if(mem_data_forward_i[1].write_reg == `WriteEnable && mem_data_forward_i[1].is_load_data && mem_data_forward_i[1].write_reg_addr == dispatch_i.read_reg_addr[1] && mem_data_forward_i[1].write_reg_addr != 0)
-            oprand2 = mem_data_forward_i[1].write_reg_data;
-        else if(mem_data_forward_i[0].write_reg == `WriteEnable && mem_data_forward_i[0].is_load_data && mem_data_forward_i[0].write_reg_addr == dispatch_i.read_reg_addr[1] && mem_data_forward_i[0].write_reg_addr != 0)
-            oprand2 = mem_data_forward_i[0].write_reg_data;
-        else oprand2 = dispatch_i.oprand2;
-    end
-    assign reg1_i = oprand1;
-    assign reg2_i = dispatch_i.use_imm ? dispatch_i.imm : oprand2;
+    logic [`RegBus] oprand1, oprand2, imm;
+    assign oprand1 = dispatch_i.oprand1;
+    assign oprand2 = dispatch_i.use_imm ? dispatch_i.imm : dispatch_i.oprand2;
     assign imm = dispatch_i.imm;
 
     logic [`RegBus] inst_i, inst_pc_i;
@@ -110,10 +100,10 @@ module ex
     assign debug_mem_addr_o = ex_o.mem_addr;
 
     // TODO:fix vppn select
-    assign ex_o.mem_addr = reg1_i + imm;
-    assign ex_o.reg2 = reg2_i;
+    assign ex_o.mem_addr = oprand1 + imm;
+    assign ex_o.reg2 = oprand2;
 
-    assign ex_data_forward = {ex_o.wreg, ex_o.waddr, ex_o.wdata, ex_o.aluop};
+    assign ex_data_forward = {ex_o.wreg & !mem_load_op, ex_o.waddr, ex_o.wdata, ex_o.aluop};
 
     csr_write_signal csr_signal_i, csr_test;
     assign csr_signal_i = dispatch_i.csr_signal;
@@ -122,7 +112,7 @@ module ex
     //写入csr的数据，对csrxchg指令进行掩码处理
     assign ex_o.csr_signal.we = csr_signal_i.we;
     assign ex_o.csr_signal.addr = csr_signal_i.addr;
-    assign ex_o.csr_signal.data = (aluop_i ==`EXE_CSRXCHG_OP) ? ((reg1_i & reg2_i) | (~reg2_i & dispatch_i.csr_reg_data)) : oprand1;
+    assign ex_o.csr_signal.data = (aluop_i ==`EXE_CSRXCHG_OP) ? ((oprand1 & oprand2) | (~oprand2 & dispatch_i.csr_reg_data)) : oprand1;
 
     logic [`RegBus] csr_reg_data;
     assign csr_reg_data = aluop_i == `EXE_RDCNTID_OP ? tid :
@@ -144,8 +134,15 @@ module ex
 
     logic excp_ale, excp_ine, excp;
     logic [9:0] excp_num;
-    logic access_mem, mem_load_op, mem_store_op, mem_b_op, mem_h_op;
-    //对未对齐例外的判断
+    logic
+        access_mem,
+        mem_load_op,
+        mem_store_op,
+        mem_b_op,
+        mem_h_op,
+        pg_mode,
+        da_mode,
+        cacop_op_mode_di;
     assign excp_ale = access_mem && ((mem_b_op & 1'b0)| (mem_h_op & ex_o.mem_addr[0])| 
                     (!(mem_b_op | mem_h_op) & (ex_o.mem_addr[0] | ex_o.mem_addr[1]))) ;
     assign excp_ine = aluop_i == `EXE_INVTLB_OP && imm > 32'd6;
@@ -161,152 +158,148 @@ module ex
     assign mem_b_op = special_info.mem_b_op;
     assign mem_h_op = special_info.mem_h_op;
 
-    always @(*) begin
-        if (rst == `RstEnable) begin
-            logicout = `ZeroWord;
-        end else begin
-            case (aluop_i)
-                `EXE_OR_OP: begin
-                    logicout = reg1_i | reg2_i;
-                end
-                `EXE_AND_OP: begin
-                    logicout = reg1_i & reg2_i;
-                end
-                `EXE_XOR_OP: begin
-                    logicout = reg1_i ^ reg2_i;
-                end
-                `EXE_NOR_OP: begin
-                    logicout = ~(reg1_i | reg2_i);
-                end
-                `EXE_ORN_OP: begin
-                    logicout = reg1_i | ~(reg2_i);
-                end
-                `EXE_ANDN_OP: begin
-                    logicout = reg1_i & ~(reg2_i);
-                end
-                default: begin
-                    logicout = `ZeroWord;
-                end
-            endcase
-        end
+    logic dmw0_en, dmw1_en, tlbsrch_en_o, data_fetch, data_addr_trans_en;
+    logic [`RegBus] tlb_vaddr;
+    assign dmw0_en = ((csr_ex_signal.csr_dmw0[`PLV0] && csr_ex_signal.csr_plv == 2'd0) || (csr_ex_signal.csr_dmw0[`PLV3] && csr_ex_signal.csr_plv == 2'd3)) && (tlb_vaddr[31:29] == csr_ex_signal.csr_dmw0[`VSEG]);
+    assign dmw1_en = ((csr_ex_signal.csr_dmw1[`PLV0] && csr_ex_signal.csr_plv == 2'd0) || (csr_ex_signal.csr_dmw1[`PLV3] && csr_ex_signal.csr_plv == 2'd3)) && (tlb_vaddr[31:29] == csr_ex_signal.csr_dmw1[`VSEG]);
+
+    assign pg_mode = !csr_ex_signal.csr_da && csr_ex_signal.csr_pg;
+    assign da_mode = csr_ex_signal.csr_da && !csr_ex_signal.csr_pg;
+
+    assign tlbsrch_en_o = aluop_i == `EXE_TLBSRCH_OP;
+    assign data_fetch = access_mem | tlbsrch_en_o;
+
+    assign tlb_vaddr = ex_o.mem_addr;
+
+    // Addr translate mode for DCache, pull down if instr is invalid
+    assign cacop_op_mode_di = dcacop_op_en && ((cacop_op_mode == 2'b0) || (cacop_op_mode == 2'b1));
+    assign data_addr_trans_en = access_mem && pg_mode && !dmw0_en && !dmw1_en && !cacop_op_mode_di && dispatch_i.instr_info.valid;
+
+    always_comb begin
+        if (rst) ex_tlb_signal = 0;
+        else if (flush) ex_tlb_signal = 0;
+        else if (stall[0] | stall[1]) ex_tlb_signal = ex_tlb_signal;
+        else
+            ex_tlb_signal = {
+                data_addr_trans_en, dmw0_en, dmw1_en, data_fetch, tlbsrch_en_o, tlb_vaddr
+            };
     end
 
-    always @(*) begin
-        if (rst == `RstEnable) begin
-            shiftout = `ZeroWord;
-        end else begin
-            case (aluop_i)
-                `EXE_SLL_OP: begin
-                    shiftout = reg1_i << reg2_i[4:0];
-                end
-                `EXE_SRL_OP: begin
-                    shiftout = reg1_i >> reg2_i[4:0];
-                end
-                `EXE_SRA_OP: begin
-                    shiftout = ({32{reg1_i[31]}} << (6'd32-{1'b0,reg2_i[4:0]})) | reg1_i >> reg2_i[4:0];
-                end
-                default: begin
-                    shiftout = `ZeroWord;
-                end
-            endcase
-        end
-    end
+    alu u_alu (
+        .rst(rst),
+
+        .inst_pc_i(inst_pc_i),
+        .aluop(aluop_i),
+        .oprand1(oprand1),
+        .oprand2(oprand2),
+        .imm(imm),
+
+        .logicout(logicout),
+        .shiftout(shiftout),
+        .branch_flag(branch_flag),
+        .branch_target_address(ex_redirect_target_o)
+    );
 
     //比较模块
     logic reg1_lt_reg2;
-    logic [`RegBus] reg2_i_mux;
+    logic [`RegBus] oprand2_mux;
     logic [`RegBus] result_compare;
 
-    assign reg2_i_mux = (aluop_i == `EXE_SLT_OP) ? ~reg2_i + 32'b1 : reg2_i; // shifted encoding when signed comparison
-    assign result_compare = reg1_i + reg2_i_mux;
-    assign reg1_lt_reg2  = (aluop_i == `EXE_SLT_OP) ? ((reg1_i[31] && !reg2_i[31]) || (!reg1_i[31] && !reg2_i[31] && result_compare[31])||
-			               (reg1_i[31] && reg2_i[31] && result_compare[31])) : (reg1_i < reg2_i);
+    assign oprand2_mux = (aluop_i == `EXE_SLT_OP) ? ~oprand2 + 32'b1 : oprand2; // shifted encoding when signed comparison
+    assign result_compare = oprand1 + oprand2_mux;
+    assign reg1_lt_reg2  = (aluop_i == `EXE_SLT_OP) ? ((oprand1[31] && !oprand2[31]) || (!oprand1[31] && !oprand2[31] && result_compare[31])||
+			               (oprand1[31] && oprand2[31] && result_compare[31])) : (oprand1 < oprand2);
 
 
     // Divider and Multiplier
     // Multi-cycle
-    logic muldiv_op;  // High effective
-    always_comb begin
-        case (aluop_i)
-            `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP,`EXE_MUL_OP,`EXE_MULH_OP,`EXE_MULHU_OP: begin
-                muldiv_op = 1;
-            end
-            default: begin
-                muldiv_op = 0;
-            end
-        endcase
-    end
-    logic [2:0] muldiv_para;  // 0-7 muldiv mode selection
-    always_comb begin
-        case (aluop_i)
-            `EXE_MUL_OP:   muldiv_para = 3'h0;
-            `EXE_MULH_OP:  muldiv_para = 3'h1;
-            `EXE_MULHU_OP: muldiv_para = 3'h3;
-            `EXE_DIV_OP:   muldiv_para = 3'h4;
-            `EXE_DIVU_OP:  muldiv_para = 3'h5;
-            `EXE_MOD_OP:   muldiv_para = 3'h6;
-            `EXE_MODU_OP:  muldiv_para = 3'h7;
-            default: begin
-                muldiv_para = 0;
-            end
-        endcase
-    end
-    logic [31:0] muldiv_result;
-    logic muldiv_finished;
-    logic muldiv_ack;
-    logic muldiv_busy_r;
-    logic muldiv_init;
-    logic muldiv_busy;  // Low means busy
-    always_ff @(posedge clk) begin
-        if (rst) muldiv_busy_r <= 0;
-        else if (flush | excp_flush | ertn_flush) muldiv_busy_r <= 0;
-        else if (muldiv_init) muldiv_busy_r <= 1;
-        else if (muldiv_ack) muldiv_busy_r <= 0;
-    end
-    always_comb begin
-        muldiv_init = muldiv_op & ~muldiv_busy_r & ~stall[1];
-        muldiv_ack  = muldiv_finished & muldiv_op & ~stall[1];
-    end
-    mul u_mul (
-        .clk(clk),
-        .rst(rst),
-        .clear_pipeline(flush),
-        .mul_para(muldiv_para),
-        .mul_initial(muldiv_init),
-        .mul_rs0(reg1_i),
-        .mul_rs1((reg2_i == 0 && (aluop_i == `EXE_DIV_OP || aluop_i == `EXE_DIVU_OP)) ? 1 : reg2_i),
-        .mul_ready(muldiv_busy),
-        .mul_finished(muldiv_finished),  // 1 means finished
-        .mul_data(muldiv_result),
-        .mul_ack(muldiv_ack)
-    );
+    // logic muldiv_op;  // High effective
+    // always_comb begin
+    //     case (aluop_i)
+    //         `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP: begin
+    //             muldiv_op = 1;
+    //         end
+    //         default: begin
+    //             muldiv_op = 0;
+    //         end
+    //     endcase
+    // end
+    // logic [2:0] muldiv_para;  // 0-7 muldiv mode selection
+    // always_comb begin
+    //     case (aluop_i)
+    //         `EXE_MUL_OP:   muldiv_para = 3'h0;
+    //         `EXE_MULH_OP:  muldiv_para = 3'h1;
+    //         `EXE_MULHU_OP: muldiv_para = 3'h3;
+    //         `EXE_DIV_OP:   muldiv_para = 3'h4;
+    //         `EXE_DIVU_OP:  muldiv_para = 3'h5;
+    //         `EXE_MOD_OP:   muldiv_para = 3'h6;
+    //         `EXE_MODU_OP:  muldiv_para = 3'h7;
+    //         default: begin
+    //             muldiv_para = 0;
+    //         end
+    //     endcase
+    // end
+    // logic [31:0] muldiv_result;
+    // logic muldiv_finished;
+    // logic muldiv_ack;
+    // logic muldiv_busy_r;
+    // logic muldiv_init;
+    // logic muldiv_busy;  // Low means busy
+    // always_ff @(posedge clk) begin
+    //     if (rst) muldiv_busy_r <= 0;
+    //     else if (flush | excp_flush | ertn_flush) muldiv_busy_r <= 0;
+    //     else if (muldiv_init) muldiv_busy_r <= 1;
+    //     else if (muldiv_ack) muldiv_busy_r <= 0;
+    // end
+    // always_comb begin
+    //     muldiv_init = muldiv_op & ~muldiv_busy_r & ~stall[1];
+    //     muldiv_ack  = muldiv_finished & muldiv_op & ~stall[1];
+    // end
+    // mul u_mul (
+    //     .clk           (clk),
+    //     .rst           (rst),
+    //     .clear_pipeline(flush),
+    //     .mul_para      (muldiv_para),
+    //     .mul_initial   (muldiv_init),
+    //     .mul_rs0       (oprand1),
+    //     .mul_rs1       (oprand2 == 0 ? 1 : oprand2),
+    //     .mul_ready     (muldiv_busy),
+    //     .mul_finished  (muldiv_finished),             // 1 means finished
+    //     .mul_data      (muldiv_result),
+    //     .mul_ack       (muldiv_ack)
+    // );
 
 
-    assign stallreq = (icacop_inst & ~icacop_op_ack_i);  // CACOP
-    //(muldiv_op & ~muldiv_finished) | // Multiply & Division
-    assign tlb_stallreq = aluop_i == `EXE_TLBRD_OP | aluop_i == `EXE_TLBSRCH_OP;
+    // assign stallreq = (muldiv_op & ~muldiv_finished) | // Multiply & Division
+    //             (icacop_inst & ~icacop_op_ack_i); // CACOP
 
     always @(*) begin
         if (rst == `RstEnable) begin
             arithout = 0;
         end else begin
             case (aluop_i)
-                `EXE_ADD_OP:   arithout = reg1_i + reg2_i;
-                `EXE_SUB_OP:   arithout = reg1_i - reg2_i;
-                // `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP,`EXE_MUL_OP,`EXE_MULH_OP,`EXE_MULHU_OP: begin
+                `EXE_ADD_OP: arithout = oprand1 + oprand2;
+                `EXE_SUB_OP: arithout = oprand1 - oprand2;
+                // `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP: begin
                 //     // Select result from multi-cycle divider
                 //     arithout = muldiv_result;
                 // end
-                `EXE_MUL_OP:   arithout = $signed(reg1_i) * $signed(reg2_i);
-                `EXE_MULH_OP:  arithout = ($signed(reg1_i) * $signed(reg2_i)) >> 32;
-                `EXE_MULHU_OP: arithout = ($unsigned(reg1_i) * $unsigned(reg2_i)) >> 32;
-                `EXE_DIV_OP:   arithout = ($signed(reg1_i) / $signed(reg2_i));
-                `EXE_DIVU_OP:  arithout = ($unsigned(reg1_i) / $unsigned(reg2_i));
-                `EXE_MODU_OP:  arithout = ($unsigned(reg1_i) % $unsigned(reg2_i));
-                `EXE_MOD_OP: begin
-                    arithout = ($signed(reg1_i) % $signed(reg2_i));
-                end
 
+                `EXE_MUL_OP: arithout = $signed(oprand1) * $signed(oprand2);
+                `EXE_MULH_OP: arithout = ($signed(oprand1) * $signed(oprand2)) >> 32;
+                `EXE_MULHU_OP: arithout = ($unsigned(oprand1) * $unsigned(oprand2)) >> 32;
+                `EXE_DIV_OP: begin
+                    if (oprand2 == 0) arithout = $signed(oprand1);
+                    else arithout = ($signed(oprand1) / $signed(oprand2));
+                end
+                `EXE_DIVU_OP: begin
+                    if (oprand2 == 0) arithout = $unsigned(oprand1);
+                    else arithout = ($unsigned(oprand1) / $unsigned(oprand2));
+                end
+                `EXE_MODU_OP: arithout = ($unsigned(oprand1) % $unsigned(oprand2));
+                `EXE_MOD_OP: begin
+                    arithout = ($signed(oprand1) % $signed(oprand2));
+                end
                 `EXE_SLT_OP, `EXE_SLTU_OP: arithout = {31'b0, reg1_lt_reg2};
                 default: begin
                     arithout = 0;
@@ -315,57 +308,10 @@ module ex
         end
     end
 
-    // Branch Unit
-    // means do we branch under current condition
-    // however, this signal is not accurate because maybe waiting for load or other stalling condition
-    logic branch_flag;
+
     // Only when taken & not predicted taken can ex do redirect
     assign ex_redirect_o = branch_flag && ~special_info.predicted_taken && ~stall[0];
     assign ex_redirect_ftq_id_o = ex_redirect_o ? instr_info.ftq_id : 0;
-    always_comb begin
-        begin
-            case (aluop_i)
-                `EXE_B_OP, `EXE_BL_OP: begin
-                    branch_flag = 1'b1;
-                    ex_redirect_target_o = inst_pc_i + imm;
-                end
-                `EXE_JIRL_OP: begin
-                    branch_flag = 1'b1;
-                    ex_redirect_target_o = reg1_i + imm;
-                end
-                `EXE_BEQ_OP: begin
-                    if (oprand1 == oprand2) branch_flag = 1'b1;
-                    ex_redirect_target_o = inst_pc_i + imm;
-                end
-                `EXE_BNE_OP: begin
-                    if (oprand1 != oprand2) branch_flag = 1'b1;
-                    ex_redirect_target_o = inst_pc_i + imm;
-                end
-                `EXE_BLT_OP: begin
-                    if ({~reg1_i[31], reg1_i[30:0]} < {~reg2_i[31], reg2_i[30:0]})
-                        branch_flag = 1'b1;
-                    ex_redirect_target_o = inst_pc_i + imm;
-                end
-                `EXE_BGE_OP: begin
-                    if ({~reg1_i[31], reg1_i[30:0]} >= {~reg2_i[31], reg2_i[30:0]})
-                        branch_flag = 1'b1;
-                    ex_redirect_target_o = inst_pc_i + imm;
-                end
-                `EXE_BLTU_OP: begin
-                    if (reg1_i < reg2_i) branch_flag = 1'b1;
-                    ex_redirect_target_o = inst_pc_i + imm;
-                end
-                `EXE_BGEU_OP: begin
-                    if (reg1_i >= reg2_i) branch_flag = 1'b1;
-                    ex_redirect_target_o = inst_pc_i + imm;
-                end
-                default: begin
-                    branch_flag = 1'b0;
-                    ex_redirect_target_o = 0;
-                end
-            endcase
-        end
-    end
 
 
     always @(*) begin
@@ -374,10 +320,10 @@ module ex
         end else begin
             case (aluop_i)
                 `EXE_LUI_OP: begin
-                    moveout = reg2_i;
+                    moveout = oprand2;
                 end
                 `EXE_PCADD_OP: begin
-                    moveout = reg2_i + ex_o.instr_info.pc;
+                    moveout = oprand2 + ex_o.instr_info.pc;
                 end
                 default: begin
                     moveout = `ZeroWord;
@@ -396,12 +342,17 @@ module ex
         // If the branch taken, then this basic block should be ended
         if (branch_flag) ex_o.instr_info.is_last_in_block = 1;
 
+        ex_o.aluop = aluop_i;
         ex_o.waddr = wd_i;
         ex_o.wreg = wreg_i;
         ex_o.timer_64 = timer_64;
         ex_o.cacop_en = cacop_instr;
         ex_o.icache_op_en = icacop_op_en;
         ex_o.cacop_op = cacop_op;
+        ex_o.data_addr_trans_en = data_addr_trans_en;
+        ex_o.dmw0_en = dmw0_en;
+        ex_o.dmw1_en = dmw1_en;
+        ex_o.cacop_op_mode_di = cacop_op_mode_di;
         ex_o.inv_i = aluop_i == `EXE_INVTLB_OP ? {1'b1, oprand1[9:0], oprand2[31:13], imm[4:0]} : 0;
         case (alusel_i)
             `EXE_RES_LOGIC: begin
@@ -429,16 +380,13 @@ module ex
     end
 
 
+
     always_ff @(posedge clk) begin
-        if (rst == `RstEnable) begin
-            ex_o_buffer <= 0;
-        end else if (flush | excp_flush | ertn_flush) begin
-            ex_o_buffer <= 0;
-        end else if (stall[0]) begin
-            // Do nothing
-        end else begin
-            ex_o_buffer <= ex_o;
-        end
+        if (rst) ex_o_buffer <= 0;
+        else if (flush) ex_o_buffer <= 0;
+        else if (stall[0] | stall[1]) ex_o_buffer <= ex_o_buffer;
+        else ex_o_buffer <= ex_o;
     end
+
 
 endmodule
