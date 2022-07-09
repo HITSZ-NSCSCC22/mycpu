@@ -1,5 +1,9 @@
 `include "defines.sv"
+`include "core_types.sv"
+`include "core_config.sv"
 `include "csr_defines.sv"
+`include "frontend/frontend_defines.sv"
+
 `include "cs_reg.sv"
 `include "TLB/tlb.sv"
 `include "TLB/tlb_entry.sv"
@@ -9,8 +13,6 @@
 `include "icache.sv"
 `include "dummy_dcache.sv"
 `include "ctrl.sv"
-`include "core_types.sv"
-`include "core_config.sv"
 `include "pipeline/1_decode/id.sv"
 `include "pipeline/1_decode/id_dispatch.sv"
 `include "pipeline/2_dispatch/dispatch.sv"
@@ -349,6 +351,7 @@ module cpu_top
     logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_redirect_ftq_id;
     logic [COMMIT_WIDTH-1:0] backend_commit_bitmask; // suggest whether last instr in basic block is committed
     logic [COMMIT_WIDTH-1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_commit_ftq_id;
+    backend_commit_meta_t [COMMIT_WIDTH-1:0] backend_commit_meta;
 
     // All frontend structures
     frontend u_frontend (
@@ -364,11 +367,12 @@ module cpu_top
         .icache_read_data_i(icache_frontend_data),  // <- ICache
 
         // <-> Backend
-        .branch_update_info_i(),              // branch update signals, <- EXE Stage, unused
         .backend_next_pc_i   (next_pc),       // backend PC, <- pc_gen
         .backend_flush_i     (backend_redirect), // backend flush, usually come with next_pc
         .backend_flush_ftq_id_i(backend_redirect_ftq_id),
-        .backend_commit_i (backend_commit_bitmask),
+        .backend_commit_bitmask_i (backend_commit_bitmask),
+        .backend_commit_ftq_id_i(backend_commit_ftq_id),
+        .backend_commit_meta_i(),
 
         // <-> Instruction Buffer
         .instr_buffer_stallreq_i(ib_frontend_stallreq),   // instruction buffer is full
@@ -411,6 +415,7 @@ module cpu_top
         .backend_flush_i(backend_redirect),  // Assure output is reset the next cycle
         .backend_instr_o(ib_backend_instr_info)  // -> ID
     );
+
 
     // ID <-> Regfile
     logic [1:0][1:0] dispatch_regfile_reg_read_valid;

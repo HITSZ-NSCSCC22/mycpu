@@ -1,14 +1,17 @@
 `include "core_types.sv"
 `include "core_config.sv"
 `include "frontend/frontend_defines.sv"
+`include "BPU/include/bpu_types.sv"
 
 `include "frontend/ftq.sv"
 `include "frontend/ifu.sv"
 `include "BPU/bpu.sv"
 
+
 module frontend
     import core_types::*;
     import core_config::*;
+    import bpu_types::*;
     import tlb_types::inst_tlb_t;
     import tlb_types::tlb_inst_t;
 (
@@ -26,11 +29,12 @@ module frontend
 
 
     // <-> Backend
-    input branch_update_info_t branch_update_info_i,
     input logic [ADDR_WIDTH-1:0] backend_next_pc_i,
     input logic backend_flush_i,
     input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_flush_ftq_id_i,
-    input logic [COMMIT_WIDTH-1:0] backend_commit_i,
+    input logic [COMMIT_WIDTH-1:0] backend_commit_bitmask_i,
+    input logic [COMMIT_WIDTH-1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_commit_ftq_id_i,
+    input backend_commit_meta_t [COMMIT_WIDTH-1:0] backend_commit_meta_i,
 
     // <-> Instruction buffer
     input logic instr_buffer_stallreq_i,
@@ -58,6 +62,10 @@ module frontend
     logic [ADDR_WIDTH-1:0] pc, next_pc, sequential_pc, main_bpu_redirect_pc;
     assign sequential_pc = pc + 4 * bpu_ftq_block.length;
 
+    // BPU
+    bpu_ftq_t bpu_ftq_block;
+    ftq_bpu_meta_t ftq_bpu_meta;
+
     always_ff @(posedge clk or negedge rst_n) begin : pc_ff
         if (!rst_n) begin
             pc <= 32'h1c000000;
@@ -80,8 +88,6 @@ module frontend
         end
     end
 
-    // BPU
-    bpu_ftq_t bpu_ftq_block;
     bpu u_bpu (
         .clk(clk),
         .rst(rst),
@@ -90,7 +96,7 @@ module frontend
         .ftq_full_i(ftq_full),
         .ftq_predict_o(bpu_ftq_block),
         // Train
-        .ftq_meta_i(),
+        .ftq_meta_i(ftq_bpu_meta),
 
         // PC
         .main_redirect_o(main_bpu_redirect),
@@ -113,10 +119,14 @@ module frontend
 
         // <-> BPU
         .bpu_i           (bpu_ftq_block),
+        .bpu_meta_i      (),
         .bpu_queue_full_o(ftq_full),
+        .bpu_meta_o      (ftq_bpu_meta),
 
         // <-> Backend
-        .backend_commit_i(backend_commit_i),
+        .backend_commit_bitmask_i(backend_commit_bitmask_i),
+        .backend_commit_ftq_id_i(backend_commit_ftq_id_i),
+        .backend_commit_meta_i(backend_commit_meta_i),
 
         // <-> IFU
         .ifu_o       (ftq_ifu_block),
