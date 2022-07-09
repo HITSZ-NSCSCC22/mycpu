@@ -105,7 +105,7 @@ module wb
             // If marked as exception, the basic block is ended
             ftq_id_o <= mem_signal_o.instr_info.ftq_id;
 
-            wb_ctrl_signal.valid <= 1'b1;
+            wb_ctrl_signal.valid <= mem_signal_o.instr_info.valid;
             wb_ctrl_signal.is_last_in_block <= mem_signal_o.instr_info.is_last_in_block;
             wb_ctrl_signal.aluop <= mem_signal_o.aluop;
             wb_ctrl_signal.wb_reg_o.wdata <= mem_signal_o.wdata;

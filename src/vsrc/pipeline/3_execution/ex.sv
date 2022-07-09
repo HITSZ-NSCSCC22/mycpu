@@ -283,8 +283,14 @@ module ex
                 `EXE_MUL_OP: arithout = $signed(oprand1) * $signed(oprand2);
                 `EXE_MULH_OP: arithout = ($signed(oprand1) * $signed(oprand2)) >> 32;
                 `EXE_MULHU_OP: arithout = ($unsigned(oprand1) * $unsigned(oprand2)) >> 32;
-                `EXE_DIV_OP: arithout = ($signed(oprand1) / $signed(oprand2));
-                `EXE_DIVU_OP: arithout = ($unsigned(oprand1) / $unsigned(oprand2));
+                `EXE_DIV_OP: begin
+                    if (oprand2 == 0) arithout = $signed(oprand1);
+                    else arithout = ($signed(oprand1) / $signed(oprand2));
+                end
+                `EXE_DIVU_OP: begin
+                    if (oprand2 == 0) arithout = $unsigned(oprand1);
+                    else arithout = ($unsigned(oprand1) / $unsigned(oprand2));
+                end
                 `EXE_MODU_OP: arithout = ($unsigned(oprand1) % $unsigned(oprand2));
                 `EXE_MOD_OP: begin
                     arithout = ($signed(oprand1) % $signed(oprand2));
