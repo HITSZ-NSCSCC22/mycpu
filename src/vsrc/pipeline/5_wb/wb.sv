@@ -72,6 +72,7 @@ module wb
             wb_ctrl_signal.is_last_in_block <= mem_i.instr_info.is_last_in_block;
             wb_ctrl_signal.aluop <= mem_i.aluop;
             wb_ctrl_signal.instr_info <= mem_i.instr_info;
+            wb_ctrl_signal.mem_addr <= mem_i.mem_addr;
             wb_ctrl_signal.wb_reg.wdata <= mem_i.wdata;
             wb_ctrl_signal.wb_reg.waddr <= mem_i.waddr;
             wb_ctrl_signal.wb_reg.we <= mem_i.wreg;

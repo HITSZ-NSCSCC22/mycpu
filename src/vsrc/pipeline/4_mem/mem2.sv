@@ -70,6 +70,7 @@ module mem2
         mem2_o.wdata = mem1_i.wdata;
         mem2_o.LLbit_we = mem1_i.LLbit_we;
         mem2_o.LLbit_value = mem1_i.LLbit_value;
+        mem2_o.mem_addr = mem1_i.mem_addr;
         mem2_o.aluop = mem1_i.aluop;
         mem2_o.csr_signal = mem1_i.csr_signal;
         mem2_o.inv_i = mem1_i.inv_i;

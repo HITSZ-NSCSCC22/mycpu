@@ -17,27 +17,15 @@ module ctrl
     output logic [COMMIT_WIDTH-1:0] backend_commit_block_o,  // do backend commit a basic block
     output logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_flush_ftq_id_o,
 
-    input wb_ctrl_struct [1:0] wb_i,  //流水线传来的信号
-    input logic [1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] wb_ftq_id_i,
-    input logic [1:0] ex_branch_flag_i,  //执行阶段跳转信号
-    input logic [1:0] ex_stallreq_i,  //执行阶段暂停请求信号
-    input logic [1:0] mem1_stallreq_i,
-    input logic [1:0] mem2_stallreq_i,  //访存阶段暂停请求信号
-    output logic idle_flush,  //idle指令冲刷信号
-    output logic excp_flush,  //异常指令冲刷信号
-    output logic ertn_flush,  //ertn指令冲刷信号
-    output logic fetch_flush,  // TLB related instr require instr to be refetch
-    output logic icache_flush,  // ICache cacop 指令冲刷流水线
-    output logic [`InstAddrBus] idle_pc,  //idle指令pc
+    input wb_ctrl_struct [COMMIT_WIDTH-1:0] wb_i,  //流水线传来的信号
 
-    // Stall request to each stage
-    output logic [5:0] stall,  // from 4->0 {mem_wb, ex_mem, dispatch_ex, id_dispatch, _}
-
-    input logic is_pri_instr,  //是否为特权指令
-    output logic pri_stall,   //当特权指令发射时把此信号拉高,提交后拉低,确保特权指令后没有其它指令
-
-    output logic [1:0] ex_mem_flush_o,
-    output logic flush,
+    // Pipeline control signals
+    input logic [ISSUE_WIDTH-1:0] ex_redirect_i,  //执行阶段重定向信号
+    input logic [ISSUE_WIDTH-1:0] ex_advance_ready_i,  //执行阶段完成信号
+    input logic [ISSUE_WIDTH-1:0] mem1_advance_ready_i,
+    input logic [ISSUE_WIDTH-1:0] mem2_advance_ready_i,  //访存阶段暂停请求信号
+    output logic [6:0] flush_o,  // flush signal {frontend, id_dispatch, dispatch, ex, mem1, mem2, wb}
+    output logic [6:0] advance_o,  // {frontend, id_dispatch, dispatch, ex, mem1, mem2, wb}
 
     //to csr
     output logic [31:0] csr_era,
@@ -55,7 +43,7 @@ module ctrl
     output logic tlbwr_en,
     output logic tlbsrch_en,
     output logic tlbfill_en,
-    output wb_llbit llbit_signal,
+    output wb_llbit_t llbit_signal,
 
     input tlb_to_mem_struct tlbsrch_result_i,
 
@@ -64,38 +52,50 @@ module ctrl
     input logic inv_stallreq,
 
     //regfile-write
-    output wb_reg reg_o_0,
-    output wb_reg reg_o_1,
+    output wb_reg_t [COMMIT_WIDTH-1:0] regfile_o,
 
     //csr-write
-    output csr_write_signal csr_w_o_0,
-    output csr_write_signal csr_w_o_1,
+    output csr_write_signal [COMMIT_WIDTH-1:0] csr_write_o,
 
     //difftest-commit
     output [`InstBus] excp_instr,
-    output diff_commit commit_0,
-    output diff_commit commit_1
+    output diff_commit [COMMIT_WIDTH-1:0] difftest_commit_o
 );
 
-    logic valid, pri_commit, excp;
+    instr_info_t [COMMIT_WIDTH-1:0] instr_info;
+    special_info_t [COMMIT_WIDTH-1:0] special_info;
+
+    logic valid;
     logic [`AluOpBus] aluop, aluop_1;
     logic [COMMIT_WIDTH-1:0] backend_commit_valid;
-    logic [15:0] excp_num;
     logic [`RegBus] pc, error_va;
+    // Exception
+    logic excp;
+    logic [15:0] excp_num;
+    logic excp_flush, ertn_flush, refetch_flush, idle_flush;
+    logic [ADDR_WIDTH-1:0] idle_pc;
+
 
     assign valid = wb_i[0].valid | wb_i[1].valid;
 
+    always_comb begin
+        for (integer i = 0; i < COMMIT_WIDTH; i++) begin
+            instr_info[i]   = wb_i[i].instr_info;
+            special_info[i] = wb_i[i].instr_info.special_info;
+        end
+    end
+
 
     assign backend_commit_valid[0] = wb_i[0].valid;
-    assign backend_commit_valid[1] = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | wb_i[0].excp)? 0 : wb_i[1].valid;
+    assign backend_commit_valid[1] = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | instr_info[0].excp)? 0 : wb_i[1].valid;
 
     // Backend commit basic block
-    assign backend_commit_block_o = backend_commit_valid & (wb_i[0].excp ? 2'b01:
-                                    wb_i[1].excp ? {1'b1 , wb_i[0].is_last_in_block | ertn_flush | idle_flush | fetch_flush} : 
-                                    {wb_i[1].is_last_in_block, wb_i[0].is_last_in_block | ertn_flush | idle_flush | fetch_flush});
+    assign backend_commit_block_o = backend_commit_valid & (instr_info[0].excp ? 2'b01:
+                                    instr_info[1].excp ? {1'b1 , wb_i[0].is_last_in_block | ertn_flush | idle_flush | refetch_flush} : 
+                                    {wb_i[1].is_last_in_block, wb_i[0].is_last_in_block | ertn_flush | idle_flush | refetch_flush});
     // Backend flush FTQ ID
-    assign backend_flush_ftq_id_o = (wb_i[0].excp | ertn_flush | idle_flush |fetch_flush) ? wb_ftq_id_i[0] :
-                                    (wb_i[1].excp) ? wb_ftq_id_i[1] : 0;
+    assign backend_flush_ftq_id_o = (instr_info[0].excp | ertn_flush | idle_flush | refetch_flush) ? instr_info[0].ftq_id :
+                                    (instr_info[1].excp) ? instr_info[1].ftq_id : 0;
 
 
     assign aluop = wb_i[0].aluop;
@@ -122,74 +122,60 @@ module ctrl
         end
     end
 
-    //flush sign 
+    // Pipeline control signals
+    logic advance;  // Advance when all stages are ready
+    logic advance_delay;
+    always_comb begin
+        advance = 1;
+        for (integer i = 0; i < COMMIT_WIDTH; i++) begin
+            advance = advance & ex_advance_ready_i[i] & mem1_advance_ready_i[i] & mem2_advance_ready_i[i];
+        end
+    end
+    assign advance_o = {7{advance}};
+    // Frontend
+    assign flush_o[6] = excp_flush | ertn_flush | refetch_flush | idle_flush;
+    // ID -> Dispatch
+    assign flush_o[5] = excp_flush | ertn_flush | refetch_flush | idle_flush;
+    // Dispatch
+    assign flush_o[4] = excp_flush | ertn_flush | refetch_flush | idle_flush;
+    // Ex
+    assign flush_o[3] = excp_flush | ertn_flush | refetch_flush | idle_flush;
+    // MEM1
+    assign flush_o[2] = excp_flush | ertn_flush | refetch_flush | idle_flush;
+    // MEM2
+    assign flush_o[1] = excp_flush | ertn_flush | refetch_flush | idle_flush;
+    // WB
+    assign flush_o[0] = (advance_delay & ~advance) | excp_flush | ertn_flush | refetch_flush | idle_flush;
 
-    //第二条流水线冲刷:当第一条流水线的指令发生跳转时,或是发生异常和ertn指令时进行冲刷
-    assign ex_mem_flush_o[1] = ex_branch_flag_i[0] | ertn_flush | excp_flush;
-    //第一条流水线冲刷:发生异常和ertn指令时进行冲刷
-    assign ex_mem_flush_o[0] = ertn_flush | excp_flush;
     assign excp_flush = excp;
     assign idle_flush = aluop == `EXE_IDLE_OP;
     assign ertn_flush = aluop == `EXE_ERTN_OP | wb_i[1].aluop == `EXE_ERTN_OP;
-    assign fetch_flush = wb_i[0].fetch_flush | wb_i[1].fetch_flush;
-    assign icache_flush = wb_i[0].icache_op_en && wb_i[0].valid;
-    assign idle_pc = wb_i[0].wb_reg_o.pc;
-    assign flush = fetch_flush | excp_flush | ertn_flush | idle_flush | icache_flush;
-
-    //暂停处理
-    always_comb begin
-        if (rst) stall = 6'b000000;
-        else if (inv_stallreq) stall = 6'b111111;
-        //访存阶段的暂停请求:进行访存操作时请求暂停,此时将译码和发射阶段阻塞
-        else if (mem2_stallreq_i[0] | mem2_stallreq_i[1]) stall = 6'b111111;
-        //执行阶段的暂停请求:进行乘除法时请求暂停,此时将译码和发射阶段阻塞
-        else if (mem1_stallreq_i[0] | mem1_stallreq_i[1]) stall = 6'b111111;
-        else if (ex_stallreq_i[0] | ex_stallreq_i[1]) stall = 6'b111111;
-        else stall = 6'b000000;
-    end
-
-    //判断提交的是否为特权指令,因为特权后不发射其它指令,故必然出现在第一条流水线
-    assign pri_commit = wb_i[0].special_instr.is_pri;
-    // assign pri_commit = aluop == `EXE_CSRWR_OP | aluop == `EXE_CSRRD_OP | aluop == `EXE_CSRXCHG_OP |
-    //                    aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_ERTN_OP |
-    //                    aluop == `EXE_TLBRD_OP | aluop == `EXE_TLBWR_OP | aluop == `EXE_TLBSRCH_OP |
-    //                    aluop == `EXE_TLBFILL_OP | aluop == `EXE_IDLE_OP | aluop == `EXE_INVTLB_OP |
-    //                    aluop == `EXE_RDCNTID_OP | aluop == `EXE_RDCNTVL_OP | aluop == `EXE_RDCNTVH_OP |
-    //                    aluop == `EXE_CACOP_OP ;
-
-    //特权阻塞信号
-    always_ff @(posedge clk) begin
-        if (rst) pri_stall <= 0;
-        //发射阶段发射特权信号,拉高阻塞信号,阻塞前端,不再传指令
-        else if (is_pri_instr) pri_stall <= 1;
-        //提交阶段,若提交的是特权指令,把阻塞信号拉低,开始发射
-        else if (pri_commit | excp_flush) pri_stall <= 0;
-        //其余时刻保持当前状态
-    end
+    assign refetch_flush = special_info[0].need_refetch | special_info[0].need_refetch;
+    assign idle_pc = instr_info[0].pc;
 
     //提交difftest
     always_comb begin
-        commit_0 = wb_i[0].valid ? wb_i[0].diff_commit_o : 0;
+        difftest_commit_o[0] = wb_i[0].valid ? wb_i[0].diff_commit_o : 0;
         //if the excp is syscall,break or int,the commit this instr
-        if (wb_i[0].excp) commit_0.valid = 0;
-        commit_1 = (!wb_i[1].valid |aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP) ? 0 : wb_i[1].diff_commit_o;
-        if (wb_i[1].excp) commit_1.valid = 0;
+        if (instr_info[0].excp) difftest_commit_o[0].valid = 0;
+        difftest_commit_o[1] = (!wb_i[1].valid |aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP) ? 0 : wb_i[1].diff_commit_o;
+        if (instr_info[1].excp) difftest_commit_o[1].valid = 0;
     end
 
     //写入寄存器堆
-    assign reg_o_0 = wb_i[0].excp ? 0 : wb_i[0].wb_reg_o;
-    assign reg_o_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | excp) ? 0 : wb_i[1].wb_reg_o;
+    assign regfile_o[0] = instr_info[0].excp ? 0 : wb_i[0].wb_reg;
+    assign regfile_o[1] = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | excp) ? 0 : wb_i[1].wb_reg;
 
-    assign csr_w_o_0 = wb_i[0].excp ? 0 : wb_i[0].csr_signal_o;
-    assign csr_w_o_1 = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | excp) ? 0 : wb_i[1].csr_signal_o;
+    assign csr_write_o[0] = instr_info[0].excp ? 0 : wb_i[0].csr_signal_o;
+    assign csr_write_o[1] = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | excp) ? 0 : wb_i[1].csr_signal_o;
 
 
-    assign excp = wb_i[0].excp | wb_i[1].excp;
+    assign excp = instr_info[0].excp | instr_info[1].excp;
     assign csr_era = aluop == `EXE_IDLE_OP ? pc + 32'h4 : pc;
     //异常处理，优先处理第一条流水线的异常
     assign {excp_num, pc, excp_instr, error_va} = 
-            wb_i[0].excp ? {wb_i[0].excp_num, wb_i[0].wb_reg_o.pc,wb_i[0].diff_commit_o.instr, wb_i[0].mem_addr} :
-            wb_i[1].excp ? {wb_i[1].excp_num, wb_i[1].wb_reg_o.pc,wb_i[1].diff_commit_o.instr, wb_i[1].mem_addr} : 0;
+            instr_info[0].excp ? {instr_info[0].excp_num, instr_info[0].pc,wb_i[0].diff_commit_o.instr, wb_i[0].mem_addr} :
+            instr_info[1].excp ? {instr_info[1].excp_num, instr_info[1].pc ,wb_i[1].diff_commit_o.instr, wb_i[1].mem_addr} : 0;
 
     assign {csr_ecode,va_error, bad_va, csr_esubcode, excp_tlbrefill,excp_tlb, excp_tlb_vppn} = 
     excp_num[0] ? {`ECODE_INT ,1'b0, 32'b0 , 9'b0 , 1'b0, 1'b0, 19'b0} :

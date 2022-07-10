@@ -184,6 +184,7 @@ package core_types;
         logic [`RegBus] wdata;
         logic LLbit_we;
         logic LLbit_value;
+        logic [ADDR_WIDTH-1:0] mem_addr;
 
         logic [`AluOpBus] aluop;
         csr_write_signal  csr_signal;
@@ -237,6 +238,7 @@ package core_types;
         logic valid;
         logic is_last_in_block;
         logic [`AluOpBus] aluop;
+        logic [ADDR_WIDTH-1:0] mem_addr;
         instr_info_t instr_info;
         wb_reg_t wb_reg;
         wb_llbit_t llbit;
