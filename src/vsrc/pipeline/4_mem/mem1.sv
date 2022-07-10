@@ -28,7 +28,7 @@ module mem1
     // Data forward
     // -> Dispatch
     // -> EX
-    output mem1_data_forward_t mem_data_forward_o,
+    output data_forward_t data_forward_o,
 
     //if cache is working
     input cache_ack,
@@ -117,7 +117,7 @@ module mem1
     assign signal_o.store_addr = mem_store_op ? mem_addr : 0;
 
     // Data forward
-    assign mem_data_forward_o = {mem_load_op, signal_o.wreg, signal_o.waddr, signal_o.wdata};
+    assign data_forward_o = {signal_o.wreg, !mem_load_op, signal_o.waddr, signal_o.wdata};
 
     assign signal_o.excp = excp;
     assign signal_o.excp_num = excp_num;

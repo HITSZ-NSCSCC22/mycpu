@@ -16,12 +16,6 @@ module ex
     // Information from dispatch
     input dispatch_ex_struct dispatch_i,
 
-    // <- MEM 
-
-
-    input logic [18:0] csr_vppn,
-    input logic llbit,
-
     // -> MEM
     output ex_mem_struct ex_o_buffer,
 
@@ -39,7 +33,7 @@ module ex
     output logic [ADDR_WIDTH-1:0] ex_redirect_target_o,
     output logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ex_redirect_ftq_id_o,
 
-    output ex_dispatch_struct ex_data_forward,
+    output data_forward_t data_forward_o,
 
     // ->TLB
     output ex_to_tlb_struct ex_tlb_signal,
@@ -49,9 +43,6 @@ module ex
     input logic icacop_op_ack_i,
     output logic dcacop_op_en,
     output logic [1:0] cacop_op_mode,
-
-    input logic excp_flush,
-    input logic ertn_flush,
 
     // Stall & flush
     input logic [1:0] stall,  // {mem_wb, ex}
@@ -103,7 +94,8 @@ module ex
     assign ex_o.mem_addr = oprand1 + imm;
     assign ex_o.reg2 = oprand2;
 
-    assign ex_data_forward = {ex_o.wreg & !mem_load_op, ex_o.waddr, ex_o.wdata, ex_o.aluop};
+    // if is mem_load_op, then data is no valid, else data is valid
+    assign data_forward_o = {ex_o.wreg, ~mem_load_op, ex_o.waddr, ex_o.wdata};
 
     csr_write_signal csr_signal_i, csr_test;
     assign csr_signal_i = dispatch_i.csr_signal;
@@ -127,9 +119,9 @@ module ex
     assign cacop_op = inst_i[4:0];
     assign cacop_instr = aluop_i == `EXE_CACOP_OP;
     assign icacop_inst = cacop_instr && (cacop_op[2:0] == 3'b0);
-    assign icacop_op_en = icacop_inst && !excp && !(flush | excp_flush | ertn_flush);
+    assign icacop_op_en = icacop_inst && !excp && !(flush);
     assign dcacop_inst = cacop_instr && (cacop_op[2:0] == 3'b1);
-    assign dcacop_op_en = dcacop_inst && !excp && !(flush | excp_flush | ertn_flush);
+    assign dcacop_op_en = dcacop_inst && !excp && !(flush);
     assign cacop_op_mode = cacop_op[4:3];
 
     logic excp_ale, excp_ine, excp;

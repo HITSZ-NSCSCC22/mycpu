@@ -470,13 +470,7 @@ module cpu_top
     dispatch_ex_struct [1:0] dispatch_exe;
 
     // Data forwarding
-    ex_dispatch_struct [1:0] ex_data_forward;
-    mem1_data_forward_t [1:0] mem1_data_forward;
-    mem2_data_forward_t [1:0] mem2_data_forward;
-    wb_data_forward_t [1:0] wb_data_forward;
-
-    logic is_pri_instr,pri_stall;
-
+    data_forward_t [ISSUE_WIDTH-1:0] ex_data_forward, mem1_data_forward, mem2_data_forward, wb_data_forward;
 
     // Dispatch Stage, Sequential logic
     dispatch u_dispatch (
@@ -487,13 +481,11 @@ module cpu_top
         .id_i(id_dispatch_dispatch),
 
         // <-> Ctrl
-        .is_pri_instr(is_pri_instr),
-        .block(pri_stall),
         .stall(stall[1]),
         .flush(backend_redirect),
 
         // Data forwarding    
-        .ex_data_forward(ex_data_forward),
+        .ex_data_forward_i(ex_data_forward),
         .mem1_data_forward_i(mem1_data_forward),
         .mem2_data_forward_i(mem2_data_forward),
         .wb_data_forward_i(wb_data_forward),
@@ -504,7 +496,6 @@ module cpu_top
         .regfile_reg_read_data_i (regfile_dispatch_reg_read_data),
 
         // <-> CSR
-        .llbit(LLbit_o),
         .csr_read_addr(dispatch_csr_read_addr),
         .csr_data(dispatch_csr_data),
 
@@ -562,7 +553,6 @@ module cpu_top
                 .rst(rst),
 
                 .dispatch_i(dispatch_exe[i]),
-                .csr_vppn  (csr_vppn_o),
 
                 .ex_o_buffer(ex_mem_signal[i]),
 
@@ -572,7 +562,6 @@ module cpu_top
                 .tid(csr_tid),
 
                 .csr_ex_signal(csr_mem_signal),
-                .llbit(LLbit_o),
 
                 .ex_tlb_signal(ex_tlb_signal[i]),
 
@@ -581,10 +570,8 @@ module cpu_top
                 .ex_redirect_target_o(ex_redirect_target[i]),
                 .ex_redirect_ftq_id_o(ex_redirect_ftq_id[i]),
 
-                .ex_data_forward(ex_data_forward[i]),
+                .data_forward_o(ex_data_forward[i]),
 
-                .excp_flush(excp_flush),
-                .ertn_flush(ertn_flush),
 
                 // <-> Cache
                 .icacop_op_en(icacop_op_en[i]),
@@ -594,7 +581,7 @@ module cpu_top
 
                 // <-> Ctrl
                 .stall({mem2_stallreq[0] | mem2_stallreq[1] ,stall[3]}),
-                .flush(ex_mem_flush[i])
+                .flush(ex_mem_flush[i] | excp_flush | ertn_flush)
 
             );
         end
@@ -655,8 +642,7 @@ module cpu_top
 
                 // Data forward
                 // -> Dispatch
-                // -> EX
-                .mem_data_forward_o(mem1_data_forward[i])
+                .data_forward_o(mem1_data_forward[i])
 
             );
         end
@@ -674,7 +660,7 @@ module cpu_top
 
                 .mem1_i(mem1_mem2_signal[i]),
 
-                .mem2_data_forward(mem2_data_forward[i]),
+                .data_forward_o(mem2_data_forward[i]),
 
                 .mem2_o_buffer(mem2_wb_signal[i]),
 
@@ -711,7 +697,8 @@ module cpu_top
                 .dcache_flush_o(wb_dcache_flush[i]),
                 .dcache_flush_pc(wb_dcache_flush_pc[i]),
 
-                .wb_forward(wb_data_forward[i]),
+                // Dispatch
+                .data_forward_o(wb_data_forward[i]),
 
                 //to ctrl
                 .wb_ctrl_signal(wb_ctrl_signal[i]),

@@ -116,11 +116,11 @@ package core_types;
     } dispatch_ex_struct;
 
     typedef struct packed {
-        logic reg_valid;
-        logic [`RegAddrBus] reg_addr;
-        logic [`RegBus] reg_data;
-        logic [`AluOpBus] aluop_i;
-    } ex_dispatch_struct;
+        logic wreg;
+        logic data_valid;
+        logic [`RegAddrBus] wreg_addr;
+        logic [`RegBus] wreg_data;
+    } data_forward_t;
 
     typedef struct packed {
         instr_info_t instr_info;
@@ -144,28 +144,6 @@ package core_types;
         logic dmw1_en;
         logic cacop_op_mode_di;
     } ex_mem_struct;
-
-    // MEM stage data forwarding
-    typedef struct packed {
-        logic is_load_data;
-        logic write_reg;
-        logic [`RegAddrBus] write_reg_addr;
-        logic [`RegBus] write_reg_data;
-    } mem1_data_forward_t;
-
-    typedef struct packed {
-        logic mem_load_op;
-        logic load_valid;
-        logic write_reg;
-        logic [`RegAddrBus] write_reg_addr;
-        logic [`RegBus] write_reg_data;
-    } mem2_data_forward_t;
-
-    typedef struct packed {
-        logic write_reg;
-        logic [`RegAddrBus] write_reg_addr;
-        logic [`RegBus] write_reg_data;
-    } wb_data_forward_t;
 
     typedef struct packed {
         instr_info_t instr_info;

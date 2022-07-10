@@ -28,7 +28,7 @@ module wb
     output wb_ctrl_struct wb_ctrl_signal,
 
     //<- dispatch
-    output wb_data_forward_t wb_forward,
+    output data_forward_t data_forward_o,
 
     output logic dcache_flush_o,
     output logic [`RegBus] dcache_flush_pc,
@@ -97,7 +97,7 @@ module wb
     assign dcache_flush_o = excp;
     assign dcache_flush_pc = mem_i.instr_info.pc;
 
-    assign wb_forward = {mem_i.wreg, mem_i.waddr, mem_i.wdata};
+    assign data_forward_o = {mem_i.wreg, 1'b1, mem_i.waddr, mem_i.wdata};
 
 
     always @(posedge clk) begin
