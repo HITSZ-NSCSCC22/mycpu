@@ -1,7 +1,11 @@
 `ifndef TLB_TYPES_SV
 `define TLB_TYPES_SV
 
+`include "core_config.sv"
+
 package tlb_types;
+
+    import core_config::*;
 
     //TLB-ENTRY parameter
     `define ENTRY_LEN 89 
@@ -46,6 +50,15 @@ package tlb_types;
         logic [1:0] tlb_plv;
     } tlb_inst_t;
 
+
+    typedef struct packed {
+        logic fetch;
+        logic trans_en;
+        logic dmw0_en;
+        logic dmw1_en;
+        logic tlbsrch_en;
+        logic [ADDR_WIDTH-1:0] vaddr;
+    } ex_tlb_rreq_t;
 
     typedef struct packed {
         logic fetch;

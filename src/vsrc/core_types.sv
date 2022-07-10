@@ -124,14 +124,16 @@ package core_types;
 
     typedef struct packed {
         instr_info_t instr_info;
-
-        logic wreg;
-        logic [`RegAddrBus] waddr;
+        // Info added from EX
         logic [`AluOpBus] aluop;
         logic [`RegBus] mem_addr;
         logic [`RegBus] reg2;
-        csr_write_signal csr_signal;
+        // EX result
+        logic wreg;
+        logic [`RegAddrBus] waddr;
         logic [`RegBus] wdata;
+        // CSR write
+        csr_write_signal csr_signal;
 
         tlb_inv_t inv_i;
         logic [63:0] timer_64;
@@ -214,14 +216,12 @@ package core_types;
         logic we;
         logic ce;
         logic [3:0] sel;
-        logic [`DataAddrBus] addr;
-        logic [`RegBus] data;
-        logic uncache_en;
+        logic [ADDR_WIDTH-1:0] addr;
+        logic [DATA_WIDTH-1:0] data;
+        logic uncache;
         logic [2:0] rd_type;
         logic [2:0] wr_type;
-
-        logic [`RegBus] pc;  //For flush arbitrate
-    } mem_cache_struct;
+    } mem_dcache_rreq_t;
 
     typedef struct packed {
         logic we;
@@ -292,15 +292,6 @@ package core_types;
         logic [1:0] data_tlb_mat;
         logic [1:0] data_tlb_plv;
     } tlb_to_mem_struct;
-
-    typedef struct packed {
-        logic data_addr_trans_en;
-        logic dmw0_en;
-        logic dmw1_en;
-        logic data_fetch;
-        logic tlbsrch_en_o;
-        logic [`RegBus] tlb_vaddr;
-    } ex_to_tlb_struct;
 
 endpackage
 `endif

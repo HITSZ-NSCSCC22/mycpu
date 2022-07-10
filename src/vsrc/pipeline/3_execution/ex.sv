@@ -3,11 +3,13 @@
 `include "csr_defines.sv"
 `include "muldiv/mul.sv"
 `include "pipeline/3_execution/alu.sv"
+`include "TLB/tlb_types.sv"
 
 module ex
     import core_types::*;
     import core_config::*;
     import csr_defines::*;
+    import tlb_types::*;
 (
     input logic clk,
     input logic rst,
@@ -33,10 +35,11 @@ module ex
     output logic [ADDR_WIDTH-1:0] ex_redirect_target_o,
     output logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ex_redirect_ftq_id_o,
 
+    // -> Dispatch
     output data_forward_t data_forward_o,
 
-    // ->TLB
-    output ex_to_tlb_struct ex_tlb_signal,
+    // -> TLB
+    output ex_tlb_rreq_t tlb_rreq_o,
 
     // <-> Cache
     output logic icacop_op_en,
@@ -74,12 +77,14 @@ module ex
     // Determine oprands
     logic [`RegBus] oprand1, oprand2, imm;
     assign oprand1 = dispatch_i.oprand1;
-    assign oprand2 = dispatch_i.use_imm ? dispatch_i.imm : dispatch_i.oprand2;
+    assign oprand2 = dispatch_i.oprand2;
     assign imm = dispatch_i.imm;
 
     logic [`RegBus] inst_i, inst_pc_i;
     assign inst_i = dispatch_i.instr_info.instr;
     assign inst_pc_i = dispatch_i.instr_info.pc;
+
+    logic branch_flag;
 
     logic wreg_i;
     logic [`RegAddrBus] wd_i;
@@ -150,7 +155,10 @@ module ex
     assign mem_b_op = special_info.mem_b_op;
     assign mem_h_op = special_info.mem_h_op;
 
-    logic dmw0_en, dmw1_en, tlbsrch_en_o, data_fetch, data_addr_trans_en;
+    //////////////////////////////////////////////////////////////////////////////////////
+    // TLB request
+    //////////////////////////////////////////////////////////////////////////////////////
+    logic dmw0_en, dmw1_en, tlbsrch_en, data_fetch, trans_en;
     logic [`RegBus] tlb_vaddr;
     assign dmw0_en = ((csr_ex_signal.csr_dmw0[`PLV0] && csr_ex_signal.csr_plv == 2'd0) || (csr_ex_signal.csr_dmw0[`PLV3] && csr_ex_signal.csr_plv == 2'd3)) && (tlb_vaddr[31:29] == csr_ex_signal.csr_dmw0[`VSEG]);
     assign dmw1_en = ((csr_ex_signal.csr_dmw1[`PLV0] && csr_ex_signal.csr_plv == 2'd0) || (csr_ex_signal.csr_dmw1[`PLV3] && csr_ex_signal.csr_plv == 2'd3)) && (tlb_vaddr[31:29] == csr_ex_signal.csr_dmw1[`VSEG]);
@@ -158,23 +166,26 @@ module ex
     assign pg_mode = !csr_ex_signal.csr_da && csr_ex_signal.csr_pg;
     assign da_mode = csr_ex_signal.csr_da && !csr_ex_signal.csr_pg;
 
-    assign tlbsrch_en_o = aluop_i == `EXE_TLBSRCH_OP;
-    assign data_fetch = access_mem | tlbsrch_en_o;
+    assign tlbsrch_en = aluop_i == `EXE_TLBSRCH_OP;
+    assign data_fetch = access_mem | tlbsrch_en | instr_info.valid;
 
     assign tlb_vaddr = ex_o.mem_addr;
 
     // Addr translate mode for DCache, pull down if instr is invalid
     assign cacop_op_mode_di = dcacop_op_en && ((cacop_op_mode == 2'b0) || (cacop_op_mode == 2'b1));
-    assign data_addr_trans_en = access_mem && pg_mode && !dmw0_en && !dmw1_en && !cacop_op_mode_di && dispatch_i.instr_info.valid;
+    assign trans_en = access_mem && pg_mode && !dmw0_en && !dmw1_en && !cacop_op_mode_di;
 
     always_comb begin
-        if (rst) ex_tlb_signal = 0;
-        else if (flush) ex_tlb_signal = 0;
-        else if (stall[0] | stall[1]) ex_tlb_signal = 0;
-        else
-            ex_tlb_signal = {
-                data_addr_trans_en, dmw0_en, dmw1_en, data_fetch, tlbsrch_en_o, tlb_vaddr
-            };
+        if (flush) tlb_rreq_o = 0;
+        else if (stall[0] | stall[1]) tlb_rreq_o = 0;
+        else begin
+            tlb_rreq_o.fetch = data_fetch;
+            tlb_rreq_o.trans_en = trans_en;
+            tlb_rreq_o.dmw0_en = dmw0_en;
+            tlb_rreq_o.dmw1_en = dmw1_en;
+            tlb_rreq_o.tlbsrch_en = tlbsrch_en;
+            tlb_rreq_o.vaddr = tlb_vaddr;
+        end
     end
 
 
@@ -342,7 +353,7 @@ module ex
         ex_o.cacop_en = cacop_instr;
         ex_o.icache_op_en = icacop_op_en;
         ex_o.cacop_op = cacop_op;
-        ex_o.data_addr_trans_en = data_addr_trans_en;
+        ex_o.data_addr_trans_en = trans_en;
         ex_o.dmw0_en = dmw0_en;
         ex_o.dmw1_en = dmw1_en;
         ex_o.cacop_op_mode_di = cacop_op_mode_di;

@@ -74,6 +74,7 @@ module decoder_2RI14
                 imm_o = {{18{imm_14[13]}}, imm_14} << 2;  // Signed Extension and << 2
                 special_info_o.mem_load = 1;
                 special_info_o.is_pri = 1;
+                special_info_o.need_refetch = 1;
             end
             `EXE_SC_W: begin
                 aluop_o = `EXE_SC_OP;
@@ -87,6 +88,7 @@ module decoder_2RI14
                 special_info_o.mem_load = 1;
                 special_info_o.mem_store = 1;
                 special_info_o.is_pri = 1;
+                special_info_o.need_refetch = 1;
             end
             default: begin
                 use_imm = 1'b0;
