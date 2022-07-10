@@ -10,32 +10,23 @@ module wb
 (
     input logic clk,
     input logic rst,
-    input logic stall,
+
+    // Pipeline control signals
     input logic flush,
+    input logic advance,
+    input logic advance_ready,
 
     input mem2_wb_struct mem_i,
-
-    input logic mem_LLbit_we,
-    input logic mem_LLbit_value,
-
-    //<-> csr 
-    input logic disable_cache,
-    input logic LLbit_i,
-    input logic LLbit_we_i,
-    input logic LLbit_value_i,
 
     // load store relate difftest
     output wb_ctrl_struct wb_ctrl_signal,
 
-    //<- dispatch
+    // <- Dispatch
     output data_forward_t data_forward_o,
 
+    // DCache
     output logic dcache_flush_o,
-    output logic [`RegBus] dcache_flush_pc,
-
-
-    // <-> Frontend
-    output logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_id_o
+    output logic dcache_store_commit_o
 );
 
     // Assign input ///////////////////////////////////////////
@@ -48,33 +39,9 @@ module wb
     csr_write_signal csr_test;
     assign csr_test = mem_i.csr_signal;
 
-    tlb_data_t tlb_signal;
-    assign tlb_signal = mem_i.tlb_signal;
-
-    logic [`RegBus] debug_pc;
-    assign debug_pc = mem_i.instr_info.pc;
-
-    wb_reg debug_reg_write;
-    assign debug_reg_write = wb_ctrl_signal.wb_reg_o;
-
-    //sc只有llbit为1才执行，如果llbit为0，sc就不算访存指令
-    logic LLbit;
-    always @(*) begin
-        if (rst == `RstEnable) LLbit = 1'b0;
-        else begin
-            if (LLbit_we_i == 1'b1) LLbit = LLbit_value_i;
-            else LLbit = LLbit_i;
-        end
-    end
-
     logic excp;
     logic [15:0] excp_num;
     logic access_mem, mem_store_op, mem_load_op;
-    logic cacop_en, icache_op_en;
-    logic [4:0] cacop_op;
-    assign cacop_en = mem_i.cacop_en;
-    assign icache_op_en = mem_i.icache_op_en;
-    assign cacop_op = mem_i.cacop_op;
 
     logic [7:0] aluop;
     assign aluop = mem_i.aluop;
@@ -82,70 +49,51 @@ module wb
     assign is_CNTinst = aluop == `EXE_RDCNTVL_OP | aluop == `EXE_RDCNTID_OP | aluop == `EXE_RDCNTVH_OP;
 
 
-    assign access_mem = mem_load_op || mem_store_op;
-
-    assign mem_load_op = mem_i.aluop == `EXE_LD_B_OP ||  mem_i.aluop == `EXE_LD_BU_OP ||  mem_i.aluop == `EXE_LD_H_OP ||  mem_i.aluop == `EXE_LD_HU_OP ||
-                        mem_i.aluop == `EXE_LD_W_OP ||  mem_i.aluop == `EXE_LL_OP;
-
-    assign mem_store_op =  mem_i.aluop == `EXE_ST_B_OP ||  mem_i.aluop == `EXE_ST_H_OP ||  mem_i.aluop == `EXE_ST_W_OP ||  (mem_i.aluop == `EXE_SC_OP && LLbit == 1'b1);
-
-    // Addr translate mode for DCache, pull down if instr is invalid
+    assign access_mem = mem_load_op | mem_store_op;
+    assign mem_load_op = special_info.mem_load;
+    assign mem_store_op = special_info.mem_store;
 
     assign excp = instr_info.excp;
     assign excp_num = instr_info.excp_num;
 
     assign dcache_flush_o = excp;
-    assign dcache_flush_pc = mem_i.instr_info.pc;
+    assign dcache_store_commit_o = mem_store_op & ~excp;
 
     assign data_forward_o = {mem_i.wreg, 1'b1, mem_i.waddr, mem_i.wdata};
 
 
     always @(posedge clk) begin
-        if (rst == `RstEnable) begin
+        if (rst) begin
             wb_ctrl_signal <= 0;
         end else if (flush) begin
             wb_ctrl_signal <= 0;
-        end else if (stall) begin
-            wb_ctrl_signal <= 0;
-        end else begin
-            // -> Frontend
-            // If marked as exception, the basic block is ended
-            ftq_id_o <= mem_i.instr_info.ftq_id;
-
+        end else if (advance) begin
             wb_ctrl_signal.valid <= mem_i.instr_info.valid;
             wb_ctrl_signal.is_last_in_block <= mem_i.instr_info.is_last_in_block;
             wb_ctrl_signal.aluop <= mem_i.aluop;
-            wb_ctrl_signal.wb_reg_o.wdata <= mem_i.wdata;
-            wb_ctrl_signal.wb_reg_o.waddr <= mem_i.waddr;
-            wb_ctrl_signal.wb_reg_o.we <= mem_i.wreg;
-            wb_ctrl_signal.wb_reg_o.pc <= mem_i.instr_info.pc;
-            wb_ctrl_signal.llbit_o.we <= mem_LLbit_we;
-            wb_ctrl_signal.llbit_o.value <= mem_LLbit_value;
-            wb_ctrl_signal.excp <= excp;
-            wb_ctrl_signal.excp_num <= excp_num;
-            wb_ctrl_signal.mem_addr <= mem_i.mem_addr;
-            wb_ctrl_signal.fetch_flush <= special_info.need_refetch;
-            wb_ctrl_signal.data_tlb_found <= tlb_signal.found;
-            wb_ctrl_signal.data_tlb_index <= tlb_signal.tlb_index;
+            wb_ctrl_signal.instr_info <= mem_i.instr_info;
+            wb_ctrl_signal.wb_reg.wdata <= mem_i.wdata;
+            wb_ctrl_signal.wb_reg.waddr <= mem_i.waddr;
+            wb_ctrl_signal.wb_reg.we <= mem_i.wreg;
+            wb_ctrl_signal.llbit.we <= mem_i.LLbit_we;
+            wb_ctrl_signal.llbit.value <= mem_i.LLbit_value;
+            // wb_ctrl_signal.data_tlb_index <= tlb_signal.tlb_index;
             wb_ctrl_signal.csr_signal_o <= mem_i.csr_signal;
             wb_ctrl_signal.inv_i <= mem_i.inv_i;
+
             wb_ctrl_signal.diff_commit_o.pc <= mem_i.instr_info.pc;
             wb_ctrl_signal.diff_commit_o.valid <= mem_i.instr_info.valid;
             wb_ctrl_signal.diff_commit_o.instr <= mem_i.instr_info.instr;
-            wb_ctrl_signal.diff_commit_o.inst_ld_en <= mem_i.inst_ld_en;
-            wb_ctrl_signal.diff_commit_o.inst_st_en <= mem_i.inst_st_en;
+            wb_ctrl_signal.diff_commit_o.inst_ld_en <= mem_i.difftest_mem_info.inst_ld_en;
+            wb_ctrl_signal.diff_commit_o.inst_st_en <= mem_i.difftest_mem_info.inst_st_en;
             wb_ctrl_signal.diff_commit_o.is_CNTinst <= is_CNTinst;
-            wb_ctrl_signal.diff_commit_o.timer_64 <= mem_i.timer_64;
-            wb_ctrl_signal.diff_commit_o.ld_paddr <= {tlb_signal.tag, mem_i.load_addr[11:0]};
-            wb_ctrl_signal.diff_commit_o.ld_vaddr <= mem_i.load_addr;
-            wb_ctrl_signal.diff_commit_o.st_paddr <= {tlb_signal.tag, mem_i.store_addr[11:0]};
-            wb_ctrl_signal.diff_commit_o.st_vaddr <= mem_i.store_addr;
-            wb_ctrl_signal.diff_commit_o.st_data <= mem_i.store_data;
+            wb_ctrl_signal.diff_commit_o.timer_64 <= mem_i.difftest_mem_info.timer_64;
+            wb_ctrl_signal.diff_commit_o.ld_paddr <= mem_i.difftest_mem_info.load_addr;
+            wb_ctrl_signal.diff_commit_o.ld_vaddr <= mem_i.difftest_mem_info.load_addr;
+            wb_ctrl_signal.diff_commit_o.st_paddr <= mem_i.difftest_mem_info.store_addr;
+            wb_ctrl_signal.diff_commit_o.st_vaddr <= mem_i.difftest_mem_info.store_addr;
+            wb_ctrl_signal.diff_commit_o.st_data <= mem_i.difftest_mem_info.store_data;
             wb_ctrl_signal.diff_commit_o.csr_rstat <= special_info.csr_rstat;
-            wb_ctrl_signal.cacop_en <= cacop_en;
-            wb_ctrl_signal.icache_op_en <= icache_op_en;
-            wb_ctrl_signal.cacop_op <= cacop_op;
-            wb_ctrl_signal.special_instr <= special_info;
         end
     end
 

@@ -164,6 +164,8 @@ package core_types;
         logic wreg;
         logic [`RegAddrBus] waddr;
         logic [`RegBus] wdata;
+        logic LLbit_we;
+        logic LLbit_value;
 
         logic [`AluOpBus] aluop;
         csr_write_signal csr_signal;
@@ -180,6 +182,8 @@ package core_types;
         logic wreg;
         logic [`RegAddrBus] waddr;
         logic [`RegBus] wdata;
+        logic LLbit_we;
+        logic LLbit_value;
 
         logic [`AluOpBus] aluop;
         csr_write_signal  csr_signal;
@@ -202,10 +206,9 @@ package core_types;
 
     typedef struct packed {
         logic we;
-        logic [`InstAddrBus] pc;
         logic [`RegAddrBus] waddr;
         logic [`RegBus] wdata;
-    } wb_reg;
+    } wb_reg_t;
 
     // Difftest Commit Information
     // Used to submit instr info into difftest framework
@@ -228,27 +231,19 @@ package core_types;
     typedef struct packed {
         logic we;
         logic value;
-    } wb_llbit;
+    } wb_llbit_t;
 
     typedef struct packed {
         logic valid;
         logic is_last_in_block;
         logic [`AluOpBus] aluop;
-        wb_reg wb_reg_o;
-        wb_llbit llbit_o;
-        logic excp;
-        logic [15:0] excp_num;
-        logic fetch_flush;
-        logic data_tlb_found;
-        logic [`DataAddrBus] mem_addr;
+        instr_info_t instr_info;
+        wb_reg_t wb_reg;
+        wb_llbit_t llbit;
         tlb_inv_t inv_i;
         logic [4:0] data_tlb_index;
         csr_write_signal csr_signal_o;
         diff_commit diff_commit_o;
-        logic cacop_en;
-        logic icache_op_en;
-        logic [4:0] cacop_op;
-        special_info_t special_instr;
     } wb_ctrl_struct;
 
     typedef struct packed {

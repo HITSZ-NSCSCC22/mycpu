@@ -38,9 +38,6 @@ module mem1
     input [1:0] csr_plv,
 
 
-    output reg LLbit_we_o,
-    output reg LLbit_value_o,
-
     // Next stage
     output mem1_mem2_struct mem2_o_buffer
 
@@ -195,8 +192,6 @@ module mem1
 
     // Output to nexy stage
     always_comb begin
-        LLbit_we_o = 1'b0;
-        LLbit_value_o = 1'b0;
         // Instr Info
         mem2_o.instr_info = ex_i.instr_info;
         mem2_o.instr_info.excp = excp;
@@ -205,6 +200,8 @@ module mem1
         mem2_o.wreg = ex_i.wreg;
         mem2_o.waddr = ex_i.waddr;
         mem2_o.wdata = ex_i.wdata;
+        mem2_o.LLbit_we = 1'b0;
+        mem2_o.LLbit_value = 1'b0;
 
         mem2_o.aluop = aluop_i;
         mem2_o.csr_signal = ex_i.csr_signal;
@@ -217,13 +214,13 @@ module mem1
         if (mem_access_valid) begin  // if tlb miss,then do nothing
             case (aluop_i)
                 `EXE_LL_OP: begin
-                    LLbit_we_o = 1'b1;
-                    LLbit_value_o = 1'b1;
+                    mem2_o.LLbit_we = 1'b1;
+                    mem2_o.LLbit_value = 1'b1;
                 end
                 `EXE_SC_OP: begin
                     if (LLbit_i == 1'b1) begin
-                        LLbit_we_o = 1'b1;
-                        LLbit_value_o = 1'b0;
+                        mem2_o.LLbit_we = 1'b1;
+                        mem2_o.LLbit_value = 1'b0;
                         mem2_o.wreg = 1;
                         mem2_o.difftest_mem_info.store_data = reg2_i;
                         mem2_o.wdata = 32'b1;
