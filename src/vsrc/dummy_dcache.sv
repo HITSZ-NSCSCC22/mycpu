@@ -171,13 +171,6 @@ module dummy_dcache (
         end
     end
 
-
-    // always_ff @(posedge clk) begin
-    //     if (rst) cache_ack <= 0;
-    //     else if (valid | valid_buffer) cache_ack <= 1;
-    //     else if (state == IDLE) cache_ack <= 0;
-    //     else cache_ack <= cache_ack;
-    // end
     always_comb begin
         if (rst) cache_ack = 0;
         else if (state != IDLE) cache_ack = 1;
