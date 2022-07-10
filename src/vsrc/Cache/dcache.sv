@@ -56,7 +56,7 @@ module dcache
     }
         state, next_state;
 
-
+    // save the input signal
     logic valid_buffer;
     logic op_buffer;
     logic uncache_buffer;
@@ -91,6 +91,7 @@ module dcache
     logic miss_pulse, miss_r, miss;
     logic hit;
     logic [NWAY-1:0] tag_hit;
+
     assign cpu_addr = {tag_buffer, index_buffer, offset_buffer};
 
     logic flush;
@@ -119,7 +120,7 @@ module dcache
             wdata_buffer <= 0;
             rd_type_buffer <= 0;
             wr_type_buffer <= 0;
-        end else if (flush_i) begin
+        end else if (flush) begin
             valid_buffer <= 0;
             op_buffer <= 0;
             uncache_buffer <= 0;
@@ -184,7 +185,9 @@ module dcache
             end
             LOOK_UP: begin
                 if (valid_buffer) begin
+                    // write req,then turn to write
                     if (op_buffer) next_state = WRITE_REQ;
+                    // if hit,then back,if miss then wait for read
                     else if (miss) next_state = READ_REQ;
                 end else next_state = IDLE;
             end
@@ -258,6 +261,7 @@ module dcache
                         tag_bram_addr[i] = 0;
                         data_bram_addr[i] = 0;
                     end else begin
+                        //if hit ,write the data to the line
                         tag_bram_en[i] = 1;
                         data_bram_en[i] = 1;
                         tag_bram_addr[i] = index_buffer;
@@ -279,6 +283,7 @@ module dcache
         case (state)
             READ_WAIT: begin
                 for (integer i = 0; i < NWAY; i++) begin
+                    // select a line to write back 
                     if (i[0] == random_r[0]) begin
                         if (rd_rdy) begin
                             tag_bram_we[i] = 1;
@@ -291,6 +296,7 @@ module dcache
             end
             WRITE_REQ: begin
                 for (integer i = 0; i < NWAY; i++) begin
+                    // if hit ,then write the hit line, if miss then don't write
                     if (tag_hit[i]) begin
                         tag_bram_we[i] = 1;
                         tag_bram_wdata[i] = {1'b1, tag_buffer};
