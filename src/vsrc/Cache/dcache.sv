@@ -1,7 +1,7 @@
 `include "core_config.sv"
 `include "defines.sv"
-`include "utils/dual_port_lutram.sv"
 `include "utils/lfsr.sv"
+`include "utils/dual_port_lutram.sv"
 
 module dcache
     import core_config::*;
@@ -189,6 +189,7 @@ module dcache
                     if (op_buffer) next_state = WRITE_REQ;
                     // if hit,then back,if miss then wait for read
                     else if (miss) next_state = READ_REQ;
+                    else next_state = IDLE;
                 end else next_state = IDLE;
             end
             READ_REQ: begin
@@ -236,7 +237,7 @@ module dcache
             end
             LOOK_UP: begin
                 for (integer i = 0; i < NWAY; i++) begin
-                    if (valid) begin
+                    if (valid_buffer) begin
                         tag_bram_en[i] = 1;
                         data_bram_en[i] = 1;
                         tag_bram_addr[i] = index_buffer;
@@ -272,7 +273,6 @@ module dcache
         endcase
     end
 
-
     always_comb begin : bram_data_gen
         for (integer i = 0; i < NWAY; i++) begin
             tag_bram_we[i] = 0;
@@ -285,7 +285,7 @@ module dcache
                 for (integer i = 0; i < NWAY; i++) begin
                     // select a line to write back 
                     if (i[0] == random_r[0]) begin
-                        if (rd_rdy) begin
+                        if (ret_valid) begin
                             tag_bram_we[i] = 1;
                             tag_bram_wdata[i] = {1'b1, tag_buffer};
                             data_bram_we[i] = 1;
@@ -302,13 +302,15 @@ module dcache
                         tag_bram_wdata[i] = {1'b1, tag_buffer};
                         data_bram_we[i] = 1;
                         //select the write bit
-                        case (offset[3:2])
+                        case (offset_buffer[3:2])
                             2'b00: begin
                                 data_bram_wdata[i] = {data_bram_rdata[i][127:32], wdata_buffer};
                             end
                             2'b01: begin
                                 data_bram_wdata[i] = {
-                                    data_bram_rdata[i][127:64], wdata_buffer, {32{1'b0}}
+                                    data_bram_rdata[i][127:64],
+                                    wdata_buffer,
+                                    data_bram_rdata[i][31:0]
                                 };
                             end
                             2'b10: begin
@@ -330,13 +332,14 @@ module dcache
         endcase
     end
 
+
     logic rd_req_r;
     logic [31:0] rd_addr_r;
 
     // Handshake with AXI
     always_ff @(posedge clk) begin
         case (state)
-            READ_REQ: begin
+            LOOK_UP, READ_REQ: begin
                 if (rd_rdy) begin
                     rd_req_r  <= 1;
                     rd_addr_r <= cpu_addr;
@@ -404,8 +407,18 @@ module dcache
         data_ok = 0;
         rdata   = 0;
         case (state)
-
-            READ_WAIT: begin
+            LOOK_UP: begin
+                if (!miss) begin
+                    addr_ok = 1;
+                    data_ok = 1;
+                    rdata   = hit_data[cpu_addr[3:2]*32+:32];
+                end else if (ret_valid) begin
+                    addr_ok = 1;
+                    data_ok = 1;
+                    rdata   = ret_data[cpu_addr[3:2]*32+:32];
+                end
+            end
+            READ_REQ, READ_WAIT: begin
                 if (!miss) begin
                     addr_ok = 1;
                     data_ok = 1;
@@ -427,14 +440,15 @@ module dcache
 
 
     // Miss signal
-    assign miss_pulse = valid_buffer & ~hit & (state == IDLE);
+    assign miss_pulse = valid_buffer & ~hit & (state == LOOK_UP);
     assign miss = miss_pulse | miss_r;
     always_ff @(posedge clk) begin
         if (rst) begin
             miss_r <= 0;
-        end else begin
+        end else if (next_state == IDLE) miss_r <= 0;
+        else begin
             case (state)
-                IDLE: begin
+                LOOK_UP: begin
                     miss_r <= miss_pulse;
                 end
                 READ_WAIT: begin
@@ -446,12 +460,14 @@ module dcache
         end
     end
 
+    logic [20:0] tag1, tag2;
+    assign tag1 = tag_bram_rdata[0];
+    assign tag2 = tag_bram_rdata[1];
 
     // Hit signal
     always_comb begin
-        for (integer i = 0; i < NWAY; i++) begin
-            tag_hit[i] = tag_bram_rdata[i][19:0] == tag_buffer && tag_bram_rdata[i][20];
-        end
+        tag_hit[0] = tag_bram_rdata[0][19:0] == tag_buffer && tag_bram_rdata[0][20];
+        tag_hit[1] = tag_bram_rdata[1][19:0] == tag_buffer && tag_bram_rdata[1][20];
     end
 
     logic [DCACHELINE_WIDTH-1:0] hit_data;
@@ -482,23 +498,23 @@ module dcache
 `ifdef BRAM_IP
             bram_icache_tag_ram u_tag_bram (
                 .clk  (clk),
-                .ena  (tag_bram_en[i][0]),
-                .enb  (tag_bram_en[i][1]),
-                .wea  (tag_bram_we[i][0]),
-                .dina (tag_bram_wdata[i][0]),
-                .addra(tag_bram_addr[i][0]),
-                .addrb(tag_bram_addr[i][1]),
-                .doutb(tag_bram_rdata[i][1])
+                .ena  (tag_bram_en[i]),
+                .enb  (tag_bram_en[i]),
+                .wea  (tag_bram_we[i]),
+                .dina (tag_bram_wdata[i]),
+                .addra(tag_bram_addr[i]),
+                .addrb(tag_bram_addr[i]),
+                .doutb(tag_bram_rdata[i])
             );
             bram_icache_data_ram u_data_bram (
                 .clk  (clk),
-                .ena  (tag_bram_en[i][0]),
-                .enb  (tag_bram_en[i][1]),
-                .wea  (tag_bram_we[i][0]),
-                .dina (tag_bram_wdata[i][0]),
-                .addra(tag_bram_addr[i][0]),
-                .addrb(tag_bram_addr[i][1]),
-                .doutb(tag_bram_rdata[i][1])
+                .ena  (tag_bram_en[i]),
+                .enb  (tag_bram_en[i]),
+                .wea  (tag_bram_we[i]),
+                .dina (tag_bram_wdata[i]),
+                .addra(tag_bram_addr[i]),
+                .addrb(tag_bram_addr[i]),
+                .doutb(tag_bram_rdata[i])
             );
 `else
 
@@ -534,3 +550,5 @@ module dcache
 
 
 endmodule
+
+
