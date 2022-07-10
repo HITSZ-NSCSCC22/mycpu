@@ -147,69 +147,46 @@ package core_types;
         logic cacop_op_mode_di;
     } ex_mem_struct;
 
+
+    // Difftest
     typedef struct packed {
-        instr_info_t instr_info;
-
-        logic [`RegAddrBus] waddr;
-        logic [`RegBus] wdata;
-        logic wreg;
-        logic [`AluOpBus] aluop;
-        csr_write_signal csr_signal;
-
+        logic [63:0] timer_64;
         logic [7:0] inst_ld_en;
         logic [7:0] inst_st_en;
         logic [`DataAddrBus] load_addr;
         logic [`DataAddrBus] store_addr;
-        logic [`DataAddrBus] mem_addr;
         logic [`RegBus] store_data;
+    } difftest_mem_info_t;
 
-        logic excp;
-        logic [15:0] excp_num;
-        logic refetch;
+    typedef struct packed {
+        instr_info_t instr_info;
+
+        logic wreg;
+        logic [`RegAddrBus] waddr;
+        logic [`RegBus] wdata;
+
+        logic [`AluOpBus] aluop;
+        csr_write_signal csr_signal;
+        logic mem_access_valid;
+        logic [ADDR_WIDTH-1:0] mem_addr;
 
         tlb_inv_t inv_i;
-        logic [63:0] timer_64;
-
-        logic cacop_en;
-        logic icache_op_en;
-        logic [4:0] cacop_op;
-        logic data_addr_trans_en;
-        logic dmw0_en;
-        logic dmw1_en;
-        logic cacop_op_mode_di;
-
-        tlb_data_t tlb_signal;
+        difftest_mem_info_t difftest_mem_info;
     } mem1_mem2_struct;
 
     typedef struct packed {
         instr_info_t instr_info;
 
+        logic wreg;
         logic [`RegAddrBus] waddr;
         logic [`RegBus] wdata;
-        logic wreg;
-        logic [`AluOpBus] aluop;
-        csr_write_signal csr_signal;
 
-        //load store difftest
-        logic [7:0] inst_ld_en;
-        logic [7:0] inst_st_en;
-        logic [`DataAddrBus] load_addr;
-        logic [`DataAddrBus] store_addr;
-        logic [`DataAddrBus] mem_addr;
-        logic [`RegBus] store_data;
+        logic [`AluOpBus] aluop;
+        csr_write_signal  csr_signal;
 
         tlb_inv_t inv_i;
-        logic [63:0] timer_64;
 
-        logic cacop_en;
-        logic icache_op_en;
-        logic [4:0] cacop_op;
-        logic data_addr_trans_en;
-        logic dmw0_en;
-        logic dmw1_en;
-        logic cacop_op_mode_di;
-
-        tlb_data_t tlb_signal;
+        difftest_mem_info_t difftest_mem_info;
     } mem2_wb_struct;
 
     typedef struct packed {

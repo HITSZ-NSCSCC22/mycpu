@@ -1,7 +1,6 @@
 `include "core_types.sv"
 `include "core_config.sv"
 `include "csr_defines.sv"
-`include "muldiv/mul.sv"
 `include "pipeline/3_execution/alu.sv"
 `include "TLB/tlb_types.sv"
 
@@ -13,6 +12,11 @@ module ex
 (
     input logic clk,
     input logic rst,
+
+    // Pipeline control signals
+    input  logic flush,
+    input  logic advance,
+    output logic advance_ready,
 
     // <- Dispatch
     // Information from dispatch
@@ -26,10 +30,7 @@ module ex
     input [31:0] tid,
     input csr_to_mem_struct csr_ex_signal,
 
-    // Multi-cycle ALU stallreq
-    output logic stallreq,
-
-    // -> Ctrl
+    // EX redirect signals
     // Redirect is only triggered when mispredict happens
     output logic ex_redirect_o,
     output logic [ADDR_WIDTH-1:0] ex_redirect_target_o,
@@ -45,11 +46,7 @@ module ex
     output logic icacop_op_en,
     input logic icacop_op_ack_i,
     output logic dcacop_op_en,
-    output logic [1:0] cacop_op_mode,
-
-    // Stall & flush
-    input logic [1:0] stall,  // {mem_wb, ex}
-    input logic flush
+    output logic [1:0] cacop_op_mode
 
 );
     ex_mem_struct ex_o;
@@ -155,6 +152,9 @@ module ex
     assign mem_b_op = special_info.mem_b_op;
     assign mem_h_op = special_info.mem_h_op;
 
+    // notify ctrl is ready to advance
+    assign advance_ready = ~(icacop_inst & ~icacop_op_ack_i);
+
     //////////////////////////////////////////////////////////////////////////////////////
     // TLB request
     //////////////////////////////////////////////////////////////////////////////////////
@@ -177,15 +177,14 @@ module ex
 
     always_comb begin
         if (flush) tlb_rreq_o = 0;
-        else if (stall[0] | stall[1]) tlb_rreq_o = 0;
-        else begin
+        else if (advance) begin
             tlb_rreq_o.fetch = data_fetch;
             tlb_rreq_o.trans_en = trans_en;
             tlb_rreq_o.dmw0_en = dmw0_en;
             tlb_rreq_o.dmw1_en = dmw1_en;
             tlb_rreq_o.tlbsrch_en = tlbsrch_en;
             tlb_rreq_o.vaddr = tlb_vaddr;
-        end
+        end else tlb_rreq_o = 0;
     end
 
 
@@ -214,68 +213,6 @@ module ex
     assign reg1_lt_reg2  = (aluop_i == `EXE_SLT_OP) ? ((oprand1[31] && !oprand2[31]) || (!oprand1[31] && !oprand2[31] && result_compare[31])||
 			               (oprand1[31] && oprand2[31] && result_compare[31])) : (oprand1 < oprand2);
 
-
-    // Divider and Multiplier
-    // Multi-cycle
-    // logic muldiv_op;  // High effective
-    // always_comb begin
-    //     case (aluop_i)
-    //         `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP: begin
-    //             muldiv_op = 1;
-    //         end
-    //         default: begin
-    //             muldiv_op = 0;
-    //         end
-    //     endcase
-    // end
-    // logic [2:0] muldiv_para;  // 0-7 muldiv mode selection
-    // always_comb begin
-    //     case (aluop_i)
-    //         `EXE_MUL_OP:   muldiv_para = 3'h0;
-    //         `EXE_MULH_OP:  muldiv_para = 3'h1;
-    //         `EXE_MULHU_OP: muldiv_para = 3'h3;
-    //         `EXE_DIV_OP:   muldiv_para = 3'h4;
-    //         `EXE_DIVU_OP:  muldiv_para = 3'h5;
-    //         `EXE_MOD_OP:   muldiv_para = 3'h6;
-    //         `EXE_MODU_OP:  muldiv_para = 3'h7;
-    //         default: begin
-    //             muldiv_para = 0;
-    //         end
-    //     endcase
-    // end
-    // logic [31:0] muldiv_result;
-    // logic muldiv_finished;
-    // logic muldiv_ack;
-    // logic muldiv_busy_r;
-    // logic muldiv_init;
-    // logic muldiv_busy;  // Low means busy
-    // always_ff @(posedge clk) begin
-    //     if (rst) muldiv_busy_r <= 0;
-    //     else if (flush | excp_flush | ertn_flush) muldiv_busy_r <= 0;
-    //     else if (muldiv_init) muldiv_busy_r <= 1;
-    //     else if (muldiv_ack) muldiv_busy_r <= 0;
-    // end
-    // always_comb begin
-    //     muldiv_init = muldiv_op & ~muldiv_busy_r & ~stall[1];
-    //     muldiv_ack  = muldiv_finished & muldiv_op & ~stall[1];
-    // end
-    // mul u_mul (
-    //     .clk           (clk),
-    //     .rst           (rst),
-    //     .clear_pipeline(flush),
-    //     .mul_para      (muldiv_para),
-    //     .mul_initial   (muldiv_init),
-    //     .mul_rs0       (oprand1),
-    //     .mul_rs1       (oprand2 == 0 ? 1 : oprand2),
-    //     .mul_ready     (muldiv_busy),
-    //     .mul_finished  (muldiv_finished),             // 1 means finished
-    //     .mul_data      (muldiv_result),
-    //     .mul_ack       (muldiv_ack)
-    // );
-
-
-    // assign stallreq = (muldiv_op & ~muldiv_finished) | // Multiply & Division
-    //             (icacop_inst & ~icacop_op_ack_i); // CACOP
 
     always @(*) begin
         if (rst == `RstEnable) begin
@@ -314,7 +251,7 @@ module ex
 
 
     // Only when taken & not predicted taken can ex do redirect
-    assign ex_redirect_o = branch_flag && ~special_info.predicted_taken && ~stall[0];
+    assign ex_redirect_o = branch_flag && ~special_info.predicted_taken && advance;
     assign ex_redirect_ftq_id_o = ex_redirect_o ? instr_info.ftq_id : 0;
 
 
@@ -335,11 +272,9 @@ module ex
             endcase
         end
     end
-    logic [31:0] wdata;
-    assign wdata = ex_o.wdata;
 
     always_comb begin
-        ex_o.instr_info = stallreq ? 0 : dispatch_i.instr_info;
+        ex_o.instr_info = instr_info;
         ex_o.instr_info.excp = excp;
         ex_o.instr_info.excp_num = excp_num;
 
@@ -378,7 +313,7 @@ module ex
                 ex_o.wdata = csr_reg_data;
             end
             default: begin
-                ex_o.wdata = `ZeroWord;
+                ex_o.wdata = 0;
             end
         endcase
     end
@@ -388,9 +323,11 @@ module ex
     always_ff @(posedge clk) begin
         if (rst) ex_o_buffer <= 0;
         else if (flush) ex_o_buffer <= 0;
-        else if (stall[0] | stall[1]) ex_o_buffer <= ex_o_buffer;
-        else ex_o_buffer <= ex_o;
+        else if (advance) ex_o_buffer <= ex_o;
     end
 
-
+`ifdef SIMU
+    logic [31:0] wdata;
+    assign wdata = ex_o.wdata;
+`endif
 endmodule

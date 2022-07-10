@@ -15,9 +15,9 @@ module mem1
     input  logic advance,
     output logic advance_ready,
 
+    // Previous stage
     input ex_mem_struct ex_i,
 
-    output mem1_mem2_struct mem2_o_buffer,
 
     // <-> DCache
     output mem_dcache_rreq_t dcache_rreq_o,
@@ -39,7 +39,10 @@ module mem1
 
 
     output reg LLbit_we_o,
-    output reg LLbit_value_o
+    output reg LLbit_value_o,
+
+    // Next stage
+    output mem1_mem2_struct mem2_o_buffer
 
 );
 
@@ -88,8 +91,9 @@ module mem1
         excp_pil, excp_pis, excp_ppi, excp_pme, excp_tlbr, excp_adem, instr_info.excp_num[9:0]
     };
 
-    //difftest
-    assign mem2_o.inst_ld_en = access_mem ? {
+    // Difftest mem info
+    difftest_mem_info_t difftest_mem_info;
+    assign difftest_mem_info.inst_ld_en = access_mem ? {
         2'b0,
         aluop_i == `EXE_LL_OP ? 1'b1 : 1'b0,
         aluop_i == `EXE_LD_W_OP ? 1'b1 : 1'b0,
@@ -99,7 +103,7 @@ module mem1
         aluop_i == `EXE_LD_B_OP ? 1'b1 : 1'b0
     } : 0;
 
-    assign mem2_o.inst_st_en = access_mem ? {
+    assign difftest_mem_info.inst_st_en = access_mem ? {
         4'b0,
         aluop_i == `EXE_SC_OP ? 1'b1 : 1'b0,
         aluop_i == `EXE_ST_W_OP ? 1'b1 : 1'b0,
@@ -107,22 +111,20 @@ module mem1
         aluop_i == `EXE_ST_B_OP ? 1'b1 : 1'b0
     } : 0;
 
-    assign mem2_o.load_addr = mem_load_op ? mem_addr : 0;
-    assign mem2_o.store_addr = mem_store_op ? mem_addr : 0;
+    assign difftest_mem_info.load_addr = mem_load_op ? mem_addr : 0;
+    assign difftest_mem_info.store_addr = mem_store_op ? mem_addr : 0;
+    assign difftest_mem_info.timer_64 = ex_i.timer_64;
 
     // Data forward
     assign data_forward_o = {mem2_o.wreg, !mem_load_op, mem2_o.waddr, mem2_o.wdata};
 
-    assign mem2_o.excp = excp;
-    assign mem2_o.excp_num = excp_num;
-    assign mem2_o.refetch = ex_i.instr_info.special_info.need_refetch;
 
     //if mem1 has a mem request and cache is working 
     //then wait until cache finish its work
     assign advance_ready = (access_mem & dcache_ack_i) | ~access_mem;
 
     // Sanity check
-    assign mem_access_valid = ~excp;
+    assign mem_access_valid = ~excp & instr_info.valid;
 
 
     // DCache memory access request
@@ -195,22 +197,23 @@ module mem1
     always_comb begin
         LLbit_we_o = 1'b0;
         LLbit_value_o = 1'b0;
-        // FIXME: information should be passed to next stage
-        // currently not carefully designed
+        // Instr Info
         mem2_o.instr_info = ex_i.instr_info;
+        mem2_o.instr_info.excp = excp;
+        mem2_o.instr_info.excp_num = excp_num;
+
         mem2_o.wreg = ex_i.wreg;
         mem2_o.waddr = ex_i.waddr;
         mem2_o.wdata = ex_i.wdata;
+
         mem2_o.aluop = aluop_i;
         mem2_o.csr_signal = ex_i.csr_signal;
-        mem2_o.inv_i = ex_i.inv_i;
+        mem2_o.mem_access_valid = mem_access_valid;
         mem2_o.mem_addr = mem_addr;
-        mem2_o.timer_64 = ex_i.timer_64;
-        mem2_o.store_data = dcache_rreq_o.data;
-        mem2_o.cacop_en = cacop_en;
-        mem2_o.icache_op_en = icache_op_en;
-        mem2_o.cacop_op = cacop_op;
-        mem2_o.tlb_signal = tlb_result_i;
+        mem2_o.inv_i = ex_i.inv_i;
+
+        mem2_o.difftest_mem_info = difftest_mem_info;
+        mem2_o.difftest_mem_info.store_data = dcache_rreq_o.data;
         if (mem_access_valid) begin  // if tlb miss,then do nothing
             case (aluop_i)
                 `EXE_LL_OP: begin
@@ -222,11 +225,11 @@ module mem1
                         LLbit_we_o = 1'b1;
                         LLbit_value_o = 1'b0;
                         mem2_o.wreg = 1;
-                        mem2_o.store_data = reg2_i;
+                        mem2_o.difftest_mem_info.store_data = reg2_i;
                         mem2_o.wdata = 32'b1;
                     end else begin
                         mem2_o.wreg = 1;
-                        mem2_o.store_data = 0;
+                        mem2_o.difftest_mem_info.store_data = 0;
                         mem2_o.wdata = 32'b0;
                     end
                 end
