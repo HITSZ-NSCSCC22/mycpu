@@ -100,6 +100,10 @@ module cpu_top
     assign rst_n = aresetn;
     assign rst   = ~aresetn;
 
+    // Pipeline control signal
+    logic [6:0] pipeline_advance, pipeline_flush;
+    logic [ISSUE_WIDTH-1:0] ex_advance_ready, mem1_advance_ready, mem2_advance_ready;
+
     // EX
     logic [ISSUE_WIDTH-1:0] ex_redirect;
     logic [ISSUE_WIDTH-1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] ex_redirect_ftq_id;
@@ -129,6 +133,35 @@ module cpu_top
 
     logic [`RegBus] cache_mem_data;
     logic mem_data_ok,mem_addr_ok;
+
+    // MEM1 <-> DCache
+    mem_dcache_rreq_t mem_cache_signal[2];
+    logic mem_cache_we,mem_cache_ce;
+    logic [2:0] mem_cache_rd_type;
+    logic [3:0] mem_cache_sel;
+    logic [31:0] mem_cache_addr,mem_cache_data;
+    logic [`RegBus] mem_cache_pc;
+    logic [1:0] wb_dcache_flush; // flush dcache if excp
+    logic [1:0][`RegBus] wb_dcache_flush_pc;
+    logic [2:0]mem_cache_wr_type;
+    logic cache_ack;
+    
+    assign mem_cache_ce = flush ? 0 : mem_cache_signal[0].ce | mem_cache_signal[1].ce;
+    assign mem_cache_we = flush ? 0 : mem_cache_signal[0].we | mem_cache_signal[1].we;
+    assign mem_cache_sel = flush ? 0 : mem_cache_signal[0].we ? mem_cache_signal[0].sel : mem_cache_signal[1].we ? mem_cache_signal[1].sel : 0;
+    assign mem_cache_rd_type = flush ? 0 : mem_cache_signal[0].ce ? mem_cache_signal[0].rd_type : mem_cache_signal[1].ce ? mem_cache_signal[1].rd_type : 0;
+    assign mem_cache_wr_type = flush ? 0 : mem_cache_signal[0].ce ? mem_cache_signal[0].wr_type : mem_cache_signal[1].ce ? mem_cache_signal[1].wr_type : 0;
+    assign mem_cache_addr = flush ? 0 : mem_cache_signal[0].addr | mem_cache_signal[1].addr;
+    assign mem_cache_data = flush ? 0 : mem_cache_signal[0].we ? mem_cache_signal[0].data : mem_cache_signal[1].we ? mem_cache_signal[1].data : 0;
+
+    // Ctrl -> Regfile
+    wb_reg_t [COMMIT_WIDTH-1:0] regfile_write;
+    // Ctrl -> CSR
+    csr_write_signal [COMMIT_WIDTH-1:0] csr_write;
+
+    // Difftest related
+    // Ctrl -> DifftestEvents
+    diff_commit [COMMIT_WIDTH-1:0] difftest_commit_info;
 
     axi_master u_axi_master (
         .aclk   (aclk),
@@ -200,25 +233,6 @@ module cpu_top
         .s_bready(bready)
     );
 
-    mem_cache_struct mem_cache_signal[2];
-    logic mem_cache_we,mem_cache_ce;
-    logic [2:0] mem_cache_rd_type;
-    logic [3:0] mem_cache_sel;
-    logic [31:0] mem_cache_addr,mem_cache_data;
-    logic [`RegBus] mem_cache_pc;
-    logic [1:0] wb_dcache_flush; // flush dcache if excp
-    logic [1:0][`RegBus] wb_dcache_flush_pc;
-    logic [2:0]mem_cache_wr_type;
-    logic cache_ack;
-    
-    assign mem_cache_ce = flush ? 0 : mem_cache_signal[0].ce | mem_cache_signal[1].ce;
-    assign mem_cache_we = flush ? 0 : mem_cache_signal[0].we | mem_cache_signal[1].we;
-    assign mem_cache_pc = flush ? 0 : mem_cache_signal[0].pc;
-    assign mem_cache_sel = flush ? 0 : mem_cache_signal[0].we ? mem_cache_signal[0].sel : mem_cache_signal[1].we ? mem_cache_signal[1].sel : 0;
-    assign mem_cache_rd_type = flush ? 0 : mem_cache_signal[0].ce ? mem_cache_signal[0].rd_type : mem_cache_signal[1].ce ? mem_cache_signal[1].rd_type : 0;
-    assign mem_cache_wr_type = flush ? 0 : mem_cache_signal[0].ce ? mem_cache_signal[0].wr_type : mem_cache_signal[1].ce ? mem_cache_signal[1].wr_type : 0;
-    assign mem_cache_addr = flush ? 0 : mem_cache_signal[0].addr | mem_cache_signal[1].addr;
-    assign mem_cache_data = flush ? 0 : mem_cache_signal[0].we ? mem_cache_signal[0].data : mem_cache_signal[1].we ? mem_cache_signal[1].data : 0;
    
     dummy_dcache u_dcache(
     	.clk       (clk       ),
@@ -545,49 +559,48 @@ module cpu_top
     logic [1:0] ex_stallreq;
     logic [63:0] csr_timer_64;
     logic [31:0] csr_tid;
-    ex_to_tlb_struct [1:0] ex_tlb_signal;
+    ex_tlb_rreq_t [1:0] ex_tlb_signal;
     generate
         for (genvar i = 0; i < 2; i++) begin : ex
             ex u_ex (
                 .clk  (clk),
                 .rst(rst),
 
-                .dispatch_i(dispatch_exe[i]),
+                // Pipeline control signals
+                .flush(pipeline_flush[3]),
+                .advance(pipeline_advance[3]),
+                .advance_ready(ex_advance_ready[i]),
 
+                // Previous stage
+                .dispatch_i(dispatch_exe[i]),
+                // Next stage
                 .ex_o_buffer(ex_mem_signal[i]),
 
-                .stallreq(ex_stallreq[i]),
-
+                // <-> CSR
                 .timer_64(csr_timer_64),
                 .tid(csr_tid),
-
                 .csr_ex_signal(csr_mem_signal),
 
-                .ex_tlb_signal(ex_tlb_signal[i]),
-
-                // -> Ctrl
+                // -> Ctrl, Redirect signals
                 .ex_redirect_o(ex_redirect[i]),
                 .ex_redirect_target_o(ex_redirect_target[i]),
                 .ex_redirect_ftq_id_o(ex_redirect_ftq_id[i]),
 
+                // -> Dispatch, data forward
                 .data_forward_o(ex_data_forward[i]),
 
+                // -> TLB
+                .tlb_rreq_o(),
 
-                // <-> Cache
+                // <-> Cache, CACOP
                 .icacop_op_en(icacop_op_en[i]),
                 .icacop_op_ack_i(icacop_ack),
                 .dcacop_op_en(dcacop_op_en),
-                .cacop_op_mode(cacop_op_mode[i]),
-
-                // <-> Ctrl
-                .stall({mem2_stallreq[0] | mem2_stallreq[1] ,stall[3]}),
-                .flush(ex_mem_flush[i] | excp_flush | ertn_flush)
-
+                .cacop_op_mode(cacop_op_mode[i])
             );
         end
     endgenerate
 
-    logic [1:0] ex_mem_flush;
 
     mem1_mem2_struct mem1_mem2_signal[2];
     mem2_wb_struct mem2_wb_signal[2];
@@ -615,30 +628,28 @@ module cpu_top
             mem1 u_mem1 (
                 .clk(clk),
                 .rst(rst),
-                .stall(stall[3]),
-                .flush(flush),
 
-                .signal_i(ex_mem_signal[i]),
+                // Pipeline control signals
+                .flush(pipeline_flush[2]),
+                .advance(pipeline_advance[2]),
+                .advance_ready(mem1_advance_ready[i]),
 
-                .signal_o_buffer(mem1_mem2_signal[i]),
+                // Previous stage
+                .ex_i(ex_mem_signal[i]),
+                // Next stage
+                .mem2_o_buffer(mem1_mem2_signal[i]),
 
-                // -> cache 
-                .signal_cache_o(mem_cache_signal[i]),
+                // <-> DCache
+                .dcache_rreq_o(mem_cache_signal[i]),
+                .dcache_ready_i(),
+                .dcache_ack_i(),
 
-                .tlb_mem_signal(tlb_data_o),
+                // <- TLB
+                .tlb_result_i(),
 
-                .LLbit_i(LLbit_o),
                 // <- CSR
-                .wb_LLbit_we_i(llbit_i.we),
-                .wb_LLbit_value_i(llbit_i.value),
-
-                .LLbit_we_o(mem_wb_LLbit_we[i]),
-                .LLbit_value_o(mem_wb_LLbit_value[i]),
-                
+                .LLbit_i(LLbit_o),
                 .csr_plv(csr_plv),
-
-                .cache_ack(cache_ack),
-                .stallreq(mem1_stallreq[i]),
 
                 // Data forward
                 // -> Dispatch
@@ -646,7 +657,6 @@ module cpu_top
 
             );
         end
-
     endgenerate
 
 
@@ -655,19 +665,23 @@ module cpu_top
             mem2 u_mem2(
                 .clk(clk),
                 .rst(rst),
-                .stall(stall[4]),
-                .flush(flush),
 
+                // Pipeline control signals
+                .flush(pipeline_flush[1]),
+                .advance(pipeline_advance[1]),
+                .advance_ready(mem2_advance_ready[i]),
+
+                // Previous stage
                 .mem1_i(mem1_mem2_signal[i]),
-
-                .data_forward_o(mem2_data_forward[i]),
-
+                // Next stage
                 .mem2_o_buffer(mem2_wb_signal[i]),
 
-                .stallreq(mem2_stallreq[i]),
+                // -> Dispatch, data forward
+                .data_forward_o(mem2_data_forward[i]),
+
+                // <- DCache
                 .data_ok(mem_data_ok),
                 .cache_data_i(cache_mem_data)
-
             );
         end
     endgenerate
@@ -680,29 +694,22 @@ module cpu_top
             wb u_wb (
                 .clk  (clk),
                 .rst  (rst),
-                .stall(stall[5]),
-                .flush(flush),
+
+                // Pipeline control signals
+                .flush(pipeline_flush[0]),
+                .advance(pipeline_advance[0]),
 
                 .mem_i(mem2_wb_signal[i]),
 
-                .mem_LLbit_we(mem_wb_LLbit_we[i]),
-                .mem_LLbit_value(mem_wb_LLbit_value[i]),
-
-                .disable_cache(1'b0),
-                .LLbit_i(LLbit_o),
-                .LLbit_we_i(llbit_i.we),
-                .LLbit_value_i(llbit_i.value),
-
                 // -> DCache
                 .dcache_flush_o(wb_dcache_flush[i]),
-                .dcache_flush_pc(wb_dcache_flush_pc[i]),
+                .dcache_store_commit_o(),
 
-                // Dispatch
+                // -> Dispatch
                 .data_forward_o(wb_data_forward[i]),
 
                 //to ctrl
-                .wb_ctrl_signal(wb_ctrl_signal[i]),
-                .ftq_id_o(wb_ctrl_ftq_id[i])
+                .wb_ctrl_signal(wb_ctrl_signal[i])
             );
         end
     endgenerate
@@ -714,9 +721,9 @@ module cpu_top
         .clk(clk),
 
         // Write signals
-        .we_i({reg_o[1].we, reg_o[0].we}),
-        .waddr_i({reg_o[1].waddr, reg_o[0].waddr}),
-        .wdata_i({reg_o[1].wdata, reg_o[0].wdata}),
+        .we_i({regfile_write[1].we, regfile_write[0].we}),
+        .waddr_i({regfile_write[1].waddr, regfile_write[0].waddr}),
+        .wdata_i({regfile_write[1].wdata, regfile_write[0].wdata}),
 
         // Read signals
         // Registers are read in dispatch stage
@@ -725,18 +732,12 @@ module cpu_top
         .read_data_o (regfile_dispatch_reg_read_data)
     );
 
-    // Difftest related
-    // Ctrl -> DifftestEvents
-    diff_commit difftest_commit_info[2];
 
-    // Ctrl -> Regfile
-    wb_reg  reg_o[2];
 
-    csr_write_signal  csr_w_o[2];
 
     logic tlbrd_en;
 
-    wb_llbit llbit_i;
+    wb_llbit_t llbit_i;
     logic inv_stallreq;
 
 
@@ -750,26 +751,14 @@ module cpu_top
 
         // <- WB
         .wb_i(wb_ctrl_signal),
-        .wb_ftq_id_i(wb_ctrl_ftq_id),
 
-        // <- EX
-    	.ex_branch_flag_i (stall[2] ? 2'b0: ex_redirect),
-        .ex_stallreq_i (ex_stallreq),
-        .mem1_stallreq_i (mem1_stallreq),
-        .mem2_stallreq_i(mem2_stallreq),
-
-        .excp_flush(excp_flush),
-        .ertn_flush(ertn_flush),
-        .fetch_flush(fetch_flush),
-        .idle_flush(idle_flush),
-        .icache_flush(icache_flush),
-        .idle_pc(idle_pc),
-
-        .stall(stall),
-        .is_pri_instr(is_pri_instr),
-        .pri_stall(pri_stall),
-        .ex_mem_flush_o(ex_mem_flush),
-        .flush(flush),
+        // Pipeline control signal
+        .ex_redirect_i(ex_redirect),
+        .ex_advance_ready_i(ex_advance_ready),
+        .mem1_advance_ready_i(mem1_advance_ready), 
+        .mem2_advance_ready_i(mem2_advance_ready),
+        .flush_o(pipeline_flush), 
+        .advance_o(pipeline_advance),
 
         .csr_era(csr_era_i),
         .csr_esubcode(csr_esubcode_i),
@@ -782,7 +771,7 @@ module cpu_top
         .tlbsrch_found(tlbsrch_found),
         .tlbsrch_index(tlbsrch_index),
         .tlbrd_en(tlbrd_en),
-        .llbit_signal(llbit_i),
+        .llbit_signal(),
 
         .inv_o(tlb_inv_signal_i),
         .inv_stallreq(inv_stallreq),
@@ -794,15 +783,12 @@ module cpu_top
         // <- TLB
         .tlbsrch_result_i(tlb_mem_signal),
 
-        .reg_o_0(reg_o[0]),
-        .reg_o_1(reg_o[1]),
-        .csr_w_o_0(csr_w_o[0]),
-        .csr_w_o_1(csr_w_o[1]),
+        .regfile_o(regfile_write),
+        .csr_write_o(csr_write),
 
         // -> Difftest
         .excp_instr(excp_instr),
-        .commit_0(difftest_commit_info[0]),
-        .commit_1(difftest_commit_info[1])
+        .difftest_commit_o(difftest_commit_info)
     );
     
     
@@ -814,8 +800,8 @@ module cpu_top
         .ertn_flush(ertn_flush),
         .interrupt_i({1'b0,intrpt}),
         .ecode_i(csr_ecode_i),
-        .write_signal_1(csr_w_o[0]),
-        .write_signal_2(csr_w_o[1]),
+        .write_signal_1(csr_write[0]),
+        .write_signal_2(csr_write[1]),
         .raddr(dispatch_csr_read_addr),
         .rdata(dispatch_csr_data),
         .llbit_i(llbit_i.value),
@@ -860,13 +846,13 @@ module cpu_top
         .asid_in(tlb_read_signal_o.asid)
     );
 
-    assign data_addr_trans_en = ex_tlb_signal[0].data_addr_trans_en;
+    assign data_addr_trans_en = ex_tlb_signal[0].trans_en;
     data_tlb_t tlb_data_i;
     assign tlb_data_i.dmw0_en = ex_tlb_signal[0].dmw0_en;
     assign tlb_data_i.dmw1_en = ex_tlb_signal[0].dmw1_en;
-    assign tlb_data_i.vaddr = ex_tlb_signal[0].tlb_vaddr;
-    assign tlb_data_i.fetch = ex_tlb_signal[0].data_fetch;
-    assign tlb_data_i.tlbsrch = ex_tlb_signal[0].tlbsrch_en_o;
+    assign tlb_data_i.vaddr = ex_tlb_signal[0].vaddr;
+    assign tlb_data_i.fetch = ex_tlb_signal[0].fetch;
+    assign tlb_data_i.tlbsrch = ex_tlb_signal[0].tlbsrch_en;
 
     tlb_data_t tlb_data_o;
     tlb_write_in_struct tlb_write_signal_i;
@@ -902,26 +888,26 @@ module cpu_top
     );
 
     // Difftest Delay signals
-    diff_commit difftest_commit_info_delay1[2];
+    diff_commit [COMMIT_WIDTH-1:0] difftest_commit_info_delay1;
     logic csr_rstat_commit[2];
     logic [`RegBus] csr_data_commit[2];
 
     always_ff @( posedge clk ) begin 
         difftest_commit_info_delay1 <= difftest_commit_info;
-        csr_rstat_commit[0] <= csr_w_o[0].we && (csr_w_o[0].addr == 14'h5) | difftest_commit_info[0].csr_rstat;
-        csr_data_commit[0] <= difftest_commit_info[0].csr_rstat ? u_cs_reg.csr_estat : csr_w_o[0].data;
+        csr_rstat_commit[0] <= csr_write[0].we && (csr_write[0].addr == 14'h5) | difftest_commit_info[0].csr_rstat;
+        csr_data_commit[0] <= difftest_commit_info[0].csr_rstat ? u_cs_reg.csr_estat : csr_write[0].data;
     end
 
     always_ff @(posedge clk) begin
-        debug0_wb_pc <= reg_o[0].pc; 
-        debug0_wb_rf_wen <= {3'b0,reg_o[0].we};
-        debug0_wb_rf_wdata <= reg_o[0].wdata;
-        debug0_wb_rf_wnum <= reg_o[0].waddr;
+        debug0_wb_pc <= difftest_commit_info[0].pc; 
+        debug0_wb_rf_wen <= {3'b0,regfile_write[0].we};
+        debug0_wb_rf_wdata <= regfile_write[0].wdata;
+        debug0_wb_rf_wnum <= regfile_write[0].waddr;
         `ifdef CPU_2CMT
-        debug1_wb_pc <= reg_o[1].pc;
-        debug1_wb_rf_wen <= {3'b0, reg_o[1].we};
-        debug1_wb_rf_wdata <= reg_o[1].wdata;
-        debug1_wb_rf_wnum <= reg_o[1].waddr;
+        debug1_wb_pc <= difftest_commit_info[1].pc; 
+        debug1_wb_rf_wen <= {3'b0,regfile_write[1].we};
+        debug1_wb_rf_wdata <= regfile_write[1].wdata;
+        debug1_wb_rf_wnum <= regfile_write[1].waddr;
         `endif
     end
 `ifdef SIMULATION

@@ -27,7 +27,7 @@ module ctrl
     output logic [6:0] flush_o,  // flush signal {frontend, id_dispatch, dispatch, ex, mem1, mem2, wb}
     output logic [6:0] advance_o,  // {frontend, id_dispatch, dispatch, ex, mem1, mem2, wb}
 
-    //to csr
+    // -> CSR
     output logic [31:0] csr_era,
     output logic [8:0] csr_esubcode,
     output logic [5:0] csr_ecode,

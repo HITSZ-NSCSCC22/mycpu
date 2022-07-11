@@ -14,7 +14,7 @@ module wb
     // Pipeline control signals
     input logic flush,
     input logic advance,
-    input logic advance_ready,
+    // input logic advance_ready,
 
     input mem2_wb_struct mem_i,
 
