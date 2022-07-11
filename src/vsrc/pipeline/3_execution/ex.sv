@@ -279,7 +279,10 @@ module ex
         ex_o.instr_info.excp_num = excp_num;
 
         // If the branch taken, then this basic block should be ended
-        if (branch_flag) ex_o.instr_info.is_last_in_block = 1;
+        if (branch_flag) begin
+            ex_o.instr_info.is_last_in_block = 1;
+            ex_o.instr_info.special_info.is_taken = 1;
+        end
 
         ex_o.aluop = aluop_i;
         ex_o.waddr = wd_i;

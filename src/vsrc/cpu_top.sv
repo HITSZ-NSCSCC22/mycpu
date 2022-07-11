@@ -415,7 +415,6 @@ module cpu_top
     );
 
     instr_info_t ib_backend_instr_info[2];  // IB -> ID
-    logic [5:0] stall; // from 4->0 {mem_wb, ex_mem, dispatch_ex, id_dispatch, _}
 
     logic [DECODE_WIDTH-1:0] id_ib_accept;
     logic [DECODE_WIDTH-1:0] dispatch_id_accept;
@@ -471,7 +470,7 @@ module cpu_top
     id_dispatch u_id_dispatch (
         .clk       (clk),
         .rst       (rst),
-        .stall     (stall[0]),
+        .stall     (~pipeline_advance[5]),
         .flush     (backend_redirect),
         .id_i      (id_id_dispatch),
         .id_dispatch_accept_o(id_ib_accept),
@@ -495,7 +494,7 @@ module cpu_top
         .id_i(id_dispatch_dispatch),
 
         // <-> Ctrl
-        .stall(stall[1]),
+        .stall(~pipeline_advance[4]),
         .flush(backend_redirect),
 
         // Data forwarding    
@@ -535,11 +534,11 @@ module cpu_top
     logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ctrl_frontend_ftq_id;
 
     // Redirect signal for frontend
-    assign backend_redirect = excp_flush | ertn_flush | idle_flush | (ex_redirect != 0 && ~stall[1]) | fetch_flush;
+    assign backend_redirect = excp_flush | ertn_flush | idle_flush | (ex_redirect) | fetch_flush;
 
     assign backend_redirect_ftq_id = (excp_flush | ertn_flush | idle_flush | fetch_flush) ? ctrl_frontend_ftq_id :
-                                (ex_redirect[0] & ~stall[1]) ? ex_redirect_ftq_id[0] : 
-                                (ex_redirect[1] & ~stall[1]) ? ex_redirect_ftq_id[1] : 0;
+                                (ex_redirect[0]) ? ex_redirect_ftq_id[0] : 
+                                (ex_redirect[1] ) ? ex_redirect_ftq_id[1] : 0;
 
     // If ex is stalling, means that the branch flag maybe invalid and waiting for the right data
     // so no jumping if ex is stalling
@@ -548,8 +547,8 @@ module cpu_top
                      ertn_flush ? csr_era :
                      idle_flush ? idle_pc : 
                      fetch_flush ? idle_pc +4 :
-                     (ex_redirect[0] & ~stall[1]) ? ex_redirect_target[0] : 
-                     (ex_redirect[1] & ~stall[1]) ? ex_redirect_target[1] : 0;
+                     (ex_redirect[0]) ? ex_redirect_target[0] : 
+                     (ex_redirect[1]) ? ex_redirect_target[1] : 0;
 
 
     ex_mem_struct ex_mem_signal[2];
