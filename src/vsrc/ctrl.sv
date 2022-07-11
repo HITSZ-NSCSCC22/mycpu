@@ -73,7 +73,8 @@ module ctrl
     logic excp;
     logic [15:0] excp_num;
     logic excp_flush, ertn_flush, refetch_flush, idle_flush;
-    logic [ADDR_WIDTH-1:0] idle_pc;
+    logic [  ADDR_WIDTH-1:0] idle_pc;
+    logic [COMMIT_WIDTH-1:0] commit_valid;
 
 
     assign valid = wb_i[0].valid | wb_i[1].valid;
@@ -156,18 +157,21 @@ module ctrl
     //提交difftest
     always_comb begin
         difftest_commit_o[0] = wb_i[0].valid ? wb_i[0].diff_commit_o : 0;
-        //if the excp is syscall,break or int,the commit this instr
-        if (instr_info[0].excp) difftest_commit_o[0].valid = 0;
+        if (~commit_valid[0]) difftest_commit_o[0].valid = 0;
+
         difftest_commit_o[1] = (!wb_i[1].valid |aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP) ? 0 : wb_i[1].diff_commit_o;
-        if (instr_info[1].excp) difftest_commit_o[1].valid = 0;
+        if (~commit_valid[1]) difftest_commit_o[1].valid = 0;
     end
 
     //写入寄存器堆
-    assign regfile_o[0] = instr_info[0].excp ? 0 : wb_i[0].wb_reg;
-    assign regfile_o[1] = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | excp) ? 0 : wb_i[1].wb_reg;
+    assign commit_valid[0] = ~instr_info[0].excp;
+    assign commit_valid[1] = ~instr_info[0].excp & ~instr_info[1].excp & ~(special_info[0].is_taken & ~special_info[1].predicted_taken) & ~(aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP);
 
-    assign csr_write_o[0] = instr_info[0].excp ? 0 : wb_i[0].csr_signal_o;
-    assign csr_write_o[1] = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | excp) ? 0 : wb_i[1].csr_signal_o;
+    assign regfile_o[0] = commit_valid[0] ? wb_i[0].wb_reg : 0;
+    assign regfile_o[1] = commit_valid[1] ? wb_i[1].wb_reg : 0;
+
+    assign csr_write_o[0] = commit_valid[0] ? wb_i[0].csr_signal_o : 0;
+    assign csr_write_o[1] = commit_valid[1] ? wb_i[1].csr_signal_o : 0;
 
 
     assign excp = instr_info[0].excp | instr_info[1].excp;

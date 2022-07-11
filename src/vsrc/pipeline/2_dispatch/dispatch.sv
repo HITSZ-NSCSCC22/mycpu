@@ -82,7 +82,6 @@ module dispatch
         for (integer i = 0; i < ISSUE_WIDTH; i++) begin
             issue_wreg[i] = exe_o[i].reg_write_valid;
             issue_wreg_addr[i] = exe_o[i].reg_write_addr;
-            rreg_avail_check[i] = regs_available[id_i[i].reg_read_addr[0]] & regs_available[id_i[i].reg_read_addr[1]];
         end
     end
     always_ff @(posedge clk) begin
@@ -125,7 +124,9 @@ module dispatch
             instr_exists_check[i] = id_i[i].instr_info.valid;
         end
     end
-
+    // Reg read available check
+    assign rreg_avail_check[0] = regs_available[id_i[0].reg_read_addr[0]] & regs_available[id_i[0].reg_read_addr[1]] ;
+    assign rreg_avail_check[1] = regs_available[id_i[1].reg_read_addr[0]] & regs_available[id_i[1].reg_read_addr[1]] & rreg_avail_check[0];
     // Data dependency check 
     always_comb begin
         if (id_i[1].reg_read_addr[0] == id_i[0].reg_write_addr && id_i[1].reg_read_valid[0] && id_i[0].reg_write_valid) begin
