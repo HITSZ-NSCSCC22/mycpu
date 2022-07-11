@@ -1,6 +1,7 @@
 `include "core_config.sv"
 `include "defines.sv"
 `include "utils/lfsr.sv"
+`include "utils/byte_bram.sv"
 `include "utils/dual_port_lutram.sv"
 
 module dcache
@@ -52,7 +53,9 @@ module dcache
         LOOK_UP,
         READ_REQ,
         READ_WAIT,
-        WRITE_REQ
+        WRITE_REQ,
+        WRITE_WAIT,
+        REPLACE
     }
         state, next_state;
 
@@ -75,11 +78,11 @@ module dcache
     logic [NWAY-1:0][DCACHELINE_WIDTH-1:0] data_bram_rdata;
     logic [NWAY-1:0][ICACHELINE_WIDTH-1:0] data_bram_wdata;
     logic [NWAY-1:0][$clog2(NSET)-1:0] data_bram_addr;
-    logic [NWAY-1:0] data_bram_we;
+    logic [NWAY-1:0][15:0] data_bram_we;
     logic [NWAY-1:0] data_bram_en;
 
     // Tag bram 
-    // {1bit valid, 20bits tag}
+    // {1bit dirty, 1bit valid, 20bits tag}
     localparam TAG_BRAM_WIDTH = 21;
     logic [NWAY-1:0][TAG_BRAM_WIDTH-1:0] tag_bram_rdata;
     logic [NWAY-1:0][TAG_BRAM_WIDTH-1:0] tag_bram_wdata;
@@ -185,11 +188,16 @@ module dcache
             end
             LOOK_UP: begin
                 if (valid_buffer) begin
-                    // write req,then turn to write
-                    if (op_buffer) next_state = WRITE_REQ;
-                    // if hit,then back,if miss then wait for read
-                    else if (miss) next_state = READ_REQ;
-                    else next_state = IDLE;
+                    // if write hit,then turn to write idle
+                    // if write miss,then wait for read
+                    if (op_buffer) begin
+                        if (miss) next_state = WRITE_REQ;
+                        else next_state = IDLE;
+                    end  // if hit,then back,if miss then wait for read
+                    else begin
+                        if (miss) next_state = READ_REQ;
+                        else next_state = IDLE;
+                    end
                 end else next_state = IDLE;
             end
             READ_REQ: begin
@@ -201,10 +209,17 @@ module dcache
                 else next_state = READ_WAIT;
             end
             WRITE_REQ: begin
-                // If AXI is ready, then write req is accept this cycle, back to IDLE
+                // If AXI is ready, then write req is accept this cycle,and wait until ret
                 // If flushed, back to IDLE
-                if (wr_rdy | flush) next_state = IDLE;
+                // if AXi is not ready,then wait until it ready
+                if (flush) next_state = IDLE;
+                else if (wr_rdy) next_state = WRITE_WAIT;
                 else next_state = WRITE_REQ;
+            end
+            WRITE_WAIT: begin
+                // wait the rdata back
+                if (ret_valid) next_state = IDLE;
+                else next_state = WRITE_WAIT;
             end
             default: begin
                 next_state = IDLE;
@@ -300,28 +315,29 @@ module dcache
                     if (tag_hit[i]) begin
                         tag_bram_we[i] = 1;
                         tag_bram_wdata[i] = {1'b1, tag_buffer};
-                        data_bram_we[i] = 1;
                         //select the write bit
-                        case (offset_buffer[3:2])
-                            2'b00: begin
-                                data_bram_wdata[i] = {data_bram_rdata[i][127:32], wdata_buffer};
+                        case (wstrb_buffer)
+                            //st.b 
+                            4'b0001, 4'b0010, 4'b0100, 4'b1000: begin
+                                data_bram_we[i][offset_buffer] = 1'b1;
+                                data_bram_wdata[i] = {4{wdata_buffer}};
                             end
-                            2'b01: begin
-                                data_bram_wdata[i] = {
-                                    data_bram_rdata[i][127:64],
-                                    wdata_buffer,
-                                    data_bram_rdata[i][31:0]
-                                };
+                            //st.h
+                            4'b0011, 4'b1100: begin
+                                data_bram_we[i][offset_buffer+1] = 1'b1;
+                                data_bram_we[i][offset_buffer] = 1'b1;
+                                data_bram_wdata[i] = {4{wdata_buffer}};
                             end
-                            2'b10: begin
-                                data_bram_wdata[i] = {
-                                    data_bram_rdata[i][127:96],
-                                    wdata_buffer,
-                                    data_bram_rdata[i][63:0]
-                                };
+                            //st.w
+                            4'b1111: begin
+                                data_bram_we[i][offset_buffer+3] = 1'b1;
+                                data_bram_we[i][offset_buffer+2] = 1'b1;
+                                data_bram_we[i][offset_buffer+1] = 1'b1;
+                                data_bram_we[i][offset_buffer] = 1'b1;
+                                data_bram_wdata[i] = {4{wdata_buffer}};
                             end
-                            2'b11: begin
-                                data_bram_wdata[i] = {wdata_buffer, data_bram_rdata[i][95:0]};
+                            default: begin
+
                             end
                         endcase
                     end
@@ -518,7 +534,7 @@ module dcache
             );
 `else
 
-            dual_port_lutram #(
+            byte_bram #(
                 .DATA_WIDTH     (TAG_BRAM_WIDTH),
                 .DATA_DEPTH_EXP2($clog2(NSET))
             ) u_tag_bram (
@@ -531,7 +547,7 @@ module dcache
                 .addrb(tag_bram_addr[i]),
                 .doutb(tag_bram_rdata[i])
             );
-            dual_port_lutram #(
+            byte_bram #(
                 .DATA_WIDTH     (ICACHELINE_WIDTH),
                 .DATA_DEPTH_EXP2($clog2(NSET))
             ) u_data_bram (
