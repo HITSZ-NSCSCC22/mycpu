@@ -57,17 +57,9 @@ package tlb_types;
         logic dmw0_en;
         logic dmw1_en;
         logic tlbsrch_en;
-        logic [ADDR_WIDTH-1:0] vaddr;
-    } ex_tlb_rreq_t;
-
-    typedef struct packed {
-        logic fetch;
-        logic tlbsrch;
-        logic [31:0] vaddr;
-        logic dmw0_en;
-        logic dmw1_en;
         logic cacop_op_mode_di;
-    } data_tlb_t;
+        logic [ADDR_WIDTH-1:0] vaddr;
+    } data_tlb_rreq_t;
 
     typedef struct packed {
         logic [7:0] index;

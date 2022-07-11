@@ -40,7 +40,7 @@ module ex
     output data_forward_t data_forward_o,
 
     // -> TLB
-    output ex_tlb_rreq_t tlb_rreq_o,
+    output data_tlb_rreq_t tlb_rreq_o,
 
     // <-> Cache
     output logic icacop_op_en,
@@ -183,6 +183,7 @@ module ex
             tlb_rreq_o.dmw0_en = dmw0_en;
             tlb_rreq_o.dmw1_en = dmw1_en;
             tlb_rreq_o.tlbsrch_en = tlbsrch_en;
+            tlb_rreq_o.cacop_op_mode_di = cacop_op_mode_di;
             tlb_rreq_o.vaddr = tlb_vaddr;
         end else tlb_rreq_o = 0;
     end

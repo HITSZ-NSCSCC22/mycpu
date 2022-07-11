@@ -80,13 +80,13 @@ module dispatch
     logic [ISSUE_WIDTH-1:0][`RegAddrBus] issue_wreg_addr;
     always_comb begin
         for (integer i = 0; i < ISSUE_WIDTH; i++) begin
-            issue_wreg[i] = exe_o[i].reg_write_valid;
-            issue_wreg_addr[i] = exe_o[i].reg_write_addr;
+            issue_wreg[i] = id_i[i].reg_write_valid;
+            issue_wreg_addr[i] = id_i[i].reg_write_addr;
         end
     end
     always_ff @(posedge clk) begin
-        if (!rst_n) regs_available <= 32'b1;
-        else if (flush) regs_available <= 32'b1;
+        if (!rst_n) regs_available <= {GPR_NUM{1'b1}};
+        else if (flush) regs_available <= {GPR_NUM{1'b1}};
         else if (stall) regs_available <= regs_available;
         else begin
             // WB data available
@@ -111,7 +111,8 @@ module dispatch
             end
             // Set unavailable when issued
             for (integer issue_idx = 0; issue_idx < ISSUE_WIDTH; issue_idx++) begin
-                if (issue_wreg[issue_idx]) regs_available[issue_wreg_addr[issue_idx]] <= 0;
+                if (issue_wreg[issue_idx] & issue_valid[issue_idx])
+                    regs_available[issue_wreg_addr[issue_idx]] <= 0;
             end
         end
     end

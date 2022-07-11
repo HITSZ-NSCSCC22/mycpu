@@ -18,7 +18,7 @@ module tlb
 
     //data addr trans, return next cycle
     input logic data_addr_trans_en,
-    input data_tlb_t data_i,
+    input data_tlb_rreq_t data_i,
     output tlb_data_t data_o,
 
     //tlbwi tlbwr tlb write
@@ -74,7 +74,7 @@ module tlb
     logic [31:0] inst_vaddr_buffer;
     logic [31:0] data_vaddr_buffer;
     inst_tlb_t inst_i_buffer;
-    data_tlb_t data_i_buffer;
+    data_tlb_rreq_t data_i_buffer;
     logic [31:0] inst_paddr;
     logic [31:0] data_paddr;
 
@@ -98,7 +98,7 @@ module tlb
     assign s0_vppn = inst_i.vaddr[31:13];
     assign s0_odd_page = inst_i.vaddr[12];
 
-    assign s1_vppn = data_i.tlbsrch ? write_signal_i.tlbehi[`VPPN] : data_i.vaddr[31:13];
+    assign s1_vppn = data_i.tlbsrch_en ? write_signal_i.tlbehi[`VPPN] : data_i.vaddr[31:13];
     assign s1_odd_page = data_i.vaddr[12];
 
     //trans write port sig

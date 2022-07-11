@@ -144,7 +144,7 @@ module cpu_top
     logic [1:0] wb_dcache_flush; // flush dcache if excp
     logic [1:0][`RegBus] wb_dcache_flush_pc;
     logic [2:0]mem_cache_wr_type;
-    logic cache_ack;
+    logic dcache_ack, dcache_ready;
     
     assign mem_cache_ce = flush ? 0 : mem_cache_signal[0].ce | mem_cache_signal[1].ce;
     assign mem_cache_we = flush ? 0 : mem_cache_signal[0].we | mem_cache_signal[1].we;
@@ -163,6 +163,13 @@ module cpu_top
     // Ctrl -> DifftestEvents
     diff_commit [COMMIT_WIDTH-1:0] difftest_commit_info;
 
+    // TLB
+    data_tlb_rreq_t [1:0] tlb_data_rreq;
+    tlb_data_t tlb_data_result;
+    tlb_write_in_struct tlb_write_signal_i;
+    tlb_read_out_struct tlb_read_signal_o;
+
+    logic [4:0] rand_index_diff;
     axi_master u_axi_master (
         .aclk   (aclk),
         .aresetn(aresetn),
@@ -243,7 +250,7 @@ module cpu_top
         .pc        (mem_cache_pc),
         .uncache   (1'b0),
         .index     (mem_cache_addr[11:4]),
-        .tag       (tlb_data_o.tag),
+        .tag       (mem_cache_addr[31:12]),
         .offset    (mem_cache_addr[3:0]),
         .wstrb     (mem_cache_sel),
         .wdata     (mem_cache_data),
@@ -251,7 +258,8 @@ module cpu_top
         .wr_type_i (mem_cache_wr_type),
         .flush_pc(wb_dcache_flush[0] ? wb_dcache_flush_pc[0] : wb_dcache_flush[1] ? wb_dcache_flush_pc[1] :0),
         .flush_i    (wb_dcache_flush!=2'b0), // If excp occurs, flush DCache
-        .cache_ack  (cache_ack),
+        .cache_ready(dcache_ready),
+        .cache_ack  (dcache_ack),
         .addr_ok   (mem_addr_ok),
         .data_ok   (mem_data_ok),
         .rdata     (cache_mem_data),
@@ -359,7 +367,7 @@ module cpu_top
         //-> CACOP
         .cacop_i(icacop_op_en[0]),
         .cacop_mode_i(cacop_op_mode[0]),
-        .cacop_addr_i({tlb_data_o.tag,tlb_data_o.index,tlb_data_o.offset}),
+        .cacop_addr_i({tlb_data_result.tag,tlb_data_result.index,tlb_data_result.offset}),
         .cacop_ack_o(icacop_ack)
    );
     
@@ -558,7 +566,6 @@ module cpu_top
     logic [1:0] ex_stallreq;
     logic [63:0] csr_timer_64;
     logic [31:0] csr_tid;
-    ex_tlb_rreq_t [1:0] ex_tlb_signal;
     generate
         for (genvar i = 0; i < 2; i++) begin : ex
             ex u_ex (
@@ -589,7 +596,7 @@ module cpu_top
                 .data_forward_o(ex_data_forward[i]),
 
                 // -> TLB
-                .tlb_rreq_o(),
+                .tlb_rreq_o(tlb_data_rreq[i]),
 
                 // <-> Cache, CACOP
                 .icacop_op_en(icacop_op_en[i]),
@@ -606,14 +613,12 @@ module cpu_top
 
     logic mem_wb_LLbit_we[2];
     logic mem_wb_LLbit_value[2];
-    logic cacop_op_mode_di[2];
     tlb_inv_t tlb_inv_signal_i;
-    assign tlb_data_i.cacop_op_mode_di =  cacop_op_mode_di[0] |  cacop_op_mode_di[1];
 
     csr_to_mem_struct csr_mem_signal;
     tlb_to_mem_struct tlb_mem_signal;
-    assign tlb_mem_signal = {tlb_data_o.tag,tlb_data_o.found,tlb_data_o.tlb_index,tlb_data_o.tlb_v,
-                            tlb_data_o.tlb_d,tlb_data_o.tlb_mat,tlb_data_o.tlb_plv};
+    assign tlb_mem_signal = {tlb_data_result.tag,tlb_data_result.found,tlb_data_result.tlb_index,tlb_data_result.tlb_v,
+                            tlb_data_result.tlb_d,tlb_data_result.tlb_mat,tlb_data_result.tlb_plv};
 
     assign csr_mem_signal = {csr_pg,csr_da,csr_dmw0,csr_dmw1,csr_plv,csr_datm};
    
@@ -640,11 +645,11 @@ module cpu_top
 
                 // <-> DCache
                 .dcache_rreq_o(mem_cache_signal[i]),
-                .dcache_ready_i(),
-                .dcache_ack_i(),
+                .dcache_ready_i(dcache_ready),
+                .dcache_ack_i(dcache_ack),
 
                 // <- TLB
-                .tlb_result_i(),
+                .tlb_result_i(tlb_data_result),
 
                 // <- CSR
                 .LLbit_i(LLbit_o),
@@ -845,20 +850,6 @@ module cpu_top
         .asid_in(tlb_read_signal_o.asid)
     );
 
-    assign data_addr_trans_en = ex_tlb_signal[0].trans_en;
-    data_tlb_t tlb_data_i;
-    assign tlb_data_i.dmw0_en = ex_tlb_signal[0].dmw0_en;
-    assign tlb_data_i.dmw1_en = ex_tlb_signal[0].dmw1_en;
-    assign tlb_data_i.vaddr = ex_tlb_signal[0].vaddr;
-    assign tlb_data_i.fetch = ex_tlb_signal[0].fetch;
-    assign tlb_data_i.tlbsrch = ex_tlb_signal[0].tlbsrch_en;
-
-    tlb_data_t tlb_data_o;
-    tlb_write_in_struct tlb_write_signal_i;
-    tlb_read_out_struct tlb_read_signal_o;
-
-    logic [4:0] rand_index_diff;
-    
     tlb u_tlb (
         .clk               (clk),
         .asid              (csr_asid),
@@ -868,8 +859,8 @@ module cpu_top
         .inst_i(frontend_tlb),
         .inst_o(tlb_inst),
         //data addr trans 
-        .data_i(tlb_data_i),
-        .data_o(tlb_data_o),
+        .data_i(tlb_data_rreq[0]), // Memory access is single issued
+        .data_o(tlb_data_result),
         //tlbwr tlbfill tlb write 
         .write_signal_i(tlb_write_signal_i),
         //tlbp tlb read

@@ -190,7 +190,7 @@ module mem1
         end
     end
 
-    // Output to nexy stage
+    // Output to next stage
     always_comb begin
         // Instr Info
         mem2_o.instr_info = ex_i.instr_info;
