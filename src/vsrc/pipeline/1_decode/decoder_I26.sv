@@ -60,14 +60,16 @@ module decoder_I26
         special_info_o        = 0;
         case (instr[31:26])
             `EXE_B: begin
-                aluop_o  = `EXE_B_OP;
+                aluop_o = `EXE_B_OP;
                 alusel_o = `EXE_RES_JUMP;
+                special_info_o.is_pri = 1;
             end
             `EXE_BL: begin
                 aluop_o = `EXE_BL_OP;
                 alusel_o = `EXE_RES_JUMP;
                 reg_write_valid_o = 1;
                 reg_write_addr_o = 5'b1;
+                special_info_o.is_pri = 1;
             end
             default: begin
                 decode_result_valid_o = 0;
