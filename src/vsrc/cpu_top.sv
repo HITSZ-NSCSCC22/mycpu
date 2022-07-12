@@ -158,6 +158,8 @@ module cpu_top
     wb_reg_t [COMMIT_WIDTH-1:0] regfile_write;
     // Ctrl -> CSR
     csr_write_signal [COMMIT_WIDTH-1:0] csr_write;
+    // Ctrl Backend redirect
+    logic [ADDR_WIDTH-1:0] backend_redirect_pc;
 
     // Difftest related
     // Ctrl -> DifftestEvents
@@ -284,7 +286,6 @@ module cpu_top
     logic has_int;
     logic excp_flush;
     logic ertn_flush;
-    logic fetch_flush;
     logic [31:0] csr_era_i;
     logic [8:0] csr_esubcode_i;
     logic [5:0] csr_ecode_i;
@@ -542,19 +543,13 @@ module cpu_top
     logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ctrl_frontend_ftq_id;
 
     // Redirect signal for frontend
-    assign backend_redirect = excp_flush | ertn_flush | idle_flush | (ex_redirect) | fetch_flush;
+    assign backend_redirect = ex_redirect[0] | pipeline_flush[6]; 
 
-    assign backend_redirect_ftq_id = (excp_flush | ertn_flush | idle_flush | fetch_flush) ? ctrl_frontend_ftq_id :
+    assign backend_redirect_ftq_id = (pipeline_flush[6]) ? ctrl_frontend_ftq_id :
                                 (ex_redirect[0]) ? ex_redirect_ftq_id[0] : 
                                 (ex_redirect[1] ) ? ex_redirect_ftq_id[1] : 0;
 
-    // If ex is stalling, means that the branch flag maybe invalid and waiting for the right data
-    // so no jumping if ex is stalling
-    assign next_pc = (excp_flush && !excp_tlbrefill) ? csr_eentry :
-                     (excp_flush && excp_tlbrefill) ? csr_tlbrentry :
-                     ertn_flush ? csr_era :
-                     idle_flush ? idle_pc : 
-                     fetch_flush ? idle_pc +4 :
+    assign next_pc = pipeline_flush[6] ? backend_redirect_pc :
                      (ex_redirect[0]) ? ex_redirect_target[0] : 
                      (ex_redirect[1]) ? ex_redirect_target[1] : 0;
 
@@ -763,7 +758,16 @@ module cpu_top
         .mem2_advance_ready_i(mem2_advance_ready),
         .flush_o(pipeline_flush), 
         .advance_o(pipeline_advance),
+        .backend_redirect_pc_o(backend_redirect_pc),
 
+        // <- CSR
+        .csr_eentry_i(csr_eentry),
+        .csr_tlbrentry_i(csr_tlbrentry),
+        .csr_era_i(csr_era),
+
+        // -> CSR
+        .csr_excp(excp_flush),
+        .csr_ertn(ertn_flush),
         .csr_era(csr_era_i),
         .csr_esubcode(csr_esubcode_i),
         .csr_ecode(csr_ecode_i),

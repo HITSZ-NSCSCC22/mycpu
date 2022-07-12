@@ -26,8 +26,14 @@ module ctrl
     input logic [ISSUE_WIDTH-1:0] mem2_advance_ready_i,  //访存阶段暂停请求信号
     output logic [6:0] flush_o,  // flush signal {frontend, id_dispatch, dispatch, ex, mem1, mem2, wb}
     output logic [6:0] advance_o,  // {frontend, id_dispatch, dispatch, ex, mem1, mem2, wb}
+    output logic [ADDR_WIDTH-1:0] backend_redirect_pc_o,
 
-    // -> CSR
+    // <-> CSR
+    input logic [ADDR_WIDTH-1:0] csr_eentry_i,
+    input logic [ADDR_WIDTH-1:0] csr_tlbrentry_i,
+    input logic [ADDR_WIDTH-1:0] csr_era_i,
+    output logic csr_excp,
+    output logic csr_ertn,
     output logic [31:0] csr_era,
     output logic [8:0] csr_esubcode,
     output logic [5:0] csr_ecode,
@@ -86,9 +92,11 @@ module ctrl
         end
     end
 
+    assign backend_commit_valid[0] = wb_i[0].valid;
+    assign backend_commit_valid[1] = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | instr_info[0].excp)? 0 : wb_i[1].valid;
 
     // Backend commit basic block
-    assign backend_commit_block_o = commit_valid & (instr_info[0].excp ? 2'b01:
+    assign backend_commit_block_o = backend_commit_valid & (instr_info[0].excp ? 2'b01:
                                     instr_info[1].excp ? {1'b1 , wb_i[0].is_last_in_block | ertn_flush | idle_flush | refetch_flush} : 
                                     {wb_i[1].is_last_in_block, wb_i[0].is_last_in_block | ertn_flush | idle_flush | refetch_flush});
     // Backend flush FTQ ID
@@ -153,6 +161,11 @@ module ctrl
     assign ertn_flush = aluop == `EXE_ERTN_OP | wb_i[1].aluop == `EXE_ERTN_OP;
     assign refetch_flush = special_info[0].need_refetch | special_info[0].need_refetch;
     assign idle_pc = instr_info[0].pc;
+    assign backend_redirect_pc_o = (excp_flush && !excp_tlbrefill) ? csr_eentry_i :
+                     (excp_flush && excp_tlbrefill) ? csr_tlbrentry_i :
+                     ertn_flush ? csr_era_i :
+                     idle_flush ? idle_pc : 
+                     refetch_flush ? idle_pc +4 : 0;
 
     //提交difftest
     always_comb begin
@@ -175,6 +188,8 @@ module ctrl
 
 
     assign excp = instr_info[0].excp | instr_info[1].excp;
+    assign csr_excp = excp;
+    assign csr_ertn = ertn_flush;
     assign csr_era = aluop == `EXE_IDLE_OP ? pc + 32'h4 : pc;
     //异常处理，优先处理第一条流水线的异常
     assign {excp_num, pc, excp_instr, error_va} = 
