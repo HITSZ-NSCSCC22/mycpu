@@ -134,7 +134,7 @@ module dummy_dcache (
             wdata_buffer <= 0;
             rd_type_buffer <= 0;
             wr_type_buffer <= 0;
-        end else if (valid & !cache_ack) begin  // not accept new request while working
+        end else if (valid & cache_ack) begin  // not accept new request while working
             valid_buffer <= valid;
             op_buffer <= op;
             uncache_buffer <= uncache;

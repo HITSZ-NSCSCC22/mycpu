@@ -87,11 +87,8 @@ module ctrl
     end
 
 
-    assign backend_commit_valid[0] = wb_i[0].valid;
-    assign backend_commit_valid[1] = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | instr_info[0].excp)? 0 : wb_i[1].valid;
-
     // Backend commit basic block
-    assign backend_commit_block_o = backend_commit_valid & (instr_info[0].excp ? 2'b01:
+    assign backend_commit_block_o = commit_valid & (instr_info[0].excp ? 2'b01:
                                     instr_info[1].excp ? {1'b1 , wb_i[0].is_last_in_block | ertn_flush | idle_flush | refetch_flush} : 
                                     {wb_i[1].is_last_in_block, wb_i[0].is_last_in_block | ertn_flush | idle_flush | refetch_flush});
     // Backend flush FTQ ID
@@ -131,6 +128,9 @@ module ctrl
         for (integer i = 0; i < COMMIT_WIDTH; i++) begin
             advance = advance & ex_advance_ready_i[i] & mem1_advance_ready_i[i] & mem2_advance_ready_i[i];
         end
+    end
+    always_ff @(posedge clk) begin
+        advance_delay <= advance;
     end
     assign advance_o = {7{advance}};
     // Frontend
