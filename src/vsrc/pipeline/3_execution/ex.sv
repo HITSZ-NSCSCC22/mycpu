@@ -243,6 +243,7 @@ module ex
     end
     always_comb begin
         mul_op = 0;
+        div_op = 0;
         case (aluop_i)
             `EXE_MUL_OP:   mul_op = 3'h1;
             `EXE_MULH_OP:  mul_op = 3'h2;

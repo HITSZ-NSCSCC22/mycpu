@@ -534,10 +534,6 @@ module cpu_top
 
 
     logic flush;
-
-    //tlb
-    logic data_addr_trans_en;
-
     logic idle_flush;
     logic icache_flush;
     logic [`InstAddrBus] idle_pc;
@@ -860,8 +856,6 @@ module cpu_top
     tlb u_tlb (
         .clk               (clk),
         .asid              (csr_asid),
-        //trans mode 
-        .data_addr_trans_en(data_addr_trans_en),
         //inst addr trans
         .inst_i(frontend_tlb),
         .inst_o(tlb_inst),

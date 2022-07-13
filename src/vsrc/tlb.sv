@@ -16,7 +16,6 @@ module tlb
     output tlb_inst_t inst_o,
 
     //data addr trans, return next cycle
-    input logic data_addr_trans_en,
     input data_tlb_rreq_t data_i,
     output tlb_data_t data_o,
 
@@ -182,7 +181,7 @@ module tlb
 
     assign data_o.offset = data_vaddr_buffer[3:0];
     assign data_o.index = data_vaddr_buffer[11:4];
-    assign data_o.tag    = data_addr_trans_en ? ((s1_ps == 6'd12) ? s1_ppn : {s1_ppn[19:10], data_paddr[21:12]}) : data_paddr[31:12];
+    assign data_o.tag    = data_i_buffer.trans_en ? ((s1_ps == 6'd12) ? s1_ppn : {s1_ppn[19:10], data_paddr[21:12]}) : data_paddr[31:12];
 
     assign rand_index_diff = w_index;
 

@@ -1,8 +1,10 @@
+`include "core_config.sv"
 `include "core_types.sv"
 `include "csr_defines.sv"
 `include "TLB/tlb_types.sv"
 
 module mem1
+    import core_config::*;
     import core_types::*;
     import csr_defines::*;
     import tlb_types::*;
@@ -70,21 +72,31 @@ module mem1
     logic [`AluOpBus] aluop_i;
     assign aluop_i = ex_i.aluop;
 
-    logic [`RegBus] mem_addr, reg2_i;
-    assign mem_addr = {tlb_result_i.tag, tlb_result_i.index, tlb_result_i.offset};
+    logic [`RegBus] reg2_i;
+    logic [ADDR_WIDTH-1:0] mem_vaddr, mem_paddr;
+    assign mem_paddr = {tlb_result_i.tag, tlb_result_i.index, tlb_result_i.offset};
+    assign mem_vaddr = ex_i.mem_addr;
     assign reg2_i = ex_i.reg2;
 
+    // DCache ACK
+    logic dcache_ack_r;
+    always_ff @(posedge clk) begin
+        if (rst) dcache_ack_r <= 0;
+        else if (advance | flush) dcache_ack_r <= 0;
+        else if (dcache_ack_i) dcache_ack_r <= 1;
+    end
 
-    assign access_mem = (mem_load_op | mem_store_op) & ~(aluop_i == `EXE_SC_OP & LLbit_i == 0);
+
+    assign access_mem   = (mem_load_op | mem_store_op) & ~(aluop_i == `EXE_SC_OP & LLbit_i == 0);
 
     // Anything can trigger stall and modify register is considerd a "load" instr
-    assign mem_load_op = special_info.mem_load;
+    assign mem_load_op  = special_info.mem_load;
     assign mem_store_op = special_info.mem_store;
 
     // Exception handling
     logic excp, excp_adem, excp_tlbr, excp_pil, excp_pis, excp_ppi, excp_pme;
     logic [15:0] excp_num;
-    assign excp_adem = (access_mem || cacop_en) && ex_i.data_addr_trans_en && (csr_plv == 2'd3) && mem_addr[31];
+    assign excp_adem = (access_mem || cacop_en) && ex_i.data_addr_trans_en && (csr_plv == 2'd3) && mem_vaddr[31];
     assign excp_tlbr = (access_mem || cacop_en) && !tlb_result_i.found && ex_i.data_addr_trans_en;
     assign excp_pil  = (mem_load_op | cacop_en)  && !tlb_result_i.tlb_v && ex_i.data_addr_trans_en;  // CACOP will generate pil exception
     assign excp_pis = mem_store_op && !tlb_result_i.tlb_v && ex_i.data_addr_trans_en;
@@ -115,8 +127,8 @@ module mem1
         aluop_i == `EXE_ST_B_OP ? 1'b1 : 1'b0
     } : 0;
 
-    assign difftest_mem_info.load_addr = mem_load_op ? mem_addr : 0;
-    assign difftest_mem_info.store_addr = mem_store_op ? mem_addr : 0;
+    assign difftest_mem_info.load_addr = mem_load_op ? mem_paddr : 0;
+    assign difftest_mem_info.store_addr = mem_store_op ? mem_paddr : 0;
     assign difftest_mem_info.timer_64 = ex_i.timer_64;
 
     // Data forward
@@ -125,7 +137,7 @@ module mem1
 
     //if mem1 has a mem request and cache is working 
     //then wait until cache finish its work
-    assign advance_ready = (access_mem & mem_access_valid ) ? dcache_ack_i :
+    assign advance_ready = (access_mem & mem_access_valid ) ? dcache_ready_i :
                             icache_op_en ? icacop_ack_i : 1;
 
     // Sanity check
@@ -135,53 +147,53 @@ module mem1
     // DCache memory access request
     always_comb begin
         dcache_rreq_o = 0;
-        if (access_mem & mem_access_valid & dcache_ready_i) begin
+        if (advance & access_mem & mem_access_valid & dcache_ready_i & ~dcache_ack_r) begin
             dcache_rreq_o.ce = 1;
             case (aluop_i)
                 `EXE_LD_B_OP, `EXE_LD_BU_OP: begin
-                    dcache_rreq_o.addr = mem_addr;
-                    dcache_rreq_o.sel = 4'b0001 << mem_addr[1:0];
+                    dcache_rreq_o.addr = mem_paddr;
+                    dcache_rreq_o.sel = 4'b0001 << mem_paddr[1:0];
                     dcache_rreq_o.rd_type = 3'b000;
                 end
                 `EXE_LD_H_OP, `EXE_LD_HU_OP: begin
-                    dcache_rreq_o.addr = mem_addr;
-                    dcache_rreq_o.sel = 4'b0011 << mem_addr[1:0];
+                    dcache_rreq_o.addr = mem_paddr;
+                    dcache_rreq_o.sel = 4'b0011 << mem_paddr[1:0];
                     dcache_rreq_o.rd_type = 3'b001;
                 end
                 `EXE_LD_W_OP: begin
-                    dcache_rreq_o.addr = mem_addr;
+                    dcache_rreq_o.addr = mem_paddr;
                     dcache_rreq_o.sel = 4'b1111;
                     dcache_rreq_o.rd_type = 3'b010;
                 end
                 `EXE_ST_B_OP: begin
-                    dcache_rreq_o.addr = mem_addr;
+                    dcache_rreq_o.addr = mem_paddr;
                     dcache_rreq_o.we = 1;
                     dcache_rreq_o.wr_type = 3'b000;
-                    dcache_rreq_o.sel = 4'b0001 << mem_addr[1:0];
-                    dcache_rreq_o.data = {24'b0, reg2_i[7:0]} << 8 * mem_addr[1:0];
+                    dcache_rreq_o.sel = 4'b0001 << mem_paddr[1:0];
+                    dcache_rreq_o.data = {24'b0, reg2_i[7:0]} << 8 * mem_paddr[1:0];
                 end
                 `EXE_ST_H_OP: begin
-                    dcache_rreq_o.addr = mem_addr;
+                    dcache_rreq_o.addr = mem_paddr;
                     dcache_rreq_o.we = 1;
                     dcache_rreq_o.wr_type = 3'b001;
-                    dcache_rreq_o.sel = 4'b0011 << mem_addr[1:0];
-                    dcache_rreq_o.data = {16'b0, reg2_i[15:0]} << 8 * mem_addr[1:0];
+                    dcache_rreq_o.sel = 4'b0011 << mem_paddr[1:0];
+                    dcache_rreq_o.data = {16'b0, reg2_i[15:0]} << 8 * mem_paddr[1:0];
                 end
                 `EXE_ST_W_OP: begin
-                    dcache_rreq_o.addr = mem_addr;
+                    dcache_rreq_o.addr = mem_paddr;
                     dcache_rreq_o.we = 1;
                     dcache_rreq_o.wr_type = 3'b010;
                     dcache_rreq_o.data = reg2_i;
                     dcache_rreq_o.sel = 4'b1111;
                 end
                 `EXE_LL_OP: begin
-                    dcache_rreq_o.addr = mem_addr;
+                    dcache_rreq_o.addr = mem_paddr;
                     dcache_rreq_o.sel = 4'b1111;
                     dcache_rreq_o.rd_type = 3'b010;
                 end
                 `EXE_SC_OP: begin
                     if (LLbit_i == 1'b1) begin
-                        dcache_rreq_o.addr = mem_addr;
+                        dcache_rreq_o.addr = mem_paddr;
                         dcache_rreq_o.we = 1;
                         dcache_rreq_o.data = reg2_i;
                         dcache_rreq_o.sel = 4'b1111;
@@ -214,7 +226,7 @@ module mem1
         mem2_o.aluop = aluop_i;
         mem2_o.csr_signal = ex_i.csr_signal;
         mem2_o.mem_access_valid = mem_access_valid;
-        mem2_o.mem_addr = mem_addr;
+        mem2_o.mem_addr = mem_vaddr;
         mem2_o.inv_i = ex_i.inv_i;
 
         mem2_o.difftest_mem_info = difftest_mem_info;
