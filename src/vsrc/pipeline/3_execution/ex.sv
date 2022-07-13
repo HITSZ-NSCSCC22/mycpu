@@ -218,9 +218,22 @@ module ex
 
     // Divider and Multiplier
     // Multi-cycle
+    logic [`RegBus] pc_delay;
+    always_ff @(posedge clk) begin
+        pc_delay <= inst_pc_i;
+    end
+
+
     logic [1:0] muldiv_op;  // High effective
     logic [2:0] mul_op;
     logic [2:0] div_op;
+    logic muldiv_finish;
+    always_comb begin
+        if (rst) muldiv_finish = 0;
+        else if (mul_finish | div_finish) muldiv_finish = 1;
+        else if (pc_delay != inst_pc_i) muldiv_finish = 0;
+        else muldiv_finish = muldiv_finish;
+    end
     always_comb begin
         case (aluop_i)
             `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP: begin
@@ -255,26 +268,20 @@ module ex
     logic mul_already_start;
     logic mul_finish;
     logic mul_busy;
-    logic mul_ack;
     logic [`RegBus] mul_result;
 
     always_ff @(posedge clk) begin
         if (rst) begin
             mul_start <= 0;
             mul_already_start <= 0;
-        end else if (mul_op != 0 && mul_already_start == 0 && mul_start == 0) begin
+        end else if (mul_op != 3'b0 & !mul_already_start & !muldiv_finish) begin
             mul_start <= 1;
             mul_already_start <= 1;
-        end else if (mul_finish) begin
-            mul_already_start <= 0;
-        end else begin
+        end else if (pc_delay != inst_pc_i) mul_already_start <= 0;
+        else begin
             mul_start <= 0;
-            mul_already_start <= mul_already_start;
+            mul_already_start = mul_already_start;
         end
-    end
-
-    always_comb begin
-        mul_ack = mul_finish & muldiv_op == 2'b10 & advance;
     end
 
     mul_unit u_mul_unit (
@@ -285,9 +292,6 @@ module ex
         .rs1(oprand1),
         .rs2(oprand2),
         .op(mul_op[1:0]),
-
-        .mul_ack(mul_ack),
-        .valid_i(1),
 
         .ready(mul_busy),
         .done(mul_finish),
@@ -300,22 +304,19 @@ module ex
     logic [`RegBus] quotient;
     logic [`RegBus] remainder;
 
-
     always_ff @(posedge clk) begin
         if (rst) begin
             div_start <= 0;
             div_already_start <= 0;
-        end else if (div_op != 0 && div_already_start == 0 && div_start == 0) begin
+        end else if (div_op != 3'b0 & !div_already_start & !muldiv_finish) begin
             div_start <= 1;
             div_already_start <= 1;
-        end else if (div_finish) begin
-            div_already_start <= 0;
-        end else begin
+        end else if (pc_delay != inst_pc_i) div_already_start <= 0;
+        else begin
             div_start <= 0;
             div_already_start <= div_already_start;
         end
     end
-
 
     div_unit u_div_unit (
         .clk(clk),
@@ -323,7 +324,7 @@ module ex
 
         .op(div_op[1:0]),
         .dividend(oprand1),
-        .divisor((oprand2 == 0 && (aluop_i == `EXE_DIV_OP || aluop_i == `EXE_DIVU_OP)) ? 1 : oprand2),
+        .divisor((oprand2 == 0 ? 1 : oprand2)),
         .divisor_is_zero(0),
         .start(div_start),
 
@@ -333,7 +334,7 @@ module ex
     );
 
     logic muldiv_stall;
-    assign muldiv_stall =  (muldiv_op == 2'b01 & ~div_finish) | (muldiv_op == 2'b10 & ~mul_finish);// CACOP
+    assign muldiv_stall = muldiv_op != 2'b0 & !muldiv_finish;  // CACOP
 
     always @(*) begin
         if (rst == `RstEnable) begin

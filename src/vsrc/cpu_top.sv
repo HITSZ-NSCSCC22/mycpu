@@ -783,7 +783,7 @@ module cpu_top
         .tlbsrch_found(tlbsrch_found),
         .tlbsrch_index(tlbsrch_index),
         .tlbrd_en(tlbrd_en),
-        .llbit_signal(),
+        .llbit_signal(llbit_i),
 
         .inv_o(tlb_inv_signal_i),
         .inv_stallreq(inv_stallreq),

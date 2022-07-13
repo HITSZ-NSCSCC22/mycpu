@@ -14,9 +14,6 @@ module mul_unit
     input logic [`RegBus] rs2,
     input logic [1:0] op,
 
-    input logic mul_ack,
-    input logic valid_i,
-
     output logic ready,
     output logic done,
     output logic [`RegBus] mul_result
@@ -24,8 +21,8 @@ module mul_unit
 );
 
     logic signed [63:0] result;
-    logic mulh[2];
-    logic valid[2];
+    logic mulh;
+    logic valid;
 
 
     logic rs1_is_signed, rs2_is_signed;
@@ -48,17 +45,17 @@ module mul_unit
         end
     end
 
-    assign mulh[0] = (op[1:0] != 2'b01);
+    assign mulh = (op[1:0] != 2'b01);
 
     always_ff @(posedge clk) begin
-        if (rst) valid <= '{default: 0};
+        if (rst) valid <= 0;
         else begin
-            valid[0] <= stage1_advance ? 1 : 0;
+            valid <= stage1_advance ? 1 : 0;
         end
     end
 
-    assign mul_result = mulh[0] ? result[63:32] : result[31:0];
-    assign done = valid[0];
+    assign mul_result = mulh ? result[63:32] : result[31:0];
+    assign done = valid;
 
 
 endmodule
