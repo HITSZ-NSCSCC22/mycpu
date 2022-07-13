@@ -79,8 +79,18 @@ module ctrl
     logic excp;
     logic [15:0] excp_num;
     logic excp_flush, ertn_flush, refetch_flush, idle_flush;
-    logic [  ADDR_WIDTH-1:0] idle_pc;
+    logic [ADDR_WIDTH-1:0] idle_pc;
     logic [COMMIT_WIDTH-1:0] commit_valid;
+
+    // Flag to indicate that the cpu is in idle mode
+    logic in_idle;
+
+    always_ff @(posedge clk) begin
+        if (rst) in_idle <= 0;
+        else if (excp) in_idle <= 0;  // Something happens, exit idle mode
+        else if (aluop == `EXE_IDLE_OP)
+            in_idle <= 1;  // Normal IDLE instr executed, enter idle mode
+    end
 
 
     assign valid = wb_i[0].valid | wb_i[1].valid;
@@ -190,7 +200,7 @@ module ctrl
     assign excp = instr_info[0].excp | instr_info[1].excp;
     assign csr_excp = excp;
     assign csr_ertn = ertn_flush;
-    assign csr_era = aluop == `EXE_IDLE_OP ? pc + 32'h4 : pc;
+    assign csr_era = in_idle ? pc + 32'h4 : pc;
     //异常处理，优先处理第一条流水线的异常
     assign {excp_num, pc, excp_instr, error_va} = 
             instr_info[0].excp ? {instr_info[0].excp_num, instr_info[0].pc,wb_i[0].diff_commit_o.instr, wb_i[0].mem_addr} :

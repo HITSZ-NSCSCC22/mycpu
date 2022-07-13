@@ -263,7 +263,7 @@ module cpu_top
         .wr_type_i (mem_cache_wr_type),
         .flush_pc(wb_dcache_flush[0] ? wb_dcache_flush_pc[0] : wb_dcache_flush[1] ? wb_dcache_flush_pc[1] :0),
         .store_commit_i(dcache_store_commit[0]),
-        .flush_i    (wb_dcache_flush!=2'b0), // If excp occurs, flush DCache
+        .flush_i    (wb_dcache_flush!=2'b0 | pipeline_flush[2]), // If excp occurs, flush DCache
         .cache_ready(dcache_ready),
         .cache_ack  (dcache_ack),
         .addr_ok   (mem_addr_ok),

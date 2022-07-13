@@ -135,7 +135,7 @@ module mem1
     // DCache memory access request
     always_comb begin
         dcache_rreq_o = 0;
-        if (mem_access_valid & dcache_ready_i) begin
+        if (access_mem & mem_access_valid & dcache_ready_i) begin
             dcache_rreq_o.ce = 1;
             case (aluop_i)
                 `EXE_LD_B_OP, `EXE_LD_BU_OP: begin
