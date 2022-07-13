@@ -188,7 +188,7 @@ module decoder_2RI12
             `EXE_CACOP: begin
                 reg_write_valid_o           = 0;
                 reg_write_addr_o            = 0;
-                reg_read_valid_o            = 2'b00;
+                reg_read_valid_o            = 2'b01;
                 reg_read_addr_o             = {5'b0, rj};
                 use_imm                     = 1'b1;
                 aluop_o                     = `EXE_CACOP_OP;

@@ -5,8 +5,8 @@
 `include "frontend/frontend_defines.sv"
 
 `include "cs_reg.sv"
-`include "TLB/tlb.sv"
-`include "TLB/tlb_entry.sv"
+`include "tlb.sv"
+`include "tlb_entry.sv"
 `include "AXI/axi_master.sv"
 `include "frontend/frontend.sv"
 `include "instr_buffer.sv"
@@ -595,13 +595,7 @@ module cpu_top
                 .data_forward_o(ex_data_forward[i]),
 
                 // -> TLB
-                .tlb_rreq_o(tlb_data_rreq[i]),
-
-                // <-> Cache, CACOP
-                .icacop_op_en(icacop_op_en[i]),
-                .icacop_op_ack_i(icacop_ack),
-                .dcacop_op_en(dcacop_op_en),
-                .cacop_op_mode(cacop_op_mode[i])
+                .tlb_rreq_o(tlb_data_rreq[i])
             );
         end
     endgenerate
@@ -646,6 +640,11 @@ module cpu_top
                 .dcache_rreq_o(mem_cache_signal[i]),
                 .dcache_ready_i(dcache_ready),
                 .dcache_ack_i(dcache_ack),
+
+                // -> ICache, ICACOP
+                .icacop_en_o(icacop_op_en[i]),
+                .icacop_mode_o(cacop_op_mode[i]),
+                .icacop_ack_i(icacop_ack),
 
                 // <- TLB
                 .tlb_result_i(tlb_data_result),
@@ -875,7 +874,6 @@ module cpu_top
         .read_signal_o(tlb_read_signal_o),
         //invtlb 
         .inv_signal_i(tlb_inv_signal_i),
-        .inv_ack_o(tlb_inv_ack),
         //from csr
         .csr_dmw0(csr_dmw0),
         .csr_dmw1(csr_dmw1),

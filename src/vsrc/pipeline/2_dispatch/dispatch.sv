@@ -84,6 +84,10 @@ module dispatch
             issue_wreg_addr[i] = id_i[i].reg_write_addr;
         end
     end
+    // Detect reg availability using a [GPR_NUM-1:0] register
+    // this always block is written in "override" flavor to mitigate following conditions:
+    // 1. instr in MEM2 has regX data_valid, so instr in EX depend on regX is issued a cycle before, but also uses regX and without data_valid
+    //    so should not issue instructions now, since regX is considered not ready
     always_ff @(posedge clk) begin
         if (!rst_n) regs_available <= {GPR_NUM{1'b1}};
         else if (flush) regs_available <= {GPR_NUM{1'b1}};
@@ -91,23 +95,31 @@ module dispatch
         else begin
             // WB data available
             for (integer i = 0; i < ISSUE_WIDTH; i++) begin
-                if (wb_data_forward_i[i].data_valid)
+                if (wb_data_forward_i[i].wreg & wb_data_forward_i[i].data_valid)
                     regs_available[wb_data_forward_i[i].wreg_addr] <= 1;
+                else if (wb_data_forward_i[i].wreg & ~wb_data_forward_i[i].data_valid)
+                    regs_available[wb_data_forward_i[i].wreg_addr] <= 0;
             end
             // MEM2 data available
             for (integer i = 0; i < ISSUE_WIDTH; i++) begin
-                if (mem2_data_forward_i[i].data_valid)
+                if (mem2_data_forward_i[i].wreg & mem2_data_forward_i[i].data_valid)
                     regs_available[mem2_data_forward_i[i].wreg_addr] <= 1;
+                else if (mem2_data_forward_i[i].wreg & ~mem2_data_forward_i[i].data_valid)
+                    regs_available[mem2_data_forward_i[i].wreg_addr] <= 0;
             end
             // MEM1 data available
             for (integer i = 0; i < ISSUE_WIDTH; i++) begin
-                if (mem1_data_forward_i[i].data_valid)
+                if (mem1_data_forward_i[i].wreg & mem1_data_forward_i[i].data_valid)
                     regs_available[mem1_data_forward_i[i].wreg_addr] <= 1;
+                else if (mem1_data_forward_i[i].wreg & ~mem1_data_forward_i[i].data_valid)
+                    regs_available[mem1_data_forward_i[i].wreg_addr] <= 0;
             end
             // EX data available
             for (integer i = 0; i < ISSUE_WIDTH; i++) begin
-                if (ex_data_forward_i[i].data_valid)
+                if (ex_data_forward_i[i].wreg & ex_data_forward_i[i].data_valid)
                     regs_available[ex_data_forward_i[i].wreg_addr] <= 1;
+                else if (ex_data_forward_i[i].wreg & ~ex_data_forward_i[i].data_valid)
+                    regs_available[ex_data_forward_i[i].wreg_addr] <= 0;
             end
             // Set unavailable when issued
             for (integer issue_idx = 0; issue_idx < ISSUE_WIDTH; issue_idx++) begin
