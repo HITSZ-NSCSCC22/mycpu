@@ -5,8 +5,8 @@
 `include "frontend/frontend_defines.sv"
 
 `include "cs_reg.sv"
-`include "TLB/tlb.sv"
-`include "TLB/tlb_entry.sv"
+`include "tlb.sv"
+`include "tlb_entry.sv"
 `include "AXI/axi_master.sv"
 `include "frontend/frontend.sv"
 `include "instr_buffer.sv"
@@ -875,7 +875,6 @@ module cpu_top
         .read_signal_o(tlb_read_signal_o),
         //invtlb 
         .inv_signal_i(tlb_inv_signal_i),
-        .inv_ack_o(tlb_inv_ack),
         //from csr
         .csr_dmw0(csr_dmw0),
         .csr_dmw1(csr_dmw1),

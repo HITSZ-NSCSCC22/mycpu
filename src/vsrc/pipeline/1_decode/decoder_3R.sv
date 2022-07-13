@@ -74,23 +74,25 @@ module decoder_3R
         case (instr[31:15])
             // These two do not need GPR
             `EXE_BREAK: begin
-                aluop_o = `EXE_BREAK_OP;
-                reg_write_valid_o = 0;
-                reg_write_addr_o = 0;
-                reg_read_valid_o = 2'b00;
-                reg_read_addr_o = 0;
-                instr_break = 1;
-                special_info_o.is_pri = 1;
+                aluop_o                         = `EXE_BREAK_OP;
+                reg_write_valid_o               = 0;
+                reg_write_addr_o                = 0;
+                reg_read_valid_o                = 2'b00;
+                reg_read_addr_o                 = 0;
+                instr_break                     = 1;
+                special_info_o.redirect         = 1;
+                special_info_o.is_pri           = 1;
                 special_info_o.not_commit_instr = 1;
             end
             `EXE_SYSCALL: begin
-                aluop_o = `EXE_SYSCALL_OP;
-                reg_write_valid_o = 0;
-                reg_write_addr_o = 0;
-                reg_read_valid_o = 2'b00;
-                reg_read_addr_o = 0;
-                instr_syscall = 1;
-                special_info_o.is_pri = 1;
+                aluop_o                         = `EXE_SYSCALL_OP;
+                reg_write_valid_o               = 0;
+                reg_write_addr_o                = 0;
+                reg_read_valid_o                = 2'b00;
+                reg_read_addr_o                 = 0;
+                instr_syscall                   = 1;
+                special_info_o.redirect         = 1;
+                special_info_o.is_pri           = 1;
                 special_info_o.not_commit_instr = 1;
             end
             `EXE_ADD_W: begin
@@ -174,9 +176,10 @@ module decoder_3R
                 alusel_o = `EXE_RES_ARITH;
             end
             `EXE_IDLE: begin
-                aluop_o = `EXE_IDLE_OP;
-                alusel_o = `EXE_RES_NOP;
-                special_info_o.is_pri = 1;
+                aluop_o                         = `EXE_IDLE_OP;
+                alusel_o                        = `EXE_RES_NOP;
+                special_info_o.redirect         = 1;
+                special_info_o.is_pri           = 1;
                 special_info_o.not_commit_instr = 1;
             end
             `EXE_DBAR, `EXE_IBAR: begin

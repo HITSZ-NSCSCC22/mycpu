@@ -91,23 +91,31 @@ module dispatch
         else begin
             // WB data available
             for (integer i = 0; i < ISSUE_WIDTH; i++) begin
-                if (wb_data_forward_i[i].data_valid)
+                if (wb_data_forward_i[i].wreg & wb_data_forward_i[i].data_valid)
                     regs_available[wb_data_forward_i[i].wreg_addr] <= 1;
+                else if (wb_data_forward_i[i].wreg & ~wb_data_forward_i[i].data_valid)
+                    regs_available[wb_data_forward_i[i].wreg_addr] <= 0;
             end
             // MEM2 data available
             for (integer i = 0; i < ISSUE_WIDTH; i++) begin
-                if (mem2_data_forward_i[i].data_valid)
+                if (mem2_data_forward_i[i].wreg & mem2_data_forward_i[i].data_valid)
                     regs_available[mem2_data_forward_i[i].wreg_addr] <= 1;
+                else if (mem2_data_forward_i[i].wreg & ~mem2_data_forward_i[i].data_valid)
+                    regs_available[mem2_data_forward_i[i].wreg_addr] <= 0;
             end
             // MEM1 data available
             for (integer i = 0; i < ISSUE_WIDTH; i++) begin
-                if (mem1_data_forward_i[i].data_valid)
+                if (mem1_data_forward_i[i].wreg & mem1_data_forward_i[i].data_valid)
                     regs_available[mem1_data_forward_i[i].wreg_addr] <= 1;
+                else if (mem1_data_forward_i[i].wreg & ~mem1_data_forward_i[i].data_valid)
+                    regs_available[mem1_data_forward_i[i].wreg_addr] <= 0;
             end
             // EX data available
             for (integer i = 0; i < ISSUE_WIDTH; i++) begin
-                if (ex_data_forward_i[i].data_valid)
+                if (ex_data_forward_i[i].wreg & ex_data_forward_i[i].data_valid)
                     regs_available[ex_data_forward_i[i].wreg_addr] <= 1;
+                else if (ex_data_forward_i[i].wreg & ~ex_data_forward_i[i].data_valid)
+                    regs_available[ex_data_forward_i[i].wreg_addr] <= 0;
             end
             // Set unavailable when issued
             for (integer issue_idx = 0; issue_idx < ISSUE_WIDTH; issue_idx++) begin

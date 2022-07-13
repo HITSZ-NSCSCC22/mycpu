@@ -79,10 +79,11 @@ module decoder_2R
                 special_info_o.need_refetch = 1;
             end
             `EXE_TLBSRCH: begin
-                decode_result_valid_o = 1;
-                aluop_o               = `EXE_TLBSRCH_OP;
-                kernel_instr          = 1;
-                special_info_o.is_pri = 1;
+                decode_result_valid_o       = 1;
+                aluop_o                     = `EXE_TLBSRCH_OP;
+                kernel_instr                = 1;
+                special_info_o.is_pri       = 1;
+                special_info_o.need_refetch = 1;
             end
             `EXE_ERTN: begin
                 decode_result_valid_o           = 1;
