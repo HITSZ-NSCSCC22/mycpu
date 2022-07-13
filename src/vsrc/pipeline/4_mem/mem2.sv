@@ -140,7 +140,7 @@ module mem2
                         end
                     endcase
                 end
-                `EXE_LL_OP, `EXE_SC_OP: begin
+                `EXE_LL_OP: begin
                     mem2_o.wdata = cache_data;
                 end
                 default: begin

@@ -84,8 +84,7 @@ module decoder_2RI14
                 use_imm = 1'b0;
                 imm_o = {{18{imm_14[13]}}, imm_14} << 2;  // Signed Extension and << 2
 
-                // If LLbit is 1, then SC.W is executed, and is both load and store
-                special_info_o.mem_load = 1;
+                // If LLbit is 1, then SC.W is executed is a store
                 special_info_o.mem_store = 1;
                 special_info_o.is_pri = 1;
                 special_info_o.need_refetch = 1;

@@ -739,7 +739,7 @@ module cpu_top
 
     logic tlbrd_en;
 
-    wb_llbit_t llbit_i;
+    wb_llbit_t llbit_write;
     logic inv_stallreq;
 
 
@@ -782,7 +782,7 @@ module cpu_top
         .tlbsrch_found(tlbsrch_found),
         .tlbsrch_index(tlbsrch_index),
         .tlbrd_en(tlbrd_en),
-        .llbit_signal(),
+        .llbit_signal(llbit_write),
 
         .inv_o(tlb_inv_signal_i),
         .inv_stallreq(inv_stallreq),
@@ -815,8 +815,8 @@ module cpu_top
         .write_signal_2(csr_write[1]),
         .raddr(dispatch_csr_read_addr),
         .rdata(dispatch_csr_data),
-        .llbit_i(llbit_i.value),
-        .llbit_set_i(llbit_i.we),
+        .llbit_i(llbit_write.value),
+        .llbit_set_i(llbit_write.we),
         .llbit_o(LLbit_o),
         .vppn_o(csr_vppn_o),
         .era_i(csr_era_i),

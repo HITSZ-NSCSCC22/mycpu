@@ -75,7 +75,7 @@ module mem1
     assign reg2_i = ex_i.reg2;
 
 
-    assign access_mem = mem_load_op | mem_store_op;
+    assign access_mem = (mem_load_op | mem_store_op) & ~(aluop_i == `EXE_SC_OP & LLbit_i == 0);
 
     // Anything can trigger stall and modify register is considerd a "load" instr
     assign mem_load_op = special_info.mem_load;
@@ -236,6 +236,7 @@ module mem1
                         mem2_o.wreg = 1;
                         mem2_o.difftest_mem_info.store_data = 0;
                         mem2_o.wdata = 32'b0;
+                        mem2_o.instr_info.special_info.mem_store = 0;
                     end
                 end
                 default: begin
