@@ -84,6 +84,10 @@ module dispatch
             issue_wreg_addr[i] = id_i[i].reg_write_addr;
         end
     end
+    // Detect reg availability using a [GPR_NUM-1:0] register
+    // this always block is written in "override" flavor to mitigate following conditions:
+    // 1. instr in MEM2 has regX data_valid, so instr in EX depend on regX is issued a cycle before, but also uses regX and without data_valid
+    //    so should not issue instructions now, since regX is considered not ready
     always_ff @(posedge clk) begin
         if (!rst_n) regs_available <= {GPR_NUM{1'b1}};
         else if (flush) regs_available <= {GPR_NUM{1'b1}};
