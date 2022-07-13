@@ -269,7 +269,7 @@ module ex
         if (rst) begin
             mul_start <= 0;
             mul_already_start <= 0;
-        end else if (mul_op != 3'b0 & !mul_already_start & !muldiv_finish) begin
+        end else if (mul_op != 3'b0 & !mul_already_start & !muldiv_finish & !flush) begin
             mul_start <= 1;
             mul_already_start <= 1;
         end else if (pc_delay != inst_pc_i) mul_already_start <= 0;
@@ -303,7 +303,7 @@ module ex
         if (rst) begin
             div_start <= 0;
             div_already_start <= 0;
-        end else if (div_op != 3'b0 & !div_already_start & !muldiv_finish) begin
+        end else if (div_op != 3'b0 & !div_already_start & !muldiv_finish & ~flush) begin
             div_start <= 1;
             div_already_start <= 1;
         end else if (pc_delay != inst_pc_i) div_already_start <= 0;
