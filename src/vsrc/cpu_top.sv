@@ -171,6 +171,9 @@ module cpu_top
     tlb_write_in_struct tlb_write_signal_i;
     tlb_read_out_struct tlb_read_signal_o;
 
+    // WB -> DCache
+    logic [COMMIT_WIDTH-1:0] dcache_store_commit;
+
     logic [4:0] rand_index_diff;
     axi_master u_axi_master (
         .aclk   (aclk),
@@ -259,6 +262,7 @@ module cpu_top
         .rd_type_i (mem_cache_rd_type),
         .wr_type_i (mem_cache_wr_type),
         .flush_pc(wb_dcache_flush[0] ? wb_dcache_flush_pc[0] : wb_dcache_flush[1] ? wb_dcache_flush_pc[1] :0),
+        .store_commit_i(dcache_store_commit[0]),
         .flush_i    (wb_dcache_flush!=2'b0), // If excp occurs, flush DCache
         .cache_ready(dcache_ready),
         .cache_ack  (dcache_ack),
@@ -702,7 +706,7 @@ module cpu_top
 
                 // -> DCache
                 .dcache_flush_o(wb_dcache_flush[i]),
-                .dcache_store_commit_o(),
+                .dcache_store_commit_o(dcache_store_commit[i]),
 
                 // -> Dispatch
                 .data_forward_o(wb_data_forward[i]),

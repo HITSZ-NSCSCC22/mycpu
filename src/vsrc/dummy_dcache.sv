@@ -16,6 +16,7 @@ module dummy_dcache (
     input logic [2:0] wr_type_i,
     input logic [31:0] flush_pc,
     input logic flush_i, // 冲刷信号，如果出于某种原因需要取消写事务，CPU拉高此信号
+    input logic store_commit_i,
     output logic cache_ready,
     output logic cache_ack,
     output logic addr_ok,             //该次请求的地址传输OK，读：地址被接收；写：地址和数据被接收
@@ -55,7 +56,7 @@ module dummy_dcache (
 
     logic flush;
     assign flush = flush_i & (flush_pc <= pc_buffer);
-    assign cache_ready = state == IDLE;
+    assign cache_ready = state == IDLE && ~valid_buffer;
 
     enum int {
         IDLE,
@@ -98,7 +99,7 @@ module dummy_dcache (
             WRITE_REQ: begin
                 // If AXI is ready, then write req is accept this cycle, back to IDLE
                 // If flushed, back to IDLE
-                if (wr_rdy | flush) next_state = IDLE;
+                if (wr_rdy) next_state = IDLE;
                 else next_state = WRITE_REQ;
             end
             default: begin
@@ -122,7 +123,7 @@ module dummy_dcache (
             wdata_buffer <= 0;
             rd_type_buffer <= 0;
             wr_type_buffer <= 0;
-        end else if (flush) begin
+        end else if (flush & state != WRITE_REQ) begin
             valid_buffer <= 0;
             op_buffer <= 0;
             uncache_buffer <= 0;
@@ -221,10 +222,7 @@ module dummy_dcache (
                 rd_addr = rd_addr_r;
             end
             WRITE_REQ: begin
-                if (flush) begin
-                    wr_req  = 0;
-                    wr_addr = 0;
-                end else if (wr_rdy) begin
+                if (wr_rdy) begin
                     wr_req = 1;
                     wr_addr = cpu_addr;  // DO NOT align addr, 128b -> 32b translate need info from addr
                     case (cpu_addr[3:2])

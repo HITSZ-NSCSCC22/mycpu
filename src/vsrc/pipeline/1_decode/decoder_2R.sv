@@ -87,6 +87,7 @@ module decoder_2R
                 decode_result_valid_o           = 1;
                 aluop_o                         = `EXE_ERTN_OP;
                 kernel_instr                    = 1;
+                special_info_o.redirect         = 1;
                 special_info_o.is_pri           = 1;
                 special_info_o.not_commit_instr = 1;
                 special_info_o.need_refetch     = 1;

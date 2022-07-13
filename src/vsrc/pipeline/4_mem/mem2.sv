@@ -61,7 +61,7 @@ module mem2
         else if (data_ok) cache_data_delay <= cache_data_i;
     end
 
-    assign advance_ready = (mem_load_op & (data_ok | data_already_ok)) | ~mem_load_op;
+    assign advance_ready = (mem_load_op & mem1_i.mem_access_valid & (data_ok | data_already_ok)) | ~(mem_load_op  & mem1_i.mem_access_valid);
 
     always_comb begin
         mem2_o.instr_info = instr_info;

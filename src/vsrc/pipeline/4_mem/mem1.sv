@@ -118,7 +118,7 @@ module mem1
 
     //if mem1 has a mem request and cache is working 
     //then wait until cache finish its work
-    assign advance_ready = (access_mem & dcache_ack_i) | ~access_mem;
+    assign advance_ready = (access_mem & mem_access_valid & dcache_ack_i) | ~(access_mem & mem_access_valid);
 
     // Sanity check
     assign mem_access_valid = ~excp & instr_info.valid;

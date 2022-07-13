@@ -56,7 +56,7 @@ module wb
     assign excp = instr_info.excp;
     assign excp_num = instr_info.excp_num;
 
-    assign dcache_flush_o = excp;
+    assign dcache_flush_o = excp | special_info.redirect | special_info.need_refetch;
     assign dcache_store_commit_o = mem_store_op & ~excp;
 
     assign data_forward_o = {mem_i.wreg, 1'b1, mem_i.waddr, mem_i.wdata};
