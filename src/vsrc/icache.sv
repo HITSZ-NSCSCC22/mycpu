@@ -122,11 +122,11 @@ module icache
     assign cacop_op_mode2 = cacop_i & cacop_mode_i == 2'b10;
     assign cacop_way = cacop_addr_i[$clog2(NWAY)-1:0];
     assign cacop_index = cacop_addr_i[$clog2(
-        ICACHELINE_WIDTH
+        ICACHELINE_WIDTH/8
     )+$clog2(
         NSET
     )-1:$clog2(
-        ICACHELINE_WIDTH
+        ICACHELINE_WIDTH/8
     )];
 
 

@@ -37,6 +37,10 @@ module mem1
 
     input [1:0] csr_plv,
 
+    // <-> ICache, CACOP
+    output logic icacop_en_o,
+    output logic [1:0] icacop_mode_o,
+    input logic icacop_ack_i,
 
     // Next stage
     output mem1_mem2_struct mem2_o_buffer
@@ -57,6 +61,9 @@ module mem1
     assign cacop_en = ex_i.cacop_en;
     assign icache_op_en = ex_i.icache_op_en;
     assign cacop_op = ex_i.cacop_op;
+    // ICACOP
+    assign icacop_en_o = icache_op_en;
+    assign icacop_mode_o = cacop_op[4:3];
 
     logic mem_access_valid;
 
@@ -118,7 +125,8 @@ module mem1
 
     //if mem1 has a mem request and cache is working 
     //then wait until cache finish its work
-    assign advance_ready = (access_mem & mem_access_valid & dcache_ack_i) | ~(access_mem & mem_access_valid);
+    assign advance_ready = (access_mem & mem_access_valid ) ? dcache_ack_i :
+                            icache_op_en ? icacop_ack_i : 1;
 
     // Sanity check
     assign mem_access_valid = ~excp & instr_info.valid;

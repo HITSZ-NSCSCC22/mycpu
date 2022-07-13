@@ -42,14 +42,7 @@ module ex
     output data_forward_t data_forward_o,
 
     // -> TLB
-    output data_tlb_rreq_t tlb_rreq_o,
-
-    // <-> Cache
-    output logic icacop_op_en,
-    input logic icacop_op_ack_i,
-    output logic dcacop_op_en,
-    output logic [1:0] cacop_op_mode
-
+    output data_tlb_rreq_t tlb_rreq_o
 );
     ex_mem_struct ex_o;
 
@@ -155,7 +148,7 @@ module ex
     assign mem_h_op = special_info.mem_h_op;
 
     // notify ctrl is ready to advance
-    assign advance_ready = ~(icacop_inst & ~icacop_op_ack_i) & ~muldiv_stall;
+    assign advance_ready = ~muldiv_stall;
 
     //////////////////////////////////////////////////////////////////////////////////////
     // TLB request
@@ -169,7 +162,7 @@ module ex
     assign da_mode = csr_ex_signal.csr_da && !csr_ex_signal.csr_pg;
 
     assign tlbsrch_en = aluop_i == `EXE_TLBSRCH_OP;
-    assign data_fetch = (access_mem | tlbsrch_en) & instr_info.valid;
+    assign data_fetch = (access_mem | tlbsrch_en | icacop_op_en) & instr_info.valid;
 
     assign tlb_vaddr = ex_o.mem_addr;
 
