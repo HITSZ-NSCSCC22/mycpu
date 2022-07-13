@@ -56,7 +56,7 @@ module ex
     reg [`RegBus] logicout;
     reg [`RegBus] shiftout;
     reg [`RegBus] moveout;
-    reg [63:0] arithout;
+    reg [`RegBus] arithout;
 
     // Assign input /////////////////////////////
     instr_info_t instr_info;
@@ -155,7 +155,7 @@ module ex
     assign mem_h_op = special_info.mem_h_op;
 
     // notify ctrl is ready to advance
-    assign advance_ready = ~(icacop_inst & ~icacop_op_ack_i);
+    assign advance_ready = ~(icacop_inst & ~icacop_op_ack_i) & ~muldiv_stall;
 
     //////////////////////////////////////////////////////////////////////////////////////
     // TLB request
@@ -216,125 +216,124 @@ module ex
     assign reg1_lt_reg2  = (aluop_i == `EXE_SLT_OP) ? ((oprand1[31] && !oprand2[31]) || (!oprand1[31] && !oprand2[31] && result_compare[31])||
 			               (oprand1[31] && oprand2[31] && result_compare[31])) : (oprand1 < oprand2);
 
-    // // Divider and Multiplier
-    // // Multi-cycle
-    // logic [1:0] muldiv_op;  // High effective
-    // logic [2:0] mul_op;
-    // logic [2:0] div_op;
-    // always_comb begin
-    //     case (aluop_i)
-    //         `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP: begin
-    //             muldiv_op = 2'b01;
-    //         end
-    //         `EXE_MUL_OP, `EXE_MULH_OP, `EXE_MULHU_OP: begin
-    //             muldiv_op = 2'b10;
-    //         end
-    //         default: begin
-    //             muldiv_op = 0;
-    //         end
-    //     endcase
-    // end
-    // always_comb begin
-    //     mul_op = 0;
-    //     case (aluop_i)
-    //         `EXE_MUL_OP:   mul_op = 3'h1;
-    //         `EXE_MULH_OP:  mul_op = 3'h2;
-    //         `EXE_MULHU_OP: mul_op = 3'h3;
-    //         `EXE_DIV_OP:   div_op = 3'h4;
-    //         `EXE_DIVU_OP:  div_op = 3'h5;
-    //         `EXE_MOD_OP:   div_op = 3'h6;
-    //         `EXE_MODU_OP:  div_op = 3'h7;
-    //         default: begin
-    //             mul_op = 0;
-    //             div_op = 0;
-    //         end
-    //     endcase
-    // end
+    // Divider and Multiplier
+    // Multi-cycle
+    logic [1:0] muldiv_op;  // High effective
+    logic [2:0] mul_op;
+    logic [2:0] div_op;
+    always_comb begin
+        case (aluop_i)
+            `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP: begin
+                muldiv_op = 2'b01;
+            end
+            `EXE_MUL_OP, `EXE_MULH_OP, `EXE_MULHU_OP: begin
+                muldiv_op = 2'b10;
+            end
+            default: begin
+                muldiv_op = 0;
+            end
+        endcase
+    end
+    always_comb begin
+        mul_op = 0;
+        case (aluop_i)
+            `EXE_MUL_OP:   mul_op = 3'h1;
+            `EXE_MULH_OP:  mul_op = 3'h2;
+            `EXE_MULHU_OP: mul_op = 3'h3;
+            `EXE_DIV_OP:   div_op = 3'h4;
+            `EXE_DIVU_OP:  div_op = 3'h5;
+            `EXE_MOD_OP:   div_op = 3'h6;
+            `EXE_MODU_OP:  div_op = 3'h7;
+            default: begin
+                mul_op = 0;
+                div_op = 0;
+            end
+        endcase
+    end
 
-    // logic mul_start;
-    // logic mul_already_start;
-    // logic mul_finish;
-    // logic mul_busy;
-    // logic mul_ack;
-    // logic [`RegBus] mul_result;
+    logic mul_start;
+    logic mul_already_start;
+    logic mul_finish;
+    logic mul_busy;
+    logic mul_ack;
+    logic [`RegBus] mul_result;
 
-    // always_ff @(posedge clk) begin
-    //     if (rst) begin
-    //         mul_start <= 0;
-    //         mul_already_start <= 0;
-    //     end else if (mul_op != 0 && mul_already_start == 0 && mul_start == 0) begin
-    //         mul_start <= 1;
-    //         mul_already_start <= 1;
-    //     end else if (mul_finish) begin
-    //         mul_already_start <= 0;
-    //     end else begin
-    //         mul_start <= 0;
-    //         mul_already_start <= mul_already_start;
-    //     end
-    // end
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            mul_start <= 0;
+            mul_already_start <= 0;
+        end else if (mul_op != 0 && mul_already_start == 0 && mul_start == 0) begin
+            mul_start <= 1;
+            mul_already_start <= 1;
+        end else if (mul_finish) begin
+            mul_already_start <= 0;
+        end else begin
+            mul_start <= 0;
+            mul_already_start <= mul_already_start;
+        end
+    end
 
-    // always_comb begin
-    //     mul_ack = mul_finish & muldiv_op == 2'b10 & advance;
-    // end
+    always_comb begin
+        mul_ack = mul_finish & muldiv_op == 2'b10 & advance;
+    end
 
-    // mul_unit u_mul_unit (
-    //     .clk(clk),
-    //     .rst(rst),
+    mul_unit u_mul_unit (
+        .clk(clk),
+        .rst(rst),
 
-    //     .start(mul_start),
-    //     .rs1(reg1_i),
-    //     .rs2(reg2_i),
-    //     .op(mul_op[1:0]),
+        .start(mul_start),
+        .rs1(oprand1),
+        .rs2(oprand2),
+        .op(mul_op[1:0]),
 
-    //     .mul_ack(mul_ack),
-    //     .valid_i(1),
+        .mul_ack(mul_ack),
+        .valid_i(1),
 
-    //     .ready(mul_busy),
-    //     .done(mul_finish),
-    //     .mul_result(mul_result)
-    // );
+        .ready(mul_busy),
+        .done(mul_finish),
+        .mul_result(mul_result)
+    );
 
-    // logic div_start;
-    // logic div_already_start;
-    // logic div_finish;
-    // logic [`RegBus] quotient;
-    // logic [`RegBus] remainder;
-
-
-    // always_ff @(posedge clk) begin
-    //     if (rst) begin
-    //         div_start <= 0;
-    //         div_already_start <= 0;
-    //     end else if (div_op != 0 && div_already_start == 0 && div_start == 0) begin
-    //         div_start <= 1;
-    //         div_already_start <= 1;
-    //     end else if (div_finish) begin
-    //         div_already_start <= 0;
-    //     end else begin
-    //         div_start <= 0;
-    //         div_already_start <= div_already_start;
-    //     end
-    // end
+    logic div_start;
+    logic div_already_start;
+    logic div_finish;
+    logic [`RegBus] quotient;
+    logic [`RegBus] remainder;
 
 
-    // div_unit u_div_unit (
-    //     .clk(clk),
-    //     .rst(rst),
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            div_start <= 0;
+            div_already_start <= 0;
+        end else if (div_op != 0 && div_already_start == 0 && div_start == 0) begin
+            div_start <= 1;
+            div_already_start <= 1;
+        end else if (div_finish) begin
+            div_already_start <= 0;
+        end else begin
+            div_start <= 0;
+            div_already_start <= div_already_start;
+        end
+    end
 
-    //     .op(div_op[1:0]),
-    //     .dividend(reg1_i),
-    //     .divisor((reg2_i == 0 && (aluop_i == `EXE_DIV_OP || aluop_i == `EXE_DIVU_OP)) ? 1 : reg2_i),
-    //     .divisor_is_zero(0),
-    //     .start(div_start),
 
-    //     .remainder_out(remainder),
-    //     .quotient_out(quotient),
-    //     .done(div_finish)
-    // );
+    div_unit u_div_unit (
+        .clk(clk),
+        .rst(rst),
 
+        .op(div_op[1:0]),
+        .dividend(oprand1),
+        .divisor((oprand2 == 0 && (aluop_i == `EXE_DIV_OP || aluop_i == `EXE_DIVU_OP)) ? 1 : oprand2),
+        .divisor_is_zero(0),
+        .start(div_start),
 
-    // assign stallreq = advance & ((muldiv_op == 2'b01 & ~div_finish) | (muldiv_op == 2'b10 & ~mul_finish) |// Multiply & Division
-    //             (icacop_inst & ~icacop_op_ack_i)); // CACOP
+        .remainder_out(remainder),
+        .quotient_out(quotient),
+        .done(div_finish)
+    );
+
+    logic muldiv_stall;
+    assign muldiv_stall =  (muldiv_op == 2'b01 & ~div_finish) | (muldiv_op == 2'b10 & ~mul_finish);// CACOP
 
     always @(*) begin
         if (rst == `RstEnable) begin
@@ -348,21 +347,9 @@ module ex
                 //     arithout = muldiv_result;
                 // end
 
-                `EXE_MUL_OP: arithout = $signed(oprand1) * $signed(oprand2);
-                `EXE_MULH_OP: arithout = ($signed(oprand1) * $signed(oprand2)) >> 32;
-                `EXE_MULHU_OP: arithout = ($unsigned(oprand1) * $unsigned(oprand2)) >> 32;
-                `EXE_DIV_OP: begin
-                    if (oprand2 == 0) arithout = $signed(oprand1);
-                    else arithout = ($signed(oprand1) / $signed(oprand2));
-                end
-                `EXE_DIVU_OP: begin
-                    if (oprand2 == 0) arithout = $unsigned(oprand1);
-                    else arithout = ($unsigned(oprand1) / $unsigned(oprand2));
-                end
-                `EXE_MODU_OP: arithout = ($unsigned(oprand1) % $unsigned(oprand2));
-                `EXE_MOD_OP: begin
-                    arithout = ($signed(oprand1) % $signed(oprand2));
-                end
+                `EXE_MUL_OP, `EXE_MULH_OP, `EXE_MULHU_OP: arithout = mul_result;
+                `EXE_DIV_OP, `EXE_DIVU_OP: arithout = quotient;
+                `EXE_MODU_OP, `EXE_MOD_OP: arithout = remainder;
                 `EXE_SLT_OP, `EXE_SLTU_OP: arithout = {31'b0, reg1_lt_reg2};
                 default: begin
                     arithout = 0;
