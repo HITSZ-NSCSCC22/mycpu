@@ -138,8 +138,15 @@ module div_unit #(
         divisor_greater_than_dividend_delay <= divisor_greater_than_dividend;
     end
 
-    assign quotient_out = negate_quotient ? ~quotient + 1'b1 : quotient;
-    assign remainder_out = negate_remainder ? ~remainder + 1'b1 : remainder;
+    always_comb begin
+        if (dividend == 0) begin
+            quotient_out  = 0;
+            remainder_out = 0;
+        end else begin
+            quotient_out  = negate_quotient ? ~quotient + 1'b1 : quotient;
+            remainder_out = negate_remainder ? ~remainder + 1'b1 : remainder;
+        end
+    end
 
     assign done = (running_delay & terminate_delay) | (start_delay & divisor_greater_than_dividend_delay);
 
