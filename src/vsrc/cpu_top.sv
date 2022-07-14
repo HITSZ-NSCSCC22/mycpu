@@ -44,7 +44,7 @@ module cpu_top
     input         arready,
     // read back
     input  [ 3:0] rid,
-    input  [127:0] rdata,
+    input  [31:0] rdata,
     input  [ 1:0] rresp,
     input         rlast,
     input         rvalid,
@@ -62,7 +62,7 @@ module cpu_top
     input         awready,
     // write data
     output [ 3:0] wid,
-    output [127:0] wdata,
+    output [31:0] wdata,
     output [ 15:0] wstrb,
     output        wlast,
     output        wvalid,
@@ -99,13 +99,15 @@ module cpu_top
     // ICache <-> AXI Controller
     logic icache_axi_rreq;
     logic axi_icache_rdy, axi_icache_rvalid;
-    logic [127:0] axi_icache_data; // 128b
+    logic axi_icache_rlast;
+    logic [31:0] axi_icache_data; // 32b
     logic [`RegBus] icache_axi_addr;
 
     // DCache <-> AXI Controller
     logic dcache_axi_rreq; // Read handshake
     logic axi_dcache_rd_rdy;
     logic axi_dcache_rvalid;
+    logic axi_dcache_rlast;
     logic dcache_axi_wreq; // Write handshake
     logic axi_dcache_wr_rdy;
     logic [`DataAddrBus] dcache_axi_raddr;
@@ -113,15 +115,15 @@ module cpu_top
     logic [`DataAddrBus] dcache_axi_addr;
     assign dcache_axi_addr = dcache_axi_rreq ? dcache_axi_raddr : dcache_axi_wreq ? dcache_axi_waddr : 0;
     logic [127:0] dcache_axi_data;
-    logic [15:0] dcache_axi_wstrb; // Byte selection
-    logic [127:0] axi_dcache_data; // AXI Read result
+    logic [3:0] dcache_axi_wstrb; // Byte selection
+    logic [31:0] axi_dcache_data; // AXI Read result
     logic [2:0] dcache_rd_type;
     logic [2:0] dcache_wr_type;
 
     logic [`RegBus] cache_mem_data;
     logic mem_data_ok,mem_addr_ok;
 
-    axi_master u_axi_master (
+    axi32_master u_axi_master (
         .aclk   (aclk),
         .aresetn(aresetn),
 
@@ -133,7 +135,7 @@ module cpu_top
         .icache_rd_req_i(icache_axi_rreq),
         .icache_rd_rdy_o(axi_icache_rdy),
         .icache_ret_valid_o(axi_icache_rvalid),
-        .icache_ret_last_o(), // Used in burst transfer, currently unused
+        .icache_ret_last_o(axi_icache_rlast), // Used in burst transfer, currently unused
 
         // <-> DCache
         .data_cpu_addr_i(dcache_axi_addr),
@@ -144,7 +146,7 @@ module cpu_top
         .dcache_rd_type_i(dcache_rd_type), // For [31:0]
         .dcache_rd_rdy_o(axi_dcache_rd_rdy),
         .dcache_ret_valid_o(axi_dcache_rvalid),
-        .dcache_ret_last_o(), // same as ICache
+        .dcache_ret_last_o(axi_dcache_rlast), // same as ICache
         .dcache_wr_req_i(dcache_axi_wreq),
         .dcache_wr_type_i(dcache_wr_type), 
         .dcache_wr_data(dcache_axi_data),
@@ -232,7 +234,7 @@ module cpu_top
         .rd_addr   (dcache_axi_raddr),
         .rd_rdy    (axi_dcache_rd_rdy),
         .ret_valid (axi_dcache_rvalid),
-        .ret_last  (),
+        .ret_last  (axi_dcache_rlast),
         .ret_data  (axi_dcache_data),
         .wr_req    (dcache_axi_wreq),
         .wr_type   (dcache_wr_type),
@@ -318,7 +320,7 @@ module cpu_top
         .axi_rreq_o   (icache_axi_rreq),
         .axi_rdy_i    (axi_icache_rdy),
         .axi_rvalid_i (axi_icache_rvalid),
-        .axi_rlast_i  (),
+        .axi_rlast_i  (axi_icache_rlast),
         .axi_data_i   (axi_icache_data),
 
         .frontend_uncache_i(),
