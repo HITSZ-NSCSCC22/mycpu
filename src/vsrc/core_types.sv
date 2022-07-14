@@ -196,6 +196,7 @@ package core_types;
     } mem2_wb_struct;
 
     typedef struct packed {
+        logic [`RegBus] pc;
         logic we;
         logic ce;
         logic [3:0] sel;

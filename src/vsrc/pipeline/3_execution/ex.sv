@@ -54,73 +54,31 @@ module ex
     // Assign input /////////////////////////////
     instr_info_t instr_info;
     special_info_t special_info;
-    assign instr_info   = dispatch_i.instr_info;
-    assign special_info = dispatch_i.instr_info.special_info;
-
-    // ALU 
-    logic [ `AluOpBus] aluop_i;
+    //ALU
+    logic [`AluOpBus] aluop_i;
     logic [`AluSelBus] alusel_i;
-    assign aluop_i  = dispatch_i.aluop;
-    assign alusel_i = dispatch_i.alusel;
 
     logic [1:0][`RegAddrBus] read_reg_addr;
-    assign read_reg_addr = dispatch_i.read_reg_addr;
-
     // Determine oprands
     logic [`RegBus] oprand1, oprand2, imm;
-    assign oprand1 = dispatch_i.oprand1;
-    assign oprand2 = dispatch_i.oprand2;
-    assign imm = dispatch_i.imm;
 
     logic [`RegBus] inst_i, inst_pc_i;
-    assign inst_i = dispatch_i.instr_info.instr;
-    assign inst_pc_i = dispatch_i.instr_info.pc;
 
     logic branch_flag;
 
     logic wreg_i;
     logic [`RegAddrBus] wd_i;
-    assign wd_i = dispatch_i.reg_write_addr;
-    assign wreg_i = dispatch_i.reg_write_valid;
 
-    assign ex_o.aluop = aluop_i;
     logic [`InstAddrBus] debug_mem_addr_o;
-    assign debug_mem_addr_o = ex_o.mem_addr;
-
-    // TODO:fix vppn select
-    assign ex_o.mem_addr = oprand1 + imm;
-    assign ex_o.reg2 = oprand2;
-
-    // if is mem_load_op, then data is no valid, else data is valid
-    assign data_forward_o = {ex_o.wreg, ~mem_load_op, ex_o.waddr, ex_o.wdata};
 
     csr_write_signal csr_signal_i, csr_test;
-    assign csr_signal_i = dispatch_i.csr_signal;
-    assign csr_test = ex_o.csr_signal;
-
-    //写入csr的数据，对csrxchg指令进行掩码处理
-    assign ex_o.csr_signal.we = csr_signal_i.we;
-    assign ex_o.csr_signal.addr = csr_signal_i.addr;
-    assign ex_o.csr_signal.data = (aluop_i ==`EXE_CSRXCHG_OP) ? ((oprand1 & oprand2) | (~oprand2 & dispatch_i.csr_reg_data)) : oprand1;
 
     logic [`RegBus] csr_reg_data;
-    assign csr_reg_data = aluop_i == `EXE_RDCNTID_OP ? tid :
-                          aluop_i == `EXE_RDCNTVL_OP ? timer_64[31:0] :
-                          aluop_i == `EXE_RDCNTVH_OP ? timer_64[63:32] :
-                          dispatch_i.csr_reg_data;
-
 
     //cache ins
     logic cacop_instr, icacop_inst, dcacop_inst, icacop_op_en, dcacop_op_en;
     logic [4:0] cacop_op;
     logic [1:0] cacop_op_mode;
-    assign cacop_op = inst_i[4:0];
-    assign cacop_instr = aluop_i == `EXE_CACOP_OP;
-    assign icacop_inst = cacop_instr && (cacop_op[2:0] == 3'b0);
-    assign icacop_op_en = icacop_inst && !excp && !(flush);
-    assign dcacop_inst = cacop_instr && (cacop_op[2:0] == 3'b1);
-    assign dcacop_op_en = dcacop_inst && !excp && !(flush);
-    assign cacop_op_mode = cacop_op[4:3];
 
     logic excp_ale, excp_ine, excp;
     logic [9:0] excp_num;
@@ -133,6 +91,95 @@ module ex
         pg_mode,
         da_mode,
         cacop_op_mode_di;
+
+    logic dmw0_en, dmw1_en, tlbsrch_en, data_fetch, trans_en;
+    logic [`RegBus] tlb_vaddr;
+
+    //比较模块
+    logic reg1_lt_reg2;
+    logic [`RegBus] oprand2_mux;
+    logic [`RegBus] result_compare;
+
+    logic [`RegBus] pc_delay;
+
+    //mul and div
+    logic [1:0] muldiv_op;  // High effective
+    logic [2:0] mul_op;
+    logic [2:0] div_op;
+    logic muldiv_finish;
+
+    logic mul_start;
+    logic mul_already_start;
+    logic mul_finish;
+    logic mul_busy;
+    logic [`RegBus] mul_result;
+
+    logic div_start;
+    logic div_already_start;
+    logic div_finish;
+    logic [`RegBus] quotient;
+    logic [`RegBus] remainder;
+
+    logic muldiv_stall;
+
+    always_ff @(posedge clk) begin
+        pc_delay <= inst_pc_i;
+    end
+
+    assign instr_info = dispatch_i.instr_info;
+    assign special_info = dispatch_i.instr_info.special_info;
+
+    // ALU 
+    assign aluop_i = dispatch_i.aluop;
+    assign alusel_i = dispatch_i.alusel;
+
+    assign read_reg_addr = dispatch_i.read_reg_addr;
+
+    assign oprand1 = dispatch_i.oprand1;
+    assign oprand2 = dispatch_i.oprand2;
+    assign imm = dispatch_i.imm;
+
+    assign inst_i = dispatch_i.instr_info.instr;
+    assign inst_pc_i = dispatch_i.instr_info.pc;
+
+
+    assign wd_i = dispatch_i.reg_write_addr;
+    assign wreg_i = dispatch_i.reg_write_valid;
+
+    assign ex_o.aluop = aluop_i;
+
+    assign debug_mem_addr_o = ex_o.mem_addr;
+
+    // TODO:fix vppn select
+    assign ex_o.mem_addr = oprand1 + imm;
+    assign ex_o.reg2 = oprand2;
+
+    // if is mem_load_op, then data is no valid, else data is valid
+    assign data_forward_o = {ex_o.wreg, ~mem_load_op, ex_o.waddr, ex_o.wdata};
+
+
+    assign csr_signal_i = dispatch_i.csr_signal;
+    assign csr_test = ex_o.csr_signal;
+
+    //写入csr的数据，对csrxchg指令进行掩码处理
+    assign ex_o.csr_signal.we = csr_signal_i.we;
+    assign ex_o.csr_signal.addr = csr_signal_i.addr;
+    assign ex_o.csr_signal.data = (aluop_i ==`EXE_CSRXCHG_OP) ? ((oprand1 & oprand2) | (~oprand2 & dispatch_i.csr_reg_data)) : oprand1;
+
+
+    assign csr_reg_data = aluop_i == `EXE_RDCNTID_OP ? tid :
+                          aluop_i == `EXE_RDCNTVL_OP ? timer_64[31:0] :
+                          aluop_i == `EXE_RDCNTVH_OP ? timer_64[63:32] :
+                          dispatch_i.csr_reg_data;
+
+    assign cacop_op = inst_i[4:0];
+    assign cacop_instr = aluop_i == `EXE_CACOP_OP;
+    assign icacop_inst = cacop_instr && (cacop_op[2:0] == 3'b0);
+    assign icacop_op_en = icacop_inst && !excp && !(flush);
+    assign dcacop_inst = cacop_instr && (cacop_op[2:0] == 3'b1);
+    assign dcacop_op_en = dcacop_inst && !excp && !(flush);
+    assign cacop_op_mode = cacop_op[4:3];
+
     assign excp_ale = access_mem && ((mem_b_op & 1'b0)| (mem_h_op & ex_o.mem_addr[0])| 
                     (!(mem_b_op | mem_h_op) & (ex_o.mem_addr[0] | ex_o.mem_addr[1]))) ;
     assign excp_ine = aluop_i == `EXE_INVTLB_OP && imm > 32'd6;
@@ -142,7 +189,6 @@ module ex
     assign access_mem = mem_load_op | mem_store_op;
 
     assign mem_load_op = special_info.mem_load;
-
 
     assign mem_store_op = special_info.mem_store;
     assign mem_b_op = special_info.mem_b_op;
@@ -154,8 +200,7 @@ module ex
     //////////////////////////////////////////////////////////////////////////////////////
     // TLB request
     //////////////////////////////////////////////////////////////////////////////////////
-    logic dmw0_en, dmw1_en, tlbsrch_en, data_fetch, trans_en;
-    logic [`RegBus] tlb_vaddr;
+
     assign dmw0_en = ((csr_ex_signal.csr_dmw0[`PLV0] && csr_ex_signal.csr_plv == 2'd0) || (csr_ex_signal.csr_dmw0[`PLV3] && csr_ex_signal.csr_plv == 2'd3)) && (tlb_vaddr[31:29] == csr_ex_signal.csr_dmw0[`VSEG]);
     assign dmw1_en = ((csr_ex_signal.csr_dmw1[`PLV0] && csr_ex_signal.csr_plv == 2'd0) || (csr_ex_signal.csr_dmw1[`PLV3] && csr_ex_signal.csr_plv == 2'd3)) && (tlb_vaddr[31:29] == csr_ex_signal.csr_dmw1[`VSEG]);
 
@@ -200,10 +245,6 @@ module ex
         .branch_target_address(ex_redirect_target_o)
     );
 
-    //比较模块
-    logic reg1_lt_reg2;
-    logic [`RegBus] oprand2_mux;
-    logic [`RegBus] result_compare;
 
     assign oprand2_mux = (aluop_i == `EXE_SLT_OP) ? ~oprand2 + 32'b1 : oprand2; // shifted encoding when signed comparison
     assign result_compare = oprand1 + oprand2_mux;
@@ -212,16 +253,8 @@ module ex
 
     // Divider and Multiplier
     // Multi-cycle
-    logic [`RegBus] pc_delay;
-    always_ff @(posedge clk) begin
-        pc_delay <= inst_pc_i;
-    end
 
 
-    logic [1:0] muldiv_op;  // High effective
-    logic [2:0] mul_op;
-    logic [2:0] div_op;
-    logic muldiv_finish;
     always_comb begin
         if (rst) muldiv_finish = 0;
         else if (mul_finish | div_finish) muldiv_finish = 1;
@@ -259,11 +292,7 @@ module ex
         endcase
     end
 
-    logic mul_start;
-    logic mul_already_start;
-    logic mul_finish;
-    logic mul_busy;
-    logic [`RegBus] mul_result;
+
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -292,12 +321,6 @@ module ex
         .done(mul_finish),
         .mul_result(mul_result)
     );
-
-    logic div_start;
-    logic div_already_start;
-    logic div_finish;
-    logic [`RegBus] quotient;
-    logic [`RegBus] remainder;
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -328,7 +351,7 @@ module ex
         .done(div_finish)
     );
 
-    logic muldiv_stall;
+
     assign muldiv_stall = muldiv_op != 2'b0 & !muldiv_finish;  // CACOP
 
     always @(*) begin

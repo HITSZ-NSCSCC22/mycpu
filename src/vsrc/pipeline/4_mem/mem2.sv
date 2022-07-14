@@ -28,14 +28,20 @@ module mem2
     mem2_wb_struct mem2_o;
 
     // Assign input
-    instr_info_t   instr_info;
+    instr_info_t instr_info;
     special_info_t special_info;
-    assign instr_info   = mem1_i.instr_info;
-    assign special_info = mem1_i.instr_info.special_info;
 
     logic [`AluOpBus] aluop_i;
     logic mem_load_op;
     logic [ADDR_WIDTH-1:0] mem_addr;
+
+    logic data_already_ok;
+
+    logic [`RegBus] cache_data_delay, cache_data;
+
+    assign instr_info = mem1_i.instr_info;
+    assign special_info = mem1_i.instr_info.special_info;
+
 
     assign aluop_i = mem1_i.aluop;
     assign mem_load_op = special_info.mem_load;
@@ -46,14 +52,12 @@ module mem2
         mem2_o.wreg, data_ok | data_already_ok, mem2_o.waddr, mem2_o.wdata
     } : 0;
 
-    logic data_already_ok;
     always_ff @(posedge clk) begin
         if (rst) data_already_ok <= 0;
         else if (advance) data_already_ok <= 0;
         else if (data_ok) data_already_ok <= 1;
     end
 
-    logic [`RegBus] cache_data_delay, cache_data;
     assign cache_data = cache_data_delay | cache_data_i;
     always_ff @(posedge clk) begin
         if (rst) cache_data_delay <= 0;

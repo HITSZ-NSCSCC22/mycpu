@@ -30,22 +30,28 @@ module wb
 );
 
     // Assign input ///////////////////////////////////////////
-    instr_info_t   instr_info;
+    instr_info_t instr_info;
     special_info_t special_info;
-    assign instr_info   = mem_i.instr_info;
-    assign special_info = mem_i.instr_info.special_info;
-
 
     csr_write_signal csr_test;
-    assign csr_test = mem_i.csr_signal;
 
     logic excp;
     logic [15:0] excp_num;
     logic access_mem, mem_store_op, mem_load_op;
 
     logic [7:0] aluop;
-    assign aluop = mem_i.aluop;
+
     logic is_CNTinst;
+
+    assign instr_info = mem_i.instr_info;
+    assign special_info = mem_i.instr_info.special_info;
+
+
+    assign csr_test = mem_i.csr_signal;
+
+
+    assign aluop = mem_i.aluop;
+
     assign is_CNTinst = aluop == `EXE_RDCNTVL_OP | aluop == `EXE_RDCNTID_OP | aluop == `EXE_RDCNTVH_OP;
 
 

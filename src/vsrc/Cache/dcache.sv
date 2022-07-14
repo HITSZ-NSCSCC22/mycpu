@@ -24,6 +24,7 @@ module dcache
     input logic [2:0] wr_type_i,
     input logic [31:0] flush_pc,
     input logic flush_i, // 冲刷信号，如果出于某种原因需要取消写事务，CPU拉高此信号
+    output logic cache_ready,
     output logic cache_ack,
     output logic addr_ok,             //该次请求的地址传输OK，读：地址被接收；写：地址和数据被接收
     output logic data_ok,             //该次请求的数据传输Ok，读：数据返回；写：数据写入完成
@@ -97,7 +98,7 @@ module dcache
 
     logic flush;
     assign flush = flush_i & (flush_pc <= pc_buffer);
-
+    assign cache_ready = state == IDLE && ~valid_buffer;
 
     always_ff @(posedge clk) begin
         if (rst) begin

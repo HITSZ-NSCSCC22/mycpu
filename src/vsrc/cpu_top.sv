@@ -12,6 +12,7 @@
 `include "instr_buffer.sv"
 `include "icache.sv"
 `include "dummy_dcache.sv"
+`include "Cache/dcache.sv"
 `include "ctrl.sv"
 `include "Reg/regs_file.sv"
 `include "pipeline/1_decode/id.sv"
@@ -146,6 +147,7 @@ module cpu_top
     logic [2:0]mem_cache_wr_type;
     logic dcache_ack, dcache_ready;
     
+    assign mem_cache_pc = flush ? 0 : mem_cache_signal[0].pc | mem_cache_signal[1].pc;
     assign mem_cache_ce = flush ? 0 : mem_cache_signal[0].ce | mem_cache_signal[1].ce;
     assign mem_cache_we = flush ? 0 : mem_cache_signal[0].we | mem_cache_signal[1].we;
     assign mem_cache_sel = flush ? 0 : mem_cache_signal[0].we ? mem_cache_signal[0].sel : mem_cache_signal[1].we ? mem_cache_signal[1].sel : 0;
@@ -246,7 +248,7 @@ module cpu_top
     );
 
    
-    dummy_dcache u_dcache(
+    dcache u_dcache(
     	.clk       (clk       ),
         .rst       (rst       ),
 
@@ -262,7 +264,6 @@ module cpu_top
         .rd_type_i (mem_cache_rd_type),
         .wr_type_i (mem_cache_wr_type),
         .flush_pc(wb_dcache_flush[0] ? wb_dcache_flush_pc[0] : wb_dcache_flush[1] ? wb_dcache_flush_pc[1] :0),
-        .store_commit_i(dcache_store_commit[0]),
         .flush_i    (wb_dcache_flush!=2'b0 | pipeline_flush[2]), // If excp occurs, flush DCache
         .cache_ready(dcache_ready),
         .cache_ack  (dcache_ack),
@@ -599,9 +600,7 @@ module cpu_top
 
     mem1_mem2_struct mem1_mem2_signal[2];
     mem2_wb_struct mem2_wb_signal[2];
-
-    logic mem_wb_LLbit_we[2];
-    logic mem_wb_LLbit_value[2];
+    
     tlb_inv_t tlb_inv_signal_i;
 
     csr_to_mem_struct csr_mem_signal;
@@ -611,10 +610,7 @@ module cpu_top
 
     assign csr_mem_signal = {csr_pg,csr_da,csr_dmw0,csr_dmw1,csr_plv,csr_datm};
    
-    logic [1:0] data_fetch, mem_tlbsrch;
 
-
-    logic [1:0] mem1_stallreq;
 
     generate
         for (genvar i = 0; i < 2; i++) begin : mem1

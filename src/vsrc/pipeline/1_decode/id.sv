@@ -42,9 +42,6 @@ module id
     logic [`InstAddrBus] pc_i;
     logic [`InstBus] instr_i;
     logic is_last_in_block;
-    assign pc_i = instr_buffer_i.valid ? instr_buffer_i.pc : 0;
-    assign instr_i = instr_buffer_i.valid ? instr_buffer_i.instr : 0;
-    assign is_last_in_block = instr_buffer_i.valid ? instr_buffer_i.is_last_in_block : 0;
 
     // Exception info
     logic excp, excp_nop;
@@ -85,7 +82,9 @@ module id
     //                       instr_aluop == `EXE_TLBFILL_OP |instr_aluop == `EXE_TLBRD_OP |instr_aluop == `EXE_TLBWR_OP |
     //                       instr_aluop == `EXE_TLBSRCH_OP | instr_aluop == `EXE_ERTN_OP |instr_aluop == `EXE_IDLE_OP |
     //                       instr_aluop == `EXE_INVTLB_OP | instr_aluop == `EXE_CACOP_OP;
-
+    assign pc_i = instr_buffer_i.valid ? instr_buffer_i.pc : 0;
+    assign instr_i = instr_buffer_i.valid ? instr_buffer_i.instr : 0;
+    assign is_last_in_block = instr_buffer_i.valid ? instr_buffer_i.is_last_in_block : 0;
     // Sub-decoders in following order:
     // 2R, 3R, 2RI8, 2RI12, 2RI16, 1RI20, 2RI14, I26, Special
     decoder_2R u_decoder_2R (
