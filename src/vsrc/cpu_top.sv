@@ -63,7 +63,7 @@ module cpu_top
     // write data
     output [ 3:0] wid,
     output [31:0] wdata,
-    output [ 15:0] wstrb,
+    output [ 3:0] wstrb,
     output        wlast,
     output        wvalid,
     input         wready,
