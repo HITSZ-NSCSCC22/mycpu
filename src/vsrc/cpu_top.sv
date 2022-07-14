@@ -44,7 +44,7 @@ module cpu_top
     input         arready,
     // read back
     input  [ 3:0] rid,
-    input  [31:0] rdata,
+    input  [127:0] rdata,
     input  [ 1:0] rresp,
     input         rlast,
     input         rvalid,
@@ -62,7 +62,7 @@ module cpu_top
     input         awready,
     // write data
     output [ 3:0] wid,
-    output [31:0] wdata,
+    output [127:0] wdata,
     output [ 15:0] wstrb,
     output        wlast,
     output        wvalid,
