@@ -23,7 +23,6 @@ module instr_buffer
 
     // Reset signal
     logic rst_n;
-    assign rst_n = ~rst;
 
     instr_info_t buffer_queue[BUFFER_SIZE], next_buffer_queue[BUFFER_SIZE];
 
@@ -32,6 +31,15 @@ module instr_buffer
     // Workaround, verilator seems to extend {write_ptr + 2} to more bits
     // we want a loopback counter, so declare a fixed width to get around
     logic [$clog2(BUFFER_SIZE)-1:0] buffer_clearance;
+
+    // Popcnt of backend_accept_i
+    logic [$clog2(ID_WIDTH):0] backend_accept_num;
+
+    // Popcnt of frontend_instr_i.[i].valid
+    logic [$clog2(IF_WIDTH):0] frontend_accept_num;
+
+    assign rst_n = ~rst;
+
     assign buffer_clearance = read_ptr - write_ptr;
     assign frontend_stallreq_o = (buffer_clearance <= 4 && buffer_clearance != 0);
 
@@ -48,16 +56,13 @@ module instr_buffer
         end
     end
 
-    // Popcnt of backend_accept_i
-    logic [$clog2(ID_WIDTH):0] backend_accept_num;
     always_comb begin
         backend_accept_num = 0;
         for (integer i = 0; i < ID_WIDTH; i++) begin
             backend_accept_num += backend_accept_i[i];
         end
     end
-    // Popcnt of frontend_instr_i.[i].valid
-    logic [$clog2(IF_WIDTH):0] frontend_accept_num;
+
     always_comb begin
         frontend_accept_num = 0;
         for (integer i = 0; i < IF_WIDTH; i++) begin

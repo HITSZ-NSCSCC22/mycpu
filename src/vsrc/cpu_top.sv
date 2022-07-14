@@ -12,6 +12,7 @@
 `include "instr_buffer.sv"
 `include "icache.sv"
 `include "dummy_dcache.sv"
+`include "Cache/dcache.sv"
 `include "ctrl.sv"
 `include "Reg/regs_file.sv"
 `include "pipeline/1_decode/id.sv"
@@ -318,7 +319,6 @@ module cpu_top
         .rd_type_i(mem_cache_rd_type),
         .wr_type_i(mem_cache_wr_type),
         .flush_pc(wb_dcache_flush[0] ? wb_dcache_flush_pc[0] : wb_dcache_flush[1] ? wb_dcache_flush_pc[1] :0),
-        .store_commit_i(dcache_store_commit[0]),
         .flush_i(wb_dcache_flush != 2'b0 | pipeline_flush[2]),  // If excp occurs, flush DCache
         .cache_ready(dcache_ready),
         .cache_ack(dcache_ack),
@@ -594,7 +594,6 @@ module cpu_top
 
     mem1_mem2_struct mem1_mem2_signal[2];
     mem2_wb_struct mem2_wb_signal[2];
-
     tlb_inv_t tlb_inv_signal_i;
 
     assign tlb_mem_signal = {

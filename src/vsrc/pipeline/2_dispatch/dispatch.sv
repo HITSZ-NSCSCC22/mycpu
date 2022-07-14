@@ -41,11 +41,8 @@ module dispatch
 
     // Reset signal
     logic rst_n;
-    assign rst_n = ~rst;
 
     logic [`AluOpBus] aluop_i[2];
-    assign aluop_i[0] = id_i[0].aluop;
-    assign aluop_i[1] = id_i[1].aluop;
 
     logic single_issue;
     logic is_both_mem_instr;
@@ -59,11 +56,23 @@ module dispatch
     logic [ISSUE_WIDTH-1:0] issue_valid;
 
     logic pri_op[2];
+
+    logic csr_op[2];
+    // Read oprands
+    logic [ISSUE_WIDTH-1:0][1:0][DATA_WIDTH-1:0] oprands;
+    // Reg data available
+    logic [GPR_NUM-1:0] regs_available;
+    logic [ISSUE_WIDTH-1:0] issue_wreg;
+    logic [ISSUE_WIDTH-1:0][`RegAddrBus] issue_wreg_addr;
+
+    assign rst_n = ~rst;
+
+    assign aluop_i[0] = id_i[0].aluop;
+    assign aluop_i[1] = id_i[1].aluop;
+
     assign pri_op[0] = id_i[0].instr_info.special_info.is_pri;
     assign pri_op[1] = id_i[1].instr_info.special_info.is_pri;
 
-
-    logic csr_op[2];
     assign csr_op[0] = id_i[0].instr_info.special_info.is_csr;
     assign csr_op[1] = id_i[1].instr_info.special_info.is_csr;
 
@@ -74,10 +83,7 @@ module dispatch
     assign is_both_mem_instr = id_i[0].instr_info.special_info.mem_load | id_i[0].instr_info.special_info.mem_store | id_i[1].instr_info.special_info.mem_load | id_i[1].instr_info.special_info.mem_store;
 
 
-    // Reg data available
-    logic [GPR_NUM-1:0] regs_available;
-    logic [ISSUE_WIDTH-1:0] issue_wreg;
-    logic [ISSUE_WIDTH-1:0][`RegAddrBus] issue_wreg_addr;
+
     always_comb begin
         for (integer i = 0; i < ISSUE_WIDTH; i++) begin
             issue_wreg[i] = id_i[i].reg_write_valid;
@@ -168,8 +174,7 @@ module dispatch
     endgenerate
 
 
-    // Read oprands
-    logic [ISSUE_WIDTH-1:0][1:0][DATA_WIDTH-1:0] oprands;
+
     generate
         for (genvar issue_idx = 0; issue_idx < ISSUE_WIDTH; issue_idx++) begin : issue_gen
             for (genvar op_idx = 0; op_idx < 2; op_idx++) begin : op_gen

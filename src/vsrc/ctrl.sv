@@ -85,6 +85,10 @@ module ctrl
     // Flag to indicate that the cpu is in idle mode
     logic in_idle;
 
+    // Pipeline control signals
+    logic advance;  // Advance when all stages are ready
+    logic advance_delay;
+
     always_ff @(posedge clk) begin
         if (rst) in_idle <= 0;
         else if (excp) in_idle <= 0;  // Something happens, exit idle mode
@@ -138,9 +142,7 @@ module ctrl
         end
     end
 
-    // Pipeline control signals
-    logic advance;  // Advance when all stages are ready
-    logic advance_delay;
+
     always_comb begin
         advance = 1;
         for (integer i = 0; i < COMMIT_WIDTH; i++) begin

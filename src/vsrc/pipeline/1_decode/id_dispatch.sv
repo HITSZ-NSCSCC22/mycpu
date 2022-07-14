@@ -32,9 +32,11 @@ module id_dispatch
 );
 
     logic rst_n;
-    assign rst_n = ~rst;
 
     logic [$clog2(DECODE_WIDTH):0] dispatch_issue_num;
+
+    assign rst_n = ~rst;
+
     always_comb begin
         dispatch_issue_num = 0;
         for (integer i = 0; i < DECODE_WIDTH; i++) begin

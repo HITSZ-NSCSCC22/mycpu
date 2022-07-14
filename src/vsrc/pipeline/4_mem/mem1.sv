@@ -54,12 +54,28 @@ module mem1
     // Assign input
     special_info_t special_info;
     instr_info_t instr_info;
-    assign instr_info   = ex_i.instr_info;
-    assign special_info = ex_i.instr_info.special_info;
+
+    logic mem_access_valid;
 
     logic access_mem, mem_store_op, mem_load_op;
     logic cacop_en, icache_op_en;
     logic [4:0] cacop_op;
+
+    logic [`AluOpBus] aluop_i;
+
+    logic [`RegBus] reg2_i;
+    logic [ADDR_WIDTH-1:0] mem_vaddr, mem_paddr;
+
+    // DCache ACK
+    logic dcache_ack_r;
+
+    // Exception handling
+    logic excp, excp_adem, excp_tlbr, excp_pil, excp_pis, excp_ppi, excp_pme;
+    logic [15:0] excp_num;
+
+    assign instr_info = ex_i.instr_info;
+    assign special_info = ex_i.instr_info.special_info;
+
     assign cacop_en = ex_i.cacop_en;
     assign icache_op_en = ex_i.icache_op_en;
     assign cacop_op = ex_i.cacop_op;
@@ -67,19 +83,12 @@ module mem1
     assign icacop_en_o = icache_op_en;
     assign icacop_mode_o = cacop_op[4:3];
 
-    logic mem_access_valid;
-
-    logic [`AluOpBus] aluop_i;
     assign aluop_i = ex_i.aluop;
 
-    logic [`RegBus] reg2_i;
-    logic [ADDR_WIDTH-1:0] mem_vaddr, mem_paddr;
     assign mem_paddr = {tlb_result_i.tag, tlb_result_i.index, tlb_result_i.offset};
     assign mem_vaddr = ex_i.mem_addr;
     assign reg2_i = ex_i.reg2;
 
-    // DCache ACK
-    logic dcache_ack_r;
     always_ff @(posedge clk) begin
         if (rst) dcache_ack_r <= 0;
         else if (advance | flush) dcache_ack_r <= 0;
@@ -87,15 +96,12 @@ module mem1
     end
 
 
-    assign access_mem   = mem_load_op | mem_store_op;
+    assign access_mem = mem_load_op | mem_store_op;
 
     // Anything can trigger stall and modify register is considerd a "load" instr
-    assign mem_load_op  = special_info.mem_load;
+    assign mem_load_op = special_info.mem_load;
     assign mem_store_op = special_info.mem_store & ~(aluop_i == `EXE_SC_OP & LLbit_i == 0);
 
-    // Exception handling
-    logic excp, excp_adem, excp_tlbr, excp_pil, excp_pis, excp_ppi, excp_pme;
-    logic [15:0] excp_num;
     assign excp_adem = (access_mem || cacop_en) && ex_i.data_addr_trans_en && (csr_plv == 2'd3) && mem_vaddr[31];
     assign excp_tlbr = (access_mem || cacop_en) && !tlb_result_i.found && ex_i.data_addr_trans_en;
     assign excp_pil  = (mem_load_op | cacop_en)  && !tlb_result_i.tlb_v && ex_i.data_addr_trans_en;  // CACOP will generate pil exception
@@ -149,6 +155,7 @@ module mem1
         dcache_rreq_o = 0;
         if (advance & access_mem & mem_access_valid & dcache_ready_i & ~dcache_ack_r) begin
             dcache_rreq_o.ce = 1;
+            dcache_rreq_o.pc = ex_i.instr_info.pc;
             case (aluop_i)
                 `EXE_LD_B_OP, `EXE_LD_BU_OP: begin
                     dcache_rreq_o.addr = mem_paddr;
