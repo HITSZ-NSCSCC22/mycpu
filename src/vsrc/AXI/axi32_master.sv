@@ -83,18 +83,18 @@ module axi_master (
     wire data_rd_cache_line;
     wire [`Size] data_real_rd_size;
     assign data_rd_cache_line = dcache_rd_type_i == 3'b100;
-    assign data_real_rd_size  = data_rd_cache_line ? 3'b100 : dcache_rd_type_i;
+    assign data_real_rd_size  = data_rd_cache_line ? 3'b010 : dcache_rd_type_i;
 
     wire inst_rd_cache_line;
     wire [`Size] inst_real_rd_size;
     assign inst_rd_cache_line = icache_rd_type_i == 3'b100;
-    assign inst_real_rd_size  = inst_rd_cache_line ? 3'b100 : icache_rd_type_i;
+    assign inst_real_rd_size  = inst_rd_cache_line ? 3'b010 : icache_rd_type_i;
 
     //write size can be special
     wire data_wr_cache_line;
     wire [`Size] data_real_wr_size;
     assign data_wr_cache_line = dcache_wr_type_i == 3'b100;
-    assign data_real_wr_size  = data_wr_cache_line ? 3'b100 : dcache_wr_type_i;
+    assign data_real_wr_size  = data_wr_cache_line ? 3'b010 : dcache_wr_type_i;
 
     reg write_wait_enable;
     reg [`Data] inst_buffer;
