@@ -10,6 +10,7 @@
 `define Data 127:0
 `define Resp 1:0
 `define BurstData 127:0
+`define Data32 31:0
 
 
 //stall state
