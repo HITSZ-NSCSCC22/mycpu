@@ -53,9 +53,7 @@ module dcache
         LOOK_UP,
         READ_REQ,
         READ_WAIT,
-        WRITE_REQ,
-        WRITE_WAIT,
-        REPLACE
+        WRITE_REQ
     }
         state, next_state;
 
@@ -82,7 +80,7 @@ module dcache
     logic [NWAY-1:0] data_bram_en;
 
     // Tag bram 
-    // {1bit dirty, 1bit valid, 20bits tag}
+    // {1bit valid, 20bits tag}
     localparam TAG_BRAM_WIDTH = 21;
     logic [NWAY-1:0][TAG_BRAM_WIDTH-1:0] tag_bram_rdata;
     logic [NWAY-1:0][TAG_BRAM_WIDTH-1:0] tag_bram_wdata;
@@ -188,16 +186,11 @@ module dcache
             end
             LOOK_UP: begin
                 if (valid_buffer) begin
-                    // if write hit,then turn to write idle
-                    // if write miss,then wait for read
-                    if (op_buffer) begin
-                        if (miss) next_state = WRITE_REQ;
-                        else next_state = IDLE;
-                    end  // if hit,then back,if miss then wait for read
-                    else begin
-                        if (miss) next_state = READ_REQ;
-                        else next_state = IDLE;
-                    end
+                    // write req,then turn to write
+                    if (op_buffer) next_state = WRITE_REQ;
+                    // if hit,then back,if miss then wait for read
+                    else if (miss) next_state = READ_REQ;
+                    else next_state = IDLE;
                 end else next_state = IDLE;
             end
             READ_REQ: begin
@@ -209,17 +202,10 @@ module dcache
                 else next_state = READ_WAIT;
             end
             WRITE_REQ: begin
-                // If AXI is ready, then write req is accept this cycle,and wait until ret
+                // If AXI is ready, then write req is accept this cycle, back to IDLE
                 // If flushed, back to IDLE
-                // if AXi is not ready,then wait until it ready
-                if (flush) next_state = IDLE;
-                else if (wr_rdy) next_state = WRITE_WAIT;
+                if (wr_rdy | flush) next_state = IDLE;
                 else next_state = WRITE_REQ;
-            end
-            WRITE_WAIT: begin
-                // wait the rdata back
-                if (ret_valid) next_state = IDLE;
-                else next_state = WRITE_WAIT;
             end
             default: begin
                 next_state = IDLE;
@@ -303,7 +289,7 @@ module dcache
                         if (ret_valid) begin
                             tag_bram_we[i] = 1;
                             tag_bram_wdata[i] = {1'b1, tag_buffer};
-                            data_bram_we[i] = 1;
+                            data_bram_we[i] = 16'b1111_1111_1111_1111;
                             data_bram_wdata[i] = ret_data;
                         end
                     end
@@ -534,7 +520,7 @@ module dcache
             );
 `else
 
-            byte_bram #(
+            dual_port_lutram #(
                 .DATA_WIDTH     (TAG_BRAM_WIDTH),
                 .DATA_DEPTH_EXP2($clog2(NSET))
             ) u_tag_bram (
