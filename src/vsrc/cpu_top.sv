@@ -7,7 +7,7 @@
 `include "cs_reg.sv"
 `include "tlb.sv"
 `include "tlb_entry.sv"
-`include "AXI/axi_master.sv"
+`include "AXI/axi32_master.sv"
 `include "frontend/frontend.sv"
 `include "instr_buffer.sv"
 `include "icache.sv"

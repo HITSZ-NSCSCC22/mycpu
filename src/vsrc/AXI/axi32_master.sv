@@ -1,5 +1,5 @@
 `include "AXI/axi_defines.sv"
-module axi_master (
+module axi32_master (
     input wire aclk,
     input wire aresetn, //low is valid
 
@@ -636,7 +636,7 @@ module axi_master (
                         s_wvalid <= 1;
                         s_bready <= 1;
                         // s_wstrb <= write_wstrb_buffer;
-                        s_wstrb<=data_cpu_sel_i;
+                        s_wstrb <= data_cpu_sel_i;
                         s_wdata <= write_buffer;
                         write_buffer <= {{32{1'b0}}, write_buffer[127:32]};
 
@@ -668,9 +668,9 @@ module axi_master (
                             write_buffer <= 0;
                             s_wlast <= 0;
                         end else begin
-                            w_state  <= w_state;
+                            w_state <= w_state;
                             // s_wstrb  <= write_wstrb_buffer;
-                            s_wstrb<=data_cpu_sel_i;
+                            s_wstrb <= data_cpu_sel_i;
                             // s_wdata  <= write_buffer;
                             write_buffer <= {{32{1'b0}}, write_buffer[127:32]};
                             s_wvalid <= 1;
@@ -719,7 +719,7 @@ module axi_master (
     //set default
     //aw
     assign s_awid    = 1;
-    assign s_awlen            = (dcache_wr_type_i == 3'b100) ? 8'b11 : 8'b0;
+    assign s_awlen   = (dcache_wr_type_i == 3'b100) ? 8'b11 : 8'b0;
     //assign s_awlen   = 8'b0;
     assign s_awburst = `INCR;
     assign s_awlock  = 0;
