@@ -12,7 +12,8 @@
 `include "instr_buffer.sv"
 `include "icache.sv"
 `include "dummy_dcache.sv"
-`include "Cache/dcache.sv"
+`include "Cache/write_throught_dcache.sv"
+`include "Cache/write_back_dcache.sv"
 `include "ctrl.sv"
 `include "Reg/regs_file.sv"
 `include "pipeline/1_decode/id.sv"
@@ -168,6 +169,7 @@ module cpu_top
     logic [2:0] mem_cache_wr_type;
     logic dcache_ack, dcache_ready;
 
+    assign mem_cache_pc = mem_cache_signal[0].pc | mem_cache_signal[1].pc;
     assign mem_cache_ce = mem_cache_signal[0].ce | mem_cache_signal[1].ce;
     assign mem_cache_we = mem_cache_signal[0].we | mem_cache_signal[1].we;
     assign mem_cache_sel =  mem_cache_signal[0].we ? mem_cache_signal[0].sel : mem_cache_signal[1].we ? mem_cache_signal[1].sel : 0;
@@ -303,8 +305,8 @@ module cpu_top
         .s_bready(bready)
     );
 
-
-    dummy_dcache u_dcache (
+    write_throught_dcache u_dcache (
+        //dummy_dcache u_dcache (
         .clk(clk),
         .rst(rst),
 

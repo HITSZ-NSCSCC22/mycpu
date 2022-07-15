@@ -50,7 +50,8 @@ module write_back_dcache
     output logic [31:0] wr_addr,  //写请求起始地址
     output logic [15:0] wr_wstrb,  //写操作的字节掩码。16bits for AXI128
     output logic [127:0] wr_data,  //写数据
-    input logic wr_rdy  //写请求能否被接受的握手信号。具体见p2234.
+    input logic wr_rdy,  //写请求能否被接受的握手信号。具体见p2234.
+    input logic wr_done
 );
 
     localparam NWAY = DCACHE_NWAY;
@@ -297,7 +298,7 @@ module write_back_dcache
             end
             WRITE_WAIT: begin
                 // wait the rdata back
-                if (ret_valid) next_state = IDLE;
+                if (wr_done) next_state = IDLE;
                 else next_state = WRITE_WAIT;
             end
             UNCACHE_READ_REQ:begin
