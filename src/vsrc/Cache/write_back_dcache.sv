@@ -665,6 +665,13 @@ module write_back_dcache
                     rdata   = ret_data[rd_addr_r[3:2]*32+:32];
                 end
             end
+            UNCACHE_READ_REQ,UNCACHE_READ_WAIT: begin
+                if (ret_valid) begin
+                    addr_ok = 1;
+                    data_ok = 1;
+                    rdata   = ret_data[rd_addr_r[3:2]*32+:32];
+                end
+            end
             WRITE_REQ,WRITE_WAIT,UNCACHE_WRITE_REQ: begin
                 if (wr_rdy) begin
                     addr_ok = 1;
