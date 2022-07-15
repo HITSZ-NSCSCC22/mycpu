@@ -44,7 +44,7 @@ module write_throught_dcache
     output logic [15:0] wr_wstrb,  //写操作的字节掩码。16bits for AXI128
     output logic [127:0] wr_data,  //写数据
     input logic wr_rdy,  //写请求能否被接受的握手信号。具体见p2234.
-    input logic wr_done
+    input logic wr_done  
 );
 
     localparam NWAY = DCACHE_NWAY;
@@ -177,7 +177,7 @@ module write_throught_dcache
 
     always_comb begin
         if (rst) cache_ack = 0;
-        else if (state == IDLE) cache_ack = 1;
+        else if (state == IDLE) cache_ack = valid;
         else cache_ack = 0;
     end
 
@@ -185,10 +185,13 @@ module write_throught_dcache
     always_comb begin : transition_comb
         case (state)
             IDLE: begin
-                if (valid) next_state = LOOK_UP;
+                if (flush) next_state = IDLE;
+                else if (valid) next_state = LOOK_UP;
+                else next_state = IDLE;
             end
             LOOK_UP: begin
-                if (valid_buffer) begin
+                if(flush) next_state = IDLE;
+                else if (valid_buffer) begin
                     // write req,then turn to write
                     if (op_buffer) next_state = WRITE_REQ;
                     // if hit,then back,if miss then wait for read
@@ -207,8 +210,8 @@ module write_throught_dcache
             WRITE_REQ: begin
                 // If AXI is ready, then write req is accept this cycle, back to IDLE
                 // If flushed, back to IDLE
-                if (wr_rdy | flush) next_state = IDLE;
-                else next_state = WRITE_WAIT;
+                if (wr_rdy) next_state = WRITE_WAIT;
+                else next_state = WRITE_REQ;
             end
             WRITE_WAIT: begin
                 if (wr_done) next_state = IDLE;
