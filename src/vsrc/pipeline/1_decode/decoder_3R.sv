@@ -148,32 +148,39 @@ module decoder_3R
                 alusel_o = `EXE_RES_SHIFT;
             end
             `EXE_MUL_W: begin
-                aluop_o  = `EXE_MUL_OP;
-                alusel_o = `EXE_RES_ARITH;
+                aluop_o               = `EXE_MUL_OP;
+                alusel_o              = `EXE_RES_ARITH;
+                special_info_o.is_pri = 1;
             end
             `EXE_MULH_W: begin
-                aluop_o  = `EXE_MULH_OP;
-                alusel_o = `EXE_RES_ARITH;
+                aluop_o               = `EXE_MULH_OP;
+                alusel_o              = `EXE_RES_ARITH;
+                special_info_o.is_pri = 1;
             end
             `EXE_MULH_WU: begin
-                aluop_o  = `EXE_MULHU_OP;
-                alusel_o = `EXE_RES_ARITH;
+                aluop_o               = `EXE_MULHU_OP;
+                alusel_o              = `EXE_RES_ARITH;
+                special_info_o.is_pri = 1;
             end
             `EXE_DIV_W: begin
-                aluop_o  = `EXE_DIV_OP;
-                alusel_o = `EXE_RES_ARITH;
+                aluop_o               = `EXE_DIV_OP;
+                alusel_o              = `EXE_RES_ARITH;
+                special_info_o.is_pri = 1;
             end
             `EXE_DIV_WU: begin
-                aluop_o  = `EXE_DIVU_OP;
-                alusel_o = `EXE_RES_ARITH;
+                aluop_o               = `EXE_DIVU_OP;
+                alusel_o              = `EXE_RES_ARITH;
+                special_info_o.is_pri = 1;
             end
             `EXE_MOD_W: begin
-                aluop_o  = `EXE_MOD_OP;
-                alusel_o = `EXE_RES_ARITH;
+                aluop_o               = `EXE_MOD_OP;
+                alusel_o              = `EXE_RES_ARITH;
+                special_info_o.is_pri = 1;
             end
             `EXE_MOD_WU: begin
-                aluop_o  = `EXE_MODU_OP;
-                alusel_o = `EXE_RES_ARITH;
+                aluop_o               = `EXE_MODU_OP;
+                alusel_o              = `EXE_RES_ARITH;
+                special_info_o.is_pri = 1;
             end
             `EXE_IDLE: begin
                 aluop_o                         = `EXE_IDLE_OP;

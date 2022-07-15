@@ -632,16 +632,16 @@ module axi_master (
                 `W_ADDR: begin
 
                     if (s_awvalid && s_awready) begin
-                        w_state <= `W_DATA;
-                        s_awaddr <= 0;
-                        s_awsize <= 0;
+                        w_state   <= `W_DATA;
+                        s_awaddr  <= 0;
+                        s_awsize  <= 0;
 
                         s_awvalid <= 0;
-                        s_wvalid <= 1;
-                        s_bready <= 1;
-                        s_wstrb <= write_wstrb_buffer;
-                        s_wdata <= write_buffer;
-                        write_buffer <= {{32{1'b0}}, write_buffer[127:32]};
+                        s_wvalid  <= 1;
+                        s_bready  <= 1;
+                        s_wstrb   <= write_wstrb_buffer;
+                        s_wdata   <= write_buffer;
+                        // write_buffer <= {{32{1'b0}}, write_buffer[127:32]};
 
                         if (s_awlen == 0) s_wlast <= 1;
                         else s_wlast <= 0;
