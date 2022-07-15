@@ -3,11 +3,10 @@
 `include "core_config.sv"
 `include "csr_defines.sv"
 `include "frontend/frontend_defines.sv"
-
+`include "axi-crossbar/rtl/axicb_crossbar_top.sv"
 `include "cs_reg.sv"
 `include "tlb.sv"
 `include "tlb_entry.sv"
-`include "AXI/axi32_master.sv"
 `include "frontend/frontend.sv"
 `include "instr_buffer.sv"
 `include "icache.sv"
@@ -36,56 +35,56 @@ module cpu_top
 
     // AXI interface 
     // read request
-    output       [ 3:0] arid,
-    output       [31:0] araddr,
-    output       [ 7:0] arlen,
-    output       [ 2:0] arsize,
-    output       [ 1:0] arburst,
-    output       [ 1:0] arlock,
-    output       [ 3:0] arcache,
-    output       [ 2:0] arprot,
-    output              arvalid,
-    input               arready,
+    output       [               3:0] arid,
+    output       [              31:0] araddr,
+    output       [               7:0] arlen,
+    output       [               2:0] arsize,
+    output       [               1:0] arburst,
+    output       [               1:0] arlock,
+    output       [               3:0] arcache,
+    output       [               2:0] arprot,
+    output                            arvalid,
+    input                             arready,
     // read back
-    input        [ 3:0] rid,
-    input        [31:0] rdata,
-    input        [ 1:0] rresp,
-    input               rlast,
-    input               rvalid,
-    output              rready,
+    input        [               3:0] rid,
+    input        [AXI_DATA_WIDTH-1:0] rdata,
+    input        [               1:0] rresp,
+    input                             rlast,
+    input                             rvalid,
+    output                            rready,
     // write request
-    output       [ 3:0] awid,
-    output       [31:0] awaddr,
-    output       [ 7:0] awlen,
-    output       [ 2:0] awsize,
-    output       [ 1:0] awburst,
-    output       [ 1:0] awlock,
-    output       [ 3:0] awcache,
-    output       [ 2:0] awprot,
-    output              awvalid,
-    input               awready,
+    output       [               3:0] awid,
+    output       [              31:0] awaddr,
+    output       [               7:0] awlen,
+    output       [               2:0] awsize,
+    output       [               1:0] awburst,
+    output       [               1:0] awlock,
+    output       [               3:0] awcache,
+    output       [               2:0] awprot,
+    output                            awvalid,
+    input                             awready,
     // write data
-    output       [ 3:0] wid,
-    output       [31:0] wdata,
-    output       [ 3:0] wstrb,
-    output              wlast,
-    output              wvalid,
-    input               wready,
+    output       [               3:0] wid,
+    output       [AXI_DATA_WIDTH-1:0] wdata,
+    output       [               3:0] wstrb,
+    output                            wlast,
+    output                            wvalid,
+    input                             wready,
     // write back
-    input        [ 3:0] bid,
-    input        [ 1:0] bresp,
-    input               bvalid,
-    output              bready,
+    input        [               3:0] bid,
+    input        [               1:0] bresp,
+    input                             bvalid,
+    output                            bready,
     // debug info
-    output logic [31:0] debug0_wb_pc,
-    output logic [ 3:0] debug0_wb_rf_wen,
-    output logic [ 4:0] debug0_wb_rf_wnum,
-    output logic [31:0] debug0_wb_rf_wdata,
+    output logic [              31:0] debug0_wb_pc,
+    output logic [               3:0] debug0_wb_rf_wen,
+    output logic [               4:0] debug0_wb_rf_wnum,
+    output logic [              31:0] debug0_wb_rf_wdata,
 `ifdef CPU_2CMT
-    output logic [31:0] debug1_wb_pc,
-    output logic [ 3:0] debug1_wb_rf_wen,
-    output logic [ 4:0] debug1_wb_rf_wnum,
-    output logic [31:0] debug1_wb_rf_wdata
+    output logic [              31:0] debug1_wb_pc,
+    output logic [               3:0] debug1_wb_rf_wen,
+    output logic [               4:0] debug1_wb_rf_wnum,
+    output logic [              31:0] debug1_wb_rf_wdata
 `endif
 );
 
@@ -129,6 +128,10 @@ module cpu_top
     logic [ISSUE_WIDTH-1:0] ex_redirect;
     logic [ISSUE_WIDTH-1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] ex_redirect_ftq_id;
     logic [ISSUE_WIDTH-1:0][ADDR_WIDTH-1:0] ex_redirect_target;
+
+
+    // AXI
+    axi_interface icache_axi, dcache_axi;
 
     // ICache <-> AXI Controller
     logic icache_axi_rreq;
@@ -235,76 +238,6 @@ module cpu_top
 
 
     logic [4:0] rand_index_diff;
-    axi32_master u_axi_master (
-        .aclk   (aclk),
-        .aresetn(aresetn),
-
-        // <-> ICache
-        .inst_cpu_addr_i(icache_axi_addr),
-        .inst_cpu_data_o(axi_icache_data),
-        .inst_id(4'b0000),  // Read Instruction only
-        .icache_rd_type_i(3'b100),  // Read 128b for 1 time
-        .icache_rd_req_i(icache_axi_rreq),
-        .icache_rd_rdy_o(axi_icache_rdy),
-        .icache_ret_valid_o(axi_icache_rvalid),
-        .icache_ret_last_o(axi_icache_rlast),  // Used in burst transfer, currently unused
-
-        // <-> DCache
-        .data_cpu_addr_i(dcache_axi_addr),
-        .data_cpu_sel_i(dcache_axi_wstrb),
-        .data_cpu_data_o(axi_dcache_data),
-        .data_id(4'b0001),
-        .dcache_rd_req_i(dcache_axi_rreq),
-        .dcache_rd_type_i(dcache_rd_type),  // For [31:0]
-        .dcache_rd_rdy_o(axi_dcache_rd_rdy),
-        .dcache_ret_valid_o(axi_dcache_rvalid),
-        .dcache_ret_last_o(axi_dcache_rlast),  // same as ICache
-        .dcache_wr_req_i(dcache_axi_wreq),
-        .dcache_wr_type_i(dcache_wr_type),
-        .dcache_wr_data(dcache_axi_data),
-        .dcache_wr_rdy(axi_dcache_wr_rdy),
-        .write_ok(axi_dcache_wr_done),  // Used in conherent instructions, unused for now
-
-
-        // External AXI signals
-        .s_arid(arid),
-        .s_araddr(araddr),
-        .s_arlen(arlen),
-        .s_arsize(arsize),
-        .s_arburst(arburst),
-        .s_arlock(arlock),
-        .s_arcache(arcache),
-        .s_arprot(arprot),
-        .s_arvalid(arvalid),
-        .s_arready(arready),
-        .s_rid(rid),
-        .s_rdata(rdata),
-        .s_rresp(rresp),
-        .s_rlast(rlast),
-        .s_rvalid(rvalid),
-        .s_rready(rready),
-        .s_awid(awid),
-        .s_awaddr(awaddr),
-        .s_awlen(awlen),
-        .s_awsize(awsize),
-        .s_awburst(awburst),
-        .s_awlock(awlock),
-        .s_awcache(awcache),
-        .s_awprot(awprot),
-        .s_awvalid(awvalid),
-        .s_awready(awready),
-        .s_wid(wid),
-        .s_wdata(wdata),
-        .s_wstrb(wstrb),
-        .s_wlast(wlast),
-        .s_wvalid(wvalid),
-        .s_wready(wready),
-        .s_bid(bid),
-        .s_bresp(bresp),
-        .s_bvalid(bvalid),
-        .s_bready(bready)
-    );
-
 
     dummy_dcache u_dcache (
         .clk(clk),
@@ -368,12 +301,7 @@ module cpu_top
         .rdata_2_o        (icache_frontend_data[1]),
 
         // <-> AXI Controller
-        .axi_addr_o  (icache_axi_addr),
-        .axi_rreq_o  (icache_axi_rreq),
-        .axi_rdy_i   (axi_icache_rdy),
-        .axi_rvalid_i(axi_icache_rvalid),
-        .axi_rlast_i (axi_icache_rlast),
-        .axi_data_i  (axi_icache_data),
+        .m_axi(icache_axi),
 
         .invalid_i(),
 
@@ -383,6 +311,126 @@ module cpu_top
         .cacop_addr_i({tlb_data_result.tag, tlb_data_result.index, tlb_data_result.offset}),
         .cacop_ack_o(icacop_ack)
     );
+
+    // AXI Arbitary
+    axicb_crossbar_top #(
+        .AXI_ADDR_W  (ADDR_WIDTH),
+        .AXI_ID_W    (4),
+        .AXI_DATA_W  (AXI_DATA_WIDTH),
+        .MST_NB      (4),
+        .SLV_NB      (4),
+        .MST0_ID_MASK(4'b0100),
+        .MST1_ID_MASK(4'b1000),
+        .MST2_ID_MASK(4'b1110),
+        .MST3_ID_MASK(4'b1111)
+    ) u_axi_arbitrartor (
+        .aclk        (aclk),
+        .aresetn     (aresetn),
+        .slv0_aclk   (aclk),
+        .slv0_aresetn(aresetn),
+        .slv0_awvalid(icache_axi.awvalid),
+        .slv0_awready(icache_axi.awready),
+        .slv0_awaddr (icache_axi.awaddr),
+        .slv0_awlen  (icache_axi.awlen),
+        .slv0_awsize (icache_axi.awsize),
+        .slv0_awburst(icache_axi.awburst),
+        .slv0_awcache(icache_axi.awcache),
+        .slv0_awid   (icache_axi.awid),
+        .slv0_wvalid (icache_axi.wvalid),
+        .slv0_wready (icache_axi.wready),
+        .slv0_wlast  (icache_axi.wlast),
+        .slv0_wdata  (icache_axi.wdata),
+        .slv0_wstrb  (icache_axi.wstrb),
+        .slv0_bvalid (icache_axi.bvalid),
+        .slv0_bready (icache_axi.bready),
+        .slv0_bid    (icache_axi.bid),
+        .slv0_bresp  (icache_axi.bresp),
+        .slv0_arvalid(icache_axi.arvalid),
+        .slv0_arready(icache_axi.arready),
+        .slv0_araddr (icache_axi.araddr),
+        .slv0_arlen  (icache_axi.arlen),
+        .slv0_arsize (icache_axi.arsize),
+        .slv0_arburst(icache_axi.arburst),
+        .slv0_arcache(icache_axi.arcache),
+        .slv0_arid   ({2'b01, icache_axi.arid[1:0]}),
+        .slv0_rvalid (icache_axi.rvalid),
+        .slv0_rready (icache_axi.rready),
+        .slv0_rid    (icache_axi.rid),
+        .slv0_rresp  (icache_axi.rresp),
+        .slv0_rdata  (icache_axi.rdata),
+        .slv0_rlast  (icache_axi.rlast),
+        .slv1_aclk   (aclk),
+        .slv1_aresetn(aresetn),
+        .slv1_awvalid(dcache_axi.awvalid),
+        .slv1_awready(dcache_axi.awready),
+        .slv1_awaddr (dcache_axi.awaddr),
+        .slv1_awlen  (dcache_axi.awlen),
+        .slv1_awsize (dcache_axi.awsize),
+        .slv1_awburst(dcache_axi.awburst),
+        .slv1_awcache(dcache_axi.awcache),
+        .slv1_awid   (dcache_axi.awid),
+        .slv1_wvalid (dcache_axi.wvalid),
+        .slv1_wready (dcache_axi.wready),
+        .slv1_wlast  (dcache_axi.wlast),
+        .slv1_wdata  (dcache_axi.wdata),
+        .slv1_wstrb  (dcache_axi.wstrb),
+        .slv1_bvalid (dcache_axi.bvalid),
+        .slv1_bready (dcache_axi.bready),
+        .slv1_bid    (dcache_axi.bid),
+        .slv1_bresp  (dcache_axi.bresp),
+        .slv1_arvalid(dcache_axi.arvalid),
+        .slv1_arready(dcache_axi.arready),
+        .slv1_araddr (dcache_axi.araddr),
+        .slv1_arlen  (dcache_axi.arlen),
+        .slv1_arsize (dcache_axi.arsize),
+        .slv1_arburst(dcache_axi.arburst),
+        .slv1_arcache(dcache_axi.arcache),
+        .slv1_arid   (dcache_axi.arid),
+        .slv1_rvalid (dcache_axi.rvalid),
+        .slv1_rready (dcache_axi.rready),
+        .slv1_rid    (dcache_axi.rid),
+        .slv1_rresp  (dcache_axi.rresp),
+        .slv1_rdata  (dcache_axi.rdata),
+        .slv1_rlast  (dcache_axi.rlast),
+        .mst0_aclk   (aclk),
+        .mst0_aresetn(aresetn),
+        .mst0_awvalid(awvalid),
+        .mst0_awready(awready),
+        .mst0_awaddr (awaddr),
+        .mst0_awlen  (awlen),
+        .mst0_awsize (awsize),
+        .mst0_awburst(awburst),
+        .mst0_awlock (awlock),
+        .mst0_awcache(awcache),
+        .mst0_awprot (awprot),
+        .mst0_awid   (awid),
+        .mst0_wvalid (wvalid),
+        .mst0_wready (wready),
+        .mst0_wlast  (wlast),
+        .mst0_wdata  (wdata),
+        .mst0_wstrb  (wstrb),
+        .mst0_bvalid (bvalid),
+        .mst0_bready (bready),
+        .mst0_bid    (bid),
+        .mst0_bresp  (bresp),
+        .mst0_arvalid(arvalid),
+        .mst0_arready(arready),
+        .mst0_araddr (araddr),
+        .mst0_arlen  (arlen),
+        .mst0_arsize (arsize),
+        .mst0_arburst(arburst),
+        .mst0_arlock (arlock),
+        .mst0_arcache(arcache),
+        .mst0_arprot (arprot),
+        .mst0_arid   (arid),
+        .mst0_rvalid (rvalid),
+        .mst0_rready (rready),
+        .mst0_rid    (rid),
+        .mst0_rresp  (rresp),
+        .mst0_rdata  (rdata),
+        .mst0_rlast  (rlast)
+    );
+
 
 
     // Frontend <-> Instruction Buffer

@@ -51,6 +51,9 @@ package core_config;
     parameter TLB_NWAY = 4;
     parameter TLB_NUM = TLB_NWAY * TLB_NSET;
 
+    // AXI parameters
+    parameter AXI_DATA_WIDTH = 128;
+
 endpackage
 
 `endif

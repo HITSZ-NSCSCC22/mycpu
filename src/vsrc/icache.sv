@@ -2,6 +2,8 @@
 `include "TLB/tlb_types.sv"
 `include "utils/bram.sv"
 `include "utils/lfsr.sv"
+`include "axi/axi_interface.sv"
+`include "axi/axi_master.sv"
 
 // 1 as valid
 
@@ -31,13 +33,8 @@ module icache
     // Frontend Uncache
     input logic invalid_i,  // For some reason, frontend want to reset whole ICache
 
-    // <-> AXI Controller
-    output logic [ADDR_WIDTH-1:0] axi_addr_o,
-    output logic axi_rreq_o,
-    input logic axi_rdy_i,
-    input logic axi_rvalid_i,
-    input logic axi_rlast_i,
-    input logic [32-1:0] axi_data_i,
+    // <-> AXI Abitrary
+    axi_interface.master m_axi,
 
     // CACOP
     input logic cacop_i,
@@ -52,6 +49,15 @@ module icache
     // Parameters
     localparam NWAY = ICACHE_NWAY;
     localparam NSET = ICACHE_NSET;
+
+    // AXI
+    logic [ADDR_WIDTH-1:0] axi_addr_o;
+    logic axi_rreq_o;
+    logic axi_rdy_i;
+    logic axi_rvalid_i;
+    logic axi_rlast_i;
+    assign axi_rlast_i = axi_rvalid_i;
+    logic [AXI_DATA_WIDTH-1:0] axi_data_i;
 
     // States
     enum int {
@@ -418,7 +424,7 @@ module icache
 
     // AXI handshake
     // Read request to AXI Controller
-    assign cacheline = {axi_data_i, axi_data_buffer[2], axi_data_buffer[1], axi_data_buffer[0]};
+    assign cacheline = axi_data_i;
     always_ff @(posedge clk) begin
         if (rst) axi_burst_cnt <= 0;
         else if (axi_rvalid_i & axi_rlast_i) axi_burst_cnt <= 0;
@@ -431,12 +437,12 @@ module icache
     end
     always_comb begin
         case (state)
-            REFILL_1_REQ, REFILL_1_WAIT: begin
-                axi_rreq_o = miss_1 & ~axi_rvalid_i & ~axi_rvalid_delay_1;
+            REFILL_1_REQ: begin
+                axi_rreq_o = miss_1;
                 axi_addr_o = miss_1 ? p1_raddr_1 : 0;
             end
-            REFILL_2_REQ, REFILL_2_WAIT: begin
-                axi_rreq_o = miss_2 & ~axi_rvalid_i & ~axi_rvalid_delay_1;
+            REFILL_2_REQ: begin
+                axi_rreq_o = miss_2;
                 axi_addr_o = miss_2 ? p1_raddr_2 : 0;
             end
             default: begin
@@ -455,6 +461,22 @@ module icache
         .en   (1'b1),
         .value(random_r)
     );
+
+    axi_master u_axi_master (
+        .clk        (clk),
+        .rst        (rst),
+        .m_axi      (m_axi),
+        .new_request(axi_rreq_o),
+        .we         (1'b0),
+        .addr       (axi_addr_o),
+        .size       (3'b100),
+        .data_in    (0),
+        .wstrb      (0),
+        .ready_out  (axi_rdy_i),
+        .valid_out  (axi_rvalid_i),
+        .data_out   (axi_data_i)
+    );
+
 
     // BRAM instantiation
     generate
