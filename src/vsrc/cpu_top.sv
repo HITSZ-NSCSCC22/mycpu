@@ -5,7 +5,8 @@
 `include "tlb.sv"
 `include "tlb_entry.sv"
 `include "AXI/axi_master.sv"
-`include "AXI/axi_bridge.sv"
+`include "AXI/axi128_bridge.sv"
+`include "AXI/axi32_master.sv"
 `include "frontend/frontend.sv"
 `include "instr_buffer.sv"
 `include "icache.sv"
@@ -123,7 +124,7 @@ module cpu_top
     logic [`RegBus] cache_mem_data;
     logic mem_data_ok,mem_addr_ok;
 
-    // axi32_master u_axi_master (
+    // axi_master u_axi_master (
     //     .aclk   (aclk),
     //     .aresetn(aresetn),
 
@@ -193,10 +194,10 @@ module cpu_top
     //     .s_bready(bready)
     // );
 
-    axi_bridge u_axi_master(
+    axi128_bridge u_axi_master(
 
     .clk            (aclk           ),
-    .reset          (aresetn         ),
+    .reset          (rst         ),
 
     .arid           (arid           ),
     .araddr         (araddr         ),
@@ -247,7 +248,7 @@ module cpu_top
     .inst_ret_last  (axi_icache_rlast  ),
     .inst_ret_data  (axi_icache_data  ),
     .inst_wr_req    (   ),
-    .inst_wr_type   (   ),
+    .inst_wr_type   (  ),
     .inst_wr_addr   (   ),
     .inst_wr_wstrb  ( ),
     .inst_wr_data   ( ),
