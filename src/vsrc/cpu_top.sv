@@ -132,7 +132,7 @@ module cpu_top
 
 
     // AXI
-    axi_interface icache_axi, dcache_axi;
+    axi_interface icache_axi(), dcache_axi();
 
     // ICache <-> AXI Controller
     logic icache_axi_rreq;

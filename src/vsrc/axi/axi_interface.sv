@@ -1,5 +1,5 @@
-`ifndef AXI_INTERFACE_SV
-`define AXI_INTERFACE_SV
+//`ifndef AXI_INTERFACE_SV
+//`define AXI_INTERFACE_SV
 `include "core_config.sv"
 
 interface axi_interface;
@@ -63,4 +63,4 @@ interface axi_interface;
     );
 
 endinterface
-`endif
+//`endif
