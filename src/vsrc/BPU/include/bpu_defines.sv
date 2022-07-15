@@ -16,17 +16,6 @@
 `define MAX_GHT_LENGTH 512
 `define MAX_GHT_LENGTH_LOG2 9
 
-typedef struct packed {
-    logic valid;
-    logic predict_correct;
-    logic branch_taken;
-    logic is_conditional;
-    logic [31:0] pc;  // TODO: hard-coded for now
-    logic [31:0] target_addr;
-    logic [4:0] provider_id;
-    logic [14:0] provider_entry_id;
-    logic [2:0] provider_ctr_bits;
-    logic [2:0] provider_useful_bits;
-} branch_update_info_t;
+
 
 `endif

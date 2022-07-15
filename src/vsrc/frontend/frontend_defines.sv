@@ -9,8 +9,7 @@ typedef struct packed {
     logic [`InstAddrBus] start_pc;
     logic is_cross_cacheline;
     logic [$clog2(`FETCH_WIDTH+1)-1:0] length;
-
-    // TODO: add BPU meta
+    logic predicted_taken;
 } bpu_ftq_t;
 
 typedef struct packed {
@@ -18,6 +17,7 @@ typedef struct packed {
     logic [`InstAddrBus] start_pc;
     logic is_cross_cacheline;
     logic [$clog2(`FETCH_WIDTH+1)-1:0] length;
+    logic predicted_taken;
 } ftq_block_t;
 
 // FTQ <-> IFU
@@ -26,6 +26,14 @@ typedef struct packed {
     logic [`InstAddrBus] start_pc;
     logic is_cross_cacheline;
     logic [$clog2(`FETCH_WIDTH+1)-1:0] length;
+    logic predicted_taken;
 } ftq_ifu_t;
+
+typedef struct packed {
+    logic is_branch;
+    logic is_conditional;
+    logic is_taken;
+    logic predicted_taken;  // Comes from BPU
+} backend_commit_meta_t;
 
 `endif

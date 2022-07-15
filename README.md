@@ -50,9 +50,9 @@ testbench.cpp           用于Verilator仿真，如果使用Vivado仿真，无�
 
 ## 开发流程
 
-### Clone项目
+### Clone 项目
 
-使用以下命令将项目clone到本地
+使用以下命令将项目 clone 到本地
 
 ```
 git clone https://github.com/HITSZ-NSCSCC22/mycpu
@@ -60,7 +60,7 @@ git clone https://github.com/HITSZ-NSCSCC22/mycpu
 git clone https://hub.fastgit.xyz/HITSZ-NSCSCC22/mycpu
 ```
 
-此时项目处于main分支，请使用以下命令创建一个自己的分支
+此时项目处于 main 分支，请使用以下命令创建一个自己的分支
 ```
 git checkout -b <branch_name>
 ```
@@ -71,17 +71,17 @@ git checkout -b <branch_name>
 
 ### Commit & Push
 
-使用`git status`可以查看工作区状态，除了正常的源码意外，注意查看有无类似Vivado log或Vivado project这样的仅在本地使用的文件或目录。
+使用`git status`可以查看工作区状态，除了正常的源码意外，注意查看有无类似 Vivado log 或 Vivado project 这样的仅在本地使用的文件或目录。
 
 如果想要排除某些文件或目录，编辑`.gitignore`文件，语法可以参考已有的条目。
 
-使用`git add .`之类的命令添加文件以后，建议再使用`git status`查看具体添加了哪些文件，避免commit巨大的二进制文件。
+使用`git add .`之类的命令添加文件以后，建议再使用`git status`查看具体添加了哪些文件，避免 commit 巨大的二进制文件。
 
-接下来就可以正常commit了，你的commit message对其他人来说是了解你做的工作的重要信息，务必要认真填写。
+接下来就可以正常 commit 了，你的 commit message 对其他人来说是了解你做的工作的重要信息，务必要认真填写。
 
-在`git push`先要`git pull`，否则如果线上版本有更新，GitHub会拒绝你的push。
+在`git push`先要`git pull`，否则如果线上版本有更新，GitHub 会拒绝你的 push。
 
-`git pull`如果出现merge冲突，无需着急，执行`git reset --hard HEAD`将状态恢复到`git pull`之前，然后在群里大喊！
+`git pull`如果出现 merge 冲突，无需着急，执行`git reset --hard HEAD`将状态恢复到`git pull`之前，然后在群里大喊！
 
 
 ## Credit
@@ -91,5 +91,5 @@ git checkout -b <branch_name>
 [cva5](https://github.com/openhwgroup/cva5) 项目和 Eric Matthews
 
 - [乘除法器](https://github.com/risclite/rv32m-multiplier-and-divider)
-- [参数化的LFSR](https://github.com/openhwgroup/cva5/blob/master/core/lfsr.sv)
-- [基于ROM的Priority Encoder](https://github.com/openhwgroup/cva5/blob/master/core/priority_encoder.sv)
+- [参数化的 LFSR](https://github.com/openhwgroup/cva5/blob/master/core/lfsr.sv)
+- [基于 ROM 的 Priority Encoder](https://github.com/openhwgroup/cva5/blob/master/core/priority_encoder.sv)

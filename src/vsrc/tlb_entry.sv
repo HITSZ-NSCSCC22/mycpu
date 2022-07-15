@@ -1,7 +1,9 @@
-`include "tlb_types.sv"
+`include "core_config.sv"
+`include "TLB/tlb_types.sv"
 
 module tlb_entry
     import tlb_types::*;
+    import core_config::*;
 (
     input logic clk,
 
@@ -11,7 +13,7 @@ module tlb_entry
     input logic s0_odd_page,
     input logic [9:0] s0_asid,
     output logic s0_found,  // found
-    output logic [$clog2(TLBNUM)-1:0] s0_index,  // TLB index
+    output logic [$clog2(TLB_NUM)-1:0] s0_index,  // TLB index
     output logic [5:0] s0_ps,  // ps
     output logic [19:0] s0_ppn,  // Physical page number, same as tag
     output logic s0_v,  // valid flag
@@ -25,7 +27,7 @@ module tlb_entry
     input logic s1_odd_page,
     input logic [9:0] s1_asid,
     output logic s1_found,
-    output logic [$clog2(TLBNUM)-1:0] s1_index,
+    output logic [$clog2(TLB_NUM)-1:0] s1_index,
     output logic [5:0] s1_ps,
     output logic [19:0] s1_ppn,
     output logic s1_v,
@@ -35,11 +37,11 @@ module tlb_entry
 
     // write port, write on posedge
     input logic we,
-    input logic [$clog2(TLBNUM)-1:0] w_index,
+    input logic [$clog2(TLB_NUM)-1:0] w_index,
     input tlb_wr_port write_port,
 
     // read port, immediate return in same cycle
-    input logic [$clog2(TLBNUM)-1:0] r_index,
+    input logic [$clog2(TLB_NUM)-1:0] r_index,
     output tlb_wr_port read_port,
 
     // invalid port, on posedge
@@ -47,32 +49,32 @@ module tlb_entry
 );
 
     // Data structure
-    logic [18:0] tlb_vppn[TLBNUM-1:0];
-    logic [TLBNUM-1:0] tlb_e;
-    logic [9:0] tlb_asid[TLBNUM-1:0];
-    logic [TLBNUM-1:0] tlb_g;
-    logic [5:0] tlb_ps[TLBNUM-1:0];
-    logic [19:0] tlb_ppn0[TLBNUM-1:0];
-    logic [1:0] tlb_plv0[TLBNUM-1:0];
-    logic [1:0] tlb_mat0[TLBNUM-1:0];
-    logic tlb_d0[TLBNUM-1:0];
-    logic tlb_v0[TLBNUM-1:0];
-    logic [19:0] tlb_ppn1[TLBNUM-1:0];
-    logic [1:0] tlb_plv1[TLBNUM-1:0];
-    logic [1:0] tlb_mat1[TLBNUM-1:0];
-    logic tlb_d1[TLBNUM-1:0];
-    logic tlb_v1[TLBNUM-1:0];
+    logic [18:0] tlb_vppn[TLB_NUM-1:0];
+    logic [TLB_NUM-1:0] tlb_e;
+    logic [9:0] tlb_asid[TLB_NUM-1:0];
+    logic [TLB_NUM-1:0] tlb_g;
+    logic [5:0] tlb_ps[TLB_NUM-1:0];
+    logic [19:0] tlb_ppn0[TLB_NUM-1:0];
+    logic [1:0] tlb_plv0[TLB_NUM-1:0];
+    logic [1:0] tlb_mat0[TLB_NUM-1:0];
+    logic tlb_d0[TLB_NUM-1:0];
+    logic tlb_v0[TLB_NUM-1:0];
+    logic [19:0] tlb_ppn1[TLB_NUM-1:0];
+    logic [1:0] tlb_plv1[TLB_NUM-1:0];
+    logic [1:0] tlb_mat1[TLB_NUM-1:0];
+    logic tlb_d1[TLB_NUM-1:0];
+    logic tlb_v1[TLB_NUM-1:0];
 
     // One-hot match table
-    logic [TLBNUM-1:0] match0;
-    logic [TLBNUM-1:0] match1;
+    logic [TLB_NUM-1:0] match0;
+    logic [TLB_NUM-1:0] match1;
 
-    logic [TLBNUM-1:0] s0_odd_page_buffer;
-    logic [TLBNUM-1:0] s1_odd_page_buffer;
+    logic [TLB_NUM-1:0] s0_odd_page_buffer;
+    logic [TLB_NUM-1:0] s1_odd_page_buffer;
 
     genvar i;
     generate
-        for (i = 0; i < TLBNUM; i = i + 1) begin : match
+        for (i = 0; i < TLB_NUM; i = i + 1) begin : match
             always @(posedge clk) begin
                 if (s0_fetch) begin
                     s0_odd_page_buffer[i] <= (tlb_ps[i] == 6'd12) ? s0_odd_page : s0_vppn[8];
@@ -146,7 +148,7 @@ module tlb_entry
     logic [31:0] debug_asid_match, debug_vppn_match;
     logic [18:0] debug_inv_vpn = inv_i.vpn;
     always_comb begin
-        for (integer ii = 0; ii < TLBNUM; ii++) begin
+        for (integer ii = 0; ii < TLB_NUM; ii++) begin
             debug_asid_match[ii] = tlb_asid[ii] == inv_i.asid;
             debug_vppn_match[ii] = tlb_vppn[ii] == inv_i.vpn;
         end
@@ -154,7 +156,7 @@ module tlb_entry
 
     //tlb entry invalid 
     generate
-        for (i = 0; i < TLBNUM; i = i + 1) begin : invalid_tlb_entry
+        for (i = 0; i < TLB_NUM; i = i + 1) begin : invalid_tlb_entry
             always @(posedge clk) begin
                 if (we && (w_index == i)) begin
                     tlb_e[i] <= write_port.e;

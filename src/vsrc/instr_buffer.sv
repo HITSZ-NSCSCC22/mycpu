@@ -5,33 +5,41 @@ module instr_buffer
 #(
     parameter IF_WIDTH = 2,
     parameter ID_WIDTH = 2,
-    parameter BUFFER_SIZE = 16
+    parameter BUFFER_SIZE = 8
 ) (
     input logic clk,
     input logic rst,
 
     // <-> Frontend
-    input instr_buffer_info_t frontend_instr_i[IF_WIDTH],
+    input instr_info_t frontend_instr_i[IF_WIDTH],
     output logic frontend_stallreq_o,  // Require frontend to stop
 
     // <-> Backend
     input logic [ID_WIDTH-1:0] backend_accept_i,  // Backend can accept 0 or more instructions, must return in the next cycle!
     input logic backend_flush_i,  // Backend require flush, maybe branch miss
-    output instr_buffer_info_t backend_instr_o[ID_WIDTH]
+    output instr_info_t backend_instr_o[ID_WIDTH]
 
 );
 
     // Reset signal
     logic rst_n;
-    assign rst_n = ~rst;
 
-    instr_buffer_info_t buffer_queue[BUFFER_SIZE], next_buffer_queue[BUFFER_SIZE];
+    instr_info_t buffer_queue[BUFFER_SIZE], next_buffer_queue[BUFFER_SIZE];
 
     logic [$clog2(BUFFER_SIZE)-1:0] read_ptr, write_ptr;
 
     // Workaround, verilator seems to extend {write_ptr + 2} to more bits
     // we want a loopback counter, so declare a fixed width to get around
     logic [$clog2(BUFFER_SIZE)-1:0] buffer_clearance;
+
+    // Popcnt of backend_accept_i
+    logic [$clog2(ID_WIDTH):0] backend_accept_num;
+
+    // Popcnt of frontend_instr_i.[i].valid
+    logic [$clog2(IF_WIDTH):0] frontend_accept_num;
+
+    assign rst_n = ~rst;
+
     assign buffer_clearance = read_ptr - write_ptr;
     assign frontend_stallreq_o = (buffer_clearance <= 4 && buffer_clearance != 0);
 
@@ -48,16 +56,13 @@ module instr_buffer
         end
     end
 
-    // Popcnt of backend_accept_i
-    logic [$clog2(ID_WIDTH):0] backend_accept_num;
     always_comb begin
         backend_accept_num = 0;
         for (integer i = 0; i < ID_WIDTH; i++) begin
             backend_accept_num += backend_accept_i[i];
         end
     end
-    // Popcnt of frontend_instr_i.[i].valid
-    logic [$clog2(IF_WIDTH):0] frontend_accept_num;
+
     always_comb begin
         frontend_accept_num = 0;
         for (integer i = 0; i < IF_WIDTH; i++) begin
@@ -109,7 +114,7 @@ module instr_buffer
     always_comb begin : backend_instr_o_comb
         for (integer i = 0; i < ID_WIDTH; i++) begin
             // verilator lint_off WIDTH
-            backend_instr_o[i] = buffer_queue[read_ptr+i+backend_accept_num];
+            backend_instr_o[i] = buffer_queue[read_ptr+i];
             // verilator lint_on WIDTH
         end
     end

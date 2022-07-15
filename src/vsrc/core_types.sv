@@ -2,7 +2,7 @@
 `define CORE_TYPES_SV
 `include "defines.sv"
 `include "csr_defines.sv"
-`include "tlb_types.sv"
+`include "TLB/tlb_types.sv"
 `include "core_config.sv"
 
 package core_types;
@@ -11,41 +11,55 @@ package core_types;
     import csr_defines::*;
     import core_config::*;
 
-    `define DECODE_WIDTH 2
-
-
-
-
+    // CSR info passed to IFU
     typedef struct packed {
         logic pg;
         logic da;
         logic [31:0] dmw0;
         logic [31:0] dmw1;
         logic [1:0] plv;
+        logic [1:0] datf;
     } ifu_csr_t;
 
+    // Instruction info types
     typedef struct packed {
-        // Exception info from frontend
+        logic is_pri;
+        logic is_csr;
+        logic mem_load;
+        logic mem_store;
+        logic mem_b_op;
+        logic mem_h_op;
+        logic not_commit_instr;
+        logic need_refetch;  // Instruction modify IF logic, any instr after it may be totaly wrong
+        logic redirect;
+        logic is_branch;
+        logic is_conditional;
+        logic is_taken;
+        logic predicted_taken;  // Comes from BPU
+        // Difftest only
+        logic csr_rstat;
+    } special_info_t;
+
+    typedef struct packed {
+        // This instruction exists
+        logic valid;
+        // Exception info 
         logic excp;
         // {excp_ppi, excp_pif, excp_tlbr, excp_adef}
-        logic [3:0] excp_num;
+        logic [15:0] excp_num;
 
         // Frontend info
-        bit [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_id;
+        logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_id;
+        logic [$clog2(FETCH_WIDTH)-1:0] ftq_block_idx;  // index within a fetch block
+        logic is_last_in_block;  // Mark the last instruction in basic block
 
-        bit valid;
-        bit is_last_in_block;  // Mark the last instruction in basic block
-        bit [`InstAddrBus] pc;
-        bit [`InstBus] instr;
+        // Special information
+        special_info_t special_info;
 
-        // BPU info
-        bit bpu_predicted_taken;
-        bit [2:0] bpu_useful_bits;
-        bit [2:0] bpu_ctr_bits;
-        bit [2:0] bpu_provider_id;
-        bit [13:0] bpu_provider_query_index;
-
-    } instr_buffer_info_t;
+        // 
+        logic [`InstAddrBus] pc;
+        logic [`InstBus] instr;
+    } instr_info_t;
 
     typedef struct packed {
         bit valid;
@@ -59,8 +73,10 @@ package core_types;
         bit [13:0] bpu_provider_query_index;
     } branch_update_info_t;
 
+
+
     typedef struct packed {
-        instr_buffer_info_t instr_info;
+        instr_info_t instr_info;
 
         // Reg read info
         logic use_imm;
@@ -76,14 +92,11 @@ package core_types;
         logic csr_we;
         csr_write_signal csr_signal;
 
-        logic excp;
-        logic [8:0] excp_num;
-        logic refetch;
     } id_dispatch_struct;
 
 
     typedef struct packed {
-        instr_buffer_info_t instr_info;
+        instr_info_t instr_info;
 
         // Pass ID info to EX to help data forwarding
         logic [1:0][`RegAddrBus] read_reg_addr;
@@ -101,32 +114,27 @@ package core_types;
         logic [`RegBus]  csr_reg_data;
         csr_write_signal csr_signal;
 
-        logic excp;
-        logic [8:0] excp_num;
-        logic refetch;
     } dispatch_ex_struct;
 
     typedef struct packed {
-        logic reg_valid;
-        logic [`RegAddrBus] reg_addr;
-        logic [`RegBus] reg_data;
-        logic [`AluOpBus] aluop_i;
-    } ex_dispatch_struct;
+        logic wreg;
+        logic data_valid;
+        logic [`RegAddrBus] wreg_addr;
+        logic [`RegBus] wreg_data;
+    } data_forward_t;
 
     typedef struct packed {
-        instr_buffer_info_t instr_info;
-
-        logic wreg;
-        logic [`RegAddrBus] waddr;
+        instr_info_t instr_info;
+        // Info added from EX
         logic [`AluOpBus] aluop;
         logic [`RegBus] mem_addr;
         logic [`RegBus] reg2;
-        csr_write_signal csr_signal;
+        // EX result
+        logic wreg;
+        logic [`RegAddrBus] waddr;
         logic [`RegBus] wdata;
-
-        logic excp;
-        logic [9:0] excp_num;
-        logic refetch;
+        // CSR write
+        csr_write_signal csr_signal;
 
         tlb_inv_t inv_i;
         logic [63:0] timer_64;
@@ -134,62 +142,76 @@ package core_types;
         logic cacop_en;
         logic icache_op_en;
         logic [4:0] cacop_op;
+        logic data_addr_trans_en;
+        logic dmw0_en;
+        logic dmw1_en;
+        logic cacop_op_mode_di;
     } ex_mem_struct;
 
-    // MEM stage data forwarding
+
+    // Difftest
     typedef struct packed {
-        logic is_load_data;
-        logic write_reg;
-        logic [`RegAddrBus] write_reg_addr;
-        logic [`RegBus] write_reg_data;
-    } mem_data_forward_t;
-
-    typedef struct packed {
-        instr_buffer_info_t instr_info;
-
-        logic [`RegAddrBus] waddr;
-        logic [`RegBus] wdata;
-        logic wreg;
-        logic [`AluOpBus] aluop;
-        csr_write_signal csr_signal;
-
-        //load store difftest
+        logic [63:0] timer_64;
         logic [7:0] inst_ld_en;
         logic [7:0] inst_st_en;
         logic [`DataAddrBus] load_addr;
         logic [`DataAddrBus] store_addr;
-        logic [`DataAddrBus] mem_addr;
         logic [`RegBus] store_data;
-
-        logic excp;
-        logic [9:0] excp_num;
-        logic refetch;
-
-        tlb_inv_t inv_i;
-        logic [63:0] timer_64;
-
-        logic cacop_en;
-        logic icache_op_en;
-        logic [4:0] cacop_op;
-    } mem_wb_struct;
+    } difftest_mem_info_t;
 
     typedef struct packed {
+        instr_info_t instr_info;
+
+        logic wreg;
+        logic [`RegAddrBus] waddr;
+        logic [`RegBus] wdata;
+        logic LLbit_we;
+        logic LLbit_value;
+
+        logic [`AluOpBus] aluop;
+        csr_write_signal csr_signal;
+        logic mem_access_valid;
+        logic [ADDR_WIDTH-1:0] mem_addr;
+
+        tlb_inv_t inv_i;
+        difftest_mem_info_t difftest_mem_info;
+    } mem1_mem2_struct;
+
+    typedef struct packed {
+        instr_info_t instr_info;
+
+        logic wreg;
+        logic [`RegAddrBus] waddr;
+        logic [`RegBus] wdata;
+        logic LLbit_we;
+        logic LLbit_value;
+        logic [ADDR_WIDTH-1:0] mem_addr;
+
+        logic [`AluOpBus] aluop;
+        csr_write_signal  csr_signal;
+
+        tlb_inv_t inv_i;
+
+        difftest_mem_info_t difftest_mem_info;
+    } mem2_wb_struct;
+
+    typedef struct packed {
+        logic [`RegBus] pc;
         logic we;
         logic ce;
         logic [3:0] sel;
-        logic [`DataAddrBus] addr;
-        logic [`RegBus] data;
-        logic uncache_en;
+        logic [ADDR_WIDTH-1:0] addr;
+        logic [DATA_WIDTH-1:0] data;
+        logic uncache;
         logic [2:0] rd_type;
-        logic [2:0]wr_type;
-    } mem_cache_struct;
+        logic [2:0] wr_type;
+    } mem_dcache_rreq_t;
 
     typedef struct packed {
         logic we;
-        logic [`InstAddrBus] pc;
         logic [`RegAddrBus] waddr;
         logic [`RegBus] wdata;
-    } wb_reg;
+    } wb_reg_t;
 
     // Difftest Commit Information
     // Used to submit instr info into difftest framework
@@ -206,32 +228,27 @@ package core_types;
         logic [31:0] st_data;
         logic is_CNTinst;
         logic [63:0] timer_64;
+        logic csr_rstat;
     } diff_commit;
 
     typedef struct packed {
         logic we;
         logic value;
-    } wb_llbit;
+    } wb_llbit_t;
 
     typedef struct packed {
         logic valid;
         logic is_last_in_block;
         logic [`AluOpBus] aluop;
-        wb_reg wb_reg_o;
-        wb_llbit llbit_o;
-        logic excp;
-        logic [15:0] excp_num;
-        logic fetch_flush;
-        logic data_tlb_found;
-        logic [`DataAddrBus] mem_addr;
+        logic [ADDR_WIDTH-1:0] mem_addr;
+        instr_info_t instr_info;
+        wb_reg_t wb_reg;
+        wb_llbit_t llbit;
         tlb_inv_t inv_i;
         logic [4:0] data_tlb_index;
         csr_write_signal csr_signal_o;
         diff_commit diff_commit_o;
-        logic cacop_en;
-        logic icache_op_en;
-        logic [4:0] cacop_op;
-    } wb_ctrl;
+    } wb_ctrl_struct;
 
     typedef struct packed {
         logic csr_pg;

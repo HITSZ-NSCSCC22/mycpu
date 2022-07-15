@@ -1,5 +1,6 @@
 `include "defines.sv"
 `include "core_types.sv"
+`include "core_config.sv"
 
 // decoder_3R is the decoder for 3R-type instructions
 // 3R-type {opcode[17], rk[5] ,rj[5], rd[5]}
@@ -8,14 +9,12 @@
 // all combinational circuit
 module decoder_3R
     import core_types::*;
+    import core_config::*;
 #(
-    parameter ADDR_WIDTH = 32,
-    parameter DATA_WIDTH = 32,
-    parameter GPR_NUM = 32,
-    parameter ALU_OP_WIDTH = 8,
+    parameter ALU_OP_WIDTH  = 8,
     parameter ALU_SEL_WIDTH = 3
 ) (
-    input instr_buffer_info_t instr_info_i,
+    input logic [INSTR_WIDTH-1:0] instr_i,
 
     // indicates current decoder module result is valid or not
     // 1 means valid
@@ -41,11 +40,15 @@ module decoder_3R
 
     // Special, 1 means valid
     output logic instr_break,
-    output logic instr_syscall
+    output logic instr_syscall,
+
+    // Special info
+    output logic kernel_instr,
+    output special_info_t special_info_o
 );
 
     logic [DATA_WIDTH-1:0] instr;
-    assign instr = instr_info_i.instr;
+    assign instr = instr_i;
 
     // 3 Registers
     logic [4:0] rd, rk, rj;
@@ -56,41 +59,41 @@ module decoder_3R
     always_comb begin
         // Default decode
         decode_result_valid_o = 1;
-        reg_write_valid_o = 1;
-        reg_write_addr_o = rd;
-        reg_read_valid_o = 2'b11;
-        reg_read_addr_o = {rk, rj};
-        use_imm = 1'b0;
-        imm_o = 0;
-        instr_break = 0;
-        instr_syscall = 0;
-        // Default
-        aluop_o = `EXE_NOP_OP;
-        alusel_o = `EXE_RES_NOP;
+        aluop_o               = 0;
+        alusel_o              = 0;
+        reg_write_valid_o     = 1;
+        reg_write_addr_o      = rd;
+        reg_read_valid_o      = 2'b11;
+        reg_read_addr_o       = {rk, rj};
+        use_imm               = 1'b0;
+        imm_o                 = 0;
+        instr_break           = 0;
+        instr_syscall         = 0;
+        kernel_instr          = 0;
+        special_info_o        = 0;
         case (instr[31:15])
             // These two do not need GPR
             `EXE_BREAK: begin
-                aluop_o = `EXE_BREAK_OP;
-                reg_write_valid_o = 0;
-                reg_write_addr_o = 0;
-                reg_read_valid_o = 2'b00;
-                reg_read_addr_o = 0;
-                instr_break = 1;
+                aluop_o                         = `EXE_BREAK_OP;
+                reg_write_valid_o               = 0;
+                reg_write_addr_o                = 0;
+                reg_read_valid_o                = 2'b00;
+                reg_read_addr_o                 = 0;
+                instr_break                     = 1;
+                special_info_o.redirect         = 1;
+                special_info_o.is_pri           = 1;
+                special_info_o.not_commit_instr = 1;
             end
             `EXE_SYSCALL: begin
-                if (instr[14:0] != 15'h11) begin // HACK: in nemu difftest, syscall 0x11 is reserved for a stop signal, so as NOP
-                    aluop_o = `EXE_SYSCALL_OP;
-                    reg_write_valid_o = 0;
-                    reg_write_addr_o = 0;
-                    reg_read_valid_o = 2'b00;
-                    reg_read_addr_o = 0;
-                    instr_syscall = 1;
-                end else begin
-                    reg_write_valid_o = 0;
-                    reg_write_addr_o  = 0;
-                    reg_read_valid_o  = 2'b00;
-                    reg_read_addr_o   = 0;
-                end
+                aluop_o                         = `EXE_SYSCALL_OP;
+                reg_write_valid_o               = 0;
+                reg_write_addr_o                = 0;
+                reg_read_valid_o                = 2'b00;
+                reg_read_addr_o                 = 0;
+                instr_syscall                   = 1;
+                special_info_o.redirect         = 1;
+                special_info_o.is_pri           = 1;
+                special_info_o.not_commit_instr = 1;
             end
             `EXE_ADD_W: begin
                 aluop_o  = `EXE_ADD_OP;
@@ -145,36 +148,46 @@ module decoder_3R
                 alusel_o = `EXE_RES_SHIFT;
             end
             `EXE_MUL_W: begin
-                aluop_o  = `EXE_MUL_OP;
-                alusel_o = `EXE_RES_ARITH;
+                aluop_o               = `EXE_MUL_OP;
+                alusel_o              = `EXE_RES_ARITH;
+                special_info_o.is_pri = 1;
             end
             `EXE_MULH_W: begin
-                aluop_o  = `EXE_MULH_OP;
-                alusel_o = `EXE_RES_ARITH;
+                aluop_o               = `EXE_MULH_OP;
+                alusel_o              = `EXE_RES_ARITH;
+                special_info_o.is_pri = 1;
             end
             `EXE_MULH_WU: begin
-                aluop_o  = `EXE_MULHU_OP;
-                alusel_o = `EXE_RES_ARITH;
+                aluop_o               = `EXE_MULHU_OP;
+                alusel_o              = `EXE_RES_ARITH;
+                special_info_o.is_pri = 1;
             end
             `EXE_DIV_W: begin
-                aluop_o  = `EXE_DIV_OP;
-                alusel_o = `EXE_RES_ARITH;
+                aluop_o               = `EXE_DIV_OP;
+                alusel_o              = `EXE_RES_ARITH;
+                special_info_o.is_pri = 1;
             end
             `EXE_DIV_WU: begin
-                aluop_o  = `EXE_DIVU_OP;
-                alusel_o = `EXE_RES_ARITH;
+                aluop_o               = `EXE_DIVU_OP;
+                alusel_o              = `EXE_RES_ARITH;
+                special_info_o.is_pri = 1;
             end
             `EXE_MOD_W: begin
-                aluop_o  = `EXE_MOD_OP;
-                alusel_o = `EXE_RES_ARITH;
+                aluop_o               = `EXE_MOD_OP;
+                alusel_o              = `EXE_RES_ARITH;
+                special_info_o.is_pri = 1;
             end
             `EXE_MOD_WU: begin
-                aluop_o  = `EXE_MODU_OP;
-                alusel_o = `EXE_RES_ARITH;
+                aluop_o               = `EXE_MODU_OP;
+                alusel_o              = `EXE_RES_ARITH;
+                special_info_o.is_pri = 1;
             end
             `EXE_IDLE: begin
-                aluop_o  = `EXE_IDLE_OP;
-                alusel_o = `EXE_RES_NOP;
+                aluop_o                         = `EXE_IDLE_OP;
+                alusel_o                        = `EXE_RES_NOP;
+                special_info_o.redirect         = 1;
+                special_info_o.is_pri           = 1;
+                special_info_o.not_commit_instr = 1;
             end
             `EXE_DBAR, `EXE_IBAR: begin
                 reg_write_valid_o = 0;
@@ -194,16 +207,15 @@ module decoder_3R
                 imm_o = {27'b0, instr[4:0]};
                 reg_write_valid_o = 0;
                 reg_write_addr_o = 0;
+                special_info_o.is_pri = 1;
+                special_info_o.need_refetch = 1;
             end
             default: begin  // Means no match in the current decoder
                 decode_result_valid_o = 0;
-                aluop_o = 0;
                 reg_write_valid_o = 0;
                 reg_write_addr_o = 0;
                 reg_read_valid_o = 0;
                 reg_read_addr_o = 0;
-                instr_break = 0;
-                instr_syscall = 0;
             end
         endcase
     end

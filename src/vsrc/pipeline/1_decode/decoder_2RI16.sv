@@ -1,5 +1,6 @@
 `include "defines.sv"
 `include "core_types.sv"
+`include "core_config.sv"
 
 // decoder_2RI16 is the decoder for 2RI16-type instructions
 // 2RI16-type {opcode[6], imm[16] ,rj[5], rd[5]}
@@ -7,14 +8,12 @@
 // all combinational circuit
 module decoder_2RI16
     import core_types::*;
+    import core_config::*;
 #(
-    parameter ADDR_WIDTH = 32,
-    parameter DATA_WIDTH = 32,
-    parameter GPR_NUM = 32,
-    parameter ALU_OP_WIDTH = 8,
+    parameter ALU_OP_WIDTH  = 8,
     parameter ALU_SEL_WIDTH = 3
 ) (
-    input instr_buffer_info_t instr_info_i,
+    input logic [INSTR_WIDTH-1:0] instr_i,
 
     // indicates current decoder module result is valid or not
     // 1 means valid
@@ -38,12 +37,15 @@ module decoder_2RI16
 
     // ALU info
     output logic [ ALU_OP_WIDTH-1:0] aluop_o,
-    output logic [ALU_SEL_WIDTH-1:0] alusel_o
+    output logic [ALU_SEL_WIDTH-1:0] alusel_o,
 
+    // Special info
+    output logic kernel_instr,
+    output special_info_t special_info_o
 );
 
     logic [DATA_WIDTH-1:0] instr;
-    assign instr = instr_info_i.instr;
+    assign instr = instr_i;
 
     // 3 Registers
     logic [4:0] rd, rj;
@@ -57,12 +59,14 @@ module decoder_2RI16
     always_comb begin
         // Default decode
         decode_result_valid_o = 1;
-        reg_write_valid_o = 0;
-        reg_write_addr_o = 0;
-        reg_read_valid_o = 2'b11;
-        reg_read_addr_o = {rd, rj};
-        use_imm = 1'b0;
-        imm_o = {{14{imm_16[15]}}, imm_16, 2'b0};
+        reg_write_valid_o     = 0;
+        reg_write_addr_o      = 0;
+        reg_read_valid_o      = 2'b11;
+        reg_read_addr_o       = {rd, rj};
+        use_imm               = 1'b0;
+        imm_o                 = {{14{imm_16[15]}}, imm_16, 2'b0};
+        kernel_instr          = 0;
+        special_info_o        = 0;
         case (instr[31:26])
             `EXE_JIRL: begin
                 aluop_o = `EXE_JIRL_OP;
@@ -71,30 +75,37 @@ module decoder_2RI16
                 reg_write_addr_o = rd;
                 reg_read_valid_o = 2'b01;
                 reg_read_addr_o = {5'b0, rj};
+                special_info_o.is_pri = 1;
             end
             `EXE_BEQ: begin
-                aluop_o  = `EXE_BEQ_OP;
+                aluop_o = `EXE_BEQ_OP;
                 alusel_o = `EXE_RES_JUMP;
+                special_info_o.is_pri = 1;
             end
             `EXE_BNE: begin
-                aluop_o  = `EXE_BNE_OP;
+                aluop_o = `EXE_BNE_OP;
                 alusel_o = `EXE_RES_JUMP;
+                special_info_o.is_pri = 1;
             end
             `EXE_BLT: begin
-                aluop_o  = `EXE_BLT_OP;
+                aluop_o = `EXE_BLT_OP;
                 alusel_o = `EXE_RES_JUMP;
+                special_info_o.is_pri = 1;
             end
             `EXE_BGE: begin
-                aluop_o  = `EXE_BGE_OP;
+                aluop_o = `EXE_BGE_OP;
                 alusel_o = `EXE_RES_JUMP;
+                special_info_o.is_pri = 1;
             end
             `EXE_BLTU: begin
-                aluop_o  = `EXE_BLTU_OP;
+                aluop_o = `EXE_BLTU_OP;
                 alusel_o = `EXE_RES_JUMP;
+                special_info_o.is_pri = 1;
             end
             `EXE_BGEU: begin
-                aluop_o  = `EXE_BGEU_OP;
+                aluop_o = `EXE_BGEU_OP;
                 alusel_o = `EXE_RES_JUMP;
+                special_info_o.is_pri = 1;
             end
             default: begin
                 decode_result_valid_o = 0;
