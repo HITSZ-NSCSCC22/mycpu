@@ -255,11 +255,10 @@ module ex
     // Multi-cycle
 
 
-    always_comb begin
-        if (rst) muldiv_finish = 0;
-        else if (mul_finish | div_finish) muldiv_finish = 1;
-        else if (pc_delay != inst_pc_i) muldiv_finish = 0;
-        else muldiv_finish = muldiv_finish;
+    always_ff @(posedge clk) begin
+        if (rst) muldiv_finish <= 0;
+        else if (advance) muldiv_finish <= 0;
+        else if (mul_finish | div_finish) muldiv_finish <= 1;
     end
     always_comb begin
         case (aluop_i)

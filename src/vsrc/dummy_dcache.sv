@@ -35,10 +35,8 @@ module dummy_dcache (
     output logic [31:0] wr_addr,  //写请求起始地址
     output logic [15:0] wr_wstrb,  //写操作的字节掩码。16bits for AXI128
     output logic [127:0] wr_data,  //写数据
-    input logic wr_rdy  //写请求能否被接受的握手信号。具体见p2234.
-
-
-    //还需对类SRAM-AXI转接桥模块进行调整，随后确定实现
+    input logic wr_rdy,  //写请求能否被接受的握手信号。具体见p2234.
+    input logic wr_done
 );
 
     logic valid_buffer;
@@ -58,18 +56,18 @@ module dummy_dcache (
     logic rd_req_r;
     logic [31:0] rd_addr_r;
 
-    assign flush = flush_i & (flush_pc <= pc_buffer);
-    assign cache_ready = state == IDLE && ~valid_buffer;
-
+    // State machine
     enum int {
         IDLE,
         LOOK_UP,
         READ_REQ,
         READ_WAIT,
-        WRITE_REQ
+        WRITE_REQ,
+        WRITE_WAIT
     }
         state, next_state;
-
+    assign flush = flush_i & (flush_pc <= pc_buffer);
+    assign cache_ready = state == IDLE && ~valid_buffer;
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -84,11 +82,13 @@ module dummy_dcache (
         case (state)
             IDLE: begin
                 if (valid) next_state = LOOK_UP;
+                else next_state = IDLE;
             end
             LOOK_UP: begin
                 if (valid_buffer) begin
-                    if (op_buffer) next_state = WRITE_REQ;
-                    else next_state = READ_REQ;
+                    if (op_buffer & ~flush_i) next_state = WRITE_REQ;
+                    else if (~op_buffer) next_state = READ_REQ;
+                    else next_state = IDLE;
                 end else next_state = IDLE;
             end
             READ_REQ: begin
@@ -102,8 +102,12 @@ module dummy_dcache (
             WRITE_REQ: begin
                 // If AXI is ready, then write req is accept this cycle, back to IDLE
                 // If flushed, back to IDLE
-                if (wr_rdy) next_state = IDLE;
+                if (wr_rdy) next_state = WRITE_WAIT;
                 else next_state = WRITE_REQ;
+            end
+            WRITE_WAIT: begin
+                if (wr_done) next_state = IDLE;
+                else next_state = WRITE_WAIT;
             end
             default: begin
                 next_state = IDLE;

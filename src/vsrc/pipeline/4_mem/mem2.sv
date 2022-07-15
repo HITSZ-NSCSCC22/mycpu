@@ -54,14 +54,14 @@ module mem2
 
     always_ff @(posedge clk) begin
         if (rst) data_already_ok <= 0;
-        else if (advance) data_already_ok <= 0;
+        else if (advance | flush) data_already_ok <= 0;
         else if (data_ok) data_already_ok <= 1;
     end
 
     assign cache_data = cache_data_delay | cache_data_i;
     always_ff @(posedge clk) begin
         if (rst) cache_data_delay <= 0;
-        else if (advance) cache_data_delay <= 0;
+        else if (advance | flush) cache_data_delay <= 0;
         else if (data_ok) cache_data_delay <= cache_data_i;
     end
 
@@ -159,6 +159,9 @@ module mem2
         else if (advance) mem2_o_buffer <= mem2_o;
     end
 
+`ifdef SIMU
+    logic [ADDR_WIDTH-1:0] debug_pc = instr_info.pc;
+`endif
 
 
 endmodule

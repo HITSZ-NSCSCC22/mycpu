@@ -142,6 +142,7 @@ module cpu_top
     logic axi_dcache_rvalid;
     logic dcache_axi_wreq;  // Write handshake
     logic axi_dcache_wr_rdy;
+    logic axi_dcache_wr_done;
     logic [`DataAddrBus] dcache_axi_raddr;
     logic [`DataAddrBus] dcache_axi_waddr;
     logic [`DataAddrBus] dcache_axi_addr;
@@ -260,7 +261,7 @@ module cpu_top
         .dcache_wr_type_i(dcache_wr_type),
         .dcache_wr_data(dcache_axi_data),
         .dcache_wr_rdy(axi_dcache_wr_rdy),
-        .write_ok(),  // Used in conherent instructions, unused for now
+        .write_ok(axi_dcache_wr_done),  // Used in conherent instructions, unused for now
 
 
         // External AXI signals
@@ -339,7 +340,8 @@ module cpu_top
         .wr_addr  (dcache_axi_waddr),
         .wr_wstrb (dcache_axi_wstrb),
         .wr_data  (dcache_axi_data),
-        .wr_rdy   (axi_dcache_wr_rdy)
+        .wr_rdy   (axi_dcache_wr_rdy),
+        .wr_done (axi_dcache_wr_done)
     );
 
 
