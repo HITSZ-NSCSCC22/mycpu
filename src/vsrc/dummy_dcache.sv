@@ -1,4 +1,9 @@
-module dummy_dcache (
+`include "core_config.sv"
+`include "axi/axi_interface.sv"
+
+module dummy_dcache
+    import core_config::*;
+(
     input logic clk,
     input logic rst,
 
@@ -22,24 +27,22 @@ module dummy_dcache (
     output logic data_ok,             //该次请求的数据传输Ok，读：数据返回；写：数据写入完成
     output logic [31:0] rdata,  //读Cache的结果
 
-    //cache与AXI总线的交互接口
-    output logic rd_req,  //读请求有效信号。高电平有效
-    output logic [2:0] rd_type,              //读请求类型：3'b000: 字节；3'b001: 半字；3'b010: 字；3'b100：Cache行
-    output logic [31:0] rd_addr,  //读请求起始地址
-    input logic rd_rdy,  //读请求能否被接收的握手信号。高电平有效
-    input logic ret_valid,  //返回数据有效。高电平有效。
-    input logic ret_last,  //返回数据是一次读请求对应的最后一个返回数据
-    //input logic [127:0] ret_data,  //读返回数据
-    input logic [31:0] ret_data,
-    output logic wr_req,  //写请求有效信号。高电平有效
-    output logic [2:0] wr_type,              //写请求类型：3'b000: 字节；3'b001: 半字；3'b010: 字；3'b100：Cache行
-    output logic [31:0] wr_addr,  //写请求起始地址
-    //output logic [15:0] wr_wstrb,  //写操作的字节掩码。16bits for AXI128
-    output logic [3:0] wr_wstrb,
-    output logic [127:0] wr_data,  //写数据
-    input logic wr_rdy,  //写请求能否被接受的握手信号。具体见p2234.
-    input logic wr_done
+    axi_interface.master m_axi
 );
+
+    // AXI
+    logic [ADDR_WIDTH-1:0] axi_addr_o;
+    logic axi_req_o;
+    logic axi_we_o;
+    logic axi_rdy_i;
+    logic axi_rvalid_i;
+    logic axi_rlast_i;
+    assign axi_rlast_i = axi_rvalid_i;
+    logic [AXI_DATA_WIDTH-1:0] axi_data_i;
+    logic [AXI_DATA_WIDTH-1:0] axi_wdata_o;
+    logic [(AXI_DATA_WIDTH/8)-1:0] axi_wstrb_o;
+    logic [2:0] rd_type;
+    logic [2:0] wr_type;
 
     logic valid_buffer;
     logic op_buffer;
@@ -94,23 +97,23 @@ module dummy_dcache (
                 end else next_state = IDLE;
             end
             READ_REQ: begin
-                if (rd_rdy) next_state = READ_WAIT;  // If AXI ready, send request 
+                if (axi_rdy_i) next_state = READ_WAIT;  // If AXI ready, send request 
                 else next_state = READ_REQ;
             end
             READ_WAIT: begin
-                if (ret_valid) next_state = IDLE;  // If return valid, back to IDLE
+                if (axi_rvalid_i) next_state = IDLE;  // If return valid, back to IDLE
                 else next_state = READ_WAIT;
             end
             WRITE_REQ: begin
                 // If AXI is ready, then write req is accept this cycle, back to IDLE
                 // If flushed, back to IDLE
-                if (wr_rdy) next_state = WRITE_WAIT;
+                if (axi_rdy_i) next_state = IDLE;
                 else next_state = WRITE_REQ;
             end
-            WRITE_WAIT: begin
-                if (wr_done) next_state = IDLE;
-                else next_state = WRITE_WAIT;
-            end
+            // WRITE_WAIT: begin
+            //     if (wr_done) next_state = IDLE;
+            //     else next_state = WRITE_WAIT;
+            // end
             default: begin
                 next_state = IDLE;
             end
@@ -196,7 +199,7 @@ module dummy_dcache (
     always_ff @(posedge clk) begin
         case (state)
             READ_REQ: begin
-                if (rd_rdy) begin
+                if (axi_rdy_i) begin
                     rd_req_r  <= 1;
                     rd_addr_r <= cpu_addr;
                 end
@@ -209,53 +212,45 @@ module dummy_dcache (
     assign wr_type = (uncache == 0) ? wr_type_buffer : 3'b100;  // word
     always_comb begin
         // Default signal
-        rd_addr  = 0;
-        rd_req   = 0;
-        wr_addr  = 0;
-        wr_data  = 0;
-        wr_req   = 0;
-        wr_wstrb = 0;
+        axi_addr_o = 0;
+        axi_req_o = 0;
+        axi_we_o = 0;
+        axi_wdata_o = 0;
+        axi_wstrb_o = 0;
 
         case (state)
             READ_REQ: begin
-                if (rd_rdy) begin
-                    rd_req  = 1;
-                    rd_addr = cpu_addr;
+                if (axi_rdy_i) begin
+                    axi_req_o  = 1;
+                    axi_addr_o = cpu_addr;
                 end
             end
             READ_WAIT: begin
-                rd_req  = rd_req_r & ~ret_valid;
-                rd_addr = rd_addr_r;
             end
             WRITE_REQ: begin
-                if (wr_rdy) begin
-                    wr_req = 1;
-                    wr_addr = cpu_addr;  // DO NOT align addr, 128b -> 32b translate need info from addr
-                    wr_data = {{96{1'b0}}, wdata_buffer};
-                    wr_wstrb = wstrb_buffer;
+                if (axi_rdy_i) begin
+                    axi_req_o = 1;
+                    axi_we_o = 1;
+                    axi_addr_o =  cpu_addr;  // DO NOT align addr, 128b -> 32b translate need info from addr
 
-                    // case (cpu_addr[3:2])
-                    //     2'b00: begin
-                    //         wr_data  = {{96{1'b0}}, wdata};
-                    //         // wr_wstrb = {12'b0, wstrb};
-                    //         wr_wstrb<=wstrb;
-                    //     end
-                    //     2'b01: begin
-                    //         wr_data  = {{64{1'b0}}, wdata, {32{1'b0}}};
-                    //         // wr_wstrb = {8'b0, wstrb, 4'b0};
-                    //         wr_wstrb<=wstrb;
-                    //     end
-                    //     2'b10: begin
-                    //         wr_data  = {32'b0, wdata, {64{1'b0}}};
-                    //         // wr_wstrb = {4'b0, wstrb, 8'b0};
-                    //         wr_wstrb<=wstrb;
-                    //     end
-                    //     2'b11: begin
-                    //         wr_data  = {wdata, {96{1'b0}}};
-                    //         //wr_wstrb = {wstrb, 12'b0};
-                    //         wr_wstrb<=wstrb;
-                    //     end
-                    // endcase
+                    case (cpu_addr[3:2])
+                        2'b00: begin
+                            axi_wdata_o = {{96{1'b0}}, wdata_buffer};
+                            axi_wstrb_o = {12'b0, wstrb_buffer};
+                        end
+                        2'b01: begin
+                            axi_wdata_o = {{64{1'b0}}, wdata_buffer, {32{1'b0}}};
+                            axi_wstrb_o = {8'b0, wstrb_buffer, 4'b0};
+                        end
+                        2'b10: begin
+                            axi_wdata_o = {32'b0, wdata_buffer, {64{1'b0}}};
+                            axi_wstrb_o = {4'b0, wstrb_buffer, 8'b0};
+                        end
+                        2'b11: begin
+                            axi_wdata_o = {wdata_buffer, {96{1'b0}}};
+                            axi_wstrb_o = {wstrb_buffer, 12'b0};
+                        end
+                    endcase
                 end
             end
         endcase
@@ -268,20 +263,34 @@ module dummy_dcache (
         rdata   = 0;
         case (state)
             READ_WAIT: begin
-                if (ret_valid) begin
+                if (axi_rvalid_i) begin
                     addr_ok = 1;
                     data_ok = 1;
-                    // rdata   = ret_data[rd_addr_r[3:2]*32+:32];
-                    rdata   = ret_data;
+                    rdata   = axi_data_i[rd_addr_r[3:2]*32+:32];
                 end
             end
             WRITE_REQ: begin
-                if (wr_rdy) begin
+                if (axi_rdy_i) begin
                     addr_ok = 1;
                     data_ok = 1;
                 end
             end
         endcase
     end
+
+    axi_master u_axi_master (
+        .clk        (clk),
+        .rst        (rst),
+        .m_axi      (m_axi),
+        .new_request(axi_req_o),
+        .we         (axi_we_o),
+        .addr       (axi_addr_o),
+        .size       (axi_we_o ? wr_type : rd_type),
+        .data_in    (axi_wdata_o),
+        .wstrb      (axi_wstrb_o),
+        .ready_out  (axi_rdy_i),
+        .valid_out  (axi_rvalid_i),
+        .data_out   (axi_data_i)
+    );
 
 endmodule
