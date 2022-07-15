@@ -1,4 +1,4 @@
-0module axi_bridge(
+module axi32_bridge(
     input   clk,
     input   reset,
 
@@ -131,8 +131,8 @@ assign write_buffer_empty = (write_buffer_num == 3'b0) && !write_wait_enable;
 
 assign rd_requst_can_receive = rd_requst_state_is_empty && !(write_wait_enable && !(bvalid && bready));
 
-assign data_rd_rdy = rd_requst_can_receive;
-assign inst_rd_rdy = !data_rd_req && rd_requst_can_receive;
+assign data_rd_rdy = rd_requst_can_receive&&(data_work==0);
+assign inst_rd_rdy = !data_rd_req && rd_requst_can_receive&&(inst_work==0);
 
 //read type must be cache line
 assign data_rd_cache_line = data_rd_type == 3'b100                   ;
@@ -148,16 +148,48 @@ assign data_wr_cache_line = data_wr_type == 3'b100;
 assign data_real_wr_size  = data_wr_cache_line ? 3'b10 : data_wr_type;
 assign data_real_wr_len   = data_wr_cache_line ? 8'b11 : 8'b0             ;
 
+//to icache or dcache
 assign inst_ret_valid = !rid[0] && rvalid;
 assign inst_ret_last  = !rid[0] && rlast;
-assign inst_ret_data  = rdata;    //this signal needed buffer???
+assign inst_ret_data  = (rid[0]==0)?rdata:0;    //this signal needed buffer???
 assign data_ret_valid =  rid[0] && rvalid;
 assign data_ret_last  =  rid[0] && rlast;
-assign data_ret_data  = rdata;
+assign data_ret_data  = (rid[0]==1)?rdata:0;
 
 assign data_wr_rdy = (write_requst_state == write_request_empty);
 
 assign write_buffer_last = write_buffer_num == 3'b1;
+
+//flag to make sure one request only excute one time
+logic data_work;
+logic inst_work;
+
+always_ff @( posedge clk ) begin
+    if(reset) data_work<=0;
+    else begin
+        if(arid[0]&&arvalid&&arready) begin
+            data_work<=1;
+        end
+        else if(rid[0]&&rvalid&&rready&&rlast)begin
+            data_work<=0;
+        end
+        else data_work<=data_work;
+    end    
+end
+
+always_ff @( posedge clk ) begin
+    if(reset) inst_work<=0;
+    else begin
+        if((!arid[0])&&arvalid&&arready) begin
+            inst_work<=1;
+        end
+        else if((!rid[0])&&rvalid&&rready&&rlast)begin
+            inst_work<=0;
+        end
+        else inst_work<=inst_work;
+    end    
+end
+
 
 always @(posedge clk) begin
     if (reset) begin
@@ -166,7 +198,7 @@ always @(posedge clk) begin
     end
     else case (read_requst_state)
         read_requst_empty: begin
-            if (data_rd_req) begin
+            if (data_rd_req&&(data_work==0)) begin
                 if (write_wait_enable) begin
                     if (bvalid && bready) begin   //when wait write back, stop send read request. easiest way.
                         read_requst_state <= read_requst_ready;
@@ -186,7 +218,7 @@ always @(posedge clk) begin
                     arvalid <= 1'b1;
                 end
             end
-            else if (inst_rd_req) begin
+            else if (inst_rd_req&&(inst_work==0)) begin
                 if (write_wait_enable) begin
                     if (bvalid && bready) begin
                         read_requst_state <= read_requst_ready;
