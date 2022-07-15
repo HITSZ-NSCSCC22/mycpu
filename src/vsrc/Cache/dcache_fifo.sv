@@ -4,26 +4,27 @@
 module dcache_fifo
     import core_config::*;
 #(
-    parameter int unsigned DEPTH = 8
+    parameter int unsigned DEPTH = 8,
+    parameter int unsigned DCACHE_WIDTH = 128
 ) (
     input clk,
     input rst,
     //CPU write request
     input logic cpu_wreq_i,
     input logic [`DataAddrBus] cpu_awaddr_i,
-    input logic [DATA_WIDTH-1:0] cpu_wdata_i,
+    input logic [DCACHE_WIDTH-1:0] cpu_wdata_i,
     output logic write_hit_o,
     //CPU read request and response
     input logic cpu_rreq_i,
     input logic [`DataAddrBus] cpu_araddr_i,
     output logic read_hit_o,
-    output logic [DATA_WIDTH-1:0] cpu_rdata_o,
+    output logic [DCACHE_WIDTH-1:0] cpu_rdata_o,
     //FIFO state
     output logic [1:0] state,
     //write to memory 
     input logic axi_bvalid_i,
     output logic axi_wen_o,
-    output logic [DATA_WIDTH-1:0] axi_wdata_o,
+    output logic [DCACHE_WIDTH-1:0] axi_wdata_o,
     output logic [`DataAddrBus] axi_awaddr_o
 
 );
@@ -31,7 +32,7 @@ module dcache_fifo
     typedef logic [$clog2(DEPTH)-1:0] addr_t;
 
     //store the data and addr
-    logic [DEPTH-1:0][DATA_WIDTH-1:0] data_queue;
+    logic [DEPTH-1:0][DCACHE_WIDTH-1:0] data_queue;
     logic [DEPTH-1:0][`RegBus] addr_queue;
 
 
@@ -44,10 +45,11 @@ module dcache_fifo
     assign full  = queue_valid[tail] == 1'b1;
     assign empty = queue_valid[head] == 1'b0;
 
+    // read and write the cacheline don't use the offset
     logic [`DataAddrBus] cpu_awaddr;
-    assign cpu_awaddr = {cpu_awaddr_i[31:5], 5'h0};
+    assign cpu_awaddr = {cpu_awaddr_i[31:4], 4'h0};
     logic [`DataAddrBus] cpu_araddr;
-    assign cpu_araddr = {cpu_araddr_i[31:5], 5'h0};
+    assign cpu_araddr = {cpu_araddr_i[31:4], 4'h0};
 
 
     // if dcache write the data at the head of the queue
@@ -70,12 +72,20 @@ module dcache_fifo
         // if axi is free and there is not write collsion then sent the data
         if (axi_bvalid_i == 1'b1 && !sign_rewrite && !write_hit_head) begin
             queue_valid[head] <= 1'b0;
-            head <= head + 1;
+            if (head == DEPTH[2:0] - 1) begin
+                head <= 0;
+            end else begin
+                head <= head + 1;
+            end
         end
         //if dcache sent a new data which don't hit 
         //put it at the tail of the queue
         if (cpu_wreq_i == `WriteEnable && write_hit_o == 1'b0) begin
-            tail <= tail + 1;
+            if (tail == DEPTH[2:0] - 1) begin
+                tail <= 0;
+            end else begin
+                tail <= tail + 1;
+            end
             queue_valid[tail] <= 1'b1;
         end
     end

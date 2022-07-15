@@ -4,7 +4,7 @@
 `include "utils/byte_bram.sv"
 `include "utils/dual_port_lutram.sv"
 
-module dcache
+module write_throught_dcache
     import core_config::*;
 (
     input logic clk,
