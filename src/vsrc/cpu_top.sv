@@ -342,7 +342,8 @@ module cpu_top
         .wr_addr  (dcache_axi_waddr),
         .wr_wstrb (dcache_axi_wstrb),
         .wr_data  (dcache_axi_data),
-        .wr_rdy   (axi_dcache_wr_rdy)
+        .wr_rdy   (axi_dcache_wr_rdy),
+        .wr_done (axi_dcache_wr_done)
     );
 
 

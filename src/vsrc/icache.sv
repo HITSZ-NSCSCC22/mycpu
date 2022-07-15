@@ -36,8 +36,8 @@ module icache
     output logic axi_rreq_o,
     input logic axi_rdy_i,
     input logic axi_rvalid_i,
-    input logic [1:0] axi_rlast_i,
-    input logic [ICACHELINE_WIDTH-1:0] axi_data_i,
+    input logic axi_rlast_i,
+    input logic [32-1:0] axi_data_i,
 
     // CACOP
     input logic cacop_i,
@@ -97,6 +97,9 @@ module icache
     logic [1:0] hit;
     logic [NWAY-1:0][1:0] tag_hit;  // P1 hit signal
     logic axi_rvalid_delay_1;
+    logic [2:0][32-1:0] axi_data_buffer;
+    logic [ICACHELINE_WIDTH-1:0] cacheline;
+    logic [1:0] axi_burst_cnt;
 
     // CACOP
     logic cacop_op_mode0, cacop_op_mode1, cacop_op_mode2;
@@ -159,13 +162,13 @@ module icache
                 else next_state = REFILL_2_REQ;
             end
             REFILL_1_WAIT: begin
-                if (axi_rvalid_i) begin
+                if (axi_rvalid_i & axi_rlast_i) begin
                     if (miss_2) next_state = REFILL_2_REQ;
                     else next_state = IDLE;
                 end else next_state = REFILL_1_WAIT;
             end
             REFILL_2_WAIT: begin
-                if (axi_rvalid_i) next_state = IDLE;
+                if (axi_rvalid_i & axi_rlast_i) next_state = IDLE;
                 else next_state = REFILL_2_WAIT;
             end
             INVALID: begin
@@ -231,10 +234,10 @@ module icache
             end
             REFILL_1_REQ, REFILL_2_REQ, REFILL_1_WAIT, REFILL_2_WAIT: begin
                 for (integer i = 0; i < NWAY; i++) begin
-                    tag_bram_en[i][0]  = axi_rvalid_i;
-                    tag_bram_en[i][1]  = axi_rvalid_i;
-                    data_bram_en[i][0] = axi_rvalid_i;
-                    data_bram_en[i][1] = axi_rvalid_i;
+                    tag_bram_en[i][0]  = axi_rvalid_i & axi_rlast_i;
+                    tag_bram_en[i][1]  = axi_rvalid_i & axi_rlast_i;
+                    data_bram_en[i][0] = axi_rvalid_i & axi_rlast_i;
+                    data_bram_en[i][1] = axi_rvalid_i & axi_rlast_i;
                     // Port 1
                     if (miss_1) begin
                         tag_bram_addr[i][0]  = p1_raddr_1[11:4];
@@ -291,11 +294,11 @@ module icache
             REFILL_1_WAIT: begin
                 for (integer i = 0; i < NWAY; i++) begin
                     if (i[0] == random_r[0]) begin
-                        if (axi_rvalid_i & ~p1_rreq_1_uncached) begin
+                        if (axi_rvalid_i & axi_rlast_i & ~p1_rreq_1_uncached) begin
                             tag_bram_we[i][0] = 1;
                             tag_bram_wdata[i][0] = {1'b1, p1_raddr_1[31:12]};
                             data_bram_we[i][0] = 1;
-                            data_bram_wdata[i][0] = axi_data_i;
+                            data_bram_wdata[i][0] = cacheline;
                         end
                     end
                 end
@@ -303,11 +306,11 @@ module icache
             REFILL_2_WAIT: begin
                 for (integer i = 0; i < NWAY; i++) begin
                     if (i[0] == random_r[0]) begin
-                        if (axi_rvalid_i & ~p1_rreq_2_uncached) begin
+                        if (axi_rvalid_i & axi_rlast_i & ~p1_rreq_2_uncached) begin
                             tag_bram_we[i][1] = 1;
                             tag_bram_wdata[i][1] = {1'b1, p1_raddr_2[31:12]};
                             data_bram_we[i][1] = 1;
-                            data_bram_wdata[i][1] = axi_data_i;
+                            data_bram_wdata[i][1] = cacheline;
                         end
                     end
                 end
@@ -352,10 +355,10 @@ module icache
                     miss_2_r <= miss_2_pulse;
                 end
                 REFILL_1_WAIT: begin
-                    if (axi_rvalid_i) miss_1_r <= 0;
+                    if (axi_rvalid_i & axi_rlast_i) miss_1_r <= 0;
                 end
                 REFILL_2_WAIT: begin
-                    if (axi_rvalid_i) miss_2_r <= 0;
+                    if (axi_rvalid_i & axi_rlast_i) miss_2_r <= 0;
                 end
                 default: begin
                 end
@@ -393,14 +396,14 @@ module icache
     end
 
     // IDLE & WAIT can return rvalid_o, but REQ must not return rvalid_o
-    assign rvalid_1_o = (p1_rreq_1 && (state == REFILL_1_WAIT && axi_rvalid_i) | (state == IDLE && hit[0]));
-    assign rvalid_2_o = (p1_rreq_2 && (state == REFILL_2_WAIT && axi_rvalid_i) | (state == IDLE && hit[1]));
+    assign rvalid_1_o = (p1_rreq_1 && (state == REFILL_1_WAIT && axi_rvalid_i && axi_rlast_i) | (state == IDLE && hit[0]));
+    assign rvalid_2_o = (p1_rreq_2 && (state == REFILL_2_WAIT && axi_rvalid_i && axi_rlast_i) | (state == IDLE && hit[1]));
     // Generate read output
     always_comb begin
         hit[0] = 0;
-        rdata_1_o = axi_data_i;
+        rdata_1_o = cacheline;
         hit[1] = 0;
-        rdata_2_o = axi_data_i;
+        rdata_2_o = cacheline;
         for (integer i = 0; i < NWAY; i++) begin
             if (tag_hit[i][0]) begin
                 hit[0] = 1;
@@ -415,7 +418,17 @@ module icache
 
     // AXI handshake
     // Read request to AXI Controller
-    // Use result from TLB
+    assign cacheline = {axi_data_i, axi_data_buffer[2], axi_data_buffer[1], axi_data_buffer[0]};
+    always_ff @(posedge clk) begin
+        if (rst) axi_burst_cnt <= 0;
+        else if (axi_rvalid_i & axi_rlast_i) axi_burst_cnt <= 0;
+        else if (axi_rvalid_i) axi_burst_cnt <= axi_burst_cnt + 1;
+    end
+    always_ff @(posedge clk) begin
+        if (rst) axi_data_buffer <= 0;
+        else if (axi_rvalid_i & axi_rlast_i) axi_data_buffer <= 0;
+        else if (axi_rvalid_i) axi_data_buffer[axi_burst_cnt] <= axi_data_i;
+    end
     always_comb begin
         case (state)
             REFILL_1_REQ, REFILL_1_WAIT: begin

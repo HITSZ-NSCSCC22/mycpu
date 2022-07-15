@@ -231,8 +231,8 @@ module dummy_dcache (
                 if (wr_rdy) begin
                     wr_req = 1;
                     wr_addr = cpu_addr;  // DO NOT align addr, 128b -> 32b translate need info from addr
-                    wr_data = {{96{1'b0}}, wdata};
-                    wr_wstrb = wstrb;
+                    wr_data = {{96{1'b0}}, wdata_buffer};
+                    wr_wstrb = wstrb_buffer;
 
                     // case (cpu_addr[3:2])
                     //     2'b00: begin

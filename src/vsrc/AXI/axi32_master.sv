@@ -635,9 +635,9 @@ module axi32_master (
                         s_awvalid <= 0;
                         s_wvalid <= 1;
                         s_bready <= 1;
-                        // s_wstrb <= write_wstrb_buffer;
-                        s_wstrb <= data_cpu_sel_i;
-                        s_wdata <= write_buffer;
+                        s_wstrb <= write_wstrb_buffer;
+                        // s_wstrb <= data_cpu_sel_i;
+                        s_wdata <= write_buffer[31:0];
                         write_buffer <= {{32{1'b0}}, write_buffer[127:32]};
 
                         if (s_awlen == 0) s_wlast <= 1;
@@ -669,9 +669,10 @@ module axi32_master (
                             s_wlast <= 0;
                         end else begin
                             w_state <= w_state;
-                            // s_wstrb  <= write_wstrb_buffer;
-                            s_wstrb <= data_cpu_sel_i;
+                            s_wstrb <= write_wstrb_buffer;
+                            // s_wstrb <= data_cpu_sel_i;
                             // s_wdata  <= write_buffer;
+                            s_wdata <= write_buffer[31:0];
                             write_buffer <= {{32{1'b0}}, write_buffer[127:32]};
                             s_wvalid <= 1;
                             if (cnt == s_awlen - 1) s_wlast <= 1;
