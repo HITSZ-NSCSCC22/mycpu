@@ -248,7 +248,13 @@ module write_throught_dcache
             end
             LOOK_UP: begin
                 for (integer i = 0; i < NWAY; i++) begin
-                    if (valid_buffer) begin
+                    if(flush)begin
+                        tag_bram_en[i] = 0;
+                        data_bram_en[i] = 0;
+                        tag_bram_addr[i] = 0;
+                        data_bram_addr[i] = 0;
+                    end
+                    else if (valid_buffer) begin
                         tag_bram_en[i] = 1;
                         data_bram_en[i] = 1;
                         tag_bram_addr[i] = index_buffer;
@@ -384,10 +390,7 @@ module write_throught_dcache
                 rd_addr = rd_addr_r;
             end
             WRITE_REQ: begin
-                if (flush) begin
-                    wr_req  = 0;
-                    wr_addr = 0;
-                end else if (wr_rdy) begin
+                if (wr_rdy) begin
                     wr_req = 1;
                     wr_addr = cpu_addr;  // DO NOT align addr, 128b -> 32b translate need info from addr
                     case (cpu_addr[3:2])

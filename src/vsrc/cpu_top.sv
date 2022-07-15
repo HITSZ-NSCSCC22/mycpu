@@ -159,7 +159,7 @@ module cpu_top
 
     // MEM1 <-> DCache
     mem_dcache_rreq_t mem_cache_signal[2];
-    logic mem_cache_we, mem_cache_ce;
+    logic mem_cache_we, mem_cache_ce,mem_uncache_en;
     logic [2:0] mem_cache_rd_type;
     logic [3:0] mem_cache_sel;
     logic [31:0] mem_cache_addr, mem_cache_data;
@@ -171,6 +171,7 @@ module cpu_top
 
     assign mem_cache_pc = mem_cache_signal[0].pc | mem_cache_signal[1].pc;
     assign mem_cache_ce = mem_cache_signal[0].ce | mem_cache_signal[1].ce;
+    assign mem_uncache_en = mem_cache_signal[0].uncache | mem_cache_signal[1].uncache;
     assign mem_cache_we = mem_cache_signal[0].we | mem_cache_signal[1].we;
     assign mem_cache_sel =  mem_cache_signal[0].we ? mem_cache_signal[0].sel : mem_cache_signal[1].we ? mem_cache_signal[1].sel : 0;
     assign mem_cache_rd_type = mem_cache_signal[0].ce ? mem_cache_signal[0].rd_type : mem_cache_signal[1].ce ? mem_cache_signal[1].rd_type : 0;
@@ -305,7 +306,8 @@ module cpu_top
         .s_bready(bready)
     );
 
-    write_throught_dcache u_dcache (
+    //write_throught_dcache u_dcache (
+    write_back_dcache u_dcache(
         //dummy_dcache u_dcache (
         .clk(clk),
         .rst(rst),
@@ -313,7 +315,7 @@ module cpu_top
         .valid(mem_cache_ce),
         .op(mem_cache_we),
         .pc(mem_cache_pc),
-        .uncache(1'b0),
+        .uncache(mem_uncache_en),
         .index(mem_cache_addr[11:4]),
         .tag(mem_cache_addr[31:12]),
         .offset(mem_cache_addr[3:0]),

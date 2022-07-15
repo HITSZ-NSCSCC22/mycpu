@@ -103,6 +103,8 @@ module wb
             wb_ctrl_signal.diff_commit_o.csr_rstat <= special_info.csr_rstat;
         end
     end
-
+`ifdef SIMU
+    logic [ADDR_WIDTH-1:0] debug_pc = instr_info.pc;
+`endif
 
 endmodule

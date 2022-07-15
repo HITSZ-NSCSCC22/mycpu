@@ -31,6 +31,7 @@ module write_back_dcache
     input logic [1:0] cacop_mode_i,
     input logic [ADDR_WIDTH-1:0] cacop_addr_i,
     output cacop_ack_o,
+    output logic cache_ready,
     output logic cache_ack,
     
     output logic addr_ok,             //该次请求的地址传输OK，读：地址被接收；写：地址和数据被接收
@@ -117,6 +118,7 @@ module write_back_dcache
 
     logic flush;
     assign flush = flush_i & (flush_pc <= pc_buffer);
+    assign cache_ready = state == IDLE && ~valid_buffer;
 
     logic [1:0] fifo_state;
     logic fifo_rreq, fifo_wreq, fifo_r_hit, fifo_w_hit,fifo_axi_wr_req;
@@ -194,7 +196,7 @@ module write_back_dcache
             cacop_buffer <= 0;
             cacop_mode_buffer <= 0;
             cacop_addr_buffer <= 0;
-        end else if (valid & !cache_ack) begin  // not accept new request while working
+        end else if (valid & cache_ack) begin  // not accept new request while working
             valid_buffer <= valid;
             op_buffer <= op;
             uncache_buffer <= uncache;
@@ -244,7 +246,7 @@ module write_back_dcache
 
     always_comb begin
         if (rst) cache_ack = 0;
-        else if (state != IDLE) cache_ack = 1;
+        else if (state == IDLE) cache_ack = valid;
         else cache_ack = 0;
     end
 
@@ -252,9 +254,10 @@ module write_back_dcache
     always_comb begin : transition_comb
         case (state)
             IDLE: begin
-                if(cacop_i)next_state = CACOP_INVALID;
+                if (flush) next_state = IDLE;
+                else if(cacop_i)next_state = CACOP_INVALID;
                 // if the dcache is idle,then accept the new request
-                if (valid) begin
+                else if (valid) begin
                     if(uncache) begin
                         if(op)next_state = UNCACHE_WRITE_REQ;
                         else next_state = UNCACHE_READ_REQ;
@@ -263,7 +266,8 @@ module write_back_dcache
                 end
             end
             LOOK_UP: begin
-                if (valid_buffer) begin
+                if (flush) next_state = IDLE;
+                else if (valid_buffer) begin
                     // if write hit,then turn to write idle
                     // if write miss,then wait for read
                     if (op_buffer) begin
@@ -289,16 +293,15 @@ module write_back_dcache
                 else next_state = READ_WAIT;
             end
             WRITE_REQ: begin
-                // If AXI is ready, then write req is accept this cycle,and wait until ret
+                // If AXI is ready and write missthen write req is accept this cycle,and wait until rdata ret
                 // If flushed, back to IDLE
-                // if AXi is not ready,then wait until it ready
-                if (flush) next_state = IDLE;
-                else if (wr_rdy) next_state = WRITE_WAIT;
+                // if AXi is not ready,then wait until it ready and sent the read req
+                if (rd_rdy) next_state = WRITE_WAIT;
                 else next_state = WRITE_REQ;
             end
             WRITE_WAIT: begin
                 // wait the rdata back
-                if (wr_done) next_state = IDLE;
+                if (ret_valid) next_state = IDLE;
                 else next_state = WRITE_WAIT;
             end
             UNCACHE_READ_REQ:begin
@@ -347,7 +350,16 @@ module write_back_dcache
             end
             LOOK_UP: begin
                 for (integer i = 0; i < NWAY; i++) begin
-                    if (valid_buffer) begin
+                    // if flush come at look up,the cancel the write req
+                    if(flush)begin
+                        tag_bram_en[i] = 0;
+                        data_bram_en[i] = 0;
+                        tag_bram_addr[i] = 0;
+                        data_bram_addr[i] = 0;
+                        fifo_rreq = 0;
+                        fifo_raddr = 0;
+                    end
+                    else if (valid_buffer) begin
                         tag_bram_en[i] = 1;
                         data_bram_en[i] = 1;
                         tag_bram_addr[i] = index_buffer;
@@ -400,8 +412,15 @@ module write_back_dcache
             LOOK_UP: begin
                 // if write hit,then replace the cacheline
                 for (integer i = 0; i < NWAY; i++) begin
+                    // if flush come at look up ,cancel the write req
+                    if(flush)begin
+                        tag_bram_we[i] = 0;
+                        tag_bram_wdata[i] = 0;
+                         data_bram_we[i] = 0;
+                        data_bram_wdata[i] = 0;
+                    end
                     // if write hit ,then write the hit line, if miss then don't write
-                    if (tag_hit[i] && op_buffer) begin
+                    else if (tag_hit[i] && op_buffer) begin
                         tag_bram_we[i] = 1;
                         // make the dirty bit 1'b1
                         tag_bram_wdata[i] = {1'b1, 1'b1, tag_buffer};
@@ -646,7 +665,7 @@ module write_back_dcache
                     rdata   = ret_data[rd_addr_r[3:2]*32+:32];
                 end
             end
-            WRITE_REQ,WRITE_WAIT: begin
+            WRITE_REQ,WRITE_WAIT,UNCACHE_WRITE_REQ: begin
                 if (wr_rdy) begin
                     addr_ok = 1;
                     data_ok = 1;
