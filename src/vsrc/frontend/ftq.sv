@@ -93,7 +93,7 @@ module ftq
         next_FTQ = FTQ;
         // clear out if committed
         for (integer i = 0; i < COMMIT_WIDTH; i++) begin
-            if (i < backend_commit_num) next_FTQ[$clog2(QUEUE_SIZE)'(comm_ptr+i)] = 0;
+            if (i < backend_commit_num) next_FTQ[comm_ptr+i[$clog2(QUEUE_SIZE)-1:0]] = 0;
         end
         // Accept BPU input
         if (bpu_i.valid) next_FTQ[bpu_ptr] = bpu_i;

@@ -91,9 +91,7 @@ module instr_buffer
         for (integer i = 0; i < ID_WIDTH; i++) begin
             // Reset entry
             if (i < backend_accept_num) begin
-                // verilator lint_off WIDTH
-                next_buffer_queue[read_ptr+i] = 0;
-                // verilator lint_on WIDTH
+                next_buffer_queue[read_ptr+$clog2(BUFFER_SIZE)'(i)] = 0;
             end
         end
 
@@ -101,21 +99,15 @@ module instr_buffer
         for (integer i = 0; i < IF_WIDTH; i++) begin
             // Accept entry from frontend
             if (i < frontend_accept_num) begin
-                // verilator lint_off WIDTH
-                next_buffer_queue[write_ptr+i] = frontend_instr_i[i];
-                // verilator lint_on WIDTH
+                next_buffer_queue[write_ptr+$clog2(BUFFER_SIZE)'(i)] = frontend_instr_i[i];
             end
         end
     end
 
     // Connect backend_instr_o directly to buffer_queue
-    // FIXME: may introduce large latency
-    // OPTIM: may have better ways
     always_comb begin : backend_instr_o_comb
         for (integer i = 0; i < ID_WIDTH; i++) begin
-            // verilator lint_off WIDTH
-            backend_instr_o[i] = buffer_queue[read_ptr+i];
-            // verilator lint_on WIDTH
+            backend_instr_o[i] = buffer_queue[read_ptr+$clog2(BUFFER_SIZE)'(i)];
         end
     end
 
