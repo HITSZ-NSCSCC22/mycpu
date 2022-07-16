@@ -181,7 +181,7 @@ module write_back_dcache
             cacop_buffer <= 0;
             cacop_mode_buffer <= 0;
             cacop_addr_buffer <= 0;
-        end else if (flush) begin
+        end else if (flush && state == LOOK_UP) begin
             valid_buffer <= 0;
             op_buffer <= 0;
             uncache_buffer <= 0;
@@ -472,8 +472,8 @@ module write_back_dcache
                     if (i[0] == random_r[0]) begin
                         if (ret_valid) begin
                             tag_bram_we[i] = 1;
-                            //make the dirty bit 1'b0
-                            tag_bram_wdata[i] = {1'b0, 1'b1, tag_buffer};
+                            //make the dirty bit 1'b1
+                            tag_bram_wdata[i] = {1'b1, 1'b1, tag_buffer};
                             data_bram_we[i] = 16'b1111_1111_1111_1111;
                             data_bram_wdata[i] = ret_data;
                             data_bram_wdata[i] = bram_write_data;
@@ -591,27 +591,15 @@ module write_back_dcache
                         2'b11:fifo_wdata[127:96] = wdata_buffer;
                     endcase
                 end
-                // if write hit the way and the dirty bit is 1'b1,
-                // and the fifo is not full now 
-                //then sent the cacheline to the fifo
-                else begin
-                    for (integer i = 0; i < NWAY; i++) begin
-                        if (tag_hit[i] & op_buffer & tag_bram_rdata[i][21] == 1'b1 & !fifo_state[0]) begin
-                            fifo_wreq  = 1;
-                            fifo_waddr = cpu_addr;
-                            fifo_wdata = data_bram_rdata[i];
-                        end
-                    end
-                end
             end
             // if the selected way is dirty,then sent the cacheline to the fifo
             READ_WAIT, WRITE_WAIT: begin
                 for (integer i = 0; i < NWAY; i++) begin
                     // select a line to write back 
                     if (ret_valid) begin
-                        if (i[0] == random_r[0] & tag_bram_rdata[i][21] == 1'b1 & !fifo_state[0]) begin
+                        if (i[0] == random_r[0] & tag_bram_rdata[i][21] == 1'b1 & !fifo_state[1]) begin
                             fifo_wreq  = 1;
-                            fifo_waddr = cpu_addr;
+                            fifo_waddr = {tag_bram_rdata[i][19:0],index_buffer,4'b0};
                             fifo_wdata = data_bram_rdata[i];
                         end
                     end

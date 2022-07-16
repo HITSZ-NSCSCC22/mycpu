@@ -125,10 +125,12 @@ module dcache_fifo
                 if (rst) begin
                     addr_queue[i] <= 0;
                     data_queue[i] <= 0;
-                end else if (write_hit[i] == 1'b1) data_queue[i] <= cpu_wdata_i;
-                else begin
-                    data_queue[tail] <= cpu_wdata_i;
-                    addr_queue[tail] <= cpu_awaddr;
+                end else if(cpu_wreq_i)begin
+                    if (write_hit[i] == 1'b1) data_queue[i] <= cpu_wdata_i;
+                    else begin
+                        data_queue[tail] <= cpu_wdata_i;
+                        addr_queue[tail] <= cpu_awaddr;
+                    end
                 end
             end
         end
