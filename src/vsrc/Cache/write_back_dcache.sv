@@ -60,6 +60,7 @@ module write_back_dcache
 
     enum int {
         IDLE,
+        
         LOOK_UP,
         READ_REQ,
         READ_WAIT,
@@ -266,7 +267,8 @@ module write_back_dcache
                 end
             end
             LOOK_UP: begin
-                if (flush) next_state = IDLE;
+                // just flush the write req,not flush the read req
+                if (flush & op_buffer) next_state = IDLE;
                 else if (valid_buffer) begin
                     // if write hit,then turn to write idle
                     // if write miss,then wait for read
@@ -371,8 +373,8 @@ module write_back_dcache
             end
             READ_REQ, READ_WAIT: begin
                 for (integer i = 0; i < NWAY; i++) begin
-                    tag_bram_en[i] = rd_rdy;
-                    data_bram_en[i] = rd_rdy;
+                    tag_bram_en[i] = 1;
+                    data_bram_en[i] = 1;
                     tag_bram_addr[i] = index_buffer;
                     data_bram_addr[i] = index_buffer;
                 end
