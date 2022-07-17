@@ -27,7 +27,7 @@ module dummy_dcache
     output logic data_ok,             //该次请求的数据传输Ok，读：数据返回；写：数据写入完成
     output logic [31:0] rdata,  //读Cache的结果
 
-    axi_interface.master m_axi
+    // axi_interface.master m_axi
 );
 
     // AXI

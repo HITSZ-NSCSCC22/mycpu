@@ -11,7 +11,7 @@
 `include "frontend/frontend.sv"
 `include "instr_buffer.sv"
 `include "icache.sv"
-`include "dummy_dcache.sv"
+//`include "dummy_dcache.sv"
 `include "Cache/dcache.sv"
 `include "ctrl.sv"
 `include "Reg/regs_file.sv"
@@ -132,7 +132,7 @@ module cpu_top
 
 
     // AXI
-    axi_interface icache_axi(), dcache_axi();
+    axi_interface icache_axi (), dcache_axi ();
 
     // ICache <-> AXI Controller
     logic icache_axi_rreq;
@@ -240,32 +240,83 @@ module cpu_top
 
     logic [4:0] rand_index_diff;
 
-    dummy_dcache u_dcache (
-        .clk(clk),
-        .rst(rst),
-
-        .valid(mem_cache_ce),
-        .op(mem_cache_we),
-        .pc(mem_cache_pc),
-        .uncache(1'b0),
-        .index(mem_cache_addr[11:4]),
-        .tag(mem_cache_addr[31:12]),
-        .offset(mem_cache_addr[3:0]),
-        .wstrb(mem_cache_sel),
-        .wdata(mem_cache_data),
-        .rd_type_i(mem_cache_rd_type),
-        .wr_type_i(mem_cache_wr_type),
-        .flush_pc(wb_dcache_flush[0] ? wb_dcache_flush_pc[0] : wb_dcache_flush[1] ? wb_dcache_flush_pc[1] :0),
-        .flush_i(wb_dcache_flush != 2'b0 | pipeline_flush[2]),  // If excp occurs, flush DCache
-        .cache_ready(dcache_ready),
-        .cache_ack(dcache_ack),
-        .addr_ok(mem_addr_ok),
-        .data_ok(mem_data_ok),
-        .rdata(cache_mem_data),
-
-        // <-> AXI Controller
-        .m_axi(dcache_axi)
+    dcache u_dcache (
+        .clk        (clk),
+        .rst        (rst),
+        .valid      (mem_cache_ce),
+        .addr       (mem_cache_addr),
+        .wdata      (wdata),
+        .wstrb      (wstrb),
+        .rdata      (cache_mem_data),
+        .ready      (dcache_ready),
+        .force_inv_i(),
+        .force_inv_o(),
+        .wtb_empty_i(wtb_empty_i),
+        .wtb_empty_o(wtb_empty_o),
+        .axi_arvalid(dcache_axi.arvalid),
+        .axi_araddr (dcache_axi.araddr),
+        .axi_arlen  (dcache_axi.arlen),
+        .axi_arsize (dcache_axi.arsize),
+        .axi_arburst(dcache_axi.arburst),
+        .axi_arlock (),
+        .axi_arcache(dcache_axi.arcache),
+        .axi_arprot (),
+        .axi_arqos  (),
+        .axi_arid   (dcache_axi.arid),
+        .axi_arready(dcache_axi.arready),
+        .axi_rvalid (dcache_axi.rvalid),
+        .axi_rdata  (dcache_axi.rdata),
+        .axi_rresp  (dcache_axi.rresp),
+        .axi_rlast  (dcache_axi.rlast),
+        .axi_rready (dcache_axi.rready),
+        .axi_awvalid(dcache_axi.awvalid),
+        .axi_awaddr (dcache_axi.awaddr),
+        .axi_awlen  (dcache_axi.awlen),
+        .axi_awsize (dcache_axi.awsize),
+        .axi_awburst(dcache_axi.awburst),
+        .axi_awlock (),
+        .axi_awcache(dcache_axi.awcache),
+        .axi_awprot (),
+        .axi_awqos  (),
+        .axi_awid   (dcache_axi.awid),
+        .axi_awready(dcache_axi.awready),
+        .axi_wvalid (dcache_axi.wvalid),
+        .axi_wdata  (dcache_axi.wdata),
+        .axi_wstrb  (dcache_axi.wstrb),
+        .axi_wlast  (dcache_axi.wlast),
+        .axi_wready (dcache_axi.wready),
+        .axi_bvalid (dcache_axi.bvalid),
+        .axi_bresp  (dcache_axi.bresp),
+        .axi_bready (dcache_axi.bready)
     );
+
+
+    // dummy_dcache u_dcache (
+    //     .clk(clk),
+    //     .rst(rst),
+
+    //     .valid(mem_cache_ce),
+    //     .op(mem_cache_we),
+    //     .pc(mem_cache_pc),
+    //     .uncache(1'b0),
+    //     .index(mem_cache_addr[11:4]),
+    //     .tag(mem_cache_addr[31:12]),
+    //     .offset(mem_cache_addr[3:0]),
+    //     .wstrb(mem_cache_sel),
+    //     .wdata(mem_cache_data),
+    //     .rd_type_i(mem_cache_rd_type),
+    //     .wr_type_i(mem_cache_wr_type),
+    //     .flush_pc(wb_dcache_flush[0] ? wb_dcache_flush_pc[0] : wb_dcache_flush[1] ? wb_dcache_flush_pc[1] :0),
+    //     .flush_i(wb_dcache_flush != 2'b0 | pipeline_flush[2]),  // If excp occurs, flush DCache
+    //     .cache_ready(dcache_ready),
+    //     .cache_ack(dcache_ack),
+    //     .addr_ok(mem_addr_ok),
+    //     .data_ok(mem_data_ok),
+    //     .rdata(cache_mem_data),
+
+    //     // <-> AXI Controller
+    //     .m_axi(dcache_axi)
+    // );
 
 
 
