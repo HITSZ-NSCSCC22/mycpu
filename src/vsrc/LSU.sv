@@ -73,26 +73,44 @@ module LSU #(
 
     // DCache handshake
     always_comb begin
-        if (dcache_ready) begin
-            dcache_valid = cpu_valid;
-            dcache_addr  = cpu_addr;
-            dcache_wdata = cpu_wdata;
-            dcache_wstrb = cpu_wstrb;
-        end else begin
-            dcache_valid = dcache_valid_reg;
-            dcache_addr  = dcache_addr_reg;
-            dcache_wdata = dcache_wdata_reg;
-            dcache_wstrb = dcache_wstrb_reg;
-        end
+        // Default
+        dcache_valid = 0;
+        dcache_addr  = 0;
+        dcache_wdata = 0;
+        dcache_wstrb = 0;
+        case (state)
+            IDLE: begin
+                if (~cpu_store) begin  // Read
+                    dcache_valid = cpu_valid;
+                    dcache_addr  = cpu_addr;
+                end
+            end
+            STORE_REQ_SEND: begin
+                dcache_valid = 1;
+                dcache_addr  = dcache_addr_reg;
+                dcache_wdata = dcache_wdata_reg;
+                dcache_wstrb = dcache_wstrb_reg;
+            end
+            STORE_REQ_WAIT: begin
+                if (~dcache_ready) begin
+                    dcache_valid = 1;
+                    dcache_addr  = dcache_addr_reg;
+                    dcache_wdata = dcache_wdata_reg;
+                    dcache_wstrb = dcache_wstrb_reg;
+                end
+            end
+            default: begin
+            end
+        endcase
     end
 
     // P1 signal
     always_ff @(posedge clk) begin
-        if (rst) begin
-            dcache_valid_reg <= dcache_valid;
-            dcache_addr_reg  <= dcache_addr;
-            dcache_wdata_reg <= dcache_wdata;
-            dcache_wstrb_reg <= dcache_wstrb;
+        if (dcache_valid) begin
+            dcache_valid_reg <= cpu_valid;
+            dcache_addr_reg  <= cpu_addr;
+            dcache_wdata_reg <= cpu_wdata;
+            dcache_wstrb_reg <= cpu_wstrb;
         end
     end
 
