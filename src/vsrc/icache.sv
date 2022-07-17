@@ -366,6 +366,10 @@ module icache
                 REFILL_2_WAIT: begin
                     if (axi_rvalid_i & axi_rlast_i) miss_2_r <= 0;
                 end
+                CACOP_INVALID_1, CACOP_INVALID_2: begin
+                    miss_1_r <= 0;
+                    miss_2_r <= 0;
+                end
                 default: begin
                 end
             endcase
