@@ -35,10 +35,9 @@ module dcache #(
 ) (
     input logic clk,
     input logic rst,
+
     input logic valid,
-
     input logic [FE_ADDR_W-1:0] addr,
-
     input logic [FE_DATA_W-1:0] wdata,
     input logic [FE_NBYTES-1:0] wstrb,
     output logic [FE_DATA_W-1:0] rdata,

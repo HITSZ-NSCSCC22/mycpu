@@ -164,9 +164,8 @@ module cs_reg
     assign has_int = ((csr_ectl[`LIE] & csr_estat[`IS]) != 13'b0) & csr_crmd[`IE];
 
     assign plv_o  = {2{excp_flush}} & 2'b0            |
-                  {2{ertn_flush}} & csr_prmd[`PPLV] |
-                  {2{(we == 1'b1 && waddr == `CRMD)  }} & wdata[`PLV]   |
-                  {2{!excp_flush && !ertn_flush && !(we == 1'b1 && waddr == `CRMD)}} & csr_crmd[`PLV];
+                  {2{ertn_flush}} & csr_prmd[`PPLV] | 
+                  {2{!excp_flush && !ertn_flush}} & csr_crmd[`PLV];
 
     assign rdata = {32{raddr == `CRMD  }}  & csr_crmd    |
                  {32{raddr == `PRMD  }}  & csr_prmd    |

@@ -205,8 +205,8 @@ module ctrl
     assign csr_era = in_idle ? pc + 32'h4 : pc;
     //异常处理，优先处理第一条流水线的异常
     assign {excp_num, pc, excp_instr, error_va} = 
-            instr_info[0].excp ? {instr_info[0].excp_num, instr_info[0].pc,wb_i[0].diff_commit_o.instr, wb_i[0].mem_addr} :
-            instr_info[1].excp ? {instr_info[1].excp_num, instr_info[1].pc ,wb_i[1].diff_commit_o.instr, wb_i[1].mem_addr} : 0;
+            instr_info[0].excp ? {instr_info[0].excp_num, instr_info[0].pc, wb_i[0].diff_commit_o.instr, wb_i[0].mem_addr} :
+            instr_info[1].excp ? {instr_info[1].excp_num, instr_info[1].pc, wb_i[1].diff_commit_o.instr, wb_i[1].mem_addr} : 0;
 
     assign {csr_ecode,va_error, bad_va, csr_esubcode, excp_tlbrefill,excp_tlb, excp_tlb_vppn} = 
     excp_num[0] ? {`ECODE_INT ,1'b0, 32'b0 , 9'b0 , 1'b0, 1'b0, 19'b0} :

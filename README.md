@@ -93,3 +93,4 @@ git checkout -b <branch_name>
 - [乘除法器](https://github.com/risclite/rv32m-multiplier-and-divider)
 - [参数化的 LFSR](https://github.com/openhwgroup/cva5/blob/master/core/lfsr.sv)
 - [基于 ROM 的 Priority Encoder](https://github.com/openhwgroup/cva5/blob/master/core/priority_encoder.sv)
+- [AXI CrossBar](https://github.com/dpretet/axi-crossbar)

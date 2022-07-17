@@ -721,7 +721,7 @@ module cpu_top
 
                 // <-> DCache
                 .dcache_rreq_o (mem_cache_signal[i]),
-                .dcache_ready_i(dcache_ready),
+                .dcache_ready_i(),
                 .dcache_ack_i  (dcache_ack),
 
                 // -> ICache, ICACOP
@@ -767,7 +767,7 @@ module cpu_top
                 .data_forward_o(mem2_data_forward[i]),
 
                 // <- DCache
-                .data_ok(mem_data_ok),
+                .data_ok(dcache_ready),
                 .cache_data_i(cache_mem_data)
             );
         end
