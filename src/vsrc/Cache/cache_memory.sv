@@ -1,6 +1,5 @@
 `timescale 1ns / 1ps
 `include "Cache/dcache_config.sv"
-`include "Cache/iob_ram_2p.sv"
 `include "Cache/iob_cache.vh"
 `include "Cache/iob_ram_sp.sv"
 `include "Cache/onehot_to_bin.sv"
@@ -80,97 +79,22 @@ module cache_memory
     reg  [                     N_WAYS*(2**LINE_OFF_W)-1:0] dirty_reg;
 
 
-    generate
-        if (WRITE_POL == 0) begin
+    // if (WRITE_POL == WRITE_BACK)
 
-            localparam FIFO_DATA_W = FE_ADDR_W - FE_BYTE_W + FE_DATA_W + FE_NBYTES;
-            localparam FIFO_ADDR_W = WTBUF_DEPTH_W;
+    //back-end write channel
+    assign write_wstrb = {FE_NBYTES{1'bx}};
+    //write_valid, write_addr and write_wdata assigns are generated bellow (dependencies)
 
-            wire mem_w_en;
-            wire [FIFO_ADDR_W-1:0] mem_w_addr;
-            wire [FIFO_DATA_W-1:0] mem_w_data;
+    //back-end read channel
+    assign replace_valid = (~|way_hit) & (write_ready) & valid_reg & ~replace;
+    assign replace_addr = addr[FE_ADDR_W-1:BE_BYTE_W+LINE2MEM_W];
 
-            wire mem_r_en;
-            wire [FIFO_ADDR_W-1:0] mem_r_addr;
-            wire [FIFO_DATA_W-1:0] mem_r_data;
+    //buffer status (non-existant)
+    assign wtbuf_full = 1'b0;
+    assign wtbuf_empty = 1'b1;
+    assign wtbuf_full = 1'bx;
+    assign wtbuf_empty = 1'bx;
 
-            // FIFO memory
-            iob_ram_2p #(
-                .DATA_W(FIFO_DATA_W),
-                .ADDR_W(FIFO_ADDR_W)
-            ) iob_ram_2p0 (
-                .clk(clk),
-
-                .w_en  (mem_w_en),
-                .w_addr(mem_w_addr),
-                .w_data(mem_w_data),
-
-                .r_en  (mem_r_en),
-                .r_addr(mem_r_addr),
-                .r_data(mem_r_data)
-            );
-
-            iob_fifo_sync #(
-                .R_DATA_W(FIFO_DATA_W),
-                .W_DATA_W(FIFO_DATA_W),
-                .ADDR_W  (FIFO_ADDR_W)
-            ) write_throught_buffer (
-                .clk (clk),
-                .rst (reset),
-                .arst(reset),
-
-                .ext_mem_w_en  (mem_w_en),
-                .ext_mem_w_addr(mem_w_addr),
-                .ext_mem_w_data(mem_w_data),
-
-                .ext_mem_r_en  (mem_r_en),
-                .ext_mem_r_addr(mem_r_addr),
-                .ext_mem_r_data(mem_r_data),
-
-                .level(),
-
-                .r_data (buffer_dout),
-                .r_empty(buffer_empty),
-                .r_en   (write_ready),
-
-                .w_data({addr_reg, wdata_reg, wstrb_reg}),
-                .w_full(buffer_full),
-                .w_en  (write_access & ready)
-            );
-
-            //buffer status
-            assign wtbuf_full    = buffer_full;
-            assign wtbuf_empty   = buffer_empty & write_ready & ~write_valid;
-
-            //back-end write channel
-            assign write_valid   = ~buffer_empty;
-            assign write_addr    = buffer_dout[FE_NBYTES+FE_DATA_W+:FE_ADDR_W-FE_BYTE_W];
-            assign write_wdata   = buffer_dout[FE_NBYTES+:FE_DATA_W];
-            assign write_wstrb   = buffer_dout[0+:FE_NBYTES];
-
-
-            //back-end read channel
-            assign replace_valid = (~hit & read_access & ~replace) & (buffer_empty & write_ready);
-            assign replace_addr  = addr[FE_ADDR_W-1:BE_BYTE_W+LINE2MEM_W];
-
-        end else begin  // if (WRITE_POL == WRITE_BACK)
-
-            //back-end write channel
-            assign write_wstrb = {FE_NBYTES{1'bx}};
-            //write_valid, write_addr and write_wdata assigns are generated bellow (dependencies)
-
-            //back-end read channel
-            assign replace_valid = (~|way_hit) & (write_ready) & valid_reg & ~replace;
-            assign replace_addr = addr[FE_ADDR_W-1:BE_BYTE_W+LINE2MEM_W];
-
-            //buffer status (non-existant)
-            assign wtbuf_full = 1'b0;
-            assign wtbuf_empty = 1'b1;
-            assign wtbuf_full = 1'bx;
-            assign wtbuf_empty = 1'bx;
-
-        end
-    endgenerate
 
 
     //////////////////////////////////////////////////////
@@ -181,25 +105,16 @@ module cache_memory
     reg  [WORD_OFF_W-1:0] offset_prev;
     reg  [    N_WAYS-1:0] way_hit_prev;
 
-    generate
-        if (WRITE_POL == 0) begin
-            always @(posedge clk) begin
-                write_hit_prev <= write_access & (|way_hit);
-                //previous write position
-                offset_prev <= offset;
-                way_hit_prev <= way_hit;
-            end
-            assign raw = write_hit_prev & (way_hit_prev == way_hit) & (offset_prev == offset);
-        end else begin  //// if (WRITE_POL == WRITE_BACK)
-            always @(posedge clk) begin
-                write_hit_prev <= write_access;  //all writes will have the data in cache in the end
-                //previous write position
-                offset_prev <= offset;
-                way_hit_prev <= way_hit;
-            end
-            assign raw = write_hit_prev & (way_hit_prev == way_hit) & (offset_prev == offset) & read_access; //without read_access it is an infinite replacement loop
-        end
-    endgenerate
+    //// if (WRITE_POL == WRITE_BACK)
+    always @(posedge clk) begin
+        write_hit_prev <= write_access;  //all writes will have the data in cache in the end
+        //previous write position
+        offset_prev <= offset;
+        way_hit_prev <= way_hit;
+    end
+    assign raw = write_hit_prev & (way_hit_prev == way_hit) & (offset_prev == offset) & read_access; //without read_access it is an infinite replacement loop
+
+
 
 
     ///////////////////////////////////////////////////////////////
@@ -211,12 +126,10 @@ module cache_memory
     /////////////////////////////////
     //front-end READY signal
     /////////////////////////////////
-    generate
-        if (WRITE_POL == `WRITE_THROUGH)
-            assign ready = (hit & read_access) | (~buffer_full & write_access);
-        else  // if (WRITE_POL == WRITE_BACK)
-            assign ready = hit & valid_reg;
-    endgenerate
+
+    // if (WRITE_POL == WRITE_BACK)
+    assign ready = hit & valid_reg;
+
 
     //cache-control hit-miss counters enables
     generate
@@ -275,111 +188,23 @@ module cache_memory
 
 
         // Valid-Tag memories & replacement-policy
-        if (N_WAYS > 1) begin
-
-            wire [NWAY_W-1:0] way_hit_bin, way_select_bin;//reason for the 2 generates for single vs multiple ways
-            //valid-memory
-            always @(posedge clk, posedge reset) begin
-                if (reset) v_reg <= 0;
-                else if (invalidate) v_reg <= 0;
-                else if (replace_valid)
-                    v_reg <= v_reg | (1 << (way_select_bin * (2 ** LINE_OFF_W) + index_reg));
-                else v_reg <= v_reg;
-            end
-
-            for (k = 0; k < N_WAYS; k = k + 1) begin : tag_mem_block
-                //valid-memory output stage register - 1 c.c. read-latency (cleaner simulation during rep.)
-                always @(posedge clk)
-                    if (invalidate) v[k] <= 0;
-                    else v[k] <= v_reg[(2**LINE_OFF_W)*k+index];
-
-                //tag-memory
-                iob_ram_sp #(
-                    .DATA_W(TAG_W),
-                    .ADDR_W(LINE_OFF_W)
-                ) tag_memory (
-                    .clk (clk),
-                    .en  (valid),
-                    .we  (way_select[k] & replace_valid),
-                    .addr(index),
-                    .din (tag),
-                    .dout(line_tag[TAG_W*k+:TAG_W])
-                );
 
 
-                //Way hit signal - hit or replacement
-                assign way_hit[k] = (tag == line_tag[TAG_W*k+:TAG_W]) & v[k];
-            end
-            //Read Data Multiplexer
-            assign rdata [FE_DATA_W-1:0] = line_rdata >> FE_DATA_W*(offset + (2**WORD_OFF_W)*way_hit_bin);
+        wire [NWAY_W-1:0] way_hit_bin, way_select_bin;//reason for the 2 generates for single vs multiple ways
+        //valid-memory
+        always @(posedge clk, posedge reset) begin
+            if (reset) v_reg <= 0;
+            else if (invalidate) v_reg <= 0;
+            else if (replace_valid)
+                v_reg <= v_reg | (1 << (way_select_bin * (2 ** LINE_OFF_W) + index_reg));
+            else v_reg <= v_reg;
+        end
 
-
-            //replacement-policy module
-            replacement_policy #(
-                .N_WAYS    (N_WAYS),
-                .LINE_OFF_W(LINE_OFF_W),
-                .REP_POLICY(REP_POLICY)
-            ) replacement_policy_algorithm (
-                .clk           (clk),
-                .reset         (reset | invalidate),
-                .write_en      (ready),
-                .way_hit       (way_hit),
-                .line_addr     (index_reg),
-                .way_select    (way_select),
-                .way_select_bin(way_select_bin)
-            );
-
-            //onehot-to-binary for way-hit
-            onehot_to_bin #(
-                .BIN_W(NWAY_W)
-            ) way_hit_encoder (
-                .onehot(way_hit[N_WAYS-1:1]),
-                .bin   (way_hit_bin)
-            );
-
-            //dirty-memory
-            if (WRITE_POL == `WRITE_BACK) begin
-                always @(posedge clk, posedge reset) begin
-                    if (reset) dirty_reg <= 0;
-                    else if (write_valid)
-                        dirty_reg <= dirty_reg & ~(1<<(way_select_bin*(2**LINE_OFF_W) + index_reg));// updates position with 0
-                    else if (write_access & hit)
-                        dirty_reg <= dirty_reg |  (1<<(way_hit_bin*(2**LINE_OFF_W) + index_reg));//updates position with 1
-                    else dirty_reg <= dirty_reg;
-                end
-
-                for (k = 0; k < N_WAYS; k = k + 1) begin : dirty_block
-                    //valid-memory output stage register - 1 c.c. read-latency (cleaner simulation during rep.)
-                    always @(posedge clk) dirty[k] <= dirty_reg[(2**LINE_OFF_W)*k+index];
-                end
-
-
-                //flush line
-                assign write_valid = valid_reg & ~(|way_hit) & (way_select == dirty); //flush if there is not a hit, and the way selected is dirty
-                wire [TAG_W-1:0] tag_flush = line_tag >> (way_select_bin*TAG_W);      //auxiliary wire
-                assign write_addr = {
-                    tag_flush, index_reg
-                };  //the position of the current block in cache (not of the access)
-                assign write_wdata = line_rdata >> (way_select_bin * FE_DATA_W * (2 ** WORD_OFF_W));
-
-
-
-            end  // if (WRITE_POL == WRITE_BACK)
-
-        end else  // (N_WAYS = 1)
-        begin
-            //valid-memory
-            always @(posedge clk, posedge reset) begin
-                if (reset) v_reg <= 0;
-                else if (invalidate) v_reg <= 0;
-                else if (replace_valid) v_reg <= v_reg | (1 << index);
-                else v_reg <= v_reg;
-            end
-
+        for (k = 0; k < N_WAYS; k = k + 1) begin : tag_mem_block
             //valid-memory output stage register - 1 c.c. read-latency (cleaner simulation during rep.)
             always @(posedge clk)
-                if (invalidate) v <= 0;
-                else v <= v_reg[index];
+                if (invalidate) v[k] <= 0;
+                else v[k] <= v_reg[(2**LINE_OFF_W)*k+index];
 
             //tag-memory
             iob_ram_sp #(
@@ -388,42 +213,66 @@ module cache_memory
             ) tag_memory (
                 .clk (clk),
                 .en  (valid),
-                .we  (replace_valid),
+                .we  (way_select[k] & replace_valid),
                 .addr(index),
                 .din (tag),
-                .dout(line_tag)
+                .dout(line_tag[TAG_W*k+:TAG_W])
             );
 
 
-            //Cache hit signal that indicates which way has had the hit (also during replacement)
-            assign way_hit = (tag == line_tag) & v;
+            //Way hit signal - hit or replacement
+            assign way_hit[k] = (tag == line_tag[TAG_W*k+:TAG_W]) & v[k];
+        end
+        //Read Data Multiplexer
+        assign rdata [FE_DATA_W-1:0] = line_rdata >> FE_DATA_W*(offset + (2**WORD_OFF_W)*way_hit_bin);
 
-            //Read Data Multiplexer
-            assign rdata[FE_DATA_W-1:0] = line_rdata >> FE_DATA_W * offset;
 
-            //dirty-memory
-            if (WRITE_POL == `WRITE_BACK) begin
-                //dirty-memory
-                always @(posedge clk, posedge reset) begin
-                    if (reset) dirty_reg <= 0;
-                    else if (write_valid)
-                        dirty_reg <= dirty_reg & ~(1 << (index_reg));  //updates postion with 0
-                    else if (write_access & hit)
-                        dirty_reg <= dirty_reg | (1<<(index_reg)); //updates position with 1 (needs to be index_reg otherwise updates the new index if the previous access was a write)
-                    else dirty_reg <= dirty_reg;
-                end
+        //replacement-policy module
+        replacement_policy #(
+            .N_WAYS    (N_WAYS),
+            .LINE_OFF_W(LINE_OFF_W),
+            .REP_POLICY(REP_POLICY)
+        ) replacement_policy_algorithm (
+            .clk           (clk),
+            .reset         (reset | invalidate),
+            .write_en      (ready),
+            .way_hit       (way_hit),
+            .line_addr     (index_reg),
+            .way_select    (way_select),
+            .way_select_bin(way_select_bin)
+        );
 
-                always @(posedge clk) dirty <= dirty_reg[index];
+        //onehot-to-binary for way-hit
+        onehot_to_bin #(
+            .BIN_W(NWAY_W)
+        ) way_hit_encoder (
+            .onehot(way_hit[N_WAYS-1:1]),
+            .bin   (way_hit_bin)
+        );
 
-                //flush line
-                assign write_valid = write_access & ~(way_hit) & dirty; //flush if there is not a hit, and is dirty
-                assign write_addr = {
-                    line_tag, index
-                };  //the position of the current block in cache (not of the access)
-                assign write_wdata = line_rdata;
+        //dirty-memory
+        always @(posedge clk, posedge reset) begin
+            if (reset) dirty_reg <= 0;
+            else if (write_valid)
+                dirty_reg <= dirty_reg & ~(1<<(way_select_bin*(2**LINE_OFF_W) + index_reg));// updates position with 0
+            else if (write_access & hit)
+                dirty_reg <= dirty_reg |  (1<<(way_hit_bin*(2**LINE_OFF_W) + index_reg));//updates position with 1
+            else dirty_reg <= dirty_reg;
+        end
 
-            end  // if (WRITE_POL == WRITE_BACK)
-        end  // else: !if(N_WAYS > 1)
+        for (k = 0; k < N_WAYS; k = k + 1) begin : dirty_block
+            //valid-memory output stage register - 1 c.c. read-latency (cleaner simulation during rep.)
+            always @(posedge clk) dirty[k] <= dirty_reg[(2**LINE_OFF_W)*k+index];
+        end
+
+        //flush line
+        assign write_valid = valid_reg & ~(|way_hit) & (way_select == dirty); //flush if there is not a hit, and the way selected is dirty
+        wire [TAG_W-1:0] tag_flush = line_tag >> (way_select_bin * TAG_W);  //auxiliary wire
+        assign write_addr = {
+            tag_flush, index_reg
+        };  //the position of the current block in cache (not of the access)
+        assign write_wdata = line_rdata >> (way_select_bin * FE_DATA_W * (2 ** WORD_OFF_W));
+
     endgenerate
 
 endmodule  // cache_memory
