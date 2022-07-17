@@ -1,8 +1,9 @@
 `timescale 1ns / 1ps
-`include "Cache/dcache_config.sv"
-module iob_ram_sp
-    import dcache_config::*;
-(
+module iob_ram_sp #(
+    parameter HEXFILE = "none",
+    parameter DATA_W  = 8,
+    parameter ADDR_W  = 14
+) (
     input                     clk,
     input                     en,
     input                     we,

@@ -12,7 +12,7 @@
 `include "instr_buffer.sv"
 `include "icache.sv"
 //`include "dummy_dcache.sv"
-`include "Cache/conctrol.sv"
+`include "LSU.sv"
 `include "Cache/dcache.sv"
 `include "ctrl.sv"
 `include "Reg/regs_file.sv"
@@ -241,11 +241,11 @@ module cpu_top
 
     logic [4:0] rand_index_diff;
 
-    logic conctrol_dcache_valid, conctrol_dcache_ready;
-    logic [`RegBus] conctrol_dcache_addr, conctrol_dcache_wdata, conctrol_dcache_rdata;
-    logic [3:0] conctrol_dcache_wstrb;
+    logic control_dcache_valid, control_dcache_ready;
+    logic [`RegBus] control_dcache_addr, control_dcache_wdata, control_dcache_rdata;
+    logic [3:0] control_dcache_wstrb;
 
-    conctrol u_conctrol (
+    LSU u_LSU (
         .clk         (clk),
         .rst         (rst),
         .cpu_valid   (mem_cache_ce),
@@ -254,24 +254,24 @@ module cpu_top
         .cpu_wstrb   (mem_cache_sel),
         .cpu_rdata   (cache_mem_data),
         .cpu_ready   (dcache_ready),
-        .dcache_valid(conctrol_dcache_valid),
-        .dcache_addr (conctrol_dcache_addr),
-        .dcache_wdata(conctrol_dcache_wdata),
-        .dcache_wstrb(conctrol_dcache_wstrb),
-        .dcache_rdata(conctrol_dcache_rdata),
-        .dcache_ready(conctrol_dcache_ready)
+        .dcache_valid(control_dcache_valid),
+        .dcache_addr (control_dcache_addr),
+        .dcache_wdata(control_dcache_wdata),
+        .dcache_wstrb(control_dcache_wstrb),
+        .dcache_rdata(control_dcache_rdata),
+        .dcache_ready(control_dcache_ready)
     );
 
 
     dcache u_dcache (
         .clk        (clk),
         .rst        (rst),
-        .valid      (conctrol_dcache_valid),
-        .addr       (conctrol_dcache_addr),
-        .wdata      (conctrol_dcache_wdata),
-        .wstrb      (conctrol_dcache_wstrb),
-        .rdata      (conctrol_dcache_rdata),
-        .ready      (conctrol_dcache_ready),
+        .valid      (control_dcache_valid),
+        .addr       (control_dcache_addr),
+        .wdata      (control_dcache_wdata),
+        .wstrb      (control_dcache_wstrb),
+        .rdata      (control_dcache_rdata),
+        .ready      (control_dcache_ready),
         .force_inv_i(),
         .force_inv_o(),
         .wtb_empty_i(wtb_empty_i),

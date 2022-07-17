@@ -64,15 +64,7 @@ module backend
 
 
 
-    read_channel #(
-        .FE_ADDR_W(FE_ADDR_W),
-        .FE_DATA_W(FE_DATA_W),
-        .WORD_OFF_W(WORD_OFF_W),
-        .BE_ADDR_W(BE_ADDR_W),
-        .BE_DATA_W(BE_DATA_W),
-        .AXI_ID_W(AXI_ID_W),
-        .AXI_ID(AXI_ID)
-    ) read_fsm (
+    read_channel read_fsm (
         .clk(clk),
         .reset(reset),
         .replace_valid(replace_valid),
@@ -102,16 +94,7 @@ module backend
     );
 
 
-    write_channel #(
-        .FE_ADDR_W(FE_ADDR_W),
-        .FE_DATA_W(FE_DATA_W),
-        .BE_ADDR_W(BE_ADDR_W),
-        .BE_DATA_W(BE_DATA_W),
-        .WRITE_POL(WRITE_POL),
-        .WORD_OFF_W(WORD_OFF_W),
-        .AXI_ID_W(AXI_ID_W),
-        .AXI_ID(AXI_ID)
-    ) write_fsm (
+    write_channel write_fsm (
         .clk(clk),
         .reset(reset),
         .valid(write_valid),

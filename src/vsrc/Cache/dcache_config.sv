@@ -37,11 +37,6 @@ package dcache_config;
     parameter [AXI_ID_W-1:0] AXI_ID = 0;  //AXI ID value
     //Replacement policy (N_WAYS > 1)
 
-    parameter HEXFILE = "none";
-    parameter DATA_W = 0;
-    parameter ADDR_W = 0;
-
-
 endpackage
 
 `endif

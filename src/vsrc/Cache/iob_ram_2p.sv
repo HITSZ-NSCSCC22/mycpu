@@ -1,8 +1,10 @@
 `timescale 1ns / 1ps
 `include "Cache/dcache_config.sv"
-module iob_ram_2p
-    import dcache_config::*;
-(
+module iob_ram_2p #(
+    parameter HEXFILE = "none",
+    parameter DATA_W  = 0,
+    parameter ADDR_W  = 0
+) (
     input clk,
 
     //write port

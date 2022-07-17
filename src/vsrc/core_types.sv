@@ -269,5 +269,13 @@ package core_types;
         logic [1:0] data_tlb_plv;
     } tlb_to_mem_struct;
 
+
+    typedef struct packed {
+        logic valid;
+        logic [(DATA_WIDTH/8)-1:0] wstrb;
+        logic [ADDR_WIDTH-1:0] waddr;
+        logic [DATA_WIDTH-1:0] wdata;
+    } store_req_t;
+
 endpackage
 `endif

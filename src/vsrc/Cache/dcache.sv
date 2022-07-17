@@ -104,11 +104,7 @@ module dcache
             assign wtb_empty_out = wtbuf_empty & wtb_empty_i;//to remove unconnected port warning. If unused wtb_empty_in = 1'b1
     endgenerate
 
-    cache_frontend #(
-        .FE_ADDR_W (FE_ADDR_W),
-        .FE_DATA_W (FE_DATA_W),
-        .CTRL_CACHE(CTRL_CACHE)
-    ) front_end (
+    cache_frontend u_front_end (
         .clk   (clk),
         .reset (reset),
         //front-end port
@@ -138,19 +134,7 @@ module dcache
 
 
     //BLOCK Cache memory & Cache memory block.
-    cache_memory #(
-        .FE_ADDR_W    (FE_ADDR_W),
-        .FE_DATA_W    (FE_DATA_W),
-        .BE_DATA_W    (BE_DATA_W),
-        .N_WAYS       (N_WAYS),
-        .LINE_OFF_W   (LINE_OFF_W),
-        .WORD_OFF_W   (WORD_OFF_W),
-        .REP_POLICY   (REP_POLICY),
-        .WTBUF_DEPTH_W(WTBUF_DEPTH_W),
-        .CTRL_CACHE   (CTRL_CACHE),
-        .CTRL_CNT     (CTRL_CNT),
-        .WRITE_POL    (WRITE_POL)
-    ) cache_memory (
+    cache_memory u_cache_memory (
         .clk          (clk),
         .reset        (reset),
         //front-end
@@ -194,14 +178,7 @@ module dcache
     );
 
     //BLOCK Back-end & Back-end block.
-    backend #(
-        .FE_ADDR_W (FE_ADDR_W),
-        .FE_DATA_W (FE_DATA_W),
-        .BE_ADDR_W (BE_ADDR_W),
-        .BE_DATA_W (BE_DATA_W),
-        .WORD_OFF_W(WORD_OFF_W),
-        .WRITE_POL (WRITE_POL),
-    ) back_end (
+    backend back_end (
         .clk(clk),
         .reset(reset),
         //write-through-buffer (write-channel)
@@ -266,10 +243,7 @@ module dcache
     generate
         if (CTRL_CACHE)
 
-            cache_control #(
-                .FE_DATA_W(FE_DATA_W),
-                .CTRL_CNT (CTRL_CNT)
-            ) cache_control (
+            cache_control u_cache_control (
                 .clk   (clk),
                 .reset (reset),
                 //control's signals
