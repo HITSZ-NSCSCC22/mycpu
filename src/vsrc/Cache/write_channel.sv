@@ -1,21 +1,7 @@
-module write_channel #(
-    parameter FE_ADDR_W = 32,
-    parameter FE_DATA_W = 32,
-    parameter FE_NBYTES = FE_DATA_W / 8,
-    parameter FE_BYTE_W = $clog2(FE_NBYTES),
-    parameter BE_ADDR_W = FE_ADDR_W,
-    parameter BE_DATA_W = FE_DATA_W,
-    parameter BE_NBYTES = BE_DATA_W / 8,
-    parameter BE_BYTE_W = $clog2(BE_NBYTES),
-    parameter AXI_ID_W = 1,
-    parameter [AXI_ID_W-1:0] AXI_ID = 0,
-    // Write-Policy
-    parameter WRITE_POL = 1,  //write policy: write-through (0), write-back (1)
-    parameter WORD_OFF_W = 3,  //required for write-back
-    parameter LINE2MEM_W = WORD_OFF_W - $clog2(
-        BE_DATA_W / FE_DATA_W
-    )  //burst offset based on the cache and memory word size
-) (
+`include "Cache/dcache_config.sv"
+module write_channel
+    import dcache_config::*;
+(
     input clk,
     input reset,
 

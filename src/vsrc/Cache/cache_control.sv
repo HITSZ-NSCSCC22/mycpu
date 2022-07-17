@@ -1,8 +1,8 @@
 `include "iob_cache.vh"
-module cache_control #(
-    parameter FE_DATA_W = 32,
-    parameter CTRL_CNT  = 1
-) (
+`include "Cache/dcache_config.sv"
+module cache_control
+    import dcache_config::*;
+(
     input                         clk,
     input                         reset,
     input                         valid,

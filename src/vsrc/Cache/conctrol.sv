@@ -1,8 +1,7 @@
-module conctrol #(
-    parameter FE_ADDR_W   = 32,       //Address width - width of the Master's entire access address (including the LSBs that are discarded, but discarding the Controller's)
-    parameter FE_DATA_W = 32,
-    parameter FE_NBYTES = FE_DATA_W / 8
-) (
+`include "Cache/dcache_config.sv"
+module conctrol
+    import dcache_config::*;
+(
     input logic clk,
     input logic rst,
 

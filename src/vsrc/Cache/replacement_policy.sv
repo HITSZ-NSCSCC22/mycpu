@@ -1,19 +1,11 @@
 `timescale 1ns / 1ps
+`include "Cache/dcache_config.sv"
 `include "Cache/iob_cache.vh"
 `include "Cache/iob_regfile_sp.sv"
 
-/*--------------------*/
-/* Replacement Policy */
-/*--------------------*/
-// Module that contains all iob-cache's replacement policies
-
-module replacement_policy #(
-    parameter N_WAYS = 8,
-    parameter LINE_OFF_W = 0,
-    parameter NWAY_W = $clog2(N_WAYS),
-    parameter REP_POLICY =
-    `PLRU_tree //LRU - Least Recently Used; PLRU_mru (1) - mru-based pseudoLRU; PLRU_tree (3) - tree-based pseudoLRU
-) (
+module replacement_policy
+    import dcache_config::*;
+(
     input                   clk,
     input                   reset,
     input                   write_en,

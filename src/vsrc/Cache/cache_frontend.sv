@@ -1,16 +1,8 @@
 `timescale 1ns / 1ps
-module cache_frontend #(
-    parameter FE_ADDR_W = 32,  //Address width - width that will used for the cache 
-    parameter FE_DATA_W = 32,  //Data width - word size used for the cache
-
-    //Do NOT change - memory cache's parameters - dependency
-    parameter FE_NBYTES   = FE_DATA_W / 8,      //Number of Bytes per Word
-    parameter FE_BYTE_W   = $clog2(FE_NBYTES),  //Offset of the Number of Bytes per Word
-    //Control's options
-    parameter CTRL_ADDR_W = 4,
-    parameter CTRL_CACHE  = 0,
-    parameter CTRL_CNT    = 0
-) (
+`include "Cache/dcache_config.sv"
+module cache_frontend
+    import dcache_config::*;
+(
     //front-end port
     input                                clk,
     input                                reset,
