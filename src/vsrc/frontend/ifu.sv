@@ -101,9 +101,9 @@ module ifu
     logic p1_uncache;  // Fetch request is uncached, generated using csr & tlb
 
     assign p1_pc = p1_data.ftq_block.start_pc;
-    assign p1_uncache = ~p1_data.tlb_rreq.trans_en ?p1_data.csr.datf == 0:
-                        dmw0_en ? p1_data.csr.dmw0[`DMW_MAT] == 0 :
-                        dmw1_en ? p1_data.csr.dmw1[`DMW_MAT] == 0 : 
+    assign p1_uncache = p1_data.csr.da ?p1_data.csr.datf == 0:
+                        p1_data.tlb_rreq.dmw0_en ? p1_data.csr.dmw0[`DMW_MAT] == 0 :
+                        p1_data.tlb_rreq.dmw1_en ? p1_data.csr.dmw1[`DMW_MAT] == 0 : 
                         tlb_i.tlb_mat == 0;
     always_ff @(posedge clk) begin
         if (flush_i) begin
@@ -276,7 +276,7 @@ module ifu
                 instr_buffer_o[i].is_last_in_block <= 0;
 
                 if (i < p2_ftq_block.length) begin
-                    if (i == p2_ftq_block.length - 1) begin
+                    if (i[2:0] == p2_ftq_block.length - 1) begin
                         instr_buffer_o[i].is_last_in_block <= 1; // Mark the instruction as last in block, used when commit
                     end
                     instr_buffer_o[i].valid <= 1;
@@ -286,7 +286,7 @@ module ifu
                     instr_buffer_o[i].excp <= p2_read_transaction.excp;
                     instr_buffer_o[i].excp_num <= p2_read_transaction.excp_num;
                     instr_buffer_o[i].ftq_id <= p2_read_transaction.ftq_id;
-                    instr_buffer_o[i].ftq_block_idx <= i;
+                    instr_buffer_o[i].ftq_block_idx <= i[1:0];
                     instr_buffer_o[i].special_info.predicted_taken <= p2_ftq_block.predicted_taken;
                 end else begin
                     instr_buffer_o[i] <= 0;

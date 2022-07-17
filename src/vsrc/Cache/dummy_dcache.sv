@@ -110,10 +110,10 @@ module dummy_dcache
                 if (axi_rdy_i) next_state = IDLE;
                 else next_state = WRITE_REQ;
             end
-            // WRITE_WAIT: begin
-            //     if (wr_done) next_state = IDLE;
-            //     else next_state = WRITE_WAIT;
-            // end
+            WRITE_WAIT: begin
+                if (axi_rdy_i) next_state = IDLE;
+                else next_state = WRITE_WAIT;
+            end
             default: begin
                 next_state = IDLE;
             end

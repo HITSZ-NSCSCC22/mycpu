@@ -366,6 +366,10 @@ module icache
                 REFILL_2_WAIT: begin
                     if (axi_rvalid_i & axi_rlast_i) miss_2_r <= 0;
                 end
+                CACOP_INVALID_1, CACOP_INVALID_2: begin
+                    miss_1_r <= 0;
+                    miss_2_r <= 0;
+                end
                 default: begin
                 end
             endcase
@@ -425,16 +429,16 @@ module icache
     // AXI handshake
     // Read request to AXI Controller
     assign cacheline = axi_data_i;
-    always_ff @(posedge clk) begin
-        if (rst) axi_burst_cnt <= 0;
-        else if (axi_rvalid_i & axi_rlast_i) axi_burst_cnt <= 0;
-        else if (axi_rvalid_i) axi_burst_cnt <= axi_burst_cnt + 1;
-    end
-    always_ff @(posedge clk) begin
-        if (rst) axi_data_buffer <= 0;
-        else if (axi_rvalid_i & axi_rlast_i) axi_data_buffer <= 0;
-        else if (axi_rvalid_i) axi_data_buffer[axi_burst_cnt] <= axi_data_i;
-    end
+    // always_ff @(posedge clk) begin
+    //     if (rst) axi_burst_cnt <= 0;
+    //     else if (axi_rvalid_i & axi_rlast_i) axi_burst_cnt <= 0;
+    //     else if (axi_rvalid_i) axi_burst_cnt <= axi_burst_cnt + 1;
+    // end
+    // always_ff @(posedge clk) begin
+    //     if (rst) axi_data_buffer <= 0;
+    //     else if (axi_rvalid_i & axi_rlast_i) axi_data_buffer <= 0;
+    //     else if (axi_rvalid_i) axi_data_buffer[axi_burst_cnt] <= axi_data_i;
+    // end
     always_comb begin
         case (state)
             REFILL_1_REQ: begin
