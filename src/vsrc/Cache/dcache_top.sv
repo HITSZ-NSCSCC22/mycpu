@@ -2,8 +2,8 @@
 `include "Cache/dcache_config.sv"
 `include "Cache/cache_frontend.sv"
 `include "Cache/cache_memory.sv"
-`include "Cache/backend.sv"
-module dcache
+`include "Cache/cache_backend.sv"
+module dcache_top
     import dcache_config::*;
 (
     input logic clk,
@@ -104,7 +104,7 @@ module dcache
             assign wtb_empty_out = wtbuf_empty & wtb_empty_i;//to remove unconnected port warning. If unused wtb_empty_in = 1'b1
     endgenerate
 
-    cache_frontend u_front_end (
+    cache_frontend u_cache_frontend (
         .clk   (clk),
         .reset (reset),
         //front-end port
@@ -178,7 +178,7 @@ module dcache
     );
 
     //BLOCK Back-end & Back-end block.
-    backend back_end (
+    cache_backend u_cache_backend (
         .clk(clk),
         .reset(reset),
         //write-through-buffer (write-channel)

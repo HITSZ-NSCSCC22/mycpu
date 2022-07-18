@@ -157,11 +157,11 @@ module tlb_entry
         data_odd_page = 0;
         for (integer i = 0; i < NWAY; i = i + 1) begin
             if (match0[i] == 1'b1) begin
-                inst_index = i;
+                inst_index = i[1:0];
                 inst_odd_page = s0_odd_page_buffer[i];
             end
             if (match1[i] == 1'b1) begin
-                data_index = i;
+                data_index = i[1:0];
                 data_odd_page = s1_odd_page_buffer[i];
             end
         end
@@ -170,7 +170,7 @@ module tlb_entry
     // Write signal
     always_comb begin
         for (integer i = 0; i < NWAY; i = i + 1) begin
-            if (w_index[4:3] == i) begin
+            if (w_index[4:3] == i[1:0]) begin
                 wen[i] = we;
                 waddr[i] = w_index[2:0];
                 wdata[i] = {
@@ -264,17 +264,19 @@ module tlb_entry
         end else if (inv_i.en) begin
             // invalid search
             for (integer i = 0; i < NWAY; i = i + 1) begin
-                if (inv_i.op == 5'd0 || inv_i.op == 5'd1) tlb_e[i*NSET+raddr] <= 1'b0;
-                else if (inv_i.op == 5'd2 && rdata[i][`ENTRY_G]) tlb_e[i*NSET+raddr] <= 1'b0;
-                else if (inv_i.op == 5'd3 && !rdata[i][`ENTRY_G]) tlb_e[i*NSET+raddr] <= 1'b0;
+                if (inv_i.op == 5'd0 || inv_i.op == 5'd1) tlb_e[i*NSET+{29'b0, raddr}] <= 1'b0;
+                else if (inv_i.op == 5'd2 && rdata[i][`ENTRY_G])
+                    tlb_e[i*NSET+{29'b0, raddr}] <= 1'b0;
+                else if (inv_i.op == 5'd3 && !rdata[i][`ENTRY_G])
+                    tlb_e[i*NSET+{29'b0, raddr}] <= 1'b0;
                 else if (inv_i.op == 5'd4 && !rdata[i][`ENTRY_G] && (rdata[i][`ENTRY_ASID] == inv_i.asid))
-                    tlb_e[i*NSET+raddr] <= 1'b0;
+                    tlb_e[i*NSET+{29'b0, raddr}] <= 1'b0;
                 else if (inv_i.op == 5'd5 && !rdata[i][`ENTRY_G] && (rdata[i][`ENTRY_ASID] == inv_i.asid) && 
                            ((rdata[i][`ENTRY_PS] == 6'd12) ? (rdata[i][`ENTRY_VPPN] == inv_i.vpn) : (rdata[i][`ENTRY_VPPN_H1] == inv_i.vpn[18:10])))
-                    tlb_e[i*NSET+raddr] <= 1'b0;
+                    tlb_e[i*NSET+{29'b0, raddr}] <= 1'b0;
                 else if (inv_i.op == 5'd6 && (rdata[i][`ENTRY_G] || (rdata[i][`ENTRY_ASID] == inv_i.asid)) && 
                            ((rdata[i][`ENTRY_PS] == 6'd12) ? (rdata[i][`ENTRY_VPPN] == inv_i.vpn) : (rdata[i][`ENTRY_VPPN_H1] == inv_i.vpn[18:10])))
-                    tlb_e[i*NSET+raddr] <= 1'b0;
+                    tlb_e[i*NSET+{29'b0, raddr}] <= 1'b0;
             end
         end
     end

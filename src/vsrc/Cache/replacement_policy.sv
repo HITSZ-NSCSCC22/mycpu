@@ -1,6 +1,5 @@
 `timescale 1ns / 1ps
 `include "Cache/dcache_config.sv"
-`include "Cache/iob_cache.vh"
 `include "Cache/iob_regfile_sp.sv"
 
 module replacement_policy

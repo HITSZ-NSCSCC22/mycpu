@@ -1,6 +1,5 @@
 `timescale 1ns / 1ps
 `include "Cache/dcache_config.sv"
-`include "Cache/iob_cache.vh"
 `include "Cache/iob_ram_sp.sv"
 `include "Cache/onehot_to_bin.sv"
 `include "Cache/replacement_policy.sv"
@@ -228,11 +227,7 @@ module cache_memory
 
 
         //replacement-policy module
-        replacement_policy #(
-            .N_WAYS    (N_WAYS),
-            .LINE_OFF_W(LINE_OFF_W),
-            .REP_POLICY(REP_POLICY)
-        ) replacement_policy_algorithm (
+        replacement_policy replacement_policy_algorithm (
             .clk           (clk),
             .reset         (reset | invalidate),
             .write_en      (ready),
