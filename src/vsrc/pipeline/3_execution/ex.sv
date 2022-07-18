@@ -118,6 +118,7 @@ module ex
     logic div_start;
     logic div_already_start;
     logic div_finish;
+    logic is_running;
     logic [`RegBus] quotient;
     logic [`RegBus] remainder;
 
@@ -333,7 +334,8 @@ module ex
     always_ff @(posedge clk) begin
         if (rst) div_start <= 0;
         else if (div_start | div_already_start) div_start <= 0;
-        else if (div_op != 3'b0 & !div_already_start & !muldiv_finish & ~flush) div_start <= 1;
+        else if (div_op != 3'b0 & !div_already_start & !muldiv_finish & ~flush & !is_running)
+            div_start <= 1;
     end
 
     div_unit u_div_unit (
@@ -346,6 +348,7 @@ module ex
         .divisor_is_zero(0),
         .start(div_start),
 
+        .is_running(is_running),
         .remainder_out(remainder),
         .quotient_out(quotient),
         .done(div_finish)
