@@ -48,6 +48,7 @@ module LSU #(
     // P1 signal
     logic p1_valid_reg;
     logic p1_cpu_store;
+    logic [2:0] p1_req_type;
     logic [FE_ADDR_W-1:0] p1_addr_reg;
     logic [FE_DATA_W-1:0] p1_wdata_reg;
     logic [FE_NBYTES-1:0] p1_wstrb_reg;
@@ -137,15 +138,17 @@ module LSU #(
     // Uncache handshake
     always_comb begin
         uncache_valid = 0;
-        uncache_addr  = 0;
+        uncache_addr = 0;
         uncache_wdata = 0;
         uncache_wstrb = 0;
+        uncache_req_type = 0;
         case (state)
             UNCACHE_REQ_SEND: begin
                 uncache_valid = 1;
-                uncache_addr  = p1_addr_reg;
+                uncache_addr = p1_addr_reg;
                 uncache_wdata = p1_wdata_reg;
                 uncache_wstrb = p1_wstrb_reg;
+                uncache_req_type = 0;
             end
             UNCACHE_REQ_WAIT: begin
                 if (~uncache_data_ok) begin
@@ -161,18 +164,21 @@ module LSU #(
     // P1 signal
     always_ff @(posedge clk) begin
         if (cpu_flush & state == STORE_COMMIT_WAIT) begin
+            p1_req_type  <= 0;
             p1_cpu_store <= 0;
             p1_valid_reg <= 0;
             p1_addr_reg  <= 0;
             p1_wdata_reg <= 0;
             p1_wstrb_reg <= 0;
         end else if (cpu_valid & ~cpu_flush) begin
+            p1_req_type  <= cpu_req_type;
             p1_cpu_store <= cpu_store;
             p1_valid_reg <= cpu_valid;
             p1_addr_reg  <= cpu_addr;
             p1_wdata_reg <= cpu_wdata;
             p1_wstrb_reg <= cpu_wstrb;
-        end else if (dcache_ready) begin
+        end else if (dcache_ready | uncache_data_ok) begin
+            p1_req_type  <= 0;
             p1_cpu_store <= 0;
             p1_valid_reg <= 0;
             p1_addr_reg  <= 0;
@@ -182,8 +188,21 @@ module LSU #(
     end
 
     assign cpu_ready = state == IDLE & (~p1_valid_reg | dcache_ready);
-    assign cpu_rdata = dcache_rdata;
-    assign cpu_data_valid = dcache_ready;
+    // CPU handshake
+    always_comb begin
+        cpu_rdata = 0;
+        cpu_data_valid = 0;
+        case (state)
+            IDLE: begin
+                cpu_rdata = dcache_rdata;
+                cpu_data_valid = dcache_ready;
+            end
+            UNCACHE_REQ_WAIT: begin
+                cpu_rdata = uncache_rdata;
+                cpu_data_valid = uncache_data_ok;
+            end
+        endcase
+    end
 
 
     uncache_channel u_uncache_channel (
