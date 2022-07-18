@@ -33,6 +33,10 @@ THE SOFTWARE.
  */
 module axi_3x1_crossbar #
 (
+    // Number of AXI inputs (slave interfaces)
+    parameter S_COUNT = 3,
+    // Number of AXI outputs (master interfaces)
+    parameter M_COUNT = 1,
     // Width of data bus in bits
     parameter DATA_WIDTH = 32,
     // Width of address bus in bits
@@ -340,8 +344,6 @@ module axi_3x1_crossbar #
     output wire                     m00_axi_rready
 );
 
-localparam S_COUNT = 3;
-localparam M_COUNT = 1;
 
 // parameter sizing helpers
 function [ADDR_WIDTH*M_REGIONS-1:0] w_a_r(input [ADDR_WIDTH*M_REGIONS-1:0] val);

@@ -65,7 +65,7 @@ module cpu_top
     output                                awvalid,
     input                                 awready,
     // write data
-    output       [                   3:0] wid,
+    output reg   [                   3:0] wid,
     output       [    AXI_DATA_WIDTH-1:0] wdata,
     output       [(AXI_DATA_WIDTH/8)-1:0] wstrb,
     output                                wlast,
@@ -353,6 +353,9 @@ module cpu_top
     );
 
     // AXI Arbitary
+    always_ff @(posedge clk) begin
+        if (awvalid) wid <= awid;
+    end
     axi_3x1_crossbar #(
         .DATA_WIDTH(AXI_DATA_WIDTH),
         .ADDR_WIDTH(ADDR_WIDTH),
@@ -492,7 +495,6 @@ module cpu_top
         .m00_axi_rready (rready)
     );
 
-    // assign wid = awid;
     // axicb_crossbar_top #(
     //     .AXI_ADDR_W  (ADDR_WIDTH),
     //     .AXI_ID_W    (4),
@@ -1369,8 +1371,8 @@ module cpu_top
         .probe22(araddr),  // input wire [31:0]  probe22 
         .probe23(u_dispatch.id_i[0].instr_info.pc),  // input wire [31:0]  probe23 
         .probe24(u_dispatch.id_i[1].instr_info.pc),  // input wire [31:0]  probe24 
-        .probe25(u_dcache.wdata),  // input wire [31:0]  probe25 
-        .probe26(u_dcache.rdata),  // input wire [31:0]  probe26 
+        .probe25(u_LSU.cpu_rdata),  // input wire [31:0]  probe25 
+        .probe26(u_LSU.cpu_wdata),  // input wire [31:0]  probe26 
         .probe27(u_dispatch.single_issue),  // input wire [0:0]  probe27
         .probe28(u_instr_buffer.buffer_queue[0].pc),  // input wire [31:0]  probe28 
         .probe29(u_instr_buffer.buffer_queue[1].pc),  // input wire [31:0]  probe29 
