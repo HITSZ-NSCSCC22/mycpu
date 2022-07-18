@@ -59,6 +59,7 @@ module LSU #(
 
     enum integer {
         IDLE,
+        REFILL_WAIT,
         STORE_COMMIT_WAIT,
         STORE_REQ_SEND,
         STORE_REQ_WAIT,
@@ -74,10 +75,15 @@ module LSU #(
     always_comb begin
         case (state)
             IDLE: begin
-                if (cpu_valid & cpu_uncached & ~cpu_store & ~cpu_flush)
-                    next_state = UNCACHE_REQ_SEND;
-                else if (cpu_store & ~cpu_flush) next_state = STORE_COMMIT_WAIT;
+                if (cpu_flush) next_state = IDLE;
+                else if (p1_valid_reg & ~p1_uncache & ~dcache_ready) next_state = REFILL_WAIT;
+                else if (cpu_valid & cpu_uncached & ~cpu_store) next_state = UNCACHE_REQ_SEND;
+                else if (cpu_store) next_state = STORE_COMMIT_WAIT;
                 else next_state = IDLE;
+            end
+            REFILL_WAIT: begin
+                if (dcache_ready) next_state = IDLE;
+                else next_state = REFILL_WAIT;
             end
             STORE_COMMIT_WAIT: begin
                 if (cpu_store_commit & p1_uncache) next_state = UNCACHE_REQ_SEND;
@@ -119,10 +125,11 @@ module LSU #(
                 if (cpu_valid & ~cpu_store & ~cpu_uncached) begin  // Read
                     dcache_valid = cpu_valid;
                     dcache_addr  = cpu_addr;
-                end else begin
-                    dcache_valid = p1_valid_reg;
-                    dcache_addr  = p1_addr_reg;
                 end
+            end
+            REFILL_WAIT: begin
+                dcache_valid = p1_valid_reg;
+                dcache_addr  = p1_addr_reg;
             end
             STORE_REQ_SEND: begin
                 dcache_valid = 1;
