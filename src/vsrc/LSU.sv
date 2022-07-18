@@ -1,3 +1,5 @@
+`include "Cache/uncache_channel.sv"
+
 module LSU #(
     parameter FE_ADDR_W   = 32,       //Address width - width of the Master's entire access address (including the LSBs that are discarded, but discarding the Controller's)
     parameter FE_DATA_W = 32,
@@ -48,6 +50,7 @@ module LSU #(
     // P1 signal
     logic p1_valid_reg;
     logic p1_cpu_store;
+    logic p1_uncache;
     logic [2:0] p1_req_type;
     logic [FE_ADDR_W-1:0] p1_addr_reg;
     logic [FE_DATA_W-1:0] p1_wdata_reg;
@@ -78,6 +81,7 @@ module LSU #(
             end
             STORE_COMMIT_WAIT: begin
                 if (cpu_flush) next_state = IDLE;
+                else if (cpu_store_commit & p1_uncache) next_state = UNCACHE_REQ_SEND;
                 else if (cpu_store_commit) next_state = STORE_REQ_SEND;
                 else next_state = STORE_COMMIT_WAIT;
             end
@@ -166,6 +170,7 @@ module LSU #(
         if (cpu_flush & state == STORE_COMMIT_WAIT) begin
             p1_req_type  <= 0;
             p1_cpu_store <= 0;
+            p1_uncache   <= 0;
             p1_valid_reg <= 0;
             p1_addr_reg  <= 0;
             p1_wdata_reg <= 0;
@@ -173,6 +178,7 @@ module LSU #(
         end else if (cpu_valid & ~cpu_flush) begin
             p1_req_type  <= cpu_req_type;
             p1_cpu_store <= cpu_store;
+            p1_uncache   <= cpu_uncached;
             p1_valid_reg <= cpu_valid;
             p1_addr_reg  <= cpu_addr;
             p1_wdata_reg <= cpu_wdata;
@@ -180,6 +186,7 @@ module LSU #(
         end else if (dcache_ready | uncache_data_ok) begin
             p1_req_type  <= 0;
             p1_cpu_store <= 0;
+            p1_uncache   <= 0;
             p1_valid_reg <= 0;
             p1_addr_reg  <= 0;
             p1_wdata_reg <= 0;

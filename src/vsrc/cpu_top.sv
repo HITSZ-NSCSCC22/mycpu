@@ -133,7 +133,7 @@ module cpu_top
 
 
     // AXI
-    axi_interface icache_axi (), dcache_axi ();
+    axi_interface icache_axi (), dcache_axi (), uncache_axi ();
 
     // ICache <-> AXI Controller
     logic icache_axi_rreq;
@@ -268,7 +268,7 @@ module cpu_top
         .dcache_rdata(control_dcache_rdata),
         .dcache_ready(control_dcache_ready),
 
-        .uncache_axi()
+        .uncache_axi(uncache_axi)
     );
 
     dcache_top u_dcache (
@@ -361,9 +361,9 @@ module cpu_top
         .AXI_DATA_W  (AXI_DATA_WIDTH),
         .MST_NB      (4),
         .SLV_NB      (4),
-        .MST0_ID_MASK(4'b0100),
-        .MST1_ID_MASK(4'b1000),
-        .MST2_ID_MASK(4'b1110),
+        .MST0_ID_MASK(4'b0010),
+        .MST1_ID_MASK(4'b0100),
+        .MST2_ID_MASK(4'b0110),
         .MST3_ID_MASK(4'b1111)
     ) u_axi_arbitrartor (
         .aclk        (aclk),
@@ -394,7 +394,7 @@ module cpu_top
         .slv0_arsize (icache_axi.arsize),
         .slv0_arburst(icache_axi.arburst),
         .slv0_arcache(icache_axi.arcache),
-        .slv0_arid   ({2'b01, icache_axi.arid[1:0]}),
+        .slv0_arid   (icache_axi.arid),
         .slv0_rvalid (icache_axi.rvalid),
         .slv0_rready (icache_axi.rready),
         .slv0_rid    (icache_axi.rid),
@@ -410,7 +410,7 @@ module cpu_top
         .slv1_awsize (dcache_axi.awsize),
         .slv1_awburst(dcache_axi.awburst),
         .slv1_awcache(dcache_axi.awcache),
-        .slv1_awid   ({2'b10, dcache_axi.awid[1:0]}),
+        .slv1_awid   (dcache_axi.awid),
         .slv1_wvalid (dcache_axi.wvalid),
         .slv1_wready (dcache_axi.wready),
         .slv1_wlast  (dcache_axi.wlast),
@@ -427,13 +427,46 @@ module cpu_top
         .slv1_arsize (dcache_axi.arsize),
         .slv1_arburst(dcache_axi.arburst),
         .slv1_arcache(dcache_axi.arcache),
-        .slv1_arid   ({2'b10, dcache_axi.arid[1:0]}),
+        .slv1_arid   (dcache_axi.arid),
         .slv1_rvalid (dcache_axi.rvalid),
         .slv1_rready (dcache_axi.rready),
         .slv1_rid    (dcache_axi.rid),
         .slv1_rresp  (dcache_axi.rresp),
         .slv1_rdata  (dcache_axi.rdata),
         .slv1_rlast  (dcache_axi.rlast),
+        .slv2_aclk   (aclk),
+        .slv2_aresetn(aresetn),
+        .slv2_awvalid(uncache_axi.awvalid),
+        .slv2_awready(uncache_axi.awready),
+        .slv2_awaddr (uncache_axi.awaddr),
+        .slv2_awlen  (uncache_axi.awlen),
+        .slv2_awsize (uncache_axi.awsize),
+        .slv2_awburst(uncache_axi.awburst),
+        .slv2_awcache(uncache_axi.awcache),
+        .slv2_awid   (uncache_axi.awid),
+        .slv2_wvalid (uncache_axi.wvalid),
+        .slv2_wready (uncache_axi.wready),
+        .slv2_wlast  (uncache_axi.wlast),
+        .slv2_wdata  (uncache_axi.wdata),
+        .slv2_wstrb  (uncache_axi.wstrb),
+        .slv2_bvalid (uncache_axi.bvalid),
+        .slv2_bready (uncache_axi.bready),
+        .slv2_bid    (uncache_axi.bid),
+        .slv2_bresp  (uncache_axi.bresp),
+        .slv2_arvalid(uncache_axi.arvalid),
+        .slv2_arready(uncache_axi.arready),
+        .slv2_araddr (uncache_axi.araddr),
+        .slv2_arlen  (uncache_axi.arlen),
+        .slv2_arsize (uncache_axi.arsize),
+        .slv2_arburst(uncache_axi.arburst),
+        .slv2_arcache(uncache_axi.arcache),
+        .slv2_arid   (uncache_axi.arid),
+        .slv2_rvalid (uncache_axi.rvalid),
+        .slv2_rready (uncache_axi.rready),
+        .slv2_rid    (uncache_axi.rid),
+        .slv2_rresp  (uncache_axi.rresp),
+        .slv2_rdata  (uncache_axi.rdata),
+        .slv2_rlast  (uncache_axi.rlast),
         .mst0_aclk   (aclk),
         .mst0_aresetn(aresetn),
         .mst0_awvalid(awvalid),
