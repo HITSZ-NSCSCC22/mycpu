@@ -30,6 +30,7 @@ module axi_master
     input logic rst,
 
     axi_interface.master m_axi,
+    input logic uncached,
     input logic new_request,
     input logic we,
     input logic [ADDR_WIDTH-1:0] addr,
@@ -48,6 +49,8 @@ module axi_master
     assign m_axi.arlen   = 0;  // 1 request
     assign m_axi.arburst = 0;  // burst type does not matter
     assign m_axi.rready  = 1;  //always ready to receive data
+    assign m_axi.arlock  =0;
+    assign m_axi.arprot =0;
 
     always_ff @(posedge clk) begin
         if (new_request) begin
@@ -57,12 +60,16 @@ module axi_master
             m_axi.awaddr <= addr;
             m_axi.wdata  <= data_in;
             m_axi.wstrb  <= wstrb;
+            m_axi.arcache<=uncached?0:4'b1111;
+            m_axi.awcache<=uncached?0:4'b1111;
         end
     end
 
     //write constants
     assign m_axi.awlen   = 0;
     assign m_axi.awburst = 0;
+    assign m_axi.awlock =0;
+    assign m_axi.awprot=0;
     assign m_axi.bready  = 1;
 
     set_clr_reg_with_rst #(

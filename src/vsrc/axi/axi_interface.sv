@@ -14,6 +14,8 @@ interface axi_interface;
     logic [1:0] arburst;
     logic [3:0] arcache;
     logic [5:0] arid;
+    logic [2:0] arprot;
+    logic [1:0] arlock;
 
     //read data
     logic rready;
@@ -33,6 +35,8 @@ interface axi_interface;
     logic [1:0] awburst;
     logic [3:0] awcache;
     logic [5:0] awid;
+    logic [2:0] awprot;
+    logic [1:0] awlock;
 
     //write data
     logic wready;
@@ -49,14 +53,16 @@ interface axi_interface;
 
     modport master(
         input arready, rvalid, rdata, rresp, rlast, rid, awready, wready, bvalid, bresp, bid,
-        output arvalid, araddr, arlen, arsize, arburst, arcache, arid, rready, awvalid, awaddr, awlen, awsize, awburst, awcache, awid,
-            wvalid, wdata, wstrb, wlast, bready
+        output arvalid, araddr, arlen, arsize, arburst, arcache, arid,arprot,arlock,
+         rready,
+          awvalid, awaddr, awlen, awsize, awburst, awcache, awid,awprot,awlock,
+                      wvalid, wdata, wstrb, wlast, bready
     );
 
     modport slave(
-        input arvalid, araddr, arlen, arsize, arburst, arcache,
+        input arvalid, araddr, arlen, arsize, arburst, arcache,arprot,arlock,
             rready,
-            awvalid, awaddr, awlen, awsize, awburst, awcache, arid,
+            awvalid, awaddr, awlen, awsize, awburst, awcache,arid,awlock,awprot,
             wvalid, wdata, wstrb, wlast, awid,
             bready,
         output arready, rvalid, rdata, rresp, rlast, rid, awready, wready, bvalid, bresp, bid
