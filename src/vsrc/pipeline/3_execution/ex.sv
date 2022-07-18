@@ -325,17 +325,15 @@ module ex
     );
 
     always_ff @(posedge clk) begin
-        if (rst) begin
-            div_start <= 0;
-            div_already_start <= 0;
-        end else if (div_op != 3'b0 & !div_already_start & !muldiv_finish & ~flush) begin
-            div_start <= 1;
-            div_already_start <= 1;
-        end else if (pc_delay != inst_pc_i) div_already_start <= 0;
-        else begin
-            div_start <= 0;
-            div_already_start <= div_already_start;
-        end
+        if (rst) div_already_start <= 0;
+        else if (advance) div_already_start <= 0;
+        else if (div_start) div_already_start <= 1;
+    end
+
+    always_ff @(posedge clk) begin
+        if (rst) div_start <= 0;
+        else if (div_start | div_already_start) div_start <= 0;
+        else if (div_op != 3'b0 & !div_already_start & !muldiv_finish & ~flush) div_start <= 1;
     end
 
     div_unit u_div_unit (
