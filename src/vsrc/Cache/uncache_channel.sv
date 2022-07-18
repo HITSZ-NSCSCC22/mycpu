@@ -1,7 +1,7 @@
 `include "core_config.sv"
 `include "axi/axi_interface.sv"
 
-module dummy_dcache
+module uncache_channel 
     import core_config::*;
 (
     input logic clk,
@@ -9,17 +9,13 @@ module dummy_dcache
 
     //cache与CPU流水线的交互接
     input logic valid,  //表明请求有效
-    input logic [`RegBus] addr,
+    input logic [ADDR_WIDTH-1:0] addr,
+    input logic [2:0] req_type, //请求类型：3'b000: 字节；3'b001: 半字；3'b010: 字；3'b100：Cache行
     input logic [3:0] wstrb,  //写字节使能信号
     input logic [31:0] wdata,  //写数据
-    input logic [2:0] rd_type_i, //读请求类型：3'b000: 字节；3'b001: 半字；3'b010: 字；3'b100：Cache行
-    input logic [2:0] wr_type_i,
-    input logic flush, // 冲刷信号，如果出于某种原因需要取消写事务，CPU拉高此信号
-    output logic cache_ready,
-    output logic cache_ack,
-    output logic addr_ok,             //该次请求的地址传输OK，读：地址被接收；写：地址和数据被接收
-    output logic data_ok,             //该次请求的数据传输Ok，读：数据返回；写：数据写入完成
     output logic [31:0] rdata,  //读Cache的结果
+    output logic cache_ready,
+    output logic data_ok,             //该次请求的数据传输Ok，读：数据返回；写：数据写入完成
 
     // axi_interface.master m_axi
 );
@@ -49,7 +45,6 @@ module dummy_dcache
     logic [2:0] rd_type_buffer;
     logic [2:0] wr_type_buffer;
 
-    logic flush;
     logic [31:0] cpu_addr;
     logic rd_req_r;
     logic [31:0] rd_addr_r;

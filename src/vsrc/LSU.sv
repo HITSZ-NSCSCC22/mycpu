@@ -7,6 +7,7 @@ module LSU #(
     input logic rst,
 
     input logic cpu_valid,
+    input logic cpu_uncached,
     input logic [FE_ADDR_W-1:0] cpu_addr,
     input logic [FE_DATA_W-1:0] cpu_wdata,
     input logic [FE_NBYTES-1:0] cpu_wstrb,
