@@ -219,8 +219,8 @@ module ex
     assign cacop_op_mode_di = dcacop_op_en && ((cacop_op_mode == 2'b0) || (cacop_op_mode == 2'b1));
     assign trans_en = (access_mem | icacop_op_en | dcacop_op_en) && pg_mode && !dmw0_en && !dmw1_en && !cacop_op_mode_di;
     assign uncache_en = da_mode ? csr_ex_signal.csr_datm == 0 : 
-                        dmw0_en ? csr_ex_signal.csr_dmw0[`DMW_MAT] :
-                        dmw1_en ? csr_ex_signal.csr_dmw1[`DMW_MAT] : 0;
+                        dmw0_en ? csr_ex_signal.csr_dmw0[`DMW_MAT] == 0 :
+                        dmw1_en ? csr_ex_signal.csr_dmw1[`DMW_MAT] == 0: 0;
 
     always_comb begin
         if (flush) tlb_rreq_o = 0;
