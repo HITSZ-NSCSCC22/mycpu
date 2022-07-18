@@ -2,8 +2,8 @@
 // data read latency is 1 cycle
 module bram #(
     parameter DATA_WIDTH = 128,
-    parameter ADDR_WIDTH = 8,
-    parameter DATA_DEPTH_EXP2 = 8
+    parameter DATA_DEPTH_EXP2 = 8,
+    parameter ADDR_WIDTH = DATA_DEPTH_EXP2
 ) (
     input logic clk,
     input logic ena,  // Chip enable A
@@ -20,7 +20,7 @@ module bram #(
     output logic [DATA_WIDTH-1:0] doutb
 );
 
-    bit [DATA_WIDTH-1:0] data[2**DATA_DEPTH_EXP2];
+    (* ram_style = "block" *) logic [DATA_WIDTH-1:0] data[2**DATA_DEPTH_EXP2];
 
     // For Simulation
     initial begin

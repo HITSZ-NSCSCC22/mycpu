@@ -17,6 +17,7 @@ module ex
 
     // Pipeline control signals
     input  logic flush,
+    input  logic clear,
     input  logic advance,
     output logic advance_ready,
 
@@ -154,8 +155,9 @@ module ex
     assign ex_o.mem_addr = oprand1 + imm;
     assign ex_o.reg2 = oprand2;
 
-    // if is mem_load_op, then data is no valid, else data is valid
-    assign data_forward_o = {ex_o.wreg, ~mem_load_op, ex_o.waddr, ex_o.wdata};
+    // Data forwarding 
+    assign data_forward_o = (muldiv_op != 0) ? {ex_o.wreg, muldiv_finish, ex_o.waddr, ex_o.wdata} : // Mul or Div op
+    {ex_o.wreg, ~mem_load_op, ex_o.waddr, ex_o.wdata}; // if is mem_load_op, then data is no valid, else data is valid
 
 
     assign csr_signal_i = dispatch_i.csr_signal;
@@ -258,7 +260,8 @@ module ex
     always_ff @(posedge clk) begin
         if (rst) muldiv_finish <= 0;
         else if (advance) muldiv_finish <= 0;
-        else if (mul_finish | div_finish) muldiv_finish <= 1;
+        else if ((mul_finish & mul_already_start) | (div_finish & div_already_start))
+            muldiv_finish <= 1;
     end
     always_comb begin
         case (aluop_i)
@@ -322,17 +325,15 @@ module ex
     );
 
     always_ff @(posedge clk) begin
-        if (rst) begin
-            div_start <= 0;
-            div_already_start <= 0;
-        end else if (div_op != 3'b0 & !div_already_start & !muldiv_finish & ~flush) begin
-            div_start <= 1;
-            div_already_start <= 1;
-        end else if (pc_delay != inst_pc_i) div_already_start <= 0;
-        else begin
-            div_start <= 0;
-            div_already_start <= div_already_start;
-        end
+        if (rst) div_already_start <= 0;
+        else if (advance) div_already_start <= 0;
+        else if (div_start) div_already_start <= 1;
+    end
+
+    always_ff @(posedge clk) begin
+        if (rst) div_start <= 0;
+        else if (div_start | div_already_start) div_start <= 0;
+        else if (div_op != 3'b0 & !div_already_start & !muldiv_finish & ~flush) div_start <= 1;
     end
 
     div_unit u_div_unit (
@@ -452,7 +453,7 @@ module ex
 
     always_ff @(posedge clk) begin
         if (rst) ex_o_buffer <= 0;
-        else if (flush) ex_o_buffer <= 0;
+        else if (flush | clear) ex_o_buffer <= 0;
         else if (advance) ex_o_buffer <= ex_o;
     end
 

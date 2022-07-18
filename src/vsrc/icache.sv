@@ -49,6 +49,10 @@ module icache
     // Parameters
     localparam NWAY = ICACHE_NWAY;
     localparam NSET = ICACHE_NSET;
+    localparam OFFSET_WIDTH = $clog2(ICACHELINE_WIDTH / 8);
+    localparam NSET_WIDTH = $clog2(NSET);
+    localparam NWAY_WIDTH = $clog2(NWAY);
+    localparam TAG_WIDTH = ADDR_WIDTH - NSET_WIDTH - OFFSET_WIDTH;
 
     // AXI
     logic [ADDR_WIDTH-1:0] axi_addr_o;
@@ -89,7 +93,7 @@ module icache
 
     // Tag bram 
     // {1bit valid, 20bits tag}
-    localparam TAG_BRAM_WIDTH = 21;
+    localparam TAG_BRAM_WIDTH = TAG_WIDTH + 1;
     logic [NWAY-1:0][1:0][TAG_BRAM_WIDTH-1:0] tag_bram_rdata;
     logic [NWAY-1:0][1:0][TAG_BRAM_WIDTH-1:0] tag_bram_wdata;
     logic [NWAY-1:0][1:0][$clog2(NSET)-1:0] tag_bram_addr;
@@ -109,8 +113,8 @@ module icache
 
     // CACOP
     logic cacop_op_mode0, cacop_op_mode1, cacop_op_mode2;
-    logic [$clog2(NWAY)-1:0] cacop_way;
-    logic [$clog2(NSET)-1:0] cacop_index;
+    logic [NWAY_WIDTH-1:0] cacop_way;
+    logic [NSET_WIDTH-1:0] cacop_index;
 
     // AXI rvalid delay
     always_ff @(posedge clk) begin
@@ -220,21 +224,21 @@ module icache
                     if (rreq_1_i) begin
                         tag_bram_en[i][0] = 1;
                         data_bram_en[i][0] = 1;
-                        tag_bram_addr[i][0] = raddr_1_i[11:4];
-                        data_bram_addr[i][0] = raddr_1_i[11:4];
+                        tag_bram_addr[i][0] = raddr_1_i[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
+                        data_bram_addr[i][0] = raddr_1_i[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
                     end else if (miss_1) begin
-                        tag_bram_addr[i][0]  = p1_raddr_1[11:4];
-                        data_bram_addr[i][0] = p1_raddr_1[11:4];
+                        tag_bram_addr[i][0]  = p1_raddr_1[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
+                        data_bram_addr[i][0] = p1_raddr_1[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
                     end
                     // Port 2
                     if (rreq_2_i) begin
                         tag_bram_en[i][1] = 1;
                         data_bram_en[i][1] = 1;
-                        tag_bram_addr[i][1] = raddr_2_i[11:4];
-                        data_bram_addr[i][1] = raddr_2_i[11:4];
+                        tag_bram_addr[i][1] = raddr_2_i[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
+                        data_bram_addr[i][1] = raddr_2_i[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
                     end else if (miss_2) begin
-                        tag_bram_addr[i][1]  = p1_raddr_2[11:4];
-                        data_bram_addr[i][1] = p1_raddr_2[11:4];
+                        tag_bram_addr[i][1]  = p1_raddr_2[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
+                        data_bram_addr[i][1] = p1_raddr_2[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
                     end
                 end
             end
@@ -246,19 +250,19 @@ module icache
                     data_bram_en[i][1] = axi_rvalid_i & axi_rlast_i;
                     // Port 1
                     if (miss_1) begin
-                        tag_bram_addr[i][0]  = p1_raddr_1[11:4];
-                        data_bram_addr[i][0] = p1_raddr_1[11:4];
+                        tag_bram_addr[i][0]  = p1_raddr_1[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
+                        data_bram_addr[i][0] = p1_raddr_1[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
                     end else begin
-                        tag_bram_addr[i][0]  = raddr_1_i[11:4];
-                        data_bram_addr[i][0] = raddr_1_i[11:4];
+                        tag_bram_addr[i][0]  = raddr_1_i[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
+                        data_bram_addr[i][0] = raddr_1_i[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
                     end
                     // Port 2
                     if (miss_2) begin
-                        tag_bram_addr[i][1]  = p1_raddr_2[11:4];
-                        data_bram_addr[i][1] = p1_raddr_2[11:4];
+                        tag_bram_addr[i][1]  = p1_raddr_2[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
+                        data_bram_addr[i][1] = p1_raddr_2[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
                     end else begin
-                        tag_bram_addr[i][1]  = raddr_2_i[11:4];
-                        data_bram_addr[i][1] = raddr_2_i[11:4];
+                        tag_bram_addr[i][1]  = raddr_2_i[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
+                        data_bram_addr[i][1] = raddr_2_i[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
                     end
                 end
             end
@@ -302,7 +306,9 @@ module icache
                     if (i[0] == random_r[0]) begin
                         if (axi_rvalid_i & axi_rlast_i & ~p1_rreq_1_uncached) begin
                             tag_bram_we[i][0] = 1;
-                            tag_bram_wdata[i][0] = {1'b1, p1_raddr_1[31:12]};
+                            tag_bram_wdata[i][0] = {
+                                1'b1, p1_raddr_1[ADDR_WIDTH-1:ADDR_WIDTH-TAG_WIDTH]
+                            };
                             data_bram_we[i][0] = 1;
                             data_bram_wdata[i][0] = cacheline;
                         end
@@ -314,7 +320,9 @@ module icache
                     if (i[0] == random_r[0]) begin
                         if (axi_rvalid_i & axi_rlast_i & ~p1_rreq_2_uncached) begin
                             tag_bram_we[i][1] = 1;
-                            tag_bram_wdata[i][1] = {1'b1, p1_raddr_2[31:12]};
+                            tag_bram_wdata[i][1] = {
+                                1'b1, p1_raddr_2[ADDR_WIDTH-1:ADDR_WIDTH-TAG_WIDTH]
+                            };
                             data_bram_we[i][1] = 1;
                             data_bram_wdata[i][1] = cacheline;
                         end
@@ -400,8 +408,8 @@ module icache
     // Hit signal
     always_comb begin
         for (integer i = 0; i < NWAY; i++) begin
-            tag_hit[i][0] = tag_bram_rdata[i][0][19:0] == p1_raddr_1[31:12] && tag_bram_rdata[i][0][20];
-            tag_hit[i][1] = tag_bram_rdata[i][1][19:0] == p1_raddr_2[31:12] && tag_bram_rdata[i][1][20];
+            tag_hit[i][0] = tag_bram_rdata[i][0][TAG_WIDTH-1:0] == p1_raddr_1[ADDR_WIDTH-1:ADDR_WIDTH-TAG_WIDTH] && tag_bram_rdata[i][0][TAG_WIDTH];
+            tag_hit[i][1] = tag_bram_rdata[i][1][TAG_WIDTH-1:0] == p1_raddr_2[ADDR_WIDTH-1:ADDR_WIDTH-TAG_WIDTH] && tag_bram_rdata[i][1][TAG_WIDTH];
         end
     end
 

@@ -101,7 +101,7 @@ module cpu_top
     assign rst   = ~aresetn;
 
     // Pipeline control signal
-    logic [6:0] pipeline_advance, pipeline_flush;
+    logic [6:0] pipeline_advance, pipeline_flush, pipeline_clear;
     logic [ISSUE_WIDTH-1:0] ex_advance_ready, mem1_advance_ready, mem2_advance_ready;
 
     // Frontend <-> ICache
@@ -247,14 +247,20 @@ module cpu_top
     logic [3:0] control_dcache_wstrb;
 
     LSU u_LSU (
-        .clk         (clk),
-        .rst         (rst),
-        .cpu_valid   (mem_cache_ce),
-        .cpu_addr    (mem_cache_addr),
-        .cpu_wdata   (mem_cache_data),
-        .cpu_wstrb   (mem_cache_sel),
-        .cpu_rdata   (cache_mem_data),
-        .cpu_ready   (dcache_ready),
+        .clk(clk),
+        .rst(rst),
+
+        .cpu_valid(mem_cache_ce),
+        .cpu_addr (mem_cache_addr),
+        .cpu_wdata(mem_cache_data),
+        .cpu_wstrb(mem_cache_sel),
+        .cpu_ready(dcache_ready),
+
+        .cpu_rdata(cache_mem_data),
+        .cpu_data_valid(mem_data_ok),
+        .cpu_flush(wb_dcache_flush != 2'b0 | pipeline_flush[2]),
+        .cpu_store_commit(dcache_store_commit[0]),  // If excp occurs, flush DCache
+
         .dcache_valid(control_dcache_valid),
         .dcache_addr (control_dcache_addr),
         .dcache_wdata(control_dcache_wdata),
@@ -680,6 +686,7 @@ module cpu_top
 
                 // Pipeline control signals
                 .flush(pipeline_flush[3]),
+                .clear(pipeline_clear[3]),
                 .advance(pipeline_advance[3]),
                 .advance_ready(ex_advance_ready[i]),
 
@@ -735,6 +742,7 @@ module cpu_top
 
                 // Pipeline control signals
                 .flush(pipeline_flush[2]),
+                .clear(pipeline_clear[2]),
                 .advance(pipeline_advance[2]),
                 .advance_ready(mem1_advance_ready[i]),
 
@@ -745,7 +753,7 @@ module cpu_top
 
                 // <-> DCache
                 .dcache_rreq_o (mem_cache_signal[i]),
-                .dcache_ready_i(),
+                .dcache_ready_i(dcache_ready),
                 .dcache_ack_i  (dcache_ack),
 
                 // -> ICache, ICACOP
@@ -779,6 +787,7 @@ module cpu_top
 
                 // Pipeline control signals
                 .flush(pipeline_flush[1]),
+                .clear(pipeline_clear[1]),
                 .advance(pipeline_advance[1]),
                 .advance_ready(mem2_advance_ready[i]),
 
@@ -791,7 +800,7 @@ module cpu_top
                 .data_forward_o(mem2_data_forward[i]),
 
                 // <- DCache
-                .data_ok(dcache_ready),
+                .data_ok(mem_data_ok),
                 .cache_data_i(cache_mem_data)
             );
         end
@@ -867,6 +876,7 @@ module cpu_top
         .mem2_advance_ready_i(mem2_advance_ready),
         .flush_o(pipeline_flush),
         .advance_o(pipeline_advance),
+        .clear_o(pipeline_clear),
         .backend_redirect_pc_o(backend_redirect_pc),
 
         // <- CSR
