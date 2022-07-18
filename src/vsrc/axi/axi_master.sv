@@ -25,7 +25,9 @@
 
 module axi_master
     import core_config::*;
-(
+#(
+    parameter ID = 0
+) (
     input logic clk,
     input logic rst,
 
@@ -43,11 +45,14 @@ module axi_master
 );
     logic ready;
 
+    // AXI ID
+    assign m_axi.arid = ID;
+    assign m_axi.awid = ID;
 
     //read constants
-    assign m_axi.arlen   = 0;  // 1 request
+    assign m_axi.arlen = 0;  // 1 request
     assign m_axi.arburst = 0;  // burst type does not matter
-    assign m_axi.rready  = 1;  //always ready to receive data
+    assign m_axi.rready = 1;  //always ready to receive data
 
     always_ff @(posedge clk) begin
         if (new_request) begin
@@ -72,7 +77,7 @@ module axi_master
     ) ready_m (
         .clk,
         .rst,
-        .set(m_axi.rvalid | m_axi.bvalid),
+        .set((m_axi.rvalid & m_axi.rid == ID) | (m_axi.bvalid & m_axi.bid == ID)),
         .clr(new_request),
         .result(ready)
     );

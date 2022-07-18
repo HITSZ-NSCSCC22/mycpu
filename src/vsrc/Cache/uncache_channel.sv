@@ -53,7 +53,7 @@ module uncache_channel
     }
         state, next_state;
     assign cache_ready = state == IDLE && ~valid_buffer;
-    assign op = wstrb == 4'b0;
+    assign op = ~(wstrb == 0);
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -210,7 +210,9 @@ module uncache_channel
         endcase
     end
 
-    axi_master u_axi_master (
+    axi_master #(
+        .ID(1)
+    ) u_axi_master (
         .clk        (clk),
         .rst        (rst),
         .m_axi      (m_axi),

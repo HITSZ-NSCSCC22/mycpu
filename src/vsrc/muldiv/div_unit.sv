@@ -13,6 +13,7 @@ module div_unit #(
     input logic [DIV_WIDTH-1:0] divisor_is_zero,
     input logic start,
 
+    output logic is_running,
     output logic [DIV_WIDTH-1:0] remainder_out,
     output logic [DIV_WIDTH-1:0] quotient_out,
     output logic done
@@ -77,12 +78,7 @@ module div_unit #(
         .clz_out  (divisor_CLZ)
     );
 
-    logic start_delay;
-    always_ff @( posedge clk ) begin 
-        if(rst)start_delay <= 1'b0;
-        else if(start)start_delay <= 1'b1;
-        else start_delay <= 1'b0;
-    end
+
 
     assign {divisor_greater_than_dividend, CLZ_delta} = divisor_CLZ - dividend_CLZ;
 
@@ -101,13 +97,13 @@ module div_unit #(
     assign new_quotient_bits[0] = ~sub_1x_overflow;
 
     always_ff @(posedge clk) begin
-        if (start_delay) quotient <= '0;
+        if (start) quotient <= '0;
         else if (running) quotient <= {quotient[(DIV_WIDTH-3):0], new_quotient_bits};
     end
 
     //Remainder mux, when quotient bits are zero value is held
     always_ff @(posedge clk) begin
-        if (start_delay | (running & |new_quotient_bits)) begin  //enable: on div.start_delay for init and so long as we are in the running state and the quotient pair is not zero
+        if (start | (running & |new_quotient_bits)) begin  //enable: on div.start_delay for init and so long as we are in the running state and the quotient pair is not zero
             case ({
                 ~running, sub_1x_overflow
             })
@@ -126,22 +122,23 @@ module div_unit #(
 
     always_ff @(posedge clk) begin
         if (rst) running <= 0;
-        else running <= (running & ~terminate) | (start_delay & ~divisor_greater_than_dividend);
+        else running <= (running & ~terminate) | (start & ~divisor_greater_than_dividend);
     end
 
+    assign is_running = running;
 
 
     // assign done = (running & terminate) | (start_delay & divisor_greater_than_dividend);
 
     logic running_delay;
     logic terminate_delay;
-    logic start_delay_2;
+    logic start_delay;
     logic divisor_greater_than_dividend_delay;
 
     always_ff @(posedge clk) begin
         running_delay <= running;
         terminate_delay <= terminate;
-        start_delay_2 <= start_delay;
+        start_delay <= start;
         divisor_greater_than_dividend_delay <= divisor_greater_than_dividend;
     end
 
@@ -155,7 +152,7 @@ module div_unit #(
         end
     end
 
-    assign done = (running_delay & terminate_delay) | (start_delay_2 & divisor_greater_than_dividend_delay);
+    assign done = (running_delay & terminate_delay) | (start_delay & divisor_greater_than_dividend_delay);
 
 
 endmodule

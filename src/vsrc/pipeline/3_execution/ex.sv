@@ -108,7 +108,8 @@ module ex
     logic [1:0] muldiv_op;  // High effective
     logic [2:0] mul_op;
     logic [2:0] div_op;
-    logic muldiv_finish;
+    logic muldiv_finish, muldiv_already_finish;
+    logic [`RegBus] div_result;
 
     logic mul_start;
     logic mul_already_start;
@@ -119,6 +120,7 @@ module ex
     logic div_start;
     logic div_already_start;
     logic div_finish;
+    logic is_running;
     logic [`RegBus] quotient;
     logic [`RegBus] remainder;
 
@@ -157,7 +159,7 @@ module ex
     assign ex_o.reg2 = oprand2;
 
     // Data forwarding 
-    assign data_forward_o = (muldiv_op != 0) ? {ex_o.wreg, muldiv_finish, ex_o.waddr, ex_o.wdata} : // Mul or Div op
+    assign data_forward_o = (muldiv_op != 0) ? {ex_o.wreg, muldiv_already_finish, ex_o.waddr, ex_o.wdata} : // Mul or Div op
     {ex_o.wreg, ~mem_load_op, ex_o.waddr, ex_o.wdata}; // if is mem_load_op, then data is no valid, else data is valid
 
 
@@ -219,8 +221,8 @@ module ex
     assign cacop_op_mode_di = dcacop_op_en && ((cacop_op_mode == 2'b0) || (cacop_op_mode == 2'b1));
     assign trans_en = (access_mem | icacop_op_en | dcacop_op_en) && pg_mode && !dmw0_en && !dmw1_en && !cacop_op_mode_di;
     assign uncache_en = da_mode ? csr_ex_signal.csr_datm == 0 : 
-                        dmw0_en ? csr_ex_signal.csr_dmw0[`DMW_MAT] :
-                        dmw1_en ? csr_ex_signal.csr_dmw1[`DMW_MAT] : 0;
+                        dmw0_en ? csr_ex_signal.csr_dmw0[`DMW_MAT] == 0 :
+                        dmw1_en ? csr_ex_signal.csr_dmw1[`DMW_MAT] == 0: 0;
 
     always_comb begin
         if (flush) tlb_rreq_o = 0;
@@ -260,12 +262,18 @@ module ex
     // Divider and Multiplier
     // Multi-cycle
 
-
+    assign muldiv_finish = (mul_finish & mul_already_start) | (div_finish & div_already_start);
     always_ff @(posedge clk) begin
-        if (rst) muldiv_finish <= 0;
-        else if (advance) muldiv_finish <= 0;
-        else if ((mul_finish & mul_already_start) | (div_finish & div_already_start))
-            muldiv_finish <= 1;
+        if (rst) begin
+            muldiv_already_finish <= 0;
+            div_result <= 0;
+        end else if (advance) begin
+            muldiv_already_finish <= 0;
+            div_result <= 0;
+        end else if (muldiv_finish) begin
+            muldiv_already_finish <= 1;
+            div_result <= arithout;
+        end
     end
     always_comb begin
         case (aluop_i)
@@ -304,7 +312,7 @@ module ex
         if (rst) begin
             mul_start <= 0;
             mul_already_start <= 0;
-        end else if (mul_op != 3'b0 & !mul_already_start & !muldiv_finish & !flush) begin
+        end else if (mul_op != 3'b0 & !mul_already_start & !muldiv_already_finish & !flush) begin
             mul_start <= 1;
             mul_already_start <= 1;
         end else if (pc_delay != inst_pc_i) mul_already_start <= 0;
@@ -337,7 +345,8 @@ module ex
     always_ff @(posedge clk) begin
         if (rst) div_start <= 0;
         else if (div_start | div_already_start) div_start <= 0;
-        else if (div_op != 3'b0 & !div_already_start & !muldiv_finish & ~flush) div_start <= 1;
+        else if (div_op != 3'b0 & !div_already_start & !muldiv_already_finish & ~flush& !is_running)
+            div_start <= 1;
     end
 
     div_unit u_div_unit (
@@ -350,13 +359,14 @@ module ex
         .divisor_is_zero(0),
         .start(div_start),
 
+        .is_running(is_running),
         .remainder_out(remainder),
         .quotient_out(quotient),
         .done(div_finish)
     );
 
 
-    assign muldiv_stall = muldiv_op != 2'b0 & !muldiv_finish;  // CACOP
+    assign muldiv_stall = muldiv_op != 2'b0 & !muldiv_already_finish;  // CACOP
 
     always @(*) begin
         if (rst == `RstEnable) begin
@@ -371,8 +381,12 @@ module ex
                 // end
 
                 `EXE_MUL_OP, `EXE_MULH_OP, `EXE_MULHU_OP: arithout = mul_result;
-                `EXE_DIV_OP, `EXE_DIVU_OP: arithout = quotient;
-                `EXE_MODU_OP, `EXE_MOD_OP: arithout = remainder;
+                `EXE_DIV_OP, `EXE_DIVU_OP: begin
+                    arithout = muldiv_finish ? quotient : div_result;
+                end
+                `EXE_MODU_OP, `EXE_MOD_OP: begin
+                    arithout = muldiv_finish ? remainder : div_result;
+                end
                 `EXE_SLT_OP, `EXE_SLTU_OP: arithout = {31'b0, reg1_lt_reg2};
                 default: begin
                     arithout = 0;

@@ -1,3 +1,5 @@
+`include "Cache/uncache_channel.sv"
+
 module LSU #(
     parameter FE_ADDR_W   = 32,       //Address width - width of the Master's entire access address (including the LSBs that are discarded, but discarding the Controller's)
     parameter FE_DATA_W = 32,
@@ -48,6 +50,8 @@ module LSU #(
     // P1 signal
     logic p1_valid_reg;
     logic p1_cpu_store;
+    logic p1_uncache;
+    logic [2:0] p1_req_type;
     logic [FE_ADDR_W-1:0] p1_addr_reg;
     logic [FE_DATA_W-1:0] p1_wdata_reg;
     logic [FE_NBYTES-1:0] p1_wstrb_reg;
@@ -55,6 +59,7 @@ module LSU #(
 
     enum integer {
         IDLE,
+        REFILL_WAIT,
         STORE_COMMIT_WAIT,
         STORE_REQ_SEND,
         STORE_REQ_WAIT,
@@ -70,19 +75,25 @@ module LSU #(
     always_comb begin
         case (state)
             IDLE: begin
-                if (cpu_valid & cpu_uncached & ~cpu_store & ~cpu_flush)
-                    next_state = UNCACHE_REQ_SEND;
-                else if (cpu_store & ~cpu_flush) next_state = STORE_COMMIT_WAIT;
+                if (cpu_flush) next_state = IDLE;
+                else if (p1_valid_reg & ~p1_uncache & ~dcache_ready) next_state = REFILL_WAIT;
+                else if (cpu_valid & cpu_uncached & ~cpu_store) next_state = UNCACHE_REQ_SEND;
+                else if (cpu_store) next_state = STORE_COMMIT_WAIT;
                 else next_state = IDLE;
             end
+            REFILL_WAIT: begin
+                if (dcache_ready) next_state = IDLE;
+                else next_state = REFILL_WAIT;
+            end
             STORE_COMMIT_WAIT: begin
-                if (cpu_flush) next_state = IDLE;
+                if (cpu_store_commit & p1_uncache) next_state = UNCACHE_REQ_SEND;
                 else if (cpu_store_commit) next_state = STORE_REQ_SEND;
+                else if (cpu_flush) next_state = IDLE;
                 else next_state = STORE_COMMIT_WAIT;
             end
             STORE_REQ_SEND: begin
                 if (dcache_ready) next_state = IDLE;
-                else next_state = STORE_REQ_SEND;
+                else next_state = STORE_REQ_WAIT;
             end
             STORE_REQ_WAIT: begin
                 if (dcache_ready) next_state = IDLE;
@@ -111,10 +122,14 @@ module LSU #(
         dcache_wstrb = 0;
         case (state)
             IDLE: begin
-                if (~cpu_store) begin  // Read
+                if (cpu_valid & ~cpu_store & ~cpu_uncached & ~cpu_flush) begin  // Read
                     dcache_valid = cpu_valid;
                     dcache_addr  = cpu_addr;
                 end
+            end
+            REFILL_WAIT: begin
+                dcache_valid = p1_valid_reg;
+                dcache_addr  = p1_addr_reg;
             end
             STORE_REQ_SEND: begin
                 dcache_valid = 1;
@@ -137,15 +152,17 @@ module LSU #(
     // Uncache handshake
     always_comb begin
         uncache_valid = 0;
-        uncache_addr  = 0;
+        uncache_addr = 0;
         uncache_wdata = 0;
         uncache_wstrb = 0;
+        uncache_req_type = 0;
         case (state)
             UNCACHE_REQ_SEND: begin
                 uncache_valid = 1;
-                uncache_addr  = p1_addr_reg;
+                uncache_addr = p1_addr_reg;
                 uncache_wdata = p1_wdata_reg;
                 uncache_wstrb = p1_wstrb_reg;
+                uncache_req_type = 0;
             end
             UNCACHE_REQ_WAIT: begin
                 if (~uncache_data_ok) begin
@@ -160,20 +177,26 @@ module LSU #(
 
     // P1 signal
     always_ff @(posedge clk) begin
-        if (cpu_flush & state == STORE_COMMIT_WAIT) begin
+        if (cpu_flush & ~cpu_store_commit & state == STORE_COMMIT_WAIT) begin
+            p1_req_type  <= 0;
             p1_cpu_store <= 0;
+            p1_uncache   <= 0;
             p1_valid_reg <= 0;
             p1_addr_reg  <= 0;
             p1_wdata_reg <= 0;
             p1_wstrb_reg <= 0;
         end else if (cpu_valid & ~cpu_flush) begin
+            p1_req_type  <= cpu_req_type;
             p1_cpu_store <= cpu_store;
+            p1_uncache   <= cpu_uncached;
             p1_valid_reg <= cpu_valid;
             p1_addr_reg  <= cpu_addr;
             p1_wdata_reg <= cpu_wdata;
             p1_wstrb_reg <= cpu_wstrb;
-        end else if (dcache_ready) begin
+        end else if (dcache_ready | uncache_data_ok) begin
+            p1_req_type  <= 0;
             p1_cpu_store <= 0;
+            p1_uncache   <= 0;
             p1_valid_reg <= 0;
             p1_addr_reg  <= 0;
             p1_wdata_reg <= 0;
@@ -182,8 +205,21 @@ module LSU #(
     end
 
     assign cpu_ready = state == IDLE & (~p1_valid_reg | dcache_ready);
-    assign cpu_rdata = dcache_rdata;
-    assign cpu_data_valid = dcache_ready;
+    // CPU handshake
+    always_comb begin
+        cpu_rdata = 0;
+        cpu_data_valid = 0;
+        case (state)
+            IDLE: begin
+                cpu_rdata = dcache_rdata;
+                cpu_data_valid = dcache_ready;
+            end
+            UNCACHE_REQ_WAIT: begin
+                cpu_rdata = uncache_rdata;
+                cpu_data_valid = uncache_data_ok;
+            end
+        endcase
+    end
 
 
     uncache_channel u_uncache_channel (

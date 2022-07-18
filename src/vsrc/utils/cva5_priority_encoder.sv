@@ -25,7 +25,7 @@
 //Look-up Table based
 //Max width of 12
 ////////////////////////////////////////////////////
-module priority_encoder #(
+module cva5_priority_encoder #(
     parameter WIDTH = 4
 ) (
     input logic [WIDTH-1:0] priority_vector,

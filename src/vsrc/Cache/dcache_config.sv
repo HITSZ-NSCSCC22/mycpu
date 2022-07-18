@@ -34,7 +34,7 @@ package dcache_config;
     parameter CTRL_CNT = 0;
     //AXI specific parameters
     parameter AXI_ID_W = 1;  //AXI ID (identification) width
-    parameter [AXI_ID_W-1:0] AXI_ID = 0;  //AXI ID value
+    parameter [AXI_ID_W-1:0] AXI_ID = 1;  //AXI ID value
     //Replacement policy (N_WAYS > 1)
 
 endpackage

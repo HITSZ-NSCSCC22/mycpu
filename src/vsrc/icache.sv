@@ -474,7 +474,9 @@ module icache
         .value(random_r)
     );
 
-    axi_master u_axi_master (
+    axi_master #(
+        .ID(1)
+    ) u_axi_master (
         .clk        (clk),
         .rst        (rst),
         .m_axi      (m_axi),

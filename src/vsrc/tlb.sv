@@ -163,11 +163,9 @@ module tlb
     );
 
     //debug用
-    logic dmw0_en, dmw1_en, cacop_test;
-    assign dmw0 = data_i.dmw0_en;
-    assign dmw1 = data_i.dmw1_en;
-    assign cacop_test = data_i.cacop_op_mode_di;
-
+    logic dmw0_en, dmw1_en;
+    assign dmw0_en = data_i_buffer.dmw0_en;
+    assign dmw1_en = data_i_buffer.dmw1_en;
 
     assign inst_paddr = (pg_mode && inst_i_buffer.dmw0_en) ? {csr_dmw0[`PSEG], inst_vaddr_buffer[28:0]} :
                     (pg_mode && inst_i_buffer.dmw1_en) ? {csr_dmw1[`PSEG], inst_vaddr_buffer[28:0]} : inst_vaddr_buffer;
