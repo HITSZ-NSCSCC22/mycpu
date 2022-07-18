@@ -204,8 +204,7 @@ package core_types;
         logic [ADDR_WIDTH-1:0] addr;
         logic [DATA_WIDTH-1:0] data;
         logic uncache;
-        logic [2:0] rd_type;
-        logic [2:0] wr_type;
+        logic [2:0] req_type;
     } mem_dcache_rreq_t;
 
     typedef struct packed {

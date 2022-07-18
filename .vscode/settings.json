@@ -2,7 +2,7 @@
     "verilog.linting.linter": "verilator",
     "verilog.linting.iverilog.arguments": "",
     "verilog.logging.enabled": true,
-    "verilog.linting.verilator.arguments": "-Isrc -Isrc/vsrc -Isrc/vsrc/axi-crossbar/rtl -Wall -DCPU_2CMT -DSIMULATION --bbox-unsup src/vsrc/cpu_top.sv",
+    "verilog.linting.verilator.arguments": "-Isrc -Isrc/vsrc -Isrc/vsrc/axi-crossbar/rtl -Wall -DCPU_2CMT -DSIMULATION --bbox-unsup ",
     "todo-tree.filtering.includeGlobs": [
         "**/*.sv",
         "**/*.v"
