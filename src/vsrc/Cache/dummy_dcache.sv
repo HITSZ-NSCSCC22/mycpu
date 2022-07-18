@@ -9,18 +9,12 @@ module dummy_dcache
 
     //cache与CPU流水线的交互接
     input logic valid,  //表明请求有效
-    input logic op,  // 1:write 0: read
-    input logic [31:0] pc,
-    input logic uncache,  //标志uncache指令，高位有效
-    input logic [7:0] index,  // 地址的index域(addr[11:4])
-    input logic [19:0] tag,  //从TLB查到的pfn形成的tag
-    input logic [3:0] offset,  //地址的offset域addr[3:0]
+    input logic [`RegBus] addr,
     input logic [3:0] wstrb,  //写字节使能信号
     input logic [31:0] wdata,  //写数据
     input logic [2:0] rd_type_i, //读请求类型：3'b000: 字节；3'b001: 半字；3'b010: 字；3'b100：Cache行
     input logic [2:0] wr_type_i,
-    input logic [31:0] flush_pc,
-    input logic flush_i, // 冲刷信号，如果出于某种原因需要取消写事务，CPU拉高此信号
+    input logic flush, // 冲刷信号，如果出于某种原因需要取消写事务，CPU拉高此信号
     output logic cache_ready,
     output logic cache_ack,
     output logic addr_ok,             //该次请求的地址传输OK，读：地址被接收；写：地址和数据被接收
@@ -45,9 +39,8 @@ module dummy_dcache
     logic [2:0] wr_type;
 
     logic valid_buffer;
+    logic op;
     logic op_buffer;
-    logic uncache_buffer;
-    logic [31:0] pc_buffer;
     logic [7:0] index_buffer;
     logic [19:0] tag_buffer;
     logic [3:0] offset_buffer;
@@ -71,8 +64,8 @@ module dummy_dcache
         WRITE_WAIT
     }
         state, next_state;
-    assign flush = flush_i & (flush_pc <= pc_buffer);
     assign cache_ready = state == IDLE && ~valid_buffer;
+    assign op = wstrb == 4'b0;
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -91,7 +84,7 @@ module dummy_dcache
             end
             LOOK_UP: begin
                 if (valid_buffer) begin
-                    if (op_buffer & ~flush_i) next_state = WRITE_REQ;
+                    if (op_buffer & ~flush) next_state = WRITE_REQ;
                     else if (~op_buffer) next_state = READ_REQ;
                     else next_state = IDLE;
                 end else next_state = IDLE;
@@ -126,8 +119,6 @@ module dummy_dcache
         if (rst) begin
             valid_buffer <= 0;
             op_buffer <= 0;
-            uncache_buffer <= 0;
-            pc_buffer <= 0;
             index_buffer <= 0;
             tag_buffer <= 0;
             offset_buffer <= 0;
@@ -138,8 +129,6 @@ module dummy_dcache
         end else if (flush & state != WRITE_REQ) begin
             valid_buffer <= 0;
             op_buffer <= 0;
-            uncache_buffer <= 0;
-            pc_buffer <= 0;
             index_buffer <= 0;
             tag_buffer <= 0;
             offset_buffer <= 0;
@@ -150,11 +139,9 @@ module dummy_dcache
         end else if (valid & cache_ack) begin  // not accept new request while working
             valid_buffer <= valid;
             op_buffer <= op;
-            uncache_buffer <= uncache;
-            pc_buffer <= pc;
-            index_buffer <= index;
-            tag_buffer <= tag;
-            offset_buffer <= offset;
+            index_buffer <= addr[11:4];
+            tag_buffer <= addr[31:12];
+            offset_buffer <= addr[3:0];
             wstrb_buffer <= wstrb;
             wdata_buffer <= wdata;
             rd_type_buffer <= rd_type_i;
@@ -162,8 +149,6 @@ module dummy_dcache
         end else if (next_state == IDLE) begin  //means that cache will finish work,so flush the buffered signal
             valid_buffer   <= 0;
             op_buffer      <= 0;
-            uncache_buffer <= 0;
-            pc_buffer      <= 0;
             index_buffer   <= 0;
             tag_buffer     <= 0;
             offset_buffer  <= 0;
@@ -174,8 +159,6 @@ module dummy_dcache
         end else begin
             valid_buffer <= valid_buffer;
             op_buffer <= op_buffer;
-            uncache_buffer <= uncache_buffer;
-            pc_buffer <= pc_buffer;
             index_buffer <= index_buffer;
             tag_buffer <= tag_buffer;
             offset_buffer <= offset_buffer;
@@ -192,7 +175,7 @@ module dummy_dcache
         else cache_ack = 0;
     end
 
-    assign cpu_addr = {tag_buffer, index_buffer, offset_buffer};
+    assign cpu_addr = addr;
 
 
     // Handshake with AXI
@@ -208,8 +191,8 @@ module dummy_dcache
     end
 
 
-    assign rd_type = (uncache == 0) ? rd_type_buffer : 3'b100;
-    assign wr_type = (uncache == 0) ? wr_type_buffer : 3'b100;  // word
+    assign rd_type =  rd_type_buffer ;
+    assign wr_type =  wr_type_buffer ;
     always_comb begin
         // Default signal
         axi_addr_o = 0;
