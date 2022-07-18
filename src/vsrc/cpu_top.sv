@@ -166,21 +166,19 @@ module cpu_top
     // MEM1 <-> DCache
     mem_dcache_rreq_t mem_cache_signal[2];
     logic mem_cache_we, mem_cache_ce;
-    logic [2:0] mem_cache_rd_type;
+    logic [2:0] mem_cache_req_type;
     logic [3:0] mem_cache_sel;
     logic [31:0] mem_cache_addr, mem_cache_data;
     logic [`RegBus] mem_cache_pc;
     logic [1:0] wb_dcache_flush;  // flush dcache if excp
     logic [1:0][`RegBus] wb_dcache_flush_pc;
-    logic [2:0] mem_cache_wr_type;
     logic dcache_ack, dcache_ready, mem_uncache_en;
 
     assign mem_cache_ce = mem_cache_signal[0].ce | mem_cache_signal[1].ce;
     assign mem_cache_we = mem_cache_signal[0].we | mem_cache_signal[1].we;
     assign mem_uncache_en = mem_cache_signal[0].uncache | mem_cache_signal[0].uncache;
     assign mem_cache_sel =  mem_cache_signal[0].we ? mem_cache_signal[0].sel : mem_cache_signal[1].we ? mem_cache_signal[1].sel : 0;
-    assign mem_cache_rd_type = mem_cache_signal[0].ce ? mem_cache_signal[0].rd_type : mem_cache_signal[1].ce ? mem_cache_signal[1].rd_type : 0;
-    assign mem_cache_wr_type =  mem_cache_signal[0].ce ? mem_cache_signal[0].wr_type : mem_cache_signal[1].ce ? mem_cache_signal[1].wr_type : 0;
+    assign mem_cache_req_type = mem_cache_signal[0].ce ? mem_cache_signal[0].req_type : mem_cache_signal[1].ce ? mem_cache_signal[1].req_type : 0;
     assign mem_cache_addr = mem_cache_signal[0].addr | mem_cache_signal[1].addr;
     assign mem_cache_data =  mem_cache_signal[0].we ? mem_cache_signal[0].data : mem_cache_signal[1].we ? mem_cache_signal[1].data : 0;
 
@@ -251,8 +249,10 @@ module cpu_top
         .rst(rst),
 
         .cpu_valid(mem_cache_ce),
-        .cpu_addr (mem_cache_addr),
+        .cpu_uncached(mem_uncache_en),
+        .cpu_addr(mem_cache_addr),
         .cpu_wdata(mem_cache_data),
+        .cpu_req_type(mem_cache_req_type),
         .cpu_wstrb(mem_cache_sel),
         .cpu_ready(dcache_ready),
 
@@ -266,9 +266,10 @@ module cpu_top
         .dcache_wdata(control_dcache_wdata),
         .dcache_wstrb(control_dcache_wstrb),
         .dcache_rdata(control_dcache_rdata),
-        .dcache_ready(control_dcache_ready)
-    );
+        .dcache_ready(control_dcache_ready),
 
+        .uncache_axi()
+    );
 
     dcache_top u_dcache (
         .clk        (clk),
@@ -319,35 +320,6 @@ module cpu_top
         .axi_bresp  (dcache_axi.bresp),
         .axi_bready (dcache_axi.bready)
     );
-
-
-    // dummy_dcache u_dcache (
-    //     .clk(clk),
-    //     .rst(rst),
-
-    //     .valid(mem_cache_ce),
-    //     .op(mem_cache_we),
-    //     .pc(mem_cache_pc),
-    //     .uncache(1'b0),
-    //     .index(mem_cache_addr[11:4]),
-    //     .tag(mem_cache_addr[31:12]),
-    //     .offset(mem_cache_addr[3:0]),
-    //     .wstrb(mem_cache_sel),
-    //     .wdata(mem_cache_data),
-    //     .rd_type_i(mem_cache_rd_type),
-    //     .wr_type_i(mem_cache_wr_type),
-    //     .flush_pc(wb_dcache_flush[0] ? wb_dcache_flush_pc[0] : wb_dcache_flush[1] ? wb_dcache_flush_pc[1] :0),
-    //     .flush_i(wb_dcache_flush != 2'b0 | pipeline_flush[2]),  // If excp occurs, flush DCache
-    //     .cache_ready(dcache_ready),
-    //     .cache_ack(dcache_ack),
-    //     .addr_ok(mem_addr_ok),
-    //     .data_ok(mem_data_ok),
-    //     .rdata(cache_mem_data),
-
-    //     // <-> AXI Controller
-    //     .m_axi(dcache_axi)
-    // );
-
 
 
     icache u_icache (

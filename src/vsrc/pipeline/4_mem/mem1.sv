@@ -165,49 +165,49 @@ module mem1
                 `EXE_LD_B_OP, `EXE_LD_BU_OP: begin
                     dcache_rreq_o.addr = mem_paddr;
                     dcache_rreq_o.sel = 4'b0001 << mem_paddr[1:0];
-                    dcache_rreq_o.rd_type = 3'b000;
+                    dcache_rreq_o.req_type = 3'b000;
                 end
                 `EXE_LD_H_OP, `EXE_LD_HU_OP: begin
                     dcache_rreq_o.addr = mem_paddr;
                     dcache_rreq_o.sel = 4'b0011 << mem_paddr[1:0];
-                    dcache_rreq_o.rd_type = 3'b001;
+                    dcache_rreq_o.req_type = 3'b001;
                 end
                 `EXE_LD_W_OP: begin
                     dcache_rreq_o.addr = mem_paddr;
                     dcache_rreq_o.sel = 4'b1111;
-                    dcache_rreq_o.rd_type = 3'b010;
+                    dcache_rreq_o.req_type = 3'b010;
                 end
                 `EXE_ST_B_OP: begin
                     dcache_rreq_o.addr = mem_paddr;
                     dcache_rreq_o.we = 1;
-                    dcache_rreq_o.wr_type = 3'b000;
+                    dcache_rreq_o.req_type = 3'b000;
                     dcache_rreq_o.sel = 4'b0001 << mem_paddr[1:0];
                     dcache_rreq_o.data = {24'b0, reg2_i[7:0]} << (8 * mem_paddr[1:0]);
                 end
                 `EXE_ST_H_OP: begin
                     dcache_rreq_o.addr = mem_paddr;
                     dcache_rreq_o.we = 1;
-                    dcache_rreq_o.wr_type = 3'b001;
+                    dcache_rreq_o.req_type = 3'b001;
                     dcache_rreq_o.sel = 4'b0011 << mem_paddr[1:0];
                     dcache_rreq_o.data = {16'b0, reg2_i[15:0]} << (8 * mem_paddr[1:0]);
                 end
                 `EXE_ST_W_OP: begin
                     dcache_rreq_o.addr = mem_paddr;
                     dcache_rreq_o.we = 1;
-                    dcache_rreq_o.wr_type = 3'b010;
+                    dcache_rreq_o.req_type = 3'b010;
                     dcache_rreq_o.sel = 4'b1111;
                     dcache_rreq_o.data = reg2_i;
                 end
                 `EXE_LL_OP: begin
                     dcache_rreq_o.addr = mem_paddr;
                     dcache_rreq_o.sel = 4'b1111;
-                    dcache_rreq_o.rd_type = 3'b010;
+                    dcache_rreq_o.req_type = 3'b010;
                 end
                 `EXE_SC_OP: begin
                     if (LLbit_i == 1'b1) begin
                         dcache_rreq_o.addr = mem_paddr;
                         dcache_rreq_o.we = 1;
-                        dcache_rreq_o.wr_type = 3'b010;
+                        dcache_rreq_o.req_type = 3'b010;
                         dcache_rreq_o.sel = 4'b1111;
                         dcache_rreq_o.data = reg2_i;
                     end else begin
