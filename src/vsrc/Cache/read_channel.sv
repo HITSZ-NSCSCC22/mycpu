@@ -54,8 +54,8 @@ module read_channel
             localparam idle = 2'd0, init_process = 2'd1, load_process = 2'd2, end_process = 2'd3;
 
 
-            reg [1:0] state;
-            reg                                 slave_error;//axi slave_error during reply (axi_rresp[1] == 1) - burst can't be interrupted, so a flag needs to be active
+            logic [1:0] state;
+            logic                                 slave_error;//axi slave_error during reply (axi_rresp[1] == 1) - burst can't be interrupted, so a flag needs to be active
 
 
             always @(posedge clk, posedge reset) begin
@@ -124,10 +124,7 @@ module read_channel
                 endcase
             end  // always @ *
         end // if (LINE2MEM_W > 0)
-
-      
       else
-         
         begin
             //Constant AXI signals
             assign axi_arid = AXI_ID;
@@ -145,29 +142,22 @@ module read_channel
             assign read_valid = axi_rvalid;
             assign read_rdata = axi_rdata;
 
-
             localparam idle = 2'd0, init_process = 2'd1, load_process = 2'd2, end_process = 2'd3;
 
-
-            reg [1:0] state;
-
+            logic [1:0] state;
 
             always @(posedge clk, posedge reset) begin
                 if (reset) state <= idle;
-
                 else
-
                     case (state)
                         idle: begin
                             if (replace_valid) state <= init_process;
                             else state <= idle;
                         end
-
                         init_process: begin
                             if (axi_arready) state <= load_process;
                             else state <= init_process;
                         end
-
                         load_process: begin
                             if (axi_rvalid)
                                 if(axi_rresp != 2'b00) //slave_error - received at the same time as valid
@@ -175,40 +165,30 @@ module read_channel
                                 else state <= end_process;
                             else state <= load_process;
                         end
-
                         end_process://delay for the read_latency of the memories (if the rdata is the last word)
                         state <= idle;
-
-
                         default: ;
                     endcase
             end
-
 
             always @* begin
                 axi_arvalid   = 1'b0;
                 axi_rready    = 1'b0;
                 replace = 1'b1;
                 case (state)
-
                     idle: begin
                         replace = 1'b0;
                     end
-
                     init_process: begin
                         axi_arvalid = 1'b1;
                     end
-
                     load_process: begin
                         axi_rready = 1'b1;
                     end
-
                     default: ;
-
                 endcase
-            end  // always @ *
-
+            end
         end
     endgenerate
 
-endmodule  // read_process_native
+endmodule

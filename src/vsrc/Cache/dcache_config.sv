@@ -6,7 +6,7 @@ package dcache_config;
     //memory cache's parameters
     parameter FE_ADDR_W = 32;
     parameter FE_DATA_W = 32;
-    parameter N_WAYS = 2;
+    parameter N_WAYS = 4;
     parameter LINE_OFF_W = 7;
     parameter WORD_OFF_W = 3;
     parameter WTBUF_DEPTH_W = 5;
