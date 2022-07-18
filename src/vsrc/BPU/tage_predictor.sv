@@ -6,7 +6,7 @@
 `include "BPU/include/bpu_defines.sv"
 `include "BPU/include/bpu_types.sv"
 
-`include "utils/priority_encoder.sv"
+`include "utils/cva5_priority_encoder.sv"
 
 // Components
 `include "BPU/components/base_predictor.sv"

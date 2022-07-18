@@ -4,14 +4,15 @@
 `include "csr_defines.sv"
 `include "frontend/frontend_defines.sv"
 `include "axi/axi_interface.sv"
+`include "axi/axi_3x1_crossbar.v"
 `include "cs_reg.sv"
 `include "tlb.sv"
 `include "tlb_entry.sv"
 `include "frontend/frontend.sv"
 `include "instr_buffer.sv"
 `include "icache.sv"
-`include "dummy_dcache.sv"
-`include "Cache/dcache.sv"
+`include "LSU.sv"
+`include "Cache/dcache_top.sv"
 `include "ctrl.sv"
 `include "Reg/regs_file.sv"
 `include "pipeline/1_decode/id.sv"
@@ -100,7 +101,7 @@ module cpu_top
     assign rst   = ~aresetn;
 
     // Pipeline control signal
-    logic [6:0] pipeline_advance, pipeline_flush;
+    logic [6:0] pipeline_advance, pipeline_flush, pipeline_clear;
     logic [ISSUE_WIDTH-1:0] ex_advance_ready, mem1_advance_ready, mem2_advance_ready;
 
     // Frontend <-> ICache
@@ -132,9 +133,14 @@ module cpu_top
 
 
     // AXI
+<<<<<<< HEAD
     axi_interface icache_axi (), dcache_axi ();
     cache_axi l2_icache_axi;
     cache_axi l2_dcache_axi;
+=======
+    axi_interface icache_axi (), dcache_axi (), uncache_axi ();
+
+>>>>>>> AXI128
     // ICache <-> AXI Controller
     logic icache_axi_rreq;
     logic axi_icache_rdy, axi_icache_rvalid;
@@ -166,20 +172,19 @@ module cpu_top
     // MEM1 <-> DCache
     mem_dcache_rreq_t mem_cache_signal[2];
     logic mem_cache_we, mem_cache_ce;
-    logic [2:0] mem_cache_rd_type;
+    logic [2:0] mem_cache_req_type;
     logic [3:0] mem_cache_sel;
     logic [31:0] mem_cache_addr, mem_cache_data;
     logic [`RegBus] mem_cache_pc;
     logic [1:0] wb_dcache_flush;  // flush dcache if excp
     logic [1:0][`RegBus] wb_dcache_flush_pc;
-    logic [2:0] mem_cache_wr_type;
-    logic dcache_ack, dcache_ready;
+    logic dcache_ack, dcache_ready, mem_uncache_en;
 
     assign mem_cache_ce = mem_cache_signal[0].ce | mem_cache_signal[1].ce;
     assign mem_cache_we = mem_cache_signal[0].we | mem_cache_signal[1].we;
+    assign mem_uncache_en = mem_cache_signal[0].uncache | mem_cache_signal[0].uncache;
     assign mem_cache_sel =  mem_cache_signal[0].we ? mem_cache_signal[0].sel : mem_cache_signal[1].we ? mem_cache_signal[1].sel : 0;
-    assign mem_cache_rd_type = mem_cache_signal[0].ce ? mem_cache_signal[0].rd_type : mem_cache_signal[1].ce ? mem_cache_signal[1].rd_type : 0;
-    assign mem_cache_wr_type =  mem_cache_signal[0].ce ? mem_cache_signal[0].wr_type : mem_cache_signal[1].ce ? mem_cache_signal[1].wr_type : 0;
+    assign mem_cache_req_type = mem_cache_signal[0].ce ? mem_cache_signal[0].req_type : mem_cache_signal[1].ce ? mem_cache_signal[1].req_type : 0;
     assign mem_cache_addr = mem_cache_signal[0].addr | mem_cache_signal[1].addr;
     assign mem_cache_data =  mem_cache_signal[0].we ? mem_cache_signal[0].data : mem_cache_signal[1].we ? mem_cache_signal[1].data : 0;
 
@@ -241,33 +246,86 @@ module cpu_top
 
     logic [4:0] rand_index_diff;
 
-    dummy_dcache u_dcache (
+    logic control_dcache_valid, control_dcache_ready;
+    logic [`RegBus] control_dcache_addr, control_dcache_wdata, control_dcache_rdata;
+    logic [3:0] control_dcache_wstrb;
+
+    LSU u_LSU (
         .clk(clk),
         .rst(rst),
 
-        .valid(mem_cache_ce),
-        .op(mem_cache_we),
-        .pc(mem_cache_pc),
-        .uncache(1'b0),
-        .index(mem_cache_addr[11:4]),
-        .tag(mem_cache_addr[31:12]),
-        .offset(mem_cache_addr[3:0]),
-        .wstrb(mem_cache_sel),
-        .wdata(mem_cache_data),
-        .rd_type_i(mem_cache_rd_type),
-        .wr_type_i(mem_cache_wr_type),
-        .flush_pc(wb_dcache_flush[0] ? wb_dcache_flush_pc[0] : wb_dcache_flush[1] ? wb_dcache_flush_pc[1] :0),
-        .flush_i(wb_dcache_flush != 2'b0 | pipeline_flush[2]),  // If excp occurs, flush DCache
-        .cache_ready(dcache_ready),
-        .cache_ack(dcache_ack),
-        .addr_ok(mem_addr_ok),
-        .data_ok(mem_data_ok),
-        .rdata(cache_mem_data),
+        .cpu_valid(mem_cache_ce),
+        .cpu_uncached(mem_uncache_en),
+        .cpu_addr(mem_cache_addr),
+        .cpu_wdata(mem_cache_data),
+        .cpu_req_type(mem_cache_req_type),
+        .cpu_wstrb(mem_cache_sel),
+        .cpu_ready(dcache_ready),
 
-        // <-> AXI Controller
-        .m_axi(dcache_axi)
+        .cpu_rdata(cache_mem_data),
+        .cpu_data_valid(mem_data_ok),
+        .cpu_flush(wb_dcache_flush != 2'b0 | pipeline_flush[2]),
+        .cpu_store_commit(dcache_store_commit[0]),  // If excp occurs, flush DCache
+
+        .dcache_valid(control_dcache_valid),
+        .dcache_addr (control_dcache_addr),
+        .dcache_wdata(control_dcache_wdata),
+        .dcache_wstrb(control_dcache_wstrb),
+        .dcache_rdata(control_dcache_rdata),
+        .dcache_ready(control_dcache_ready),
+
+        .uncache_axi(uncache_axi)
     );
 
+    dcache_top u_dcache (
+        .clk        (clk),
+        .rst        (rst),
+        .valid      (control_dcache_valid),
+        .addr       (control_dcache_addr),
+        .wdata      (control_dcache_wdata),
+        .wstrb      (control_dcache_wstrb),
+        .rdata      (control_dcache_rdata),
+        .ready      (control_dcache_ready),
+        .force_inv_i(),
+        .force_inv_o(),
+        .wtb_empty_i(wtb_empty_i),
+        .wtb_empty_o(wtb_empty_o),
+        .axi_arvalid(dcache_axi.arvalid),
+        .axi_araddr (dcache_axi.araddr),
+        .axi_arlen  (dcache_axi.arlen),
+        .axi_arsize (dcache_axi.arsize),
+        .axi_arburst(dcache_axi.arburst),
+        .axi_arlock (),
+        .axi_arcache(dcache_axi.arcache),
+        .axi_arprot (),
+        .axi_arqos  (),
+        .axi_arid   (dcache_axi.arid),
+        .axi_arready(dcache_axi.arready),
+        .axi_rvalid (dcache_axi.rvalid),
+        .axi_rdata  (dcache_axi.rdata),
+        .axi_rresp  (dcache_axi.rresp),
+        .axi_rlast  (dcache_axi.rlast),
+        .axi_rready (dcache_axi.rready),
+        .axi_awvalid(dcache_axi.awvalid),
+        .axi_awaddr (dcache_axi.awaddr),
+        .axi_awlen  (dcache_axi.awlen),
+        .axi_awsize (dcache_axi.awsize),
+        .axi_awburst(dcache_axi.awburst),
+        .axi_awlock (),
+        .axi_awcache(dcache_axi.awcache),
+        .axi_awprot (),
+        .axi_awqos  (),
+        .axi_awid   (dcache_axi.awid),
+        .axi_awready(dcache_axi.awready),
+        .axi_wvalid (dcache_axi.wvalid),
+        .axi_wdata  (dcache_axi.wdata),
+        .axi_wstrb  (dcache_axi.wstrb),
+        .axi_wlast  (dcache_axi.wlast),
+        .axi_wready (dcache_axi.wready),
+        .axi_bvalid (dcache_axi.bvalid),
+        .axi_bresp  (dcache_axi.bresp),
+        .axi_bready (dcache_axi.bready)
+    );
 
 
     icache u_icache (
@@ -385,6 +443,7 @@ module cpu_top
     );
 
     // AXI Arbitary
+<<<<<<< HEAD
     assign wid = awid;
     axicb_crossbar_top #(
         .AXI_ADDR_W  (ADDR_WIDTH),
@@ -502,7 +561,298 @@ module cpu_top
         .mst0_rresp  (rresp),
         .mst0_rdata  (rdata),
         .mst0_rlast  (rlast)
+=======
+    axi_3x1_crossbar #(
+        .DATA_WIDTH(AXI_DATA_WIDTH),
+        .ADDR_WIDTH(ADDR_WIDTH),
+        .S_ID_WIDTH(2),
+        .M_ID_WIDTH(4),
+        .M00_ADDR_WIDTH(32)
+    ) u_axi_3x1_crossbar (
+        .clk            (clk),
+        .rst            (rst),
+        .s00_axi_awid   (icache_axi.awid),
+        .s00_axi_awaddr (icache_axi.awaddr),
+        .s00_axi_awlen  (icache_axi.awlen),
+        .s00_axi_awsize (icache_axi.awsize),
+        .s00_axi_awburst(icache_axi.awburst),
+        .s00_axi_awcache(icache_axi.awcache),
+        .s00_axi_awvalid(icache_axi.awvalid),
+        .s00_axi_awready(icache_axi.awready),
+        .s00_axi_wdata  (icache_axi.wdata),
+        .s00_axi_wstrb  (icache_axi.wstrb),
+        .s00_axi_wlast  (icache_axi.wlast),
+        .s00_axi_wvalid (icache_axi.wvalid),
+        .s00_axi_wready (icache_axi.wready),
+        .s00_axi_bid    (icache_axi.bid),
+        .s00_axi_bresp  (icache_axi.bresp),
+        .s00_axi_bvalid (icache_axi.bvalid),
+        .s00_axi_bready (icache_axi.bready),
+        .s00_axi_arid   (icache_axi.arid),
+        .s00_axi_araddr (icache_axi.araddr),
+        .s00_axi_arlen  (icache_axi.arlen),
+        .s00_axi_arsize (icache_axi.arsize),
+        .s00_axi_arburst(icache_axi.arburst),
+        .s00_axi_arcache(icache_axi.arcache),
+        .s00_axi_arvalid(icache_axi.arvalid),
+        .s00_axi_arready(icache_axi.arready),
+        .s00_axi_rid    (icache_axi.rid),
+        .s00_axi_rdata  (icache_axi.rdata),
+        .s00_axi_rresp  (icache_axi.rresp),
+        .s00_axi_rlast  (icache_axi.rlast),
+        .s00_axi_rvalid (icache_axi.rvalid),
+        .s00_axi_rready (icache_axi.rready),
+        .s01_axi_awid   (dcache_axi.awid),
+        .s01_axi_awaddr (dcache_axi.awaddr),
+        .s01_axi_awlen  (dcache_axi.awlen),
+        .s01_axi_awsize (dcache_axi.awsize),
+        .s01_axi_awburst(dcache_axi.awburst),
+        .s01_axi_awcache(dcache_axi.awcache),
+        .s01_axi_awvalid(dcache_axi.awvalid),
+        .s01_axi_awready(dcache_axi.awready),
+        .s01_axi_wdata  (dcache_axi.wdata),
+        .s01_axi_wstrb  (dcache_axi.wstrb),
+        .s01_axi_wlast  (dcache_axi.wlast),
+        .s01_axi_wvalid (dcache_axi.wvalid),
+        .s01_axi_wready (dcache_axi.wready),
+        .s01_axi_bid    (dcache_axi.bid),
+        .s01_axi_bresp  (dcache_axi.bresp),
+        .s01_axi_bvalid (dcache_axi.bvalid),
+        .s01_axi_bready (dcache_axi.bready),
+        .s01_axi_arid   (dcache_axi.arid),
+        .s01_axi_araddr (dcache_axi.araddr),
+        .s01_axi_arlen  (dcache_axi.arlen),
+        .s01_axi_arsize (dcache_axi.arsize),
+        .s01_axi_arburst(dcache_axi.arburst),
+        .s01_axi_arcache(dcache_axi.arcache),
+        .s01_axi_arvalid(dcache_axi.arvalid),
+        .s01_axi_arready(dcache_axi.arready),
+        .s01_axi_rid    (dcache_axi.rid),
+        .s01_axi_rdata  (dcache_axi.rdata),
+        .s01_axi_rresp  (dcache_axi.rresp),
+        .s01_axi_rlast  (dcache_axi.rlast),
+        .s01_axi_rvalid (dcache_axi.rvalid),
+        .s01_axi_rready (dcache_axi.rready),
+        .s02_axi_awid   (uncache_axi.awid),
+        .s02_axi_awaddr (uncache_axi.awaddr),
+        .s02_axi_awlen  (uncache_axi.awlen),
+        .s02_axi_awsize (uncache_axi.awsize),
+        .s02_axi_awburst(uncache_axi.awburst),
+        .s02_axi_awcache(uncache_axi.awcache),
+        .s02_axi_awvalid(uncache_axi.awvalid),
+        .s02_axi_awready(uncache_axi.awready),
+        .s02_axi_wdata  (uncache_axi.wdata),
+        .s02_axi_wstrb  (uncache_axi.wstrb),
+        .s02_axi_wlast  (uncache_axi.wlast),
+        .s02_axi_wvalid (uncache_axi.wvalid),
+        .s02_axi_wready (uncache_axi.wready),
+        .s02_axi_bid    (uncache_axi.bid),
+        .s02_axi_bresp  (uncache_axi.bresp),
+        .s02_axi_bvalid (uncache_axi.bvalid),
+        .s02_axi_bready (uncache_axi.bready),
+        .s02_axi_arid   (uncache_axi.arid),
+        .s02_axi_araddr (uncache_axi.araddr),
+        .s02_axi_arlen  (uncache_axi.arlen),
+        .s02_axi_arsize (uncache_axi.arsize),
+        .s02_axi_arburst(uncache_axi.arburst),
+        .s02_axi_arcache(uncache_axi.arcache),
+        .s02_axi_arvalid(uncache_axi.arvalid),
+        .s02_axi_arready(uncache_axi.arready),
+        .s02_axi_rid    (uncache_axi.rid),
+        .s02_axi_rdata  (uncache_axi.rdata),
+        .s02_axi_rresp  (uncache_axi.rresp),
+        .s02_axi_rlast  (uncache_axi.rlast),
+        .s02_axi_rvalid (uncache_axi.rvalid),
+        .s02_axi_rready (uncache_axi.rready),
+        .m00_axi_awid   (awid),
+        .m00_axi_awaddr (awaddr),
+        .m00_axi_awlen  (awlen),
+        .m00_axi_awsize (awsize),
+        .m00_axi_awburst(awburst),
+        .m00_axi_awlock (awlock),
+        .m00_axi_awcache(awcache),
+        .m00_axi_awprot (awprot),
+        .m00_axi_awvalid(awvalid),
+        .m00_axi_awready(awready),
+        .m00_axi_wdata  (wdata),
+        .m00_axi_wstrb  (wstrb),
+        .m00_axi_wlast  (wlast),
+        .m00_axi_wvalid (wvalid),
+        .m00_axi_wready (wready),
+        .m00_axi_bid    (bid),
+        .m00_axi_bresp  (bresp),
+        .m00_axi_bvalid (bvalid),
+        .m00_axi_bready (bready),
+        .m00_axi_arid   (arid),
+        .m00_axi_araddr (araddr),
+        .m00_axi_arlen  (arlen),
+        .m00_axi_arsize (arsize),
+        .m00_axi_arburst(arburst),
+        .m00_axi_arlock (arlock),
+        .m00_axi_arcache(arcache),
+        .m00_axi_arprot (arprot),
+        .m00_axi_arvalid(arvalid),
+        .m00_axi_arready(arready),
+        .m00_axi_rid    (rid),
+        .m00_axi_rdata  (rdata),
+        .m00_axi_rresp  (rresp),
+        .m00_axi_rlast  (rlast),
+        .m00_axi_rvalid (rvalid),
+        .m00_axi_rready (rready)
+>>>>>>> AXI128
     );
+
+    // assign wid = awid;
+    // axicb_crossbar_top #(
+    //     .AXI_ADDR_W  (ADDR_WIDTH),
+    //     .AXI_ID_W    (4),
+    //     .AXI_DATA_W  (AXI_DATA_WIDTH),
+    //     .MST_NB      (4),
+    //     .SLV_NB      (4),
+    //     .MST0_ID_MASK(4'b0010),
+    //     .MST1_ID_MASK(4'b0100),
+    //     .MST2_ID_MASK(4'b1000),
+    //     .MST3_ID_MASK(4'b0001)
+    // ) u_axi_arbitrartor (
+    //     .aclk        (aclk),
+    //     .aresetn     (aresetn),
+    //     .slv0_aclk   (aclk),
+    //     .slv0_aresetn(aresetn),
+    //     .slv0_awvalid(icache_axi.awvalid),
+    //     .slv0_awready(icache_axi.awready),
+    //     .slv0_awaddr (icache_axi.awaddr),
+    //     .slv0_awlen  (icache_axi.awlen),
+    //     .slv0_awsize (icache_axi.awsize),
+    //     .slv0_awburst(icache_axi.awburst),
+    //     .slv0_awcache(icache_axi.awcache),
+    //     .slv0_awid   (icache_axi.awid),
+    //     .slv0_wvalid (icache_axi.wvalid),
+    //     .slv0_wready (icache_axi.wready),
+    //     .slv0_wlast  (icache_axi.wlast),
+    //     .slv0_wdata  (icache_axi.wdata),
+    //     .slv0_wstrb  (icache_axi.wstrb),
+    //     .slv0_bvalid (icache_axi.bvalid),
+    //     .slv0_bready (icache_axi.bready),
+    //     .slv0_bid    (icache_axi.bid),
+    //     .slv0_bresp  (icache_axi.bresp),
+    //     .slv0_arvalid(icache_axi.arvalid),
+    //     .slv0_arready(icache_axi.arready),
+    //     .slv0_araddr (icache_axi.araddr),
+    //     .slv0_arlen  (icache_axi.arlen),
+    //     .slv0_arsize (icache_axi.arsize),
+    //     .slv0_arburst(icache_axi.arburst),
+    //     .slv0_arcache(icache_axi.arcache),
+    //     .slv0_arid   (icache_axi.arid),
+    //     .slv0_rvalid (icache_axi.rvalid),
+    //     .slv0_rready (icache_axi.rready),
+    //     .slv0_rid    (icache_axi.rid),
+    //     .slv0_rresp  (icache_axi.rresp),
+    //     .slv0_rdata  (icache_axi.rdata),
+    //     .slv0_rlast  (icache_axi.rlast),
+    //     .slv1_aclk   (aclk),
+    //     .slv1_aresetn(aresetn),
+    //     .slv1_awvalid(dcache_axi.awvalid),
+    //     .slv1_awready(dcache_axi.awready),
+    //     .slv1_awaddr (dcache_axi.awaddr),
+    //     .slv1_awlen  (dcache_axi.awlen),
+    //     .slv1_awsize (dcache_axi.awsize),
+    //     .slv1_awburst(dcache_axi.awburst),
+    //     .slv1_awcache(dcache_axi.awcache),
+    //     .slv1_awid   (dcache_axi.awid),
+    //     .slv1_wvalid (dcache_axi.wvalid),
+    //     .slv1_wready (dcache_axi.wready),
+    //     .slv1_wlast  (dcache_axi.wlast),
+    //     .slv1_wdata  (dcache_axi.wdata),
+    //     .slv1_wstrb  (dcache_axi.wstrb),
+    //     .slv1_bvalid (dcache_axi.bvalid),
+    //     .slv1_bready (dcache_axi.bready),
+    //     .slv1_bid    (dcache_axi.bid),
+    //     .slv1_bresp  (dcache_axi.bresp),
+    //     .slv1_arvalid(dcache_axi.arvalid),
+    //     .slv1_arready(dcache_axi.arready),
+    //     .slv1_araddr (dcache_axi.araddr),
+    //     .slv1_arlen  (dcache_axi.arlen),
+    //     .slv1_arsize (dcache_axi.arsize),
+    //     .slv1_arburst(dcache_axi.arburst),
+    //     .slv1_arcache(dcache_axi.arcache),
+    //     .slv1_arid   (dcache_axi.arid),
+    //     .slv1_rvalid (dcache_axi.rvalid),
+    //     .slv1_rready (dcache_axi.rready),
+    //     .slv1_rid    (dcache_axi.rid),
+    //     .slv1_rresp  (dcache_axi.rresp),
+    //     .slv1_rdata  (dcache_axi.rdata),
+    //     .slv1_rlast  (dcache_axi.rlast),
+    //     .slv2_aclk   (aclk),
+    //     .slv2_aresetn(aresetn),
+    //     .slv2_awvalid(uncache_axi.awvalid),
+    //     .slv2_awready(uncache_axi.awready),
+    //     .slv2_awaddr (uncache_axi.awaddr),
+    //     .slv2_awlen  (uncache_axi.awlen),
+    //     .slv2_awsize (uncache_axi.awsize),
+    //     .slv2_awburst(uncache_axi.awburst),
+    //     .slv2_awcache(uncache_axi.awcache),
+    //     .slv2_awid   (uncache_axi.awid),
+    //     .slv2_wvalid (uncache_axi.wvalid),
+    //     .slv2_wready (uncache_axi.wready),
+    //     .slv2_wlast  (uncache_axi.wlast),
+    //     .slv2_wdata  (uncache_axi.wdata),
+    //     .slv2_wstrb  (uncache_axi.wstrb),
+    //     .slv2_bvalid (uncache_axi.bvalid),
+    //     .slv2_bready (uncache_axi.bready),
+    //     .slv2_bid    (uncache_axi.bid),
+    //     .slv2_bresp  (uncache_axi.bresp),
+    //     .slv2_arvalid(uncache_axi.arvalid),
+    //     .slv2_arready(uncache_axi.arready),
+    //     .slv2_araddr (uncache_axi.araddr),
+    //     .slv2_arlen  (uncache_axi.arlen),
+    //     .slv2_arsize (uncache_axi.arsize),
+    //     .slv2_arburst(uncache_axi.arburst),
+    //     .slv2_arcache(uncache_axi.arcache),
+    //     .slv2_arid   (uncache_axi.arid),
+    //     .slv2_rvalid (uncache_axi.rvalid),
+    //     .slv2_rready (uncache_axi.rready),
+    //     .slv2_rid    (uncache_axi.rid),
+    //     .slv2_rresp  (uncache_axi.rresp),
+    //     .slv2_rdata  (uncache_axi.rdata),
+    //     .slv2_rlast  (uncache_axi.rlast),
+    //     .mst0_aclk   (aclk),
+    //     .mst0_aresetn(aresetn),
+    //     .mst0_awvalid(awvalid),
+    //     .mst0_awready(awready),
+    //     .mst0_awaddr (awaddr),
+    //     .mst0_awlen  (awlen),
+    //     .mst0_awsize (awsize),
+    //     .mst0_awburst(awburst),
+    //     .mst0_awlock (awlock),
+    //     .mst0_awcache(awcache),
+    //     .mst0_awprot (awprot),
+    //     .mst0_awid   (awid),
+    //     .mst0_wvalid (wvalid),
+    //     .mst0_wready (wready),
+    //     .mst0_wlast  (wlast),
+    //     .mst0_wdata  (wdata),
+    //     .mst0_wstrb  (wstrb),
+    //     .mst0_bvalid (bvalid),
+    //     .mst0_bready (bready),
+    //     .mst0_bid    (bid),
+    //     .mst0_bresp  (bresp),
+    //     .mst0_arvalid(arvalid),
+    //     .mst0_arready(arready),
+    //     .mst0_araddr (araddr),
+    //     .mst0_arlen  (arlen),
+    //     .mst0_arsize (arsize),
+    //     .mst0_arburst(arburst),
+    //     .mst0_arlock (arlock),
+    //     .mst0_arcache(arcache),
+    //     .mst0_arprot (arprot),
+    //     .mst0_arid   (arid),
+    //     .mst0_rvalid (rvalid),
+    //     .mst0_rready (rready),
+    //     .mst0_rid    (rid),
+    //     .mst0_rresp  (rresp),
+    //     .mst0_rdata  (rdata),
+    //     .mst0_rlast  (rlast)
+    // );
 
 
 
@@ -689,6 +1039,7 @@ module cpu_top
 
                 // Pipeline control signals
                 .flush(pipeline_flush[3]),
+                .clear(pipeline_clear[3]),
                 .advance(pipeline_advance[3]),
                 .advance_ready(ex_advance_ready[i]),
 
@@ -744,6 +1095,7 @@ module cpu_top
 
                 // Pipeline control signals
                 .flush(pipeline_flush[2]),
+                .clear(pipeline_clear[2]),
                 .advance(pipeline_advance[2]),
                 .advance_ready(mem1_advance_ready[i]),
 
@@ -788,6 +1140,7 @@ module cpu_top
 
                 // Pipeline control signals
                 .flush(pipeline_flush[1]),
+                .clear(pipeline_clear[1]),
                 .advance(pipeline_advance[1]),
                 .advance_ready(mem2_advance_ready[i]),
 
@@ -876,6 +1229,7 @@ module cpu_top
         .mem2_advance_ready_i(mem2_advance_ready),
         .flush_o(pipeline_flush),
         .advance_o(pipeline_advance),
+        .clear_o(pipeline_clear),
         .backend_redirect_pc_o(backend_redirect_pc),
 
         // <- CSR

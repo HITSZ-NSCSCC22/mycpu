@@ -26,6 +26,7 @@ module ctrl
     input logic [ISSUE_WIDTH-1:0] mem2_advance_ready_i,  //访存阶段暂停请求信号
     output logic [6:0] flush_o,  // flush signal {frontend, id_dispatch, dispatch, ex, mem1, mem2, wb}
     output logic [6:0] advance_o,  // {frontend, id_dispatch, dispatch, ex, mem1, mem2, wb}
+    output logic [6:0] clear_o,  // {frontend, id_dispatch, dispatch, ex, mem1, mem2, wb}
     output logic [ADDR_WIDTH-1:0] backend_redirect_pc_o,
 
     // <-> CSR
@@ -78,7 +79,7 @@ module ctrl
     // Exception
     logic excp;
     logic [15:0] excp_num;
-    logic excp_flush, ertn_flush, refetch_flush, idle_flush;
+    logic flush_all, excp_flush, ertn_flush, refetch_flush, idle_flush;
     logic [ADDR_WIDTH-1:0] idle_pc;
     logic [COMMIT_WIDTH-1:0] commit_valid;
 
@@ -150,23 +151,36 @@ module ctrl
         end
     end
     always_ff @(posedge clk) begin
-        advance_delay <= advance;
+        advance_delay <= advance_o[0];
     end
-    assign advance_o = {7{advance}};
+    assign flush_all = excp_flush | ertn_flush | refetch_flush | idle_flush;
     // Frontend
-    assign flush_o[6] = excp_flush | ertn_flush | refetch_flush | idle_flush;
+    assign advance_o[6] = advance;
+    assign flush_o[6] = flush_all;
+    assign clear_o[6] = (advance_o[5] & ~advance_o[6]);
     // ID -> Dispatch
-    assign flush_o[5] = excp_flush | ertn_flush | refetch_flush | idle_flush;
+    assign advance_o[5] = advance;
+    assign flush_o[5] = flush_all;
+    assign clear_o[5] = (advance_o[4] & ~advance_o[5]);
     // Dispatch
-    assign flush_o[4] = excp_flush | ertn_flush | refetch_flush | idle_flush;
-    // Ex
-    assign flush_o[3] = excp_flush | ertn_flush | refetch_flush | idle_flush;
+    assign advance_o[4] = advance;
+    assign flush_o[4] = flush_all;
+    assign clear_o[4] = (advance_o[3] & ~advance_o[4]);
+    // EX
+    assign advance_o[3] = advance;
+    assign flush_o[3] = flush_all;
+    assign clear_o[3] = (advance_o[2] & ~advance_o[3]);
     // MEM1
-    assign flush_o[2] = excp_flush | ertn_flush | refetch_flush | idle_flush;
+    assign advance_o[2] = mem2_advance_ready_i == 2'b11 & mem1_advance_ready_i == 2'b11;
+    assign flush_o[2] = flush_all;
+    assign clear_o[2] = (advance_o[1] & ~advance_o[2]);
     // MEM2
-    assign flush_o[1] = excp_flush | ertn_flush | refetch_flush | idle_flush;
+    assign advance_o[1] = mem2_advance_ready_i[0] & mem2_advance_ready_i[1];
+    assign flush_o[1] = flush_all;
+    assign clear_o[1] = (advance_o[0] & ~advance_o[1]);
     // WB
-    assign flush_o[0] = (advance_delay & ~advance) | excp_flush | ertn_flush | refetch_flush | idle_flush;
+    assign advance_o[0] = 1;
+    assign flush_o[0] = (advance_delay & ~advance_o[0]) | flush_all;
 
     assign excp_flush = excp;
     assign idle_flush = aluop == `EXE_IDLE_OP;
@@ -205,8 +219,8 @@ module ctrl
     assign csr_era = in_idle ? pc + 32'h4 : pc;
     //异常处理，优先处理第一条流水线的异常
     assign {excp_num, pc, excp_instr, error_va} = 
-            instr_info[0].excp ? {instr_info[0].excp_num, instr_info[0].pc,wb_i[0].diff_commit_o.instr, wb_i[0].mem_addr} :
-            instr_info[1].excp ? {instr_info[1].excp_num, instr_info[1].pc ,wb_i[1].diff_commit_o.instr, wb_i[1].mem_addr} : 0;
+            instr_info[0].excp ? {instr_info[0].excp_num, instr_info[0].pc, wb_i[0].diff_commit_o.instr, wb_i[0].mem_addr} :
+            instr_info[1].excp ? {instr_info[1].excp_num, instr_info[1].pc, wb_i[1].diff_commit_o.instr, wb_i[1].mem_addr} : 0;
 
     assign {csr_ecode,va_error, bad_va, csr_esubcode, excp_tlbrefill,excp_tlb, excp_tlb_vppn} = 
     excp_num[0] ? {`ECODE_INT ,1'b0, 32'b0 , 9'b0 , 1'b0, 1'b0, 19'b0} :

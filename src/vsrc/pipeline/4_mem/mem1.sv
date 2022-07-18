@@ -14,6 +14,7 @@ module mem1
 
     // Pipeline control signals
     input  logic flush,
+    input  logic clear,
     input  logic advance,
     output logic advance_ready,
 
@@ -73,6 +74,8 @@ module mem1
     logic excp, excp_adem, excp_tlbr, excp_pil, excp_pis, excp_ppi, excp_pme;
     logic [15:0] excp_num;
 
+    logic uncache_en;
+
     assign instr_info = ex_i.instr_info;
     assign special_info = ex_i.instr_info.special_info;
 
@@ -95,6 +98,7 @@ module mem1
         else if (dcache_ack_i) dcache_ack_r <= 1;
     end
 
+    assign uncache_en = ex_i.data_uncache_en || (ex_i.data_addr_trans_en && (tlb_result_i.tlb_mat == 2'b0));
 
     assign access_mem = mem_load_op | mem_store_op;
 
@@ -155,54 +159,55 @@ module mem1
         dcache_rreq_o = 0;
         if (advance & access_mem & mem_access_valid & dcache_ready_i & ~dcache_ack_r) begin
             dcache_rreq_o.ce = 1;
+            dcache_rreq_o.uncache = uncache_en;
             dcache_rreq_o.pc = ex_i.instr_info.pc;
             case (aluop_i)
                 `EXE_LD_B_OP, `EXE_LD_BU_OP: begin
                     dcache_rreq_o.addr = mem_paddr;
                     dcache_rreq_o.sel = 4'b0001 << mem_paddr[1:0];
-                    dcache_rreq_o.rd_type = 3'b000;
+                    dcache_rreq_o.req_type = 3'b000;
                 end
                 `EXE_LD_H_OP, `EXE_LD_HU_OP: begin
                     dcache_rreq_o.addr = mem_paddr;
                     dcache_rreq_o.sel = 4'b0011 << mem_paddr[1:0];
-                    dcache_rreq_o.rd_type = 3'b001;
+                    dcache_rreq_o.req_type = 3'b001;
                 end
                 `EXE_LD_W_OP: begin
                     dcache_rreq_o.addr = mem_paddr;
                     dcache_rreq_o.sel = 4'b1111;
-                    dcache_rreq_o.rd_type = 3'b010;
+                    dcache_rreq_o.req_type = 3'b010;
                 end
                 `EXE_ST_B_OP: begin
                     dcache_rreq_o.addr = mem_paddr;
                     dcache_rreq_o.we = 1;
-                    dcache_rreq_o.wr_type = 3'b000;
+                    dcache_rreq_o.req_type = 3'b000;
                     dcache_rreq_o.sel = 4'b0001 << mem_paddr[1:0];
                     dcache_rreq_o.data = {24'b0, reg2_i[7:0]} << (8 * mem_paddr[1:0]);
                 end
                 `EXE_ST_H_OP: begin
                     dcache_rreq_o.addr = mem_paddr;
                     dcache_rreq_o.we = 1;
-                    dcache_rreq_o.wr_type = 3'b001;
+                    dcache_rreq_o.req_type = 3'b001;
                     dcache_rreq_o.sel = 4'b0011 << mem_paddr[1:0];
                     dcache_rreq_o.data = {16'b0, reg2_i[15:0]} << (8 * mem_paddr[1:0]);
                 end
                 `EXE_ST_W_OP: begin
                     dcache_rreq_o.addr = mem_paddr;
                     dcache_rreq_o.we = 1;
-                    dcache_rreq_o.wr_type = 3'b010;
+                    dcache_rreq_o.req_type = 3'b010;
                     dcache_rreq_o.sel = 4'b1111;
                     dcache_rreq_o.data = reg2_i;
                 end
                 `EXE_LL_OP: begin
                     dcache_rreq_o.addr = mem_paddr;
                     dcache_rreq_o.sel = 4'b1111;
-                    dcache_rreq_o.rd_type = 3'b010;
+                    dcache_rreq_o.req_type = 3'b010;
                 end
                 `EXE_SC_OP: begin
                     if (LLbit_i == 1'b1) begin
                         dcache_rreq_o.addr = mem_paddr;
                         dcache_rreq_o.we = 1;
-                        dcache_rreq_o.wr_type = 3'b010;
+                        dcache_rreq_o.req_type = 3'b010;
                         dcache_rreq_o.sel = 4'b1111;
                         dcache_rreq_o.data = reg2_i;
                     end else begin
@@ -267,7 +272,7 @@ module mem1
 
     always_ff @(posedge clk) begin
         if (rst) mem2_o_buffer <= 0;
-        else if (flush) mem2_o_buffer <= 0;
+        else if (flush | clear) mem2_o_buffer <= 0;
         else if (advance) mem2_o_buffer <= mem2_o;
     end
 `ifdef SIMU

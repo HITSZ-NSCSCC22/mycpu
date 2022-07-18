@@ -130,7 +130,7 @@ module ifu
     assign excp_ppi = (p1_data.csr.plv > tlb_i.tlb_plv) && p1_data.tlb_rreq.trans_en;
     // PC is not aligned
     assign excp_adef = (p1_pc[0] || p1_pc[1]) | (p1_pc[31]&& p1_data.csr.plv == 2'd3&& p1_data.tlb_rreq.trans_en);
-    assign p1_send_rreq = p1_advance & ~excp & ~flush_i;
+    assign p1_send_rreq = p1_advance & ~excp;
 
 
 
@@ -169,7 +169,7 @@ module ifu
     always_ff @(posedge clk) begin : is_flushing_ff
         if (rst) begin
             is_flushing_r <= 0;
-        end else if (flush_i & p2_in_transaction) begin
+        end else if (flush_i & (p2_in_transaction | p1_send_rreq)) begin
             // Enter a flusing state if flush_i and read transaction on-the-fly
             is_flushing_r <= 1;
         end else if (p2_read_done) begin
@@ -208,9 +208,9 @@ module ifu
     always_ff @(posedge clk) begin : p2_ff
         if (rst) begin
             p2_read_transaction <= 0;
-        end else if (((~p1_send_rreq & p1_advance) | ~p2_in_transaction) & flush_i) begin
+        end else if (((~p1_send_rreq & p1_advance) | ~(p2_in_transaction | p1_send_rreq)) & flush_i) begin
             p2_read_transaction <= 0;
-        end else if (p1_advance & ~flush_i) begin
+        end else if (p1_advance) begin
             p2_read_transaction.sent_req <= p1_send_rreq;
             p2_read_transaction.uncached <= p1_uncache;
             p2_read_transaction.excp <= excp;

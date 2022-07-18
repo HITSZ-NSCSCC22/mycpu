@@ -10,6 +10,7 @@ module mem2
 
     // Pipeline control signals
     input  logic flush,
+    input  logic clear,
     input  logic advance,
     output logic advance_ready,
 
@@ -48,9 +49,7 @@ module mem2
     assign mem_addr = mem1_i.mem_addr;
 
     assign data_forward_o = ~(mem_load_op & mem1_i.mem_access_valid) ? {mem1_i.wreg, 1'b1, mem1_i.waddr, mem1_i.wdata} :
-      (data_ok | data_already_ok) ? {
-        mem2_o.wreg, data_ok | data_already_ok, mem2_o.waddr, mem2_o.wdata
-    } : 0;
+       {mem2_o.wreg, data_ok | data_already_ok, mem2_o.waddr, mem2_o.wdata};
 
     always_ff @(posedge clk) begin
         if (rst) data_already_ok <= 0;
@@ -155,7 +154,7 @@ module mem2
 
     always_ff @(posedge clk) begin
         if (rst) mem2_o_buffer <= 0;
-        else if (flush) mem2_o_buffer <= 0;
+        else if (flush | clear) mem2_o_buffer <= 0;
         else if (advance) mem2_o_buffer <= mem2_o;
     end
 
