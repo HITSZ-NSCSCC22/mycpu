@@ -53,32 +53,28 @@ module axi_master
     //read constants
     assign m_axi.arlen = 0;  // 1 request
     assign m_axi.arburst = 0;  // burst type does not matter
-<<<<<<< HEAD
-    assign m_axi.rready  = 1;  //always ready to receive data
-    assign m_axi.arlock  =0;
-    assign m_axi.arprot =0;
-=======
     assign m_axi.rready = 1;  //always ready to receive data
->>>>>>> AXI128
+    assign m_axi.arlock = 0;
+    assign m_axi.arprot = 0;
 
     always_ff @(posedge clk) begin
         if (new_request) begin
-            m_axi.araddr <= addr;
-            m_axi.arsize <= size;
-            m_axi.awsize <= size;
-            m_axi.awaddr <= addr;
-            m_axi.wdata  <= data_in;
-            m_axi.wstrb  <= wstrb;
-            m_axi.arcache<=uncached?0:4'b1111;
-            m_axi.awcache<=uncached?0:4'b1111;
+            m_axi.araddr  <= addr;
+            m_axi.arsize  <= size;
+            m_axi.awsize  <= size;
+            m_axi.awaddr  <= addr;
+            m_axi.wdata   <= data_in;
+            m_axi.wstrb   <= wstrb;
+            m_axi.arcache <= uncached ? 0 : 4'b1111;
+            m_axi.awcache <= uncached ? 0 : 4'b1111;
         end
     end
 
     //write constants
     assign m_axi.awlen   = 0;
     assign m_axi.awburst = 0;
-    assign m_axi.awlock =0;
-    assign m_axi.awprot=0;
+    assign m_axi.awlock  = 0;
+    assign m_axi.awprot  = 0;
     assign m_axi.bready  = 1;
 
     set_clr_reg_with_rst #(

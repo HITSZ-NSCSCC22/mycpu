@@ -13,13 +13,9 @@ interface axi_interface;
     logic [2:0] arsize;
     logic [1:0] arburst;
     logic [3:0] arcache;
-<<<<<<< HEAD
-    logic [5:0] arid;
+    logic [3:0] arid;
     logic [2:0] arprot;
     logic [1:0] arlock;
-=======
-    logic [3:0] arid;
->>>>>>> AXI128
 
     //read data
     logic rready;
@@ -38,13 +34,9 @@ interface axi_interface;
     logic [2:0] awsize;
     logic [1:0] awburst;
     logic [3:0] awcache;
-<<<<<<< HEAD
-    logic [5:0] awid;
     logic [2:0] awprot;
     logic [1:0] awlock;
-=======
     logic [3:0] awid;
->>>>>>> AXI128
 
     //write data
     logic wready;

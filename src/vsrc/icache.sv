@@ -453,17 +453,17 @@ module icache
             REFILL_1_REQ: begin
                 axi_rreq_o = miss_1;
                 axi_addr_o = miss_1 ? p1_raddr_1 : 0;
-                axi_uncached_o=miss_1?p1_rreq_1_uncached:0;
+                axi_uncached_o = miss_1 ? p1_rreq_1_uncached : 0;
             end
             REFILL_2_REQ: begin
                 axi_rreq_o = miss_2;
                 axi_addr_o = miss_2 ? p1_raddr_2 : 0;
-                axi_uncached_o=miss_2?p1_rreq_2_uncached:0;
+                axi_uncached_o = miss_2 ? p1_rreq_2_uncached : 0;
             end
             default: begin
                 axi_rreq_o = 0;
                 axi_addr_o = 0;
-                axi_uncached_o=0;
+                axi_uncached_o = 0;
             end
         endcase
     end
@@ -485,7 +485,7 @@ module icache
         .rst        (rst),
         .m_axi      (m_axi),
         .new_request(axi_rreq_o),
-        .uncached(axi_uncached_o),
+        .uncached   (axi_uncached_o),
         .we         (1'b0),
         .addr       (axi_addr_o),
         .size       (3'b100),
