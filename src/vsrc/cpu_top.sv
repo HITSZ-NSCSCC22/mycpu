@@ -177,7 +177,7 @@ module cpu_top
 
     assign mem_cache_ce = mem_cache_signal[0].ce | mem_cache_signal[1].ce;
     assign mem_cache_we = mem_cache_signal[0].we | mem_cache_signal[1].we;
-    assign mem_uncache_en = mem_cache_signal[0].uncache_en | mem_cache_signal[0].uncache_en;
+    assign mem_uncache_en = mem_cache_signal[0].uncache | mem_cache_signal[0].uncache;
     assign mem_cache_sel =  mem_cache_signal[0].we ? mem_cache_signal[0].sel : mem_cache_signal[1].we ? mem_cache_signal[1].sel : 0;
     assign mem_cache_rd_type = mem_cache_signal[0].ce ? mem_cache_signal[0].rd_type : mem_cache_signal[1].ce ? mem_cache_signal[1].rd_type : 0;
     assign mem_cache_wr_type =  mem_cache_signal[0].ce ? mem_cache_signal[0].wr_type : mem_cache_signal[1].ce ? mem_cache_signal[1].wr_type : 0;

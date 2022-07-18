@@ -146,6 +146,7 @@ package core_types;
         logic dmw0_en;
         logic dmw1_en;
         logic cacop_op_mode_di;
+        logic data_uncache_pre_en;
     } ex_mem_struct;
 
 
