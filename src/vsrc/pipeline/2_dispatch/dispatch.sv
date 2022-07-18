@@ -97,7 +97,6 @@ module dispatch
     always_ff @(posedge clk) begin
         if (!rst_n) regs_available <= {GPR_NUM{1'b1}};
         else if (flush) regs_available <= {GPR_NUM{1'b1}};
-        else if (stall) regs_available <= regs_available;
         else begin
             // WB data available
             for (integer i = 0; i < ISSUE_WIDTH; i++) begin
@@ -129,7 +128,7 @@ module dispatch
             end
             // Set unavailable when issued
             for (integer issue_idx = 0; issue_idx < ISSUE_WIDTH; issue_idx++) begin
-                if (issue_wreg[issue_idx] & issue_valid[issue_idx])
+                if (issue_wreg[issue_idx] & issue_valid[issue_idx] & ~stall)
                     regs_available[issue_wreg_addr[issue_idx]] <= 0;
             end
         end
@@ -200,7 +199,7 @@ module dispatch
                         // EX data forward overide
                         for (integer i = 0; i < ISSUE_WIDTH; i++) begin
                             if (ex_data_forward_i[i].wreg && ex_data_forward_i[i].wreg_addr == regfile_reg_read_addr_o[issue_idx][op_idx])
-                                oprands[issue_idx][op_idx] = mem2_data_forward_i[i].wreg_data;
+                                oprands[issue_idx][op_idx] = ex_data_forward_i[i].wreg_data;
                         end
                         // $r0 is always 0
                         if (regfile_reg_read_addr_o[issue_idx][op_idx] == 0)

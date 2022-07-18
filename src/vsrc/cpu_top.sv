@@ -101,7 +101,7 @@ module cpu_top
     assign rst   = ~aresetn;
 
     // Pipeline control signal
-    logic [6:0] pipeline_advance, pipeline_flush;
+    logic [6:0] pipeline_advance, pipeline_flush, pipeline_clear;
     logic [ISSUE_WIDTH-1:0] ex_advance_ready, mem1_advance_ready, mem2_advance_ready;
 
     // Frontend <-> ICache
@@ -679,6 +679,7 @@ module cpu_top
 
                 // Pipeline control signals
                 .flush(pipeline_flush[3]),
+                .clear(pipeline_clear[3]),
                 .advance(pipeline_advance[3]),
                 .advance_ready(ex_advance_ready[i]),
 
@@ -734,6 +735,7 @@ module cpu_top
 
                 // Pipeline control signals
                 .flush(pipeline_flush[2]),
+                .clear(pipeline_clear[2]),
                 .advance(pipeline_advance[2]),
                 .advance_ready(mem1_advance_ready[i]),
 
@@ -778,6 +780,7 @@ module cpu_top
 
                 // Pipeline control signals
                 .flush(pipeline_flush[1]),
+                .clear(pipeline_clear[1]),
                 .advance(pipeline_advance[1]),
                 .advance_ready(mem2_advance_ready[i]),
 
@@ -866,6 +869,7 @@ module cpu_top
         .mem2_advance_ready_i(mem2_advance_ready),
         .flush_o(pipeline_flush),
         .advance_o(pipeline_advance),
+        .clear_o(pipeline_clear),
         .backend_redirect_pc_o(backend_redirect_pc),
 
         // <- CSR
