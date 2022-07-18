@@ -14,6 +14,7 @@ module mem1
 
     // Pipeline control signals
     input  logic flush,
+    input  logic clear,
     input  logic advance,
     output logic advance_ready,
 
@@ -267,7 +268,7 @@ module mem1
 
     always_ff @(posedge clk) begin
         if (rst) mem2_o_buffer <= 0;
-        else if (flush) mem2_o_buffer <= 0;
+        else if (flush | clear) mem2_o_buffer <= 0;
         else if (advance) mem2_o_buffer <= mem2_o;
     end
 `ifdef SIMU

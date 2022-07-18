@@ -17,6 +17,7 @@ module ex
 
     // Pipeline control signals
     input  logic flush,
+    input  logic clear,
     input  logic advance,
     output logic advance_ready,
 
@@ -154,8 +155,9 @@ module ex
     assign ex_o.mem_addr = oprand1 + imm;
     assign ex_o.reg2 = oprand2;
 
-    // if is mem_load_op, then data is no valid, else data is valid
-    assign data_forward_o = {ex_o.wreg, ~mem_load_op, ex_o.waddr, ex_o.wdata};
+    // Data forwarding 
+    assign data_forward_o = (muldiv_op != 0) ? {ex_o.wreg, muldiv_finish, ex_o.waddr, ex_o.wdata} : // Mul or Div op
+    {ex_o.wreg, ~mem_load_op, ex_o.waddr, ex_o.wdata}; // if is mem_load_op, then data is no valid, else data is valid
 
 
     assign csr_signal_i = dispatch_i.csr_signal;
@@ -452,7 +454,7 @@ module ex
 
     always_ff @(posedge clk) begin
         if (rst) ex_o_buffer <= 0;
-        else if (flush) ex_o_buffer <= 0;
+        else if (flush | clear) ex_o_buffer <= 0;
         else if (advance) ex_o_buffer <= ex_o;
     end
 
