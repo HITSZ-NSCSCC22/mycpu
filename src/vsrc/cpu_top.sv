@@ -11,7 +11,6 @@
 `include "frontend/frontend.sv"
 `include "instr_buffer.sv"
 `include "icache.sv"
-//`include "dummy_dcache.sv"
 `include "LSU.sv"
 `include "Cache/dcache_top.sv"
 `include "ctrl.sv"

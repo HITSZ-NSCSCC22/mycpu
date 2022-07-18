@@ -122,7 +122,7 @@ module LSU #(
         dcache_wstrb = 0;
         case (state)
             IDLE: begin
-                if (cpu_valid & ~cpu_store & ~cpu_uncached) begin  // Read
+                if (cpu_valid & ~cpu_store & ~cpu_uncached & ~cpu_flush) begin  // Read
                     dcache_valid = cpu_valid;
                     dcache_addr  = cpu_addr;
                 end
