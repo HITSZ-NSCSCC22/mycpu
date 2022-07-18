@@ -92,6 +92,7 @@ module ex
         pg_mode,
         da_mode,
         cacop_op_mode_di;
+    logic uncache_en;
 
     logic dmw0_en, dmw1_en, tlbsrch_en, data_fetch, trans_en;
     logic [`RegBus] tlb_vaddr;
@@ -217,6 +218,9 @@ module ex
     // Addr translate mode for DCache, pull down if instr is invalid
     assign cacop_op_mode_di = dcacop_op_en && ((cacop_op_mode == 2'b0) || (cacop_op_mode == 2'b1));
     assign trans_en = (access_mem | icacop_op_en | dcacop_op_en) && pg_mode && !dmw0_en && !dmw1_en && !cacop_op_mode_di;
+    assign uncache_en = da_mode ? csr_ex_signal.csr_datm == 0 : 
+                        dmw0_en ? csr_ex_signal.csr_dmw0[`DMW_MAT] :
+                        dmw1_en ? csr_ex_signal.csr_dmw1[`DMW_MAT] : 0;
 
     always_comb begin
         if (flush) tlb_rreq_o = 0;
@@ -420,6 +424,7 @@ module ex
         ex_o.icache_op_en = icacop_op_en;
         ex_o.cacop_op = cacop_op;
         ex_o.data_addr_trans_en = trans_en;
+        ex_o.data_uncache_en = uncache_en;
         ex_o.dmw0_en = dmw0_en;
         ex_o.dmw1_en = dmw1_en;
         ex_o.cacop_op_mode_di = cacop_op_mode_di;

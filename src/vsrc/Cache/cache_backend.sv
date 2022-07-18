@@ -2,7 +2,7 @@
 `include "Cache/dcache_config.sv"
 `include "Cache/read_channel.sv"
 `include "Cache/write_channel.sv"
-module backend
+module cache_backend
     import dcache_config::*;
 (
     input                                                                      clk,

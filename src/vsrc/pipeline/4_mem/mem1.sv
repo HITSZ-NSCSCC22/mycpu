@@ -98,7 +98,7 @@ module mem1
         else if (dcache_ack_i) dcache_ack_r <= 1;
     end
 
-    assign uncache_en = ex_i.data_uncache_pre_en || (ex_i.data_addr_trans_en && (tlb_result_i.tlb_mat == 2'b0));
+    assign uncache_en = ex_i.data_uncache_en || (ex_i.data_addr_trans_en && (tlb_result_i.tlb_mat == 2'b0));
 
     assign access_mem = mem_load_op | mem_store_op;
 
