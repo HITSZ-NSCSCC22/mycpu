@@ -8,6 +8,7 @@ module LSU #(
 
     input logic cpu_valid,
     input logic cpu_uncached,
+    input logic [2:0] cpu_req_type,
     input logic [FE_ADDR_W-1:0] cpu_addr,
     input logic [FE_DATA_W-1:0] cpu_wdata,
     input logic [FE_NBYTES-1:0] cpu_wstrb,
@@ -21,15 +22,28 @@ module LSU #(
     input logic cpu_flush,
     input logic cpu_store_commit,
 
+    // Cache
     output logic dcache_valid,
     output logic [FE_ADDR_W-1:0] dcache_addr,
     output logic [FE_DATA_W-1:0] dcache_wdata,
     output logic [FE_NBYTES-1:0] dcache_wstrb,
     input logic [FE_DATA_W-1:0] dcache_rdata,
-    input logic dcache_ready
+    input logic dcache_ready,
 
+    // Uncache AXI
+    axi_interface.master uncache_axi
 );
     logic cpu_store;
+
+    // Uncache channel
+    logic uncache_valid;
+    logic [2:0] uncache_req_type;
+    logic [FE_ADDR_W-1:0] uncache_addr;
+    logic [FE_DATA_W-1:0] uncache_wdata;
+    logic [FE_NBYTES-1:0] uncache_wstrb;
+    logic [FE_DATA_W-1:0] uncache_rdata;
+    logic uncache_ready;
+    logic uncache_data_ok;
 
     // P1 signal
     logic p1_valid_reg;
@@ -43,7 +57,9 @@ module LSU #(
         IDLE,
         STORE_COMMIT_WAIT,
         STORE_REQ_SEND,
-        STORE_REQ_WAIT
+        STORE_REQ_WAIT,
+        UNCACHE_REQ_SEND,
+        UNCACHE_REQ_WAIT
     }
         state, next_state;
     // State machine
@@ -54,7 +70,9 @@ module LSU #(
     always_comb begin
         case (state)
             IDLE: begin
-                if (cpu_store & ~cpu_flush) next_state = STORE_COMMIT_WAIT;
+                if (cpu_valid & cpu_uncached & ~cpu_store & ~cpu_flush)
+                    next_state = UNCACHE_REQ_SEND;
+                else if (cpu_store & ~cpu_flush) next_state = STORE_COMMIT_WAIT;
                 else next_state = IDLE;
             end
             STORE_COMMIT_WAIT: begin
@@ -69,6 +87,14 @@ module LSU #(
             STORE_REQ_WAIT: begin
                 if (dcache_ready) next_state = IDLE;
                 else next_state = STORE_REQ_WAIT;
+            end
+            UNCACHE_REQ_SEND: begin
+                if (uncache_ready) next_state = UNCACHE_REQ_WAIT;
+                else next_state = UNCACHE_REQ_SEND;
+            end
+            UNCACHE_REQ_WAIT: begin
+                if (uncache_data_ok) next_state = IDLE;
+                else next_state = UNCACHE_REQ_WAIT;
             end
             default: next_state = IDLE;
         endcase
@@ -108,6 +134,29 @@ module LSU #(
             end
         endcase
     end
+    // Uncache handshake
+    always_comb begin
+        uncache_valid = 0;
+        uncache_addr  = 0;
+        uncache_wdata = 0;
+        uncache_wstrb = 0;
+        case (state)
+            UNCACHE_REQ_SEND: begin
+                uncache_valid = 1;
+                uncache_addr  = p1_addr_reg;
+                uncache_wdata = p1_wdata_reg;
+                uncache_wstrb = p1_wstrb_reg;
+            end
+            UNCACHE_REQ_WAIT: begin
+                if (~uncache_data_ok) begin
+                    uncache_valid = 1;
+                    uncache_addr  = p1_addr_reg;
+                    uncache_wdata = p1_wdata_reg;
+                    uncache_wstrb = p1_wstrb_reg;
+                end
+            end
+        endcase
+    end
 
     // P1 signal
     always_ff @(posedge clk) begin
@@ -135,5 +184,21 @@ module LSU #(
     assign cpu_ready = state == IDLE & (~p1_valid_reg | dcache_ready);
     assign cpu_rdata = dcache_rdata;
     assign cpu_data_valid = dcache_ready;
+
+
+    uncache_channel u_uncache_channel (
+        .clk        (clk),
+        .rst        (rst),
+        .valid      (uncache_valid),
+        .addr       (uncache_addr),
+        .req_type   (uncache_req_type),
+        .wstrb      (uncache_wstrb),
+        .wdata      (uncache_wdata),
+        .rdata      (uncache_rdata),
+        .cache_ready(uncache_ready),
+        .data_ok    (uncache_data_ok),
+        .m_axi      (uncache_axi)
+    );
+
 
 endmodule
