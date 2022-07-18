@@ -1,21 +1,20 @@
-`include "iob_cache.vh"
 `include "Cache/dcache_config.sv"
 module cache_control
     import dcache_config::*;
 (
-    input                         clk,
-    input                         reset,
-    input                         valid,
-    input      [`CTRL_ADDR_W-1:0] addr,
-    input                         wtbuf_full,
-    input                         wtbuf_empty,
-    input                         write_hit,
-    input                         write_miss,
-    input                         read_hit,
-    input                         read_miss,
-    output reg [   FE_DATA_W-1:0] rdata,
-    output reg                    ready,
-    output reg                    invalidate
+    input                        clk,
+    input                        reset,
+    input                        valid,
+    input      [CTRL_ADDR_W-1:0] addr,
+    input                        wtbuf_full,
+    input                        wtbuf_empty,
+    input                        write_hit,
+    input                        write_miss,
+    input                        read_hit,
+    input                        read_miss,
+    output reg [  FE_DATA_W-1:0] rdata,
+    output reg                   ready,
+    output reg                   invalidate
 );
 
     generate
@@ -64,16 +63,16 @@ module cache_control
                 counter_reset <= 1'b0;
                 ready <= valid; // Sends acknowlege the next clock cycle after request (handshake)               
                 if (valid)
-                    if (addr == `ADDR_CACHE_HIT) rdata <= hit_cnt;
-                    else if (addr == `ADDR_CACHE_MISS) rdata <= miss_cnt;
-                    else if (addr == `ADDR_CACHE_READ_HIT) rdata <= read_hit_cnt;
-                    else if (addr == `ADDR_CACHE_READ_MISS) rdata <= read_miss_cnt;
-                    else if (addr == `ADDR_CACHE_WRITE_HIT) rdata <= write_hit_cnt;
-                    else if (addr == `ADDR_CACHE_WRITE_MISS) rdata <= write_miss_cnt;
-                    else if (addr == `ADDR_RESET_COUNTER) counter_reset <= 1'b1;
-                    else if (addr == `ADDR_CACHE_INVALIDATE) invalidate <= 1'b1;
-                    else if (addr == `ADDR_BUFFER_EMPTY) rdata <= wtbuf_empty;
-                    else if (addr == `ADDR_BUFFER_FULL) rdata <= wtbuf_full;
+                    if (addr == 3) rdata <= hit_cnt;
+                    else if (addr == 4) rdata <= miss_cnt;
+                    else if (addr == 5) rdata <= read_hit_cnt;
+                    else if (addr == 6) rdata <= read_miss_cnt;
+                    else if (addr == 7) rdata <= write_hit_cnt;
+                    else if (addr == 8) rdata <= write_miss_cnt;
+                    else if (addr == 9) counter_reset <= 1'b1;
+                    else if (addr == 10) invalidate <= 1'b1;
+                    else if (addr == 1) rdata <= wtbuf_empty;
+                    else if (addr == 2) rdata <= wtbuf_full;
             end  // always @ (posedge clk)
         end // if (CTRL_CNT)
       else
@@ -84,9 +83,9 @@ module cache_control
                 invalidate <= 1'b0;
                 ready <= valid; // Sends acknowlege the next clock cycle after request (handshake)               
                 if (valid)
-                    if (addr == `ADDR_CACHE_INVALIDATE) invalidate <= 1'b1;
-                    else if (addr == `ADDR_BUFFER_EMPTY) rdata <= wtbuf_empty;
-                    else if (addr == `ADDR_BUFFER_FULL) rdata <= wtbuf_full;
+                    if (addr == 10) invalidate <= 1'b1;
+                    else if (addr == 1) rdata <= wtbuf_empty;
+                    else if (addr == 2) rdata <= wtbuf_full;
             end  // always @ (posedge clk)
         end  // else: !if(CTRL_CNT)  
     endgenerate

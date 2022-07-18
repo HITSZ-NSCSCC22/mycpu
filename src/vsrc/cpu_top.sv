@@ -13,7 +13,7 @@
 `include "icache.sv"
 //`include "dummy_dcache.sv"
 `include "LSU.sv"
-`include "Cache/dcache.sv"
+`include "Cache/dcache_top.sv"
 `include "ctrl.sv"
 `include "Reg/regs_file.sv"
 `include "pipeline/1_decode/id.sv"
@@ -264,7 +264,7 @@ module cpu_top
     );
 
 
-    dcache u_dcache (
+    dcache_top u_dcache (
         .clk        (clk),
         .rst        (rst),
         .valid      (control_dcache_valid),
