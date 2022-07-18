@@ -246,14 +246,20 @@ module cpu_top
     logic [3:0] control_dcache_wstrb;
 
     LSU u_LSU (
-        .clk         (clk),
-        .rst         (rst),
-        .cpu_valid   (mem_cache_ce),
-        .cpu_addr    (mem_cache_addr),
-        .cpu_wdata   (mem_cache_data),
-        .cpu_wstrb   (mem_cache_sel),
-        .cpu_rdata   (cache_mem_data),
-        .cpu_ready   (dcache_ready),
+        .clk(clk),
+        .rst(rst),
+
+        .cpu_valid(mem_cache_ce),
+        .cpu_addr (mem_cache_addr),
+        .cpu_wdata(mem_cache_data),
+        .cpu_wstrb(mem_cache_sel),
+        .cpu_ready(dcache_ready),
+
+        .cpu_rdata(cache_mem_data),
+        .cpu_data_valid(mem_data_ok),
+        .cpu_flush(wb_dcache_flush != 2'b0 | pipeline_flush[2]),
+        .cpu_store_commit(dcache_store_commit[0]),  // If excp occurs, flush DCache
+
         .dcache_valid(control_dcache_valid),
         .dcache_addr (control_dcache_addr),
         .dcache_wdata(control_dcache_wdata),
@@ -746,7 +752,7 @@ module cpu_top
 
                 // <-> DCache
                 .dcache_rreq_o (mem_cache_signal[i]),
-                .dcache_ready_i(),
+                .dcache_ready_i(dcache_ready),
                 .dcache_ack_i  (dcache_ack),
 
                 // -> ICache, ICACOP
@@ -793,7 +799,7 @@ module cpu_top
                 .data_forward_o(mem2_data_forward[i]),
 
                 // <- DCache
-                .data_ok(dcache_ready),
+                .data_ok(mem_data_ok),
                 .cache_data_i(cache_mem_data)
             );
         end

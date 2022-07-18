@@ -17,6 +17,7 @@ module LSU #(
     output logic cpu_data_valid,
 
     // from wb
+    input logic cpu_flush,
     input logic cpu_store_commit,
 
     output logic dcache_valid,
@@ -27,13 +28,15 @@ module LSU #(
     input logic dcache_ready
 
 );
-
-    logic dcache_valid_reg;
-    logic [FE_ADDR_W-1:0] dcache_addr_reg;
-    logic [FE_DATA_W-1:0] dcache_wdata_reg;
-    logic [FE_NBYTES-1:0] dcache_wstrb_reg;
-
     logic cpu_store;
+
+    // P1 signal
+    logic p1_valid_reg;
+    logic p1_cpu_store;
+    logic [FE_ADDR_W-1:0] p1_addr_reg;
+    logic [FE_DATA_W-1:0] p1_wdata_reg;
+    logic [FE_NBYTES-1:0] p1_wstrb_reg;
+
 
     enum integer {
         IDLE,
@@ -50,11 +53,12 @@ module LSU #(
     always_comb begin
         case (state)
             IDLE: begin
-                if (cpu_store) next_state = STORE_COMMIT_WAIT;
+                if (cpu_store & ~cpu_flush) next_state = STORE_COMMIT_WAIT;
                 else next_state = IDLE;
             end
             STORE_COMMIT_WAIT: begin
-                if (cpu_store_commit) next_state = STORE_REQ_SEND;
+                if (cpu_flush) next_state = IDLE;
+                else if (cpu_store_commit) next_state = STORE_REQ_SEND;
                 else next_state = STORE_COMMIT_WAIT;
             end
             STORE_REQ_SEND: begin
@@ -87,16 +91,16 @@ module LSU #(
             end
             STORE_REQ_SEND: begin
                 dcache_valid = 1;
-                dcache_addr  = dcache_addr_reg;
-                dcache_wdata = dcache_wdata_reg;
-                dcache_wstrb = dcache_wstrb_reg;
+                dcache_addr  = p1_addr_reg;
+                dcache_wdata = p1_wdata_reg;
+                dcache_wstrb = p1_wstrb_reg;
             end
             STORE_REQ_WAIT: begin
                 if (~dcache_ready) begin
                     dcache_valid = 1;
-                    dcache_addr  = dcache_addr_reg;
-                    dcache_wdata = dcache_wdata_reg;
-                    dcache_wstrb = dcache_wstrb_reg;
+                    dcache_addr  = p1_addr_reg;
+                    dcache_wdata = p1_wdata_reg;
+                    dcache_wstrb = p1_wstrb_reg;
                 end
             end
             default: begin
@@ -106,15 +110,28 @@ module LSU #(
 
     // P1 signal
     always_ff @(posedge clk) begin
-        if (dcache_valid) begin
-            dcache_valid_reg <= cpu_valid;
-            dcache_addr_reg  <= cpu_addr;
-            dcache_wdata_reg <= cpu_wdata;
-            dcache_wstrb_reg <= cpu_wstrb;
+        if (cpu_flush & state == STORE_COMMIT_WAIT) begin
+            p1_cpu_store <= 0;
+            p1_valid_reg <= 0;
+            p1_addr_reg  <= 0;
+            p1_wdata_reg <= 0;
+            p1_wstrb_reg <= 0;
+        end else if (cpu_valid & ~cpu_flush) begin
+            p1_cpu_store <= cpu_store;
+            p1_valid_reg <= cpu_valid;
+            p1_addr_reg  <= cpu_addr;
+            p1_wdata_reg <= cpu_wdata;
+            p1_wstrb_reg <= cpu_wstrb;
+        end else if (dcache_ready) begin
+            p1_cpu_store <= 0;
+            p1_valid_reg <= 0;
+            p1_addr_reg  <= 0;
+            p1_wdata_reg <= 0;
+            p1_wstrb_reg <= 0;
         end
     end
 
-    assign cpu_ready = state == IDLE;
+    assign cpu_ready = state == IDLE & (~p1_valid_reg | dcache_ready);
     assign cpu_rdata = dcache_rdata;
     assign cpu_data_valid = dcache_ready;
 
