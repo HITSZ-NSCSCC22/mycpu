@@ -91,8 +91,6 @@ module cache_memory
     //buffer status (non-existant)
     assign wtbuf_full = 1'b0;
     assign wtbuf_empty = 1'b1;
-    assign wtbuf_full = 1'bx;
-    assign wtbuf_empty = 1'bx;
 
 
 

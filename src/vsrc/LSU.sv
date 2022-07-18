@@ -125,6 +125,9 @@ module LSU #(
                 if (cpu_valid & ~cpu_store & ~cpu_uncached & ~cpu_flush) begin  // Read
                     dcache_valid = cpu_valid;
                     dcache_addr  = cpu_addr;
+                end else if (~dcache_ready) begin
+                    dcache_valid = p1_valid_reg;
+                    dcache_addr  = p1_addr_reg;
                 end
             end
             REFILL_WAIT: begin
