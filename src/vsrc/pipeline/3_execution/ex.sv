@@ -260,7 +260,8 @@ module ex
     always_ff @(posedge clk) begin
         if (rst) muldiv_finish <= 0;
         else if (advance) muldiv_finish <= 0;
-        else if (mul_finish | div_finish) muldiv_finish <= 1;
+        else if ((mul_finish & mul_already_start) | (div_finish & div_already_start))
+            muldiv_finish <= 1;
     end
     always_comb begin
         case (aluop_i)
