@@ -154,6 +154,7 @@ module mem1
         dcache_rreq_o = 0;
         if (advance & access_mem & mem_access_valid) begin
             dcache_rreq_o.ce = 1;
+            dcache_rreq_o.uncache = uncache_en;
             dcache_rreq_o.pc = ex_i.instr_info.pc;
             case (aluop_i)
                 `EXE_LD_B_OP, `EXE_LD_BU_OP: begin
