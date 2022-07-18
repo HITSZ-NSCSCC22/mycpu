@@ -475,7 +475,7 @@ module icache
     );
 
     axi_master #(
-        .ID(2)
+        .ID(1)
     ) u_axi_master (
         .clk        (clk),
         .rst        (rst),

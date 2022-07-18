@@ -211,7 +211,7 @@ module uncache_channel
     end
 
     axi_master #(
-        .ID(6)
+        .ID(1)
     ) u_axi_master (
         .clk        (clk),
         .rst        (rst),

@@ -13,7 +13,7 @@ interface axi_interface;
     logic [2:0] arsize;
     logic [1:0] arburst;
     logic [3:0] arcache;
-    logic [5:0] arid;
+    logic [3:0] arid;
 
     //read data
     logic rready;
@@ -21,7 +21,7 @@ interface axi_interface;
     logic [AXI_DATA_WIDTH-1:0] rdata;
     logic [1:0] rresp;
     logic rlast;
-    logic [5:0] rid;
+    logic [3:0] rid;
 
     //Write channel
     //write address
@@ -32,7 +32,7 @@ interface axi_interface;
     logic [2:0] awsize;
     logic [1:0] awburst;
     logic [3:0] awcache;
-    logic [5:0] awid;
+    logic [3:0] awid;
 
     //write data
     logic wready;
@@ -45,7 +45,7 @@ interface axi_interface;
     logic bready;
     logic bvalid;
     logic [1:0] bresp;
-    logic [5:0] bid;
+    logic [3:0] bid;
 
     modport master(
         input arready, rvalid, rdata, rresp, rlast, rid, awready, wready, bvalid, bresp, bid,
