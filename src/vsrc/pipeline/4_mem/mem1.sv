@@ -74,6 +74,8 @@ module mem1
     logic excp, excp_adem, excp_tlbr, excp_pil, excp_pis, excp_ppi, excp_pme;
     logic [15:0] excp_num;
 
+    logic uncache_en;
+
     assign instr_info = ex_i.instr_info;
     assign special_info = ex_i.instr_info.special_info;
 
@@ -96,6 +98,7 @@ module mem1
         else if (dcache_ack_i) dcache_ack_r <= 1;
     end
 
+    assign uncache_en = ex_i.data_uncache_pre_en || (ex_i.data_addr_trans_en && (tlb_result_i.tlb_mat == 2'b0));
 
     assign access_mem = mem_load_op | mem_store_op;
 
@@ -156,6 +159,7 @@ module mem1
         dcache_rreq_o = 0;
         if (advance & access_mem & mem_access_valid & dcache_ready_i & ~dcache_ack_r) begin
             dcache_rreq_o.ce = 1;
+            dcache_rreq_o.uncache = uncache_en;
             dcache_rreq_o.pc = ex_i.instr_info.pc;
             case (aluop_i)
                 `EXE_LD_B_OP, `EXE_LD_BU_OP: begin
