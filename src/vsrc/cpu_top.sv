@@ -3,7 +3,6 @@
 `include "core_config.sv"
 `include "csr_defines.sv"
 `include "frontend/frontend_defines.sv"
-
 `include "cs_reg.sv"
 `include "tlb.sv"
 `include "tlb_entry.sv"
@@ -159,7 +158,7 @@ module cpu_top
 
     // MEM1 <-> DCache
     mem_dcache_rreq_t mem_cache_signal[2];
-    logic mem_cache_we, mem_cache_ce,mem_uncache_en;
+    logic mem_cache_we, mem_cache_ce, mem_uncache_en;
     logic [2:0] mem_cache_rd_type;
     logic [3:0] mem_cache_sel;
     logic [31:0] mem_cache_addr, mem_cache_data;
@@ -307,7 +306,7 @@ module cpu_top
     );
 
     //write_throught_dcache u_dcache (
-    write_back_dcache u_dcache(
+    write_back_dcache u_dcache (
         //dummy_dcache u_dcache (
         .clk(clk),
         .rst(rst),
@@ -1114,5 +1113,6 @@ module cpu_top
         .probe19(u_axi_master.s_wvalid)  // input wire [0:0]  probe19
     );
 `endif
+
 
 endmodule
