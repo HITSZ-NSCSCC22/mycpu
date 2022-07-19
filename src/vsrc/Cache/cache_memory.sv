@@ -42,40 +42,35 @@ module cache_memory
     output read_miss
 );
 
-
     localparam TAG_W = FE_ADDR_W - (FE_BYTE_W + WORD_OFF_W + LINE_OFF_W);
 
-    wire hit;
+    logic hit;
 
     //cache-memory internal signals
-    wire [N_WAYS-1:0] way_hit, way_select;
+    logic [N_WAYS-1:0] way_hit, way_select;
 
-    wire [TAG_W-1:0]                                                            tag       = addr_reg[FE_ADDR_W-1       -:TAG_W     ]; //so the tag doesnt update during ready on a read-access, losing the current hit status (can take the 1 clock-cycle delay)
-    wire [LINE_OFF_W-1:0]                                                       index     = addr    [FE_ADDR_W-TAG_W-1 -:LINE_OFF_W];//cant wait, doesnt update during a write-access
-    wire [LINE_OFF_W-1:0]                                                       index_reg = addr_reg[FE_ADDR_W-TAG_W-1 -:LINE_OFF_W];//cant wait, doesnt update during a write-access
-    wire [WORD_OFF_W-1:0]                                                       offset    = addr_reg[FE_BYTE_W         +:WORD_OFF_W]; //so the offset doesnt update during ready on a read-access (can take the 1 clock-cycle delay)
+    logic [TAG_W-1:0]                                                            tag       = addr_reg[FE_ADDR_W-1       -:TAG_W     ]; //so the tag doesnt update during ready on a read-access, losing the current hit status (can take the 1 clock-cycle delay)
+    logic [LINE_OFF_W-1:0]                                                       index     = addr    [FE_ADDR_W-TAG_W-1 -:LINE_OFF_W];//cant wait, doesnt update during a write-access
+    logic [LINE_OFF_W-1:0]                                                       index_reg = addr_reg[FE_ADDR_W-TAG_W-1 -:LINE_OFF_W];//cant wait, doesnt update during a write-access
+    logic [WORD_OFF_W-1:0]                                                       offset    = addr_reg[FE_BYTE_W         +:WORD_OFF_W]; //so the offset doesnt update during ready on a read-access (can take the 1 clock-cycle delay)
 
-
-    wire [N_WAYS*(2**WORD_OFF_W)*FE_DATA_W-1:0] line_rdata;
-    wire [N_WAYS*TAG_W-1:0] line_tag;
+    logic [N_WAYS*(2**WORD_OFF_W)*FE_DATA_W-1:0] line_rdata;
+    logic [N_WAYS*TAG_W-1:0] line_tag;
     reg [N_WAYS*(2**LINE_OFF_W)-1:0] v_reg;
     reg [N_WAYS-1:0] v;
 
-
-
     reg [(2**WORD_OFF_W)*FE_NBYTES-1:0] line_wstrb;
 
-    wire write_access = |wstrb_reg & valid_reg;
-    wire                                                                        read_access = ~|wstrb_reg & valid_reg;//signal mantains the access 1 addition clock-cycle after ready is asserted
-
+    logic write_access = |wstrb_reg & valid_reg;
+    logic                                                                        read_access = ~|wstrb_reg & valid_reg;//signal mantains the access 1 addition clock-cycle after ready is asserted
 
     //back-end write channel
-    wire buffer_empty, buffer_full;
-    wire [FE_NBYTES+(FE_ADDR_W-FE_BYTE_W)+(FE_DATA_W)-1:0] buffer_dout;
+    logic buffer_empty, buffer_full;
+    logic [FE_NBYTES+(FE_ADDR_W-FE_BYTE_W)+(FE_DATA_W)-1:0] buffer_dout;
 
     //for write-back write-allocate only
-    reg  [                                     N_WAYS-1:0] dirty;
-    reg  [                     N_WAYS*(2**LINE_OFF_W)-1:0] dirty_reg;
+    reg   [                                     N_WAYS-1:0] dirty;
+    reg   [                     N_WAYS*(2**LINE_OFF_W)-1:0] dirty_reg;
 
 
     // if (WRITE_POL == WRITE_BACK)
@@ -97,10 +92,10 @@ module cache_memory
     //////////////////////////////////////////////////////
     // Read-After-Write (RAW) Hazard (pipeline) control
     //////////////////////////////////////////////////////
-    wire                  raw;
-    reg                   write_hit_prev;
-    reg  [WORD_OFF_W-1:0] offset_prev;
-    reg  [    N_WAYS-1:0] way_hit_prev;
+    logic                  raw;
+    reg                    write_hit_prev;
+    reg   [WORD_OFF_W-1:0] offset_prev;
+    reg   [    N_WAYS-1:0] way_hit_prev;
 
     //// if (WRITE_POL == WRITE_BACK)
     always @(posedge clk) begin
@@ -110,9 +105,6 @@ module cache_memory
         way_hit_prev <= way_hit;
     end
     assign raw = write_hit_prev & (way_hit_prev == way_hit) & (offset_prev == offset) & read_access; //without read_access it is an infinite replacement loop
-
-
-
 
     ///////////////////////////////////////////////////////////////
     // Hit signal: data available and in the memory's output
@@ -183,11 +175,10 @@ module cache_memory
                 else line_wstrb = (wstrb_reg & {FE_NBYTES{write_access}}) << (offset * FE_NBYTES);
         end  // else: !if(LINE2MEM_W > 0)
 
-
         // Valid-Tag memories & replacement-policy
 
-
-        wire [NWAY_W-1:0] way_hit_bin, way_select_bin;//reason for the 2 generates for single vs multiple ways
+        logic [NWAY_W-1:0]
+            way_hit_bin, way_select_bin;  //reason for the 2 generates for single vs multiple ways
         //valid-memory
         always @(posedge clk, posedge reset) begin
             if (reset) v_reg <= 0;
@@ -260,7 +251,7 @@ module cache_memory
 
         //flush line
         assign write_valid = valid_reg & ~(|way_hit) & (way_select == dirty); //flush if there is not a hit, and the way selected is dirty
-        wire [TAG_W-1:0] tag_flush = line_tag >> (way_select_bin * TAG_W);  //auxiliary wire
+        logic [TAG_W-1:0] tag_flush = line_tag >> (way_select_bin * TAG_W);  //auxiliary logic
         assign write_addr = {
             tag_flush, index_reg
         };  //the position of the current block in cache (not of the access)
@@ -307,4 +298,4 @@ module iob_gen_sp_ram #(
         end
     endgenerate
 
-endmodule  // iob_gen_sp_ram
+endmodule

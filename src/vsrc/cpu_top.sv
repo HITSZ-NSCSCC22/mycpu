@@ -121,9 +121,10 @@ module cpu_top
     logic [13:0] dispatch_csr_read_addr;
     logic [`RegBus] dispatch_csr_data;
 
-    logic icacop_op_en[2];
-    logic icacop_ack;
-    logic [1:0] cacop_op_mode[2];
+    logic icacop_op_en[2], dcacop_op_en[2];
+    logic icacop_ack, dcacop_ack;
+    logic [1:0] icacop_op_mode[2];
+    logic [1:0] dcacop_op_mode[2];
     logic has_int;
 
     // EX
@@ -336,20 +337,26 @@ module cpu_top
         .axi_bready   (dcache_axi.bready)
     );
 
-
     // dcache_top u_dcache (
-    //     .clk        (clk),
-    //     .rst        (rst),
-    //     .valid      (control_dcache_valid),
-    //     .addr       (control_dcache_addr),
-    //     .wdata      (control_dcache_wdata),
-    //     .wstrb      (control_dcache_wstrb),
-    //     .rdata      (control_dcache_rdata),
-    //     .ready      (control_dcache_ready),
-    //     .force_inv_i(dcacop_en[0] | dcacop_en[1]),
+    //     .clk  (clk),
+    //     .rst  (rst),
+    //     .valid(control_dcache_valid),
+    //     .addr (control_dcache_addr),
+    //     .wdata(control_dcache_wdata),
+    //     .wstrb(control_dcache_wstrb),
+    //     .rdata(control_dcache_rdata),
+    //     .ready(control_dcache_ready),
+
+    //     .dcacop_en_o  (dcacop_op_en[0]),
+    //     .dcacop_mode_o(dcacop_op_mode[0]),
+    //     .dcacop_ack_i (dcache_ack),
+
+    //     .force_inv_i(),
     //     .force_inv_o(),
     //     .wtb_empty_i(wtb_empty_i),
     //     .wtb_empty_o(wtb_empty_o),
+
+
     //     .axi_arvalid(dcache_axi.arvalid),
     //     .axi_araddr (dcache_axi.araddr),
     //     .axi_arlen  (dcache_axi.arlen),
@@ -414,7 +421,7 @@ module cpu_top
 
         //-> CACOP
         .cacop_i(icacop_op_en[0]),
-        .cacop_mode_i(cacop_op_mode[0]),
+        .cacop_mode_i(icacop_op_mode[0]),
         .cacop_addr_i({tlb_data_result.tag, tlb_data_result.index, tlb_data_result.offset}),
         .cacop_ack_o(icacop_ack)
     );
@@ -971,8 +978,12 @@ module cpu_top
 
                 // -> ICache, ICACOP
                 .icacop_en_o  (icacop_op_en[i]),
-                .icacop_mode_o(cacop_op_mode[i]),
+                .icacop_mode_o(icacop_op_mode[i]),
                 .icacop_ack_i (icacop_ack),
+
+                .dcacop_en_o  (dcacop_op_en[i]),
+                .dcacop_mode_o(dcacop_op_mode[i]),
+                .dcacop_ack_i (dcacop_ack),
 
                 // <- TLB
                 .tlb_result_i(tlb_data_result),

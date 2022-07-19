@@ -141,6 +141,7 @@ package core_types;
 
         logic cacop_en;
         logic icache_op_en;
+        logic dcache_op_en;
         logic [4:0] cacop_op;
         logic data_addr_trans_en;
         logic dmw0_en;

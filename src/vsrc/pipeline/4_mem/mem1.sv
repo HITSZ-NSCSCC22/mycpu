@@ -46,6 +46,10 @@ module mem1
     output logic [1:0] icacop_mode_o,
     input logic icacop_ack_i,
 
+    output logic dcacop_en_o,
+    output logic [1:0] dcacop_mode_o,
+    input logic dcacop_ack_i,
+
     // Next stage
     output mem1_mem2_struct mem2_o_buffer
 
@@ -60,7 +64,7 @@ module mem1
     logic mem_access_valid;
 
     logic access_mem, mem_store_op, mem_load_op;
-    logic cacop_en, icache_op_en;
+    logic cacop_en, icache_op_en, dcache_op_en;
     logic [4:0] cacop_op;
 
     logic [`AluOpBus] aluop_i;
@@ -82,12 +86,14 @@ module mem1
 
     assign cacop_en = ex_i.cacop_en;
     assign icache_op_en = ex_i.icache_op_en;
+    assign dcache_op_en = ex_i.dcache_op_en;
     assign cacop_op = ex_i.cacop_op;
     // ICACOP
     assign icacop_en_o = icache_op_en;
     assign icacop_mode_o = cacop_op[4:3];
     // DCACOP
-    assign dcacop_en_o = cacop_op[2:0] == 1;
+    assign dcacop_en_o = dcache_op_en;
+    assign dcacop_mode_o = cacop_op[4:3];
 
     assign aluop_i = ex_i.aluop;
 

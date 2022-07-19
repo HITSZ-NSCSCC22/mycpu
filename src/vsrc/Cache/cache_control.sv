@@ -84,10 +84,10 @@ module cache_control
                 ready <= valid; // Sends acknowlege the next clock cycle after request (handshake)               
                 if (valid)
                     if (addr == 10) invalidate <= 1'b1;
-                    else if (addr == 1) rdata <= wtbuf_empty;
-                    else if (addr == 2) rdata <= wtbuf_full;
-            end  // always @ (posedge clk)
-        end  // else: !if(CTRL_CNT)  
+                    else if (addr == 1) rdata[0] <= wtbuf_empty;
+                    else if (addr == 2) rdata[0] <= wtbuf_full;
+            end
+        end
     endgenerate
 
-endmodule  // cache_controller
+endmodule

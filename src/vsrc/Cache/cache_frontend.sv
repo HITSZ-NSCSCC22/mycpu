@@ -36,17 +36,12 @@ module cache_frontend
     input                               ctrl_ready
 );
 
-    wire                         valid_int;
+    logic                         valid_int;
 
-    reg                          valid_reg;
-    reg  [FE_ADDR_W-1:FE_BYTE_W] addr_reg;
-    reg  [        FE_DATA_W-1:0] wdata_reg;
-    reg  [        FE_NBYTES-1:0] wstrb_reg;
-
-    assign data_valid_reg = valid_reg;
-    assign data_addr_reg  = addr_reg;
-    assign data_wdata_reg = wdata_reg;
-    assign data_wstrb_reg = wstrb_reg;
+    logic                         valid_reg;
+    logic [FE_ADDR_W-1:FE_BYTE_W] addr_reg;
+    logic [        FE_DATA_W-1:0] wdata_reg;
+    logic [        FE_NBYTES-1:0] wstrb_reg;
 
 
     //////////////////////////////////////////////////////////////////////////////////
@@ -107,9 +102,9 @@ module cache_frontend
     assign data_addr = addr[FE_ADDR_W-1:FE_BYTE_W];
     assign data_valid = valid_int | valid_reg;
 
-    assign data_addr_reg = addr_reg[FE_ADDR_W-1:FE_BYTE_W];
+    assign data_valid_reg = valid_reg;
+    assign data_addr_reg = addr_reg;
     assign data_wdata_reg = wdata_reg;
     assign data_wstrb_reg = wstrb_reg;
-    assign data_valid_reg = valid_reg;
 
 endmodule
