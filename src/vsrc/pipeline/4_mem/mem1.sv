@@ -26,7 +26,6 @@ module mem1
     output mem_dcache_rreq_t dcache_rreq_o,
     input logic dcache_ready_i,
     input logic dcache_ack_i,
-    output logic dcacop_en_o,
 
     // <- TLB
     input tlb_data_t tlb_result_i,

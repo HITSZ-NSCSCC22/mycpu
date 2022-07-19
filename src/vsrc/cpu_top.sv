@@ -741,10 +741,9 @@ module cpu_top
                 .mem2_o_buffer(mem1_mem2_signal[i]),
 
                 // <-> DCache
-                .dcache_rreq_o(mem_cache_signal[i]),
+                .dcache_rreq_o (mem_cache_signal[i]),
                 .dcache_ready_i(dcache_ready),
-                .dcache_ack_i(dcache_ack),
-                .dcacop_en_o(dcacop_en[i]),
+                .dcache_ack_i  (dcache_ack),
 
                 // -> ICache, ICACOP
                 .icacop_en_o  (icacop_op_en[i]),

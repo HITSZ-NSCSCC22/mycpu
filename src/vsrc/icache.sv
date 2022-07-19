@@ -133,14 +133,8 @@ module icache
     assign cacop_op_mode0 = cacop_i & cacop_mode_i == 2'b00;
     assign cacop_op_mode1 = cacop_i & cacop_mode_i == 2'b01;
     assign cacop_op_mode2 = cacop_i & cacop_mode_i == 2'b10;
-    assign cacop_way = cacop_addr_i[$clog2(NWAY)-1:0];
-    assign cacop_index = cacop_addr_i[$clog2(
-        ICACHELINE_WIDTH/8
-    )+$clog2(
-        NSET
-    )-1:$clog2(
-        ICACHELINE_WIDTH/8
-    )];
+    assign cacop_way = cacop_addr_i[NWAY-1:0];
+    assign cacop_index = cacop_addr_i[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
 
 
 
@@ -303,7 +297,7 @@ module icache
         case (state)
             REFILL_1_WAIT: begin
                 for (integer i = 0; i < NWAY; i++) begin
-                    if (i[0] == random_r[0]) begin
+                    if (i[NWAY_WIDTH-1:0] == random_r[NWAY_WIDTH-1:0]) begin
                         if (axi_rvalid_i & axi_rlast_i & ~p1_rreq_1_uncached) begin
                             tag_bram_we[i][0] = 1;
                             tag_bram_wdata[i][0] = {
@@ -317,7 +311,7 @@ module icache
             end
             REFILL_2_WAIT: begin
                 for (integer i = 0; i < NWAY; i++) begin
-                    if (i[0] == random_r[0]) begin
+                    if (i[NWAY_WIDTH-1:0] == random_r[NWAY_WIDTH-1:0]) begin
                         if (axi_rvalid_i & axi_rlast_i & ~p1_rreq_2_uncached) begin
                             tag_bram_we[i][1] = 1;
                             tag_bram_wdata[i][1] = {
@@ -331,7 +325,7 @@ module icache
             end
             CACOP_INVALID_1: begin
                 for (integer i = 0; i < NWAY; i++) begin
-                    if (cacop_way == i[$clog2(NWAY)-1:0] | cacop_op_mode2) begin
+                    if (cacop_way == i[NWAY_WIDTH-1:0] | cacop_op_mode2) begin
                         tag_bram_we[i][1] = 1;
                         tag_bram_wdata[i][1] = 0;
                     end
