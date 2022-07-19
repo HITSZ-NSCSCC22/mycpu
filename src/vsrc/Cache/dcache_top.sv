@@ -16,6 +16,10 @@ module dcache_top
     output logic [FE_DATA_W-1:0] rdata,
     output logic ready,
 
+    input logic dcacop_en_o,
+    input logic [1:0] dcacop_mode_o,
+    output logic dcacop_ack_i,
+
     input  logic force_inv_i,
     output logic force_inv_o,
     input  logic wtb_empty_i,

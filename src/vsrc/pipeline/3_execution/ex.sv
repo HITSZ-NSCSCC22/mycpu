@@ -436,6 +436,7 @@ module ex
         ex_o.timer_64 = timer_64;
         ex_o.cacop_en = cacop_instr;
         ex_o.icache_op_en = icacop_op_en;
+        ex_o.dcache_op_en = dcacop_op_en;
         ex_o.cacop_op = cacop_op;
         ex_o.data_addr_trans_en = trans_en;
         ex_o.data_uncache_en = uncache_en;
