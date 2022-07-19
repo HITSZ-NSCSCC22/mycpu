@@ -7,7 +7,7 @@ package dcache_config;
     parameter FE_ADDR_W = 32;
     parameter FE_DATA_W = 32;
     parameter N_WAYS = 4;
-    parameter LINE_OFF_W = 9;
+    parameter LINE_OFF_W = 10;
     parameter WORD_OFF_W = 3;
     parameter WTBUF_DEPTH_W = 5;
     //Replacement policy (N_WAYS > 1)
