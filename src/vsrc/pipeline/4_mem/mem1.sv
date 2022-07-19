@@ -26,6 +26,7 @@ module mem1
     output mem_dcache_rreq_t dcache_rreq_o,
     input logic dcache_ready_i,
     input logic dcache_ack_i,
+    output logic dcacop_en_o,
 
     // <- TLB
     input tlb_data_t tlb_result_i,
@@ -85,6 +86,8 @@ module mem1
     // ICACOP
     assign icacop_en_o = icache_op_en;
     assign icacop_mode_o = cacop_op[4:3];
+    // DCACOP
+    assign dcacop_en_o = cacop_op[2:0] == 1;
 
     assign aluop_i = ex_i.aluop;
 

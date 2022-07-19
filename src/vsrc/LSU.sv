@@ -165,14 +165,15 @@ module LSU #(
                 uncache_addr = p1_addr_reg;
                 uncache_wdata = p1_wdata_reg;
                 uncache_wstrb = p1_wstrb_reg;
-                uncache_req_type = 0;
+                uncache_req_type = p1_req_type;
             end
             UNCACHE_REQ_WAIT: begin
                 if (~uncache_data_ok) begin
                     uncache_valid = 1;
-                    uncache_addr  = p1_addr_reg;
+                    uncache_addr = p1_addr_reg;
                     uncache_wdata = p1_wdata_reg;
                     uncache_wstrb = p1_wstrb_reg;
+                    uncache_req_type = p1_req_type;
                 end
             end
         endcase
