@@ -274,19 +274,20 @@ module cpu_top
     );
 
     iob_cache_axi #(
-        .FE_ADDR_W (ADDR_WIDTH),
-        .FE_DATA_W (DATA_WIDTH),
-        .N_WAYS    (2),
-        .LINE_OFF_W(7),
-        .WORD_OFF_W(3),
-        .REP_POLICY(2),
-        .BE_ADDR_W (ADDR_WIDTH),
-        .BE_DATA_W (AXI_DATA_WIDTH),
-        .WRITE_POL (1),
-        .AXI_ID_W  (2),
-        .AXI_ID    (1),
-        .CTRL_CACHE(1),
-        .CTRL_CNT  (1)
+        .FE_ADDR_W    (ADDR_WIDTH),
+        .FE_DATA_W    (DATA_WIDTH),
+        .N_WAYS       (4),
+        .WTBUF_DEPTH_W(16),
+        .LINE_OFF_W   (10),
+        .WORD_OFF_W   (3),
+        .REP_POLICY   (1),
+        .BE_ADDR_W    (ADDR_WIDTH),
+        .BE_DATA_W    (AXI_DATA_WIDTH),
+        .WRITE_POL    (0),
+        .AXI_ID_W     (2),
+        .AXI_ID       (1),
+        .CTRL_CACHE   (1),
+        .CTRL_CNT     (1)
     ) u_iob_cache_axi (
         .clk          (clk),
         .reset        (rst),
@@ -971,10 +972,9 @@ module cpu_top
                 .mem2_o_buffer(mem1_mem2_signal[i]),
 
                 // <-> DCache
-                .dcache_rreq_o(mem_cache_signal[i]),
+                .dcache_rreq_o (mem_cache_signal[i]),
                 .dcache_ready_i(dcache_ready),
-                .dcache_ack_i(dcache_ack),
-                .dcacop_en_o(dcacop_en[i]),
+                .dcache_ack_i  (dcache_ack),
 
                 // -> ICache, ICACOP
                 .icacop_en_o  (icacop_op_en[i]),
