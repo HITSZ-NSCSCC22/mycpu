@@ -45,10 +45,10 @@ module tage_predictor
     logic update_valid = base_predictor_update_i.valid;
     logic update_predict_correct = 1;
     logic update_branch_taken = base_predictor_update_i.taken;
-    logic update_is_conditional = 0;
+    logic update_is_conditional = base_predictor_update_i.is_conditional;
     // logic [$clog2(TAG_COMPONENT_AMOUNT+1)-1:0] update_provider_id;
     // assign update_provider_id = branch_update_info_i.provider_id;
-    logic [`RegBus] update_pc = base_predictor_update_i.pc;
+    logic [ADDR_WIDTH-1:0] update_pc = base_predictor_update_i.pc;
 
     // Global History Register
     bit [GHR_DEPTH-1:0] GHR;
@@ -69,8 +69,8 @@ module tage_predictor
         .clk          (clk),
         .rst          (rst),
         .pc_i         (pc_i),
-        .update_valid (base_update_ctr),
-        .update_info_i({update_pc, update_branch_taken}),
+        .update_valid (update_valid & update_is_conditional),
+        .update_info_i(base_predictor_update_i),
         .taken        (base_taken)
     );
 

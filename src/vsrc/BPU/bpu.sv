@@ -83,6 +83,17 @@ module bpu
         main_redirect_pc_o = predict_taken ? ftb_entry.jump_target_address : 0;
     end
 
+    ////////////////////////////////////////////////////////////////////
+    // Update Logic
+    ////////////////////////////////////////////////////////////////////
+    base_predictor_update_info_t base_predictor_update_info;
+    always_comb begin
+        base_predictor_update_info.valid = ftq_meta_i.valid;
+        base_predictor_update_info.is_conditional = ftq_meta_i.is_conditional;
+        base_predictor_update_info.pc = ftq_meta_i.start_pc;
+        base_predictor_update_info.taken = ftq_meta_i.is_taken;
+    end
+
     ftb u_ftb (
         .clk(clk),
         .rst(rst),
@@ -102,10 +113,10 @@ module bpu
         .clk                      (clk),
         .rst                      (rst),
         .pc_i                     (pc_i),
-        .base_predictor_update_i  (),
+        .base_predictor_update_i  (base_predictor_update_info),
         .predicted_branch_target_o(),
         .predict_branch_taken_o   (predict_taken),
-        .predict_valid_o          (predict_valid_o),
+        .predict_valid_o          (predict_valid),
         .perf_tag_hit_counter     ()
     );
 

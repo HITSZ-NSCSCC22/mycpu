@@ -19,6 +19,7 @@ package bpu_types;
 
     typedef struct packed {
         logic valid;
+        logic is_conditional;
         logic taken;
         logic [ADDR_WIDTH-1:0] pc;
         logic [BPU_COMPONENT_CTR_WIDTH[0]-1:0] ctr_bits;
@@ -58,6 +59,7 @@ package bpu_types;
         logic is_conditional;
         logic is_taken;
         logic predicted_taken;  // Comes from BPU
+        logic [ADDR_WIDTH-1:0] start_pc;
     } ftq_bpu_meta_t;
 
     typedef struct packed {

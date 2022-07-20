@@ -22,8 +22,8 @@ module ftq
 
     // <-> Backend 
     input logic [COMMIT_WIDTH-1:0] backend_commit_bitmask_i,
-    input logic [COMMIT_WIDTH-1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_commit_ftq_id_i,
-    input backend_commit_meta_t [COMMIT_WIDTH-1:0] backend_commit_meta_i,
+    input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_commit_ftq_id_i,
+    input backend_commit_meta_t backend_commit_meta_i,
 
     // <-> IFU
     output ftq_ifu_t ifu_o,
@@ -97,8 +97,12 @@ module ftq
         end
         // Accept BPU input
         if (bpu_i.valid) next_FTQ[bpu_ptr] = bpu_i;
-        // If backend redirect triggered, clear FTQ
-        if (backend_flush_i) next_FTQ = 0;
+        // If backend redirect triggered, clear the committed and predicted entry
+        if (backend_flush_i) begin
+            for (integer i = 0; i < QUEUE_SIZE; i++) begin
+                if (~(i >= comm_ptr & i <= backend_flush_ftq_id_i)) next_FTQ[i] = 0;
+            end
+        end
     end
 
     // Output
@@ -118,10 +122,13 @@ module ftq
         if (rst) bpu_meta_o <= 0;
         else begin
             bpu_meta_o <= 0;
-            for (integer i = 0; i < COMMIT_WIDTH; i++) begin
-                if (backend_commit_bitmask_i[i] & backend_commit_meta_i[i].is_branch) begin
-                    bpu_meta_o.valid <= 1;
-                end
+            if (backend_commit_bitmask_i[0] & backend_commit_meta_i.is_branch) begin
+                bpu_meta_o.valid <= 1;
+                bpu_meta_o.is_branch <= backend_commit_meta_i.is_branch;
+                bpu_meta_o.is_conditional <= backend_commit_meta_i.is_conditional;
+                bpu_meta_o.is_taken <= backend_commit_meta_i.is_taken;
+                bpu_meta_o.predicted_taken <= backend_commit_meta_i.predicted_taken;
+                bpu_meta_o.start_pc <= FTQ[backend_commit_ftq_id_i].start_pc;
             end
         end
     end
