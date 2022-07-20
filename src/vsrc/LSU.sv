@@ -218,6 +218,10 @@ module LSU #(
                 cpu_rdata = dcache_rdata;
                 cpu_data_valid = dcache_ready;
             end
+            REFILL_WAIT: begin
+                cpu_rdata = dcache_rdata;
+                cpu_data_valid = dcache_ready;
+            end
             UNCACHE_REQ_WAIT: begin
                 cpu_rdata = uncache_rdata;
                 cpu_data_valid = uncache_data_ok;

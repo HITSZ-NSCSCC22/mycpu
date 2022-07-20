@@ -275,47 +275,19 @@ module cpu_top
     dcache u_dcache (
         .clk         (clk),
         .rst         (rst),
-        .valid       (valid),
-        .op          (op),
-        .pc          (pc),
-        .uncache     (uncache),
-        .index       (index),
-        .tag         (tag),
-        .offset      (offset),
-        .wstrb       (wstrb),
-        .wdata       (wdata),
-        .rd_type_i   (rd_type_i),
-        .wr_type_i   (wr_type_i),
-        .flush_pc    (flush_pc),
-        .flush_i     (flush_i),
-        .cacop_i     (cacop_i),
-        .cacop_mode_i(cacop_mode_i),
-        .cacop_addr_i(cacop_addr_i),
-        .cacop_ack_o (cacop_ack_o),
-        .cache_ready (cache_ready),
-        .cache_ack   (cache_ack),
-        .addr_ok     (addr_ok),
-        .data_ok     (data_ok),
-        .rdata       (rdata),
-        .rd_req      (rd_req),
-        .rd_type     (rd_type),
-        .rd_addr     (rd_addr),
-        .rd_rdy      (rd_rdy),
-        .ret_valid   (ret_valid),
-        .ret_last    (ret_last),
-        .ret_data    (ret_data),
-        .wr_req      (wr_req),
-        .wr_type     (wr_type),
-        .wr_addr     (wr_addr),
-        .wr_wstrb    (wr_wstrb),
-        .wr_data     (wr_data),
-        .wr_rdy      (wr_rdy),
-        .wr_done     (wr_done)
+        .valid       (control_dcache_valid),
+        .addr        (control_dcache_addr),
+        .wstrb       (control_dcache_wstrb),
+        .wdata       (control_dcache_wdata),
+        .cacop_i     (dcacop_en[0]),
+        .cacop_mode_i(dcacop_op_mode[0]),
+        .cacop_addr_i({tlb_data_result.tag, tlb_data_result.index, tlb_data_result.offset}),
+        .cacop_ack_o (dcacop_ack),
+        .data_ok     (control_dcache_ready),
+        .rdata       (control_dcache_rdata),
+
+        .m_axi(dcache_axi)
     );
-
-
-
-
 
     icache u_icache (
         .clk(clk),

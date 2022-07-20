@@ -4,6 +4,7 @@
 `include "utils/byte_bram.sv"
 `include "utils/dual_port_lutram.sv"
 `include "Cache/dcache_fifo.sv"
+`include "axi/axi_dcache_master.sv"
 `include "axi/axi_interface.sv"
 
 module dcache
@@ -14,27 +15,16 @@ module dcache
 
     //cache与CPU流水线的交互接
     input logic valid,  //表明请求有效
-    input logic op,  // 1:write 0: read
-    input logic [31:0] pc,
-    input logic uncache,  //标志uncache指令，高位有效
-    input logic [7:0] index,  // 地址的index域(addr[11:4])
-    input logic [19:0] tag,  //从TLB查到的pfn形成的tag
-    input logic [3:0] offset,  //地址的offset域addr[3:0]
+    input logic [`RegBus] addr,
     input logic [3:0] wstrb,  //写字节使能信号
     input logic [31:0] wdata,  //写数据
-    input logic [2:0] req_type,
-    input logic [31:0] flush_pc,
-    input logic flush_i, // 冲刷信号，如果出于某种原因需要取消写事务，CPU拉高此信号
 
     //CACOP
     input logic cacop_i,
     input logic [1:0] cacop_mode_i,
     input logic [ADDR_WIDTH-1:0] cacop_addr_i,
     output cacop_ack_o,
-    output logic cache_ready,
-    output logic cache_ack,
 
-    output logic addr_ok,             //该次请求的地址传输OK，读：地址被接收；写：地址和数据被接收
     output logic data_ok,             //该次请求的数据传输Ok，读：数据返回；写：数据写入完成
     output logic [31:0] rdata,  //读Cache的结果
 
@@ -59,9 +49,6 @@ module dcache
 
     // save the input signal
     logic valid_buffer;
-    logic op_buffer;
-    logic uncache_buffer;
-    logic [31:0] pc_buffer;
     logic [7:0] index_buffer;
     logic [19:0] tag_buffer;
     logic [3:0] offset_buffer;
@@ -73,6 +60,7 @@ module dcache
     logic [1:0] cacop_mode_buffer;
     logic [ADDR_WIDTH-1:0] cacop_addr_buffer;
 
+    logic cpu_wreq;
     logic [15:0] random_r;
 
     // AXI
@@ -81,6 +69,7 @@ module dcache
     logic axi_we_o;
     logic axi_rdy_i;
     logic axi_rvalid_i;
+    logic axi_bvalid_i;
     logic [AXI_DATA_WIDTH-1:0] axi_data_i;
     logic [AXI_DATA_WIDTH-1:0] axi_wdata_o;
     logic [(AXI_DATA_WIDTH/8)-1:0] axi_wstrb_o;
@@ -108,12 +97,9 @@ module dcache
 
     assign cpu_addr = {tag_buffer, index_buffer, offset_buffer};
 
-    logic flush;
-    assign flush = flush_i & (flush_pc <= pc_buffer);
-    assign cache_ready = state == IDLE && ~valid_buffer;
 
     logic [1:0] fifo_state;
-    logic fifo_rreq, fifo_wreq, fifo_r_hit, fifo_w_hit, fifo_axi_wr_req;
+    logic fifo_rreq, fifo_wreq, fifo_r_hit, fifo_w_hit, fifo_axi_wr_req, fifo_w_accept;
     logic [`DataAddrBus] fifo_raddr, fifo_waddr, fifo_axi_wr_addr;
     logic [DCACHELINE_WIDTH-1:0] fifo_rdata, fifo_wdata, fifo_axi_wr_data;
 
@@ -159,101 +145,64 @@ module dcache
     always_ff @(posedge clk) begin : data_buffer
         if (rst) begin
             valid_buffer <= 0;
-            op_buffer <= 0;
-            uncache_buffer <= 0;
-            pc_buffer <= 0;
             index_buffer <= 0;
             tag_buffer <= 0;
             offset_buffer <= 0;
             wstrb_buffer <= 0;
             wdata_buffer <= 0;
-            req_type_buffer <= 0;
             cacop_buffer <= 0;
             cacop_mode_buffer <= 0;
             cacop_addr_buffer <= 0;
-        end else if (flush && state == LOOK_UP) begin
-            valid_buffer <= 0;
-            op_buffer <= 0;
-            uncache_buffer <= 0;
-            pc_buffer <= 0;
-            index_buffer <= 0;
-            tag_buffer <= 0;
-            offset_buffer <= 0;
-            wstrb_buffer <= 0;
-            wdata_buffer <= 0;
-            req_type_buffer <= 0;
-            cacop_buffer <= 0;
-            cacop_mode_buffer <= 0;
-            cacop_addr_buffer <= 0;
-        end else if (valid & cache_ack) begin  // not accept new request while working
+        end else if (valid) begin  // not accept new request while working
             valid_buffer <= valid;
-            op_buffer <= op;
-            uncache_buffer <= uncache;
-            pc_buffer <= pc;
-            index_buffer <= index;
-            tag_buffer <= tag;
-            offset_buffer <= offset;
+            index_buffer <= addr[11:4];
+            tag_buffer <= addr[31:12];
+            offset_buffer <= addr[3:0];
             wstrb_buffer <= wstrb;
             wdata_buffer <= wdata;
-            req_type_buffer <= req_type;
             cacop_buffer <= cacop_i;
             cacop_mode_buffer <= cacop_mode_i;
             cacop_addr_buffer <= cacop_addr_i;
         end else if (next_state == IDLE) begin  //means that cache will finish work,so flush the buffered signal
             valid_buffer      <= 0;
-            op_buffer         <= 0;
-            uncache_buffer    <= 0;
-            pc_buffer         <= 0;
             index_buffer      <= 0;
             tag_buffer        <= 0;
             offset_buffer     <= 0;
             wstrb_buffer      <= 0;
             wdata_buffer      <= 0;
-            req_type_buffer   <= 0;
             cacop_buffer      <= 0;
             cacop_mode_buffer <= 0;
             cacop_addr_buffer <= 0;
         end else begin
             valid_buffer <= valid_buffer;
-            op_buffer <= op_buffer;
-            uncache_buffer <= uncache_buffer;
-            pc_buffer <= pc_buffer;
             index_buffer <= index_buffer;
             tag_buffer <= tag_buffer;
             offset_buffer <= offset_buffer;
             wstrb_buffer <= wstrb_buffer;
             wdata_buffer <= wdata_buffer;
-            req_type_buffer <= req_type_buffer;
             cacop_buffer <= cacop_buffer;
             cacop_mode_buffer <= cacop_mode_buffer;
             cacop_addr_buffer <= cacop_addr_buffer;
         end
     end
 
-    always_comb begin
-        if (rst) cache_ack = 0;
-        else if (state == IDLE) cache_ack = valid;
-        else cache_ack = 0;
-    end
-
+    //  the wstrb is not 0 means it is a write request;
+    assign cpu_wreq = wstrb_buffer != 4'b0;
 
     always_comb begin : transition_comb
         case (state)
             IDLE: begin
-                if (flush) next_state = IDLE;
-                else if (cacop_i) next_state = CACOP_INVALID;
+                if (cacop_i) next_state = CACOP_INVALID;
                 // if the dcache is idle,then accept the new request
                 else if (valid) begin
                     next_state = LOOK_UP;
                 end
             end
             LOOK_UP: begin
-                // just flush the write req,not flush the read req
-                if (flush & op_buffer) next_state = IDLE;
-                else if (valid_buffer) begin
+                if (valid) begin
                     // if write hit,then turn to write idle
                     // if write miss,then wait for read
-                    if (op_buffer) begin
+                    if (cpu_wreq) begin
                         // if hit the dirty cacheline but the fifo is full
                         // then wait until then fifo is not full
                         if (hit & (tag_hit & dirty) != 2'b0 & fifo_state[0]) next_state = LOOK_UP;
@@ -312,24 +261,16 @@ module dcache
                     if (valid) begin
                         tag_bram_en[i] = 1;
                         data_bram_en[i] = 1;
-                        tag_bram_addr[i] = index;
-                        data_bram_addr[i] = index;
+                        tag_bram_addr[i] = addr[11:4];
+                        data_bram_addr[i] = addr[11:4];
                         fifo_rreq = 1;
-                        fifo_raddr = {tag, index, offset};
+                        fifo_raddr = addr;
                     end
                 end
             end
             LOOK_UP: begin
                 for (integer i = 0; i < NWAY; i++) begin
-                    // if flush come at look up,the cancel the write req
-                    if (flush) begin
-                        tag_bram_en[i] = 0;
-                        data_bram_en[i] = 0;
-                        tag_bram_addr[i] = 0;
-                        data_bram_addr[i] = 0;
-                        fifo_rreq = 0;
-                        fifo_raddr = 0;
-                    end else if (valid_buffer) begin
+                    if (valid_buffer) begin
                         tag_bram_en[i] = 1;
                         data_bram_en[i] = 1;
                         tag_bram_addr[i] = index_buffer;
@@ -382,14 +323,8 @@ module dcache
             LOOK_UP: begin
                 // if write hit,then replace the cacheline
                 for (integer i = 0; i < NWAY; i++) begin
-                    // if flush come at look up ,cancel the write req
-                    if (flush) begin
-                        tag_bram_we[i] = 0;
-                        tag_bram_wdata[i] = 0;
-                        data_bram_we[i] = 0;
-                        data_bram_wdata[i] = 0;
-                    end  // if write hit ,then write the hit line, if miss then don't write
-                    else if (tag_hit[i] && op_buffer) begin
+                    // if write hit ,then write the hit line, if miss then don't write
+                    if (tag_hit[i] && cpu_wreq) begin
                         tag_bram_we[i] = 1;
                         // make the dirty bit 1'b1
                         tag_bram_wdata[i] = {1'b1, 1'b1, tag_buffer};
@@ -528,7 +463,7 @@ module dcache
             LOOK_UP: begin
                 // if write hit the cacheline in the fifo 
                 // then rewrite the cacheline in the fifo 
-                if (fifo_r_hit & op_buffer) begin
+                if (fifo_r_hit & cpu_wreq) begin
                     fifo_wreq  = 1;
                     fifo_waddr = fifo_raddr;
                     fifo_wdata = fifo_rdata;
@@ -575,35 +510,29 @@ module dcache
 
     // Handshake with CPU
     always_comb begin
-        addr_ok = 0;
         data_ok = 0;
         rdata   = 0;
         case (state)
             LOOK_UP: begin
                 if (!miss) begin
-                    addr_ok = 1;
                     data_ok = 1;
                     rdata   = hit_data[cpu_addr[3:2]*32+:32];
                 end else if (axi_rvalid_i) begin
-                    addr_ok = 1;
                     data_ok = 1;
                     rdata   = axi_data_i[cpu_addr[3:2]*32+:32];
                 end
             end
             READ_REQ, READ_WAIT: begin
                 if (!miss) begin
-                    addr_ok = 1;
                     data_ok = 1;
                     rdata   = hit_data[rd_addr_r[3:2]*32+:32];
                 end else if (axi_rvalid_i) begin
-                    addr_ok = 1;
                     data_ok = 1;
                     rdata   = axi_data_i[rd_addr_r[3:2]*32+:32];
                 end
             end
             WRITE_REQ, WRITE_WAIT: begin
-                if (axw) begin
-                    addr_ok = 1;
+                if (axi_rvalid_i) begin
                     data_ok = 1;
                 end
             end
@@ -623,7 +552,7 @@ module dcache
                 LOOK_UP: begin
                     miss_r <= miss_pulse;
                 end
-                READ_WAIT: begin
+                READ_WAIT, WRITE_WAIT: begin
                     if (axi_rvalid_i) miss_r <= 0;
                 end
                 default: begin
@@ -658,37 +587,61 @@ module dcache
         end
     end
 
+    //handshake with axi
     always_comb begin
+        fifo_w_accept = 0;  // which used to tell fifo if it can send data to axi
+        axi_req_o = 0;
         axi_addr_o = 0;
         axi_wdata_o = 0;
         axi_we_o = 0;
         axi_wstrb_o = 0;
-        if (axi_rdy_i & !fifo_state[1]) begin
-            axi_we_o = fifo_axi_wr_req;
-            axi_addr_o = fifo_axi_wr_addr;
-            axi_wdata_o = fifo_axi_wr_data;
-            axi_wstrb_o = 16'b1111_1111_1111_1111;
-        end
-    end
-
-    always_comb begin
-        // Default signal
-        rd_addr   = 0;
-        axi_rdy_i = 0;
         case (state)
-            // if miss,then sent the read request
-            READ_REQ, WRITE_REQ: begin
-                if (axi_rdy_i) begin
-                    rd_req  = 1;
-                    rd_addr = cpu_addr;
+            // if the state is idle,then the dcache is free
+            // so send the wdata in fifo to axi when axi is free
+            IDLE: begin
+                if (axi_rdy_i & !fifo_state[0]) begin
+                    fifo_w_accept = 1;
+                    axi_req_o = 1;
+                    axi_we_o = fifo_axi_wr_req;
+                    axi_addr_o = fifo_axi_wr_addr;
+                    axi_wdata_o = fifo_axi_wr_data;
+                    axi_wstrb_o = 16'b1111_1111_1111_1111;
                 end
             end
-            // wait for the data
+            // if the state is look up and tag hit,then the dcache is free
+            // so send the wdata in fifo to axi when axi is also free
+            LOOK_UP: begin
+                if (axi_rdy_i & !fifo_state[0] & !miss) begin
+                    axi_req_o = 1;
+                    fifo_w_accept = 1;
+                    axi_we_o = fifo_axi_wr_req;
+                    axi_addr_o = fifo_axi_wr_addr;
+                    axi_wdata_o = fifo_axi_wr_data;
+                    axi_wstrb_o = 16'b1111_1111_1111_1111;
+                end
+            end
+            //if the axi is free then send the read request
+            READ_REQ, WRITE_REQ: begin
+                if (axi_rdy_i) begin
+                    axi_req_o  = 1;
+                    axi_addr_o = cpu_addr;
+                end
+            end
+            // wait for the data back
             READ_WAIT, WRITE_WAIT: begin
-                rd_req  = rd_req_r & ~axi_rvalid_i;
-                rd_addr = rd_addr_r;
+                axi_addr_o = cpu_addr;
+            end
+            default: begin
+                axi_req_o = 0;
+                fifo_w_accept = 0;
+                axi_req_o = 0;
+                axi_addr_o = 0;
+                axi_wdata_o = 0;
+                axi_we_o = 0;
+                axi_wstrb_o = 0;
             end
         endcase
+
     end
 
 
@@ -708,7 +661,7 @@ module dcache
         //FIFO state
         .state(fifo_state),
         //write to memory 
-        .axi_bvalid_i(axi_rdy_i & !rd_req),
+        .axi_bvalid_i(axi_rdy_i & (state == IDLE | (state == LOOK_UP & !miss))),
         .axi_wen_o(fifo_axi_wr_req),
         .axi_wdata_o(fifo_axi_wr_data),
         .axi_awaddr_o(fifo_axi_wr_addr)
@@ -725,7 +678,7 @@ module dcache
     );
 
 
-    axi_master #(
+    axi_dcache_master #(
         .ID(2)
     ) u_axi_master (
         .clk        (clk),
@@ -734,11 +687,12 @@ module dcache
         .new_request(axi_req_o),
         .we         (axi_we_o),
         .addr       (axi_addr_o),
-        .size       (req_type_buffer),
+        .size       (3'b100),
         .data_in    (axi_wdata_o),
         .wstrb      (axi_wstrb_o),
         .ready_out  (axi_rdy_i),
-        .valid_out  (axi_rvalid_i),
+        .rvalid_out (axi_rvalid_i),
+        .wvalid_out (axi_bvalid_i),
         .data_out   (axi_data_i)
     );
 
