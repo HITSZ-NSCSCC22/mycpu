@@ -13,8 +13,8 @@ package bpu_types;
         logic [2:0] branch_type;
         // Virtual tag, pc[1:0] is always 0, so not used in index or tag
         logic [ADDR_WIDTH-3-$clog2(FTB_DEPTH):0] tag;
-        logic [ADDR_WIDTH-1:0] fall_through_address;
         logic [ADDR_WIDTH-1:0] jump_target_address;
+        logic [ADDR_WIDTH-1:0] fall_through_address;
     } ftb_entry_t;
 
     typedef struct packed {

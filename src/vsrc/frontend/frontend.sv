@@ -35,6 +35,11 @@ module frontend
     input logic [COMMIT_WIDTH-1:0] backend_commit_bitmask_i,
     input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_commit_ftq_id_i,
     input backend_commit_meta_t backend_commit_meta_i,
+    // FTQ meta value
+    input logic backend_ftq_meta_update_valid_i,
+    input logic [ADDR_WIDTH-1:0] backend_ftq_meta_update_jump_target_i,
+    input logic [ADDR_WIDTH-1:0] backend_ftq_meta_update_fall_through_i,
+    input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_ftq_update_meta_id_i,
 
     // <-> Instruction buffer
     input logic instr_buffer_stallreq_i,
@@ -130,6 +135,11 @@ module frontend
         .backend_commit_bitmask_i(backend_commit_bitmask_i),
         .backend_commit_ftq_id_i(backend_commit_ftq_id_i),
         .backend_commit_meta_i(backend_commit_meta_i),
+
+        .backend_ftq_meta_update_valid_i(backend_ftq_meta_update_valid_i),
+        .backend_ftq_meta_update_fall_through_i(backend_ftq_meta_update_fall_through_i),
+        .backend_ftq_meta_update_jump_target_i(backend_ftq_meta_update_jump_target_i),
+        .backend_ftq_update_meta_id_i(backend_ftq_update_meta_id_i),
 
         // <-> IFU
         .ifu_o       (ftq_ifu_block),

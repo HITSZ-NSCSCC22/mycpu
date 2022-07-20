@@ -21,7 +21,11 @@ module ftq
     output logic bpu_queue_full_o,
     output ftq_bpu_meta_t bpu_meta_o,
 
-    // <-> Backend 
+    // <-> Backend
+    input logic backend_ftq_meta_update_valid_i,
+    input logic [ADDR_WIDTH-1:0] backend_ftq_meta_update_jump_target_i,
+    input logic [ADDR_WIDTH-1:0] backend_ftq_meta_update_fall_through_i,
+    input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_ftq_update_meta_id_i,
     input logic [COMMIT_WIDTH-1:0] backend_commit_bitmask_i,
     input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_commit_ftq_id_i,
     input backend_commit_meta_t backend_commit_meta_i,
@@ -132,6 +136,8 @@ module ftq
                 bpu_meta_o.start_pc <= FTQ[backend_commit_ftq_id_i].start_pc;
                 bpu_meta_o.is_cross_cacheline <= FTQ[backend_commit_ftq_id_i].is_cross_cacheline;
                 bpu_meta_o.provider_ctr_bits <= FTQ_meta[backend_commit_ftq_id_i].provider_ctr_bits;
+                bpu_meta_o.jump_target_address <= FTQ_meta[backend_commit_ftq_id_i].jump_target_address;
+                bpu_meta_o.fall_through_address <= FTQ_meta[backend_commit_ftq_id_i].fall_through_address;
             end
         end
     end
@@ -141,6 +147,11 @@ module ftq
     ftq_bpu_meta_entry_t [QUEUE_SIZE-1:0] FTQ_meta;
     always_ff @(posedge clk) begin
         FTQ_meta[bpu_ptr] <= {bpu_meta_i, 64'b0};
+        if (backend_ftq_meta_update_valid_i) begin
+            FTQ_meta[backend_ftq_update_meta_id_i][63:0] <= {
+                backend_ftq_meta_update_jump_target_i, backend_ftq_meta_update_fall_through_i
+            };
+        end
     end
 
 
