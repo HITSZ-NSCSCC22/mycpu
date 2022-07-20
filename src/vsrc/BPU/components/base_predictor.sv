@@ -14,7 +14,8 @@ module base_predictor
     input logic [ADDR_WIDTH-1:0] pc_i,
     input logic update_valid,
     input base_predictor_update_info_t update_info_i,
-    output logic taken
+    output logic taken,
+    output logic [BPU_COMPONENT_CTR_WIDTH[0]-1:0] ctr
 );
 
     localparam TABLE_DEPTH = BPU_COMPONENT_TABLE_DEPTH[0];
@@ -30,6 +31,7 @@ module base_predictor
     logic [       CTR_WIDTH-1:0] query_entry;
 
     assign taken = (query_entry[CTR_WIDTH-1] == 1'b1);
+    assign ctr   = (query_entry);
 
     // Update logic
     logic [TABLE_DEPTH_EXP2-1:0] update_index = update_info_i.pc[TABLE_DEPTH_EXP2+1:2];

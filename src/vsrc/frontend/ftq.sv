@@ -129,6 +129,7 @@ module ftq
                 bpu_meta_o.is_taken <= backend_commit_meta_i.is_taken;
                 bpu_meta_o.predicted_taken <= backend_commit_meta_i.predicted_taken;
                 bpu_meta_o.start_pc <= FTQ[backend_commit_ftq_id_i].start_pc;
+                bpu_meta_o.provider_ctr_bits <= FTQ_meta[backend_commit_ftq_id_i].provider_ctr_bits;
             end
         end
     end

@@ -26,6 +26,7 @@ module bpu
     input [ADDR_WIDTH-1:0] pc_i,
     input logic ftq_full_i,
     output bpu_ftq_t ftq_predict_o,
+    output bpu_ftq_meta_t ftq_meta_o,
     // Train
     input ftq_bpu_meta_t ftq_meta_i,
 
@@ -37,6 +38,10 @@ module bpu
     // TODO: use PMU to monitor miss-prediction rate and each component useful rate
 
 );
+    // Parameters
+    localparam BASE_CTR_WIDTH = BPU_COMPONENT_CTR_WIDTH[0];
+
+
     ////////////////////////////////////////////////////////////////////////////////////
     // Query logic
     ////////////////////////////////////////////////////////////////////////////////////
@@ -92,6 +97,7 @@ module bpu
         base_predictor_update_info.is_conditional = ftq_meta_i.is_conditional;
         base_predictor_update_info.pc = ftq_meta_i.start_pc;
         base_predictor_update_info.taken = ftq_meta_i.is_taken;
+        base_predictor_update_info.ctr_bits = ftq_meta_i.provider_ctr_bits[BASE_CTR_WIDTH-1:0];
     end
 
     ftb u_ftb (
@@ -110,14 +116,14 @@ module bpu
     );
 
     tage_predictor u_tage_predictor (
-        .clk                      (clk),
-        .rst                      (rst),
-        .pc_i                     (pc_i),
-        .base_predictor_update_i  (base_predictor_update_info),
-        .predicted_branch_target_o(),
-        .predict_branch_taken_o   (predict_taken),
-        .predict_valid_o          (predict_valid),
-        .perf_tag_hit_counter     ()
+        .clk                    (clk),
+        .rst                    (rst),
+        .pc_i                   (pc_i),
+        .base_predictor_update_i(base_predictor_update_info),
+        .bpu_meta_o             (ftq_meta_o),
+        .predict_branch_taken_o (predict_taken),
+        .predict_valid_o        (predict_valid),
+        .perf_tag_hit_counter   ()
     );
 
 

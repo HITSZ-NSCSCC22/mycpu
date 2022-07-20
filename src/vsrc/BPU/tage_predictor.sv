@@ -21,12 +21,12 @@ module tage_predictor
     input logic rst,
 
     // Input a PC to predict
-    input logic [`RegBus] pc_i,
+    input logic [ADDR_WIDTH-1:0] pc_i,
 
     // Update signals
     input base_predictor_update_info_t base_predictor_update_i,
 
-    output logic [`RegBus] predicted_branch_target_o,
+    output bpu_ftq_meta_t bpu_meta_o,
     output logic predict_branch_taken_o,
     output logic predict_valid_o,
     output logic [5*32-1:0] perf_tag_hit_counter
@@ -39,6 +39,11 @@ module tage_predictor
     // Reset
     logic rst_n;
     assign rst_n = ~rst;
+
+    ////////////////////////////////////////////////////////////////
+    // Query Logic
+    ////////////////////////////////////////////////////////////////
+    logic [BPU_COMPONENT_CTR_WIDTH[0]-1:0] base_ctr;
 
     // Extract packed signals
     // update-prefixed signals are updated related 
@@ -71,11 +76,13 @@ module tage_predictor
         .pc_i         (pc_i),
         .update_valid (update_valid & update_is_conditional),
         .update_info_i(base_predictor_update_i),
-        .taken        (base_taken)
+        .taken        (base_taken),
+        .ctr          (base_ctr)
     );
 
     assign predict_branch_taken_o = base_taken;
-    assign predict_valid_o = 0;
+    assign predict_valid_o = 1;
+    assign bpu_meta_o.provider_ctr_bits = base_ctr;
 
     /*
 

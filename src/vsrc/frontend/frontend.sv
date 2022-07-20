@@ -64,6 +64,7 @@ module frontend
 
     // BPU
     bpu_ftq_t bpu_ftq_block;
+    bpu_ftq_meta_t bpu_ftq_meta;
     ftq_bpu_meta_t ftq_bpu_meta;
 
     always_ff @(posedge clk or negedge rst_n) begin : pc_ff
@@ -95,6 +96,7 @@ module frontend
         // FTQ
         .ftq_full_i(ftq_full),
         .ftq_predict_o(bpu_ftq_block),
+        .ftq_meta_o(bpu_ftq_meta),
         // Train
         .ftq_meta_i(ftq_bpu_meta),
 
@@ -119,7 +121,7 @@ module frontend
 
         // <-> BPU
         .bpu_i           (bpu_ftq_block),
-        .bpu_meta_i      (),
+        .bpu_meta_i      (bpu_ftq_meta),
         .bpu_queue_full_o(ftq_full),
         .bpu_meta_o      (ftq_bpu_meta),
 
