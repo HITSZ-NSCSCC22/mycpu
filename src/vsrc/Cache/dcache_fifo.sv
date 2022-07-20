@@ -29,14 +29,13 @@ module dcache_fifo
 
 );
 
-    typedef logic [$clog2(DEPTH)-1:0] addr_t;
 
     //store the data and addr
     logic [DEPTH-1:0][DCACHE_WIDTH-1:0] data_queue;
     logic [DEPTH-1:0][`RegBus] addr_queue;
 
 
-    addr_t head, tail;
+    logic [$clog2(DEPTH)-1:0] head, tail;
     logic [DEPTH-1:0] queue_valid;
 
     logic full, empty;
@@ -68,8 +67,16 @@ module dcache_fifo
             head <= 0;
             tail <= 0;
             queue_valid <= 0;
-        end
-        // if axi is free and there is not write collsion then sent the data
+        end  //if dcache sent a new data which don't hit 
+             //put it at the tail of the queue
+        if (cpu_wreq_i == `WriteEnable && write_hit_o == 1'b0) begin
+            if (tail == DEPTH[2:0] - 1) begin
+                tail <= 0;
+            end else begin
+                tail <= tail + 1;
+            end
+            queue_valid[tail] <= 1'b1;
+        end  // if axi is free and there is not write collsion then sent the data
         if (axi_bvalid_i == 1'b1 && !sign_rewrite && !write_hit_head) begin
             queue_valid[head] <= 1'b0;
             if (head == DEPTH[2:0] - 1) begin
@@ -78,63 +85,56 @@ module dcache_fifo
                 head <= head + 1;
             end
         end
-        //if dcache sent a new data which don't hit 
-        //put it at the tail of the queue
-        if (cpu_wreq_i == `WriteEnable && write_hit_o == 1'b0) begin
-            if (tail == DEPTH[2:0] - 1) begin
-                tail <= 0;
-            end else begin
-                tail <= tail + 1;
-            end
-            queue_valid[tail] <= 1'b1;
-        end
     end
 
     //Read Hit
     logic [DEPTH-1:0] read_hit;
     assign read_hit_o = |read_hit;
-    for (genvar i = 0; i < DEPTH; i = i + 1) begin
-        always_ff @(posedge clk) begin
+    always_ff @(posedge clk) begin
+        for (integer i = 0; i < DEPTH; i = i + 1) begin
             read_hit[i] <= ((cpu_araddr == addr_queue[i]) && queue_valid[i]) ? 1'b1 : 1'b0;
         end
     end
 
+
     //Read hit
-    generate
-        for (genvar i = 0; i < DEPTH; i = i + 1) begin
-            always_comb begin
-                if (rst) cpu_rdata_o = 0;
-                else if (read_hit[i] == 1'b1) cpu_rdata_o = data_queue[i];
-                else cpu_rdata_o = 0;
+    always_comb begin
+        if (rst) cpu_rdata_o = 0;
+        else if (read_hit_o) begin
+            cpu_rdata_o = 0;
+            for (integer i = 0; i < DEPTH; i = i + 1) begin
+                if (read_hit[i]) cpu_rdata_o = data_queue[i];
             end
-        end
-    endgenerate
+        end else cpu_rdata_o = 0;
+    end
 
 
     //Write Hit
     logic [DEPTH-1:0] write_hit;
     logic write_hit_head = write_hit[head] & cpu_wreq_i;
     assign write_hit_o = |write_hit;
-    for (genvar i = 0; i < DEPTH; i = i + 1) begin
-        assign write_hit[i] = ((cpu_awaddr == addr_queue[i]) && queue_valid[i]) ? 1'b1 : 1'b0;
+    always_comb begin
+        for (integer i = 0; i < DEPTH; i = i + 1) begin
+            write_hit[i] = ((cpu_awaddr == addr_queue[i]) && queue_valid[i]) ? 1'b1 : 1'b0;
+        end
     end
 
-    generate
-        for (genvar i = 0; i < DEPTH; i = i + 1) begin
-            always_ff @(posedge clk) begin
-                if (rst) begin
-                    addr_queue[i] <= 0;
-                    data_queue[i] <= 0;
-                end else if (cpu_wreq_i) begin
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            addr_queue <= 0;
+            data_queue <= 0;
+        end else if (cpu_wreq_i) begin
+            if (write_hit_o) begin
+                for (integer i = 0; i < DEPTH; i = i + 1) begin
                     if (write_hit[i] == 1'b1) data_queue[i] <= cpu_wdata_i;
-                    else begin
-                        data_queue[tail] <= cpu_wdata_i;
-                        addr_queue[tail] <= cpu_awaddr;
-                    end
                 end
+            end else begin
+                data_queue[tail] <= cpu_wdata_i;
+                addr_queue[tail] <= cpu_awaddr;
             end
         end
-    endgenerate
+    end
 
 
     assign axi_wen_o = !empty & axi_bvalid_i;

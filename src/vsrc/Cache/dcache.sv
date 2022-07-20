@@ -423,7 +423,6 @@ module dcache
             //st.w
             4'b1111: wreq_sel_data = wdata_buffer;
             default: begin
-
             end
         endcase
         case (offset_buffer[3:2])
@@ -455,23 +454,47 @@ module dcache
 
 
     // write to fifo
+    logic [`RegBus] fifo_wreq_sel_data;
     always_comb begin
-        fifo_wreq  = 0;
+        fifo_wreq = 0;
         fifo_waddr = 0;
         fifo_wdata = 0;
+        fifo_wreq_sel_data = 0;
         case (state)
             LOOK_UP: begin
                 // if write hit the cacheline in the fifo 
                 // then rewrite the cacheline in the fifo 
                 if (fifo_r_hit & cpu_wreq) begin
-                    fifo_wreq  = 1;
+                    fifo_wreq = 1;
                     fifo_waddr = fifo_raddr;
                     fifo_wdata = fifo_rdata;
+                    fifo_wreq_sel_data = 0;
                     case (cpu_addr[3:2])
-                        2'b00: fifo_wdata[31:0] = wdata_buffer;
-                        2'b01: fifo_wdata[63:32] = wdata_buffer;
-                        2'b10: fifo_wdata[95:64] = wdata_buffer;
-                        2'b11: fifo_wdata[127:96] = wdata_buffer;
+                        2'b00: fifo_wreq_sel_data = fifo_wdata[31:0];
+                        2'b01: fifo_wreq_sel_data = fifo_wdata[63:32];
+                        2'b10: fifo_wreq_sel_data = fifo_wdata[95:64];
+                        2'b11: fifo_wreq_sel_data = fifo_wdata[127:96];
+                    endcase
+                    case (wstrb_buffer)
+                        //st.b 
+                        4'b0001: fifo_wreq_sel_data[7:0] = wdata_buffer[7:0];
+                        4'b0010: fifo_wreq_sel_data[15:8] = wdata_buffer[15:8];
+                        4'b0100: fifo_wreq_sel_data[23:16] = wdata_buffer[23:16];
+                        4'b1000: fifo_wreq_sel_data[31:24] = wdata_buffer[31:24];
+                        //st.h
+                        4'b0011: fifo_wreq_sel_data[15:0] = wdata_buffer[15:0];
+                        4'b1100: fifo_wreq_sel_data[31:16] = wdata_buffer[31:16];
+                        //st.w
+                        4'b1111: fifo_wreq_sel_data = wdata_buffer;
+                        default: begin
+
+                        end
+                    endcase
+                    case (cpu_addr[3:2])
+                        2'b00: fifo_wdata[31:0] = fifo_wreq_sel_data;
+                        2'b01: fifo_wdata[63:32] = fifo_wreq_sel_data;
+                        2'b10: fifo_wdata[95:64] = fifo_wreq_sel_data;
+                        2'b11: fifo_wdata[127:96] = fifo_wreq_sel_data;
                     endcase
                 end
             end
@@ -703,24 +726,32 @@ module dcache
         for (genvar i = 0; i < NWAY; i++) begin : bram_ip
 `ifdef BRAM_IP
             bram_icache_tag_ram u_tag_bram (
-                .clk  (clk),
+                .clka (clk),
+                .clkb (clk),
                 .ena  (tag_bram_en[i]),
                 .enb  (tag_bram_en[i]),
                 .wea  (tag_bram_we[i]),
+                .web  (0),
                 .dina (tag_bram_wdata[i]),
                 .addra(tag_bram_addr[i]),
+                .douta(),
+                .dinb (tag_bram_wdata[i]),
                 .addrb(tag_bram_addr[i]),
                 .doutb(tag_bram_rdata[i])
             );
-            bram_icache_data_ram u_data_bram (
-                .clk  (clk),
-                .ena  (tag_bram_en[i]),
-                .enb  (tag_bram_en[i]),
-                .wea  (tag_bram_we[i]),
-                .dina (tag_bram_wdata[i]),
-                .addra(tag_bram_addr[i]),
-                .addrb(tag_bram_addr[i]),
-                .doutb(tag_bram_rdata[i])
+            dcache_data_bram u_data_bram (
+                .clka (clk),
+                .clkb (clk),
+                .ena  (data_bram_en[i]),
+                .enb  (data_bram_en[i]),
+                .wea  (data_bram_we[i]),
+                .web  (0),
+                .dina (data_bram_wdata[i]),
+                .addra(data_bram_addr[i]),
+                .douta(),
+                .dinb (data_bram_wdata[i]),
+                .addrb(data_bram_addr[i]),
+                .doutb(data_bram_rdata[i])
             );
 `else
 
