@@ -23,19 +23,28 @@ module ftb
 
 );
 
-    // Query logic //////////////////////////////////////////////////////////////////////////
-    logic [$clog2(FTB_DEPTH)-1:0] query_index;
-    assign query_index = query_pc_i[$clog2(FTB_DEPTH)+1:2];
+    // Parameters
+    localparam FTB_DEPTH_WIDTH = $clog2(FTB_DEPTH);
+
+    /////////////////////////////////////////////////////////////////////////////////////////
+    // Query logic 
+    /////////////////////////////////////////////////////////////////////////////////////////
+    logic [FTB_DEPTH_WIDTH-1:0] query_index;
+    logic [ADDR_WIDTH-FTB_DEPTH_WIDTH-3:0] query_tag_buffer;
+    assign query_index = query_pc_i[FTB_DEPTH_WIDTH+1:2];
+    always_ff @(posedge clk) begin
+        query_tag_buffer <= query_pc_i[ADDR_WIDTH-1:FTB_DEPTH_WIDTH+2];
+    end
 
     ftb_entry_t query_entry;
-    assign hit = (query_entry.tag == query_pc_i[ADDR_WIDTH-1:$clog2(
-        FTB_DEPTH
-    )+2]) && query_entry.valid;
+    assign hit = (query_entry.tag == query_tag_buffer) && query_entry.valid;
     assign query_entry_o = query_entry;
 
-    // Update logic //////////////////////////////////////////////////////////////////////////
-    logic [$clog2(FTB_DEPTH)-1:0] update_index;
-    assign update_index = update_pc_i[$clog2(FTB_DEPTH)+1:2];
+    /////////////////////////////////////////////////////////////////////////////////////////
+    // Update logic 
+    /////////////////////////////////////////////////////////////////////////////////////////
+    logic [FTB_DEPTH_WIDTH-1:0] update_index;
+    assign update_index = update_pc_i[FTB_DEPTH_WIDTH+1:2];
 
 `ifdef BRAM_IP
     bram_ftb u_bram (
@@ -55,7 +64,7 @@ module ftb
 `else
     bram #(
         .DATA_WIDTH     ($bits(ftb_entry_t)),
-        .DATA_DEPTH_EXP2($clog2(FTB_DEPTH))
+        .DATA_DEPTH_EXP2(FTB_DEPTH_WIDTH)
     ) u_bram (
         .clk  (clk),
         .ena  (1'b1),

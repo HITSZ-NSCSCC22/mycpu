@@ -120,10 +120,11 @@ module frontend
         .backend_flush_ftq_id_i(backend_flush_ftq_id_i),
 
         // <-> BPU
-        .bpu_i           (bpu_ftq_block),
-        .bpu_meta_i      (bpu_ftq_meta),
-        .bpu_queue_full_o(ftq_full),
-        .bpu_meta_o      (ftq_bpu_meta),
+        .bpu_i              (bpu_ftq_block),
+        .bpu_meta_i         (bpu_ftq_meta),
+        .main_bpu_redirect_i(main_bpu_redirect),
+        .bpu_queue_full_o   (ftq_full),
+        .bpu_meta_o         (ftq_bpu_meta),
 
         // <-> Backend
         .backend_commit_bitmask_i(backend_commit_bitmask_i),

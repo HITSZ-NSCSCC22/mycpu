@@ -17,6 +17,7 @@ module ftq
     // <-> BPU
     input bpu_ftq_t bpu_i,
     input bpu_ftq_meta_t bpu_meta_i,
+    input logic main_bpu_redirect_i,
     output logic bpu_queue_full_o,
     output ftq_bpu_meta_t bpu_meta_o,
 
@@ -76,7 +77,7 @@ module ftq
             if (ifu_accept_i) ifu_ptr <= ifu_ptr + 1;
 
             // BPU ptr
-            if (bpu_i.valid) bpu_ptr <= bpu_ptr + 1;
+            if (bpu_i.valid & ~main_bpu_redirect_i) bpu_ptr <= bpu_ptr + 1;
 
             // If backend redirect triggered, back to the next block of the redirect block
             // backend may continue to commit older block
@@ -129,6 +130,7 @@ module ftq
                 bpu_meta_o.is_taken <= backend_commit_meta_i.is_taken;
                 bpu_meta_o.predicted_taken <= backend_commit_meta_i.predicted_taken;
                 bpu_meta_o.start_pc <= FTQ[backend_commit_ftq_id_i].start_pc;
+                bpu_meta_o.is_cross_cacheline <= FTQ[backend_commit_ftq_id_i].is_cross_cacheline;
                 bpu_meta_o.provider_ctr_bits <= FTQ_meta[backend_commit_ftq_id_i].provider_ctr_bits;
             end
         end

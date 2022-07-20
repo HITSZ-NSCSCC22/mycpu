@@ -45,11 +45,22 @@ module bpu
     ////////////////////////////////////////////////////////////////////////////////////
     // Query logic
     ////////////////////////////////////////////////////////////////////////////////////
+    // P1 signals
+    logic [ADDR_WIDTH-1:0] p1_pc;
+    logic main_redirect;
     // FTB
     logic ftb_hit;
     ftb_entry_t ftb_entry;
     // TAGE
     logic predict_taken, predict_valid;
+
+
+
+    // P1
+    assign main_redirect = predict_valid & predict_taken & ftb_hit;
+    always_ff @(posedge clk) begin
+        p1_pc <= pc_i;
+    end
 
 
     // FTQ Output generate
@@ -58,14 +69,13 @@ module bpu
     always_comb begin
         if (ftq_full_i) begin
             ftq_predict_o = 0;
-        end else if (ftb_hit & predict_valid) begin  // There is a branch within FETCH_WIDTH
-            // TODO: check cross page
+        end else if (main_redirect) begin  // TAGE generate a redirect in P1
             ftq_predict_o.valid = 1;
             ftq_predict_o.is_cross_cacheline = ftb_entry.is_cross_cacheline;
-            ftq_predict_o.start_pc = pc_i;
-            ftq_predict_o.length = predict_taken ? ftb_entry.fall_through_address - pc_i : FETCH_WIDTH;
+            ftq_predict_o.start_pc = p1_pc;
+            ftq_predict_o.length = ftb_entry.fall_through_address - pc_i;
             ftq_predict_o.predicted_taken = predict_taken;
-        end else begin  // No branch is recorded, generate full FETCH_WIDTH
+        end else begin  // P0 generate a next-line prediction
             if (is_cross_page) begin
                 ftq_predict_o.length = (12'h000 - pc_i[11:0]) >> 2;
             end else begin
@@ -84,20 +94,29 @@ module bpu
 
     // PC output
     always_comb begin
-        main_redirect_o = predict_taken;
-        main_redirect_pc_o = predict_taken ? ftb_entry.jump_target_address : 0;
+        main_redirect_o = main_redirect;
+        main_redirect_pc_o = main_redirect ? ftb_entry.jump_target_address : 0;
     end
 
     ////////////////////////////////////////////////////////////////////
     // Update Logic
     ////////////////////////////////////////////////////////////////////
     base_predictor_update_info_t base_predictor_update_info;
+    ftb_entry_t ftb_entry_update;
     always_comb begin
         base_predictor_update_info.valid = ftq_meta_i.valid;
         base_predictor_update_info.is_conditional = ftq_meta_i.is_conditional;
         base_predictor_update_info.pc = ftq_meta_i.start_pc;
         base_predictor_update_info.taken = ftq_meta_i.is_taken;
         base_predictor_update_info.ctr_bits = ftq_meta_i.provider_ctr_bits[BASE_CTR_WIDTH-1:0];
+    end
+
+    always_comb begin
+        ftb_entry_update.valid = 1;
+        ftb_entry_update.tag = ftq_meta_i.start_pc[ADDR_WIDTH-1:$clog2(FTB_DEPTH)+2];
+        ftb_entry_update.is_cross_cacheline = ftq_meta_i.is_cross_cacheline;
+        ftb_entry_update.jump_target_address = ftq_meta_i.jump_target_address;
+        ftb_entry_update.fall_through_address = ftq_meta_i.fall_through_address;
     end
 
     ftb u_ftb (
@@ -110,9 +129,9 @@ module bpu
         .hit(ftb_hit),
 
         // Update
-        .update_pc_i(),
-        .update_valid_i(),
-        .update_entry_i()
+        .update_pc_i(ftq_meta_i.start_pc),
+        .update_valid_i(ftq_meta_i.valid),
+        .update_entry_i(ftb_entry_update)
     );
 
     tage_predictor u_tage_predictor (
