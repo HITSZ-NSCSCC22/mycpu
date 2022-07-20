@@ -5,7 +5,7 @@ module instr_buffer
 #(
     parameter IF_WIDTH = 2,
     parameter ID_WIDTH = 2,
-    parameter BUFFER_SIZE = 8
+    parameter BUFFER_SIZE = 16
 ) (
     input logic clk,
     input logic rst,

@@ -248,7 +248,8 @@ module cpu_top
 
     // PMU
     pmu_input_t pmu_data;
-    assign pmu_data.ib_full = ib_frontend_stallreq;
+    assign pmu_data.ib_full  = ib_frontend_stallreq;
+    assign pmu_data.ib_empty = u_instr_buffer.write_ptr == u_instr_buffer.read_ptr;
 
     LSU u_LSU (
         .clk(clk),

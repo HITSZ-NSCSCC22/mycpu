@@ -116,6 +116,7 @@ module cs_reg
     logic [31:0] pmu_dispatch_single_issue;
     logic [31:0] pmu_dispatch_datadep_nop;
     logic [31:0] pmu_dispatch_instr_cnt;
+    logic [31:0] pmu_ib_empty;
     logic [31:0] pmu_icache_req;
     logic [31:0] pmu_icache_miss;
     logic [31:0] pmu_dcache_req;
@@ -200,6 +201,7 @@ module cs_reg
             pmu_dispatch_single_issue <= 0;
             pmu_dispatch_datadep_nop <= 0;
             pmu_dispatch_instr_cnt <= 0;
+            pmu_ib_empty <= 0;
             pmu_icache_req <= 0;
             pmu_icache_miss <= 0;
             pmu_dcache_req <= 0;
@@ -216,6 +218,7 @@ module cs_reg
             pmu_dispatch_single_issue <= pmu_dispatch_single_issue + pmu_in.dispatch_single_issue;
             pmu_dispatch_datadep_nop <= pmu_dispatch_datadep_nop + pmu_in.dispatch_datadep_nop;
             pmu_dispatch_instr_cnt <= pmu_dispatch_instr_cnt + pmu_in.dispatch_instr_cnt;
+            pmu_ib_empty <= pmu_ib_empty + pmu_in.ib_empty;
             pmu_icache_req <= pmu_icache_req + pmu_in.icache_req;
             pmu_icache_miss <= pmu_icache_miss + pmu_in.icache_miss;
             pmu_dcache_req <= pmu_dcache_req + pmu_in.dcache_req;

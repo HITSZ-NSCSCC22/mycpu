@@ -286,6 +286,7 @@ package core_types;
         logic dispatch_single_issue;
         logic [1:0] dispatch_datadep_nop;
         logic [1:0] dispatch_instr_cnt;
+        logic ib_empty;
         logic icache_req;
         logic icache_miss;
         logic dcache_req;
