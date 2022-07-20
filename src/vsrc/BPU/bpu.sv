@@ -25,7 +25,8 @@ module bpu
     // Predict
     input [ADDR_WIDTH-1:0] pc_i,
     input logic ftq_full_i,
-    output bpu_ftq_t ftq_predict_o,
+    output bpu_ftq_t ftq_p0_o,
+    output bpu_ftq_t ftq_p1_o,
     output bpu_ftq_meta_t ftq_meta_o,
     // Train
     input ftq_bpu_meta_t ftq_meta_i,
@@ -45,6 +46,28 @@ module bpu
     ////////////////////////////////////////////////////////////////////////////////////
     // Query logic
     ////////////////////////////////////////////////////////////////////////////////////
+
+    // P0 
+    // FTQ Output generate
+    logic is_cross_page;
+    assign is_cross_page = pc_i[11:0] > 12'hff0;  // if 4 instr already cross the page limit
+    always_comb begin
+        if (ftq_full_i) begin
+            ftq_p0_o = 0;
+        end else begin  // P0 generate a next-line prediction
+            if (is_cross_page) begin
+                ftq_p0_o.length = (12'h000 - pc_i[11:0]) >> 2;
+            end else begin
+                ftq_p0_o.length = 4;
+            end
+            ftq_p0_o.start_pc = pc_i;
+            ftq_p0_o.valid = 1;
+            // If cross page, length will be cut, so ensures no cacheline cross
+            ftq_p0_o.is_cross_cacheline = (pc_i[3:2] != 2'b00) & ~is_cross_page;
+            ftq_p0_o.predicted_taken = 0;
+        end
+    end
+
     // P1 signals
     logic [ADDR_WIDTH-1:0] p1_pc;
     logic main_redirect;
@@ -61,42 +84,34 @@ module bpu
     always_ff @(posedge clk) begin
         p1_pc <= pc_i;
     end
-
-
-    // FTQ Output generate
-    logic is_cross_page;
-    assign is_cross_page = pc_i[11:0] > 12'hff0;  // if 4 instr already cross the page limit
+    // P1 FTQ output
     always_comb begin
-        if (ftq_full_i) begin
-            ftq_predict_o = 0;
-        end else if (main_redirect) begin  // TAGE generate a redirect in P1
-            ftq_predict_o.valid = 1;
-            ftq_predict_o.is_cross_cacheline = ftb_entry.is_cross_cacheline;
-            ftq_predict_o.start_pc = p1_pc;
-            ftq_predict_o.length = ftb_entry.fall_through_address - pc_i;
-            ftq_predict_o.predicted_taken = predict_taken;
-        end else begin  // P0 generate a next-line prediction
-            if (is_cross_page) begin
-                ftq_predict_o.length = (12'h000 - pc_i[11:0]) >> 2;
-            end else begin
-                ftq_predict_o.length = 4;
-            end
-            ftq_predict_o.start_pc = pc_i;
-            ftq_predict_o.valid = 1;
-            // If cross page, length will be cut, so ensures no cacheline cross
-            ftq_predict_o.is_cross_cacheline = (pc_i[3:2] != 2'b00) & ~is_cross_page;
-            ftq_predict_o.predicted_taken = 0;
+        if (main_redirect) begin  // TAGE generate a redirect in P1
+            ftq_p1_o.valid = 1;
+            ftq_p1_o.is_cross_cacheline = ftb_entry.is_cross_cacheline;
+            ftq_p1_o.start_pc = p1_pc;
+            ftq_p1_o.length = ftb_entry.fall_through_address[2+$clog2(FETCH_WIDTH)-1:2] -
+                p1_pc[2+$clog2(FETCH_WIDTH)-1:2];
+            ftq_p1_o.predicted_taken = predict_taken;
+        end else begin
+            ftq_p1_o = 0;
         end
     end
+
+
+
     // DEBUG
     logic [ADDR_WIDTH-1:0] bpu_pc;
-    assign bpu_pc = ftq_predict_o.start_pc;
+    assign bpu_pc = ftq_p0_o.start_pc;
 
     // PC output
     always_comb begin
         main_redirect_o = main_redirect;
         main_redirect_pc_o = main_redirect ? ftb_entry.jump_target_address : 0;
     end
+
+
+
 
     ////////////////////////////////////////////////////////////////////
     // Update Logic

@@ -15,7 +15,8 @@ module ftq
     input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_flush_ftq_id_i,
 
     // <-> BPU
-    input bpu_ftq_t bpu_i,
+    input bpu_ftq_t bpu_p0_i,
+    input bpu_ftq_t bpu_p1_i,
     input bpu_ftq_meta_t bpu_meta_i,
     input logic main_bpu_redirect_i,
     output logic bpu_queue_full_o,
@@ -32,9 +33,18 @@ module ftq
 
     // <-> IFU
     output ftq_ifu_t ifu_o,
+    output logic ifu_frontend_redirect_o,
     output [$clog2(FRONTEND_FTQ_SIZE)-1:0] ifu_ftq_id_o,
     input logic ifu_accept_i  // Must return in the same cycle
 );
+
+    // Parameters
+    localparam QUEUE_SIZE = FRONTEND_FTQ_SIZE;
+
+    // Signals
+    logic queue_full;
+    logic queue_full_delay;
+
 
     logic [$clog2(COMMIT_WIDTH):0] backend_commit_num;
     always_comb begin
@@ -44,8 +54,11 @@ module ftq
         end
     end
 
-    localparam QUEUE_SIZE = FRONTEND_FTQ_SIZE;
-
+    // Queue full
+    assign queue_full = (bpu_ptr_plus1 == comm_ptr);
+    always_ff @(posedge clk) begin
+        queue_full_delay <= queue_full;
+    end
     // QUEUE data structure
     ftq_block_t [QUEUE_SIZE-1:0] FTQ, next_FTQ;
     always_ff @(posedge clk) begin
@@ -81,7 +94,9 @@ module ftq
             if (ifu_accept_i) ifu_ptr <= ifu_ptr + 1;
 
             // BPU ptr
-            if (bpu_i.valid & ~main_bpu_redirect_i) bpu_ptr <= bpu_ptr + 1;
+            if (bpu_p0_i.valid) bpu_ptr <= bpu_ptr + 1;
+            // P1 redirect, maintain bpu_ptr;
+            if (main_bpu_redirect_i & ~queue_full_delay) bpu_ptr <= bpu_ptr;
 
             // If backend redirect triggered, back to the next block of the redirect block
             // backend may continue to commit older block
@@ -96,12 +111,21 @@ module ftq
     always_comb begin : next_FTQ_comb
         // Default no change
         next_FTQ = FTQ;
+
         // clear out if committed
         for (integer i = 0; i < COMMIT_WIDTH; i++) begin
             if (i < backend_commit_num) next_FTQ[comm_ptr+i[$clog2(QUEUE_SIZE)-1:0]] = 0;
         end
+
         // Accept BPU input
-        if (bpu_i.valid) next_FTQ[bpu_ptr] = bpu_i;
+        // P0
+        if (bpu_p0_i.valid) next_FTQ[bpu_ptr] = bpu_p0_i;
+        // P1
+        if (bpu_p1_i.valid & ~queue_full_delay)  // If last cycle accepted P0 input
+            next_FTQ[bpu_ptr-1] = bpu_p1_i;
+        else if (bpu_p1_i.valid)  // Else no override
+            next_FTQ[bpu_ptr] = bpu_p1_i;
+
         // If backend redirect triggered, clear the committed and predicted entry
         if (backend_flush_i) begin
             for (integer i = 0; i < QUEUE_SIZE; i++) begin
@@ -116,11 +140,16 @@ module ftq
     assign ifu_o.is_cross_cacheline = FTQ[ifu_ptr].is_cross_cacheline;
     assign ifu_o.start_pc = FTQ[ifu_ptr].start_pc;
     assign ifu_o.length = FTQ[ifu_ptr].length;
+    assign ifu_o.predicted_taken = FTQ[ifu_ptr].predicted_taken;
+    assign ifu_frontend_redirect_o = bpu_ptr == ifu_ptr & FTQ[ifu_ptr].valid & main_bpu_redirect_i & ~queue_full_delay;
+    // DEBUG
+    logic [2:0] debug_length = ifu_o.length;
+
 
     // -> BPU
     logic [$clog2(QUEUE_SIZE)-1:0] bpu_ptr_plus1;  // Limit the bit width
     assign bpu_ptr_plus1 = bpu_ptr + 1;
-    assign bpu_queue_full_o = (bpu_ptr_plus1 == comm_ptr);
+    assign bpu_queue_full_o = queue_full;
 
     // Training meta to BPU
     always_ff @(posedge clk) begin
