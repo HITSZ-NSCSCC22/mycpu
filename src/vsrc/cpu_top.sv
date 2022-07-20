@@ -13,7 +13,7 @@
 `include "icache.sv"
 `include "LSU.sv"
 // `include "Cache/dcache_top.sv"
-`include "iob-cache/hardware/src/iob-cache-axi.v"
+// `include "iob-cache/hardware/src/iob-cache-axi.v"
 `include "ctrl.sv"
 `include "Reg/regs_file.sv"
 `include "pipeline/1_decode/id.sv"
@@ -575,159 +575,6 @@ module cpu_top
         .m00_axi_rready (rready)
     );
 
-    // axicb_crossbar_top #(
-    //     .AXI_ADDR_W  (ADDR_WIDTH),
-    //     .AXI_ID_W    (4),
-    //     .AXI_DATA_W  (AXI_DATA_WIDTH),
-    //     .MST_NB      (4),
-    //     .SLV_NB      (4),
-    //     .MST0_ID_MASK(4'b0010),
-    //     .MST1_ID_MASK(4'b0100),
-    //     .MST2_ID_MASK(4'b1000),
-    //     .MST3_ID_MASK(4'b0001)
-    // ) u_axi_arbitrartor (
-    //     .aclk        (aclk),
-    //     .aresetn     (aresetn),
-    //     .slv0_aclk   (aclk),
-    //     .slv0_aresetn(aresetn),
-    //     .slv0_awvalid(icache_axi.awvalid),
-    //     .slv0_awready(icache_axi.awready),
-    //     .slv0_awaddr (icache_axi.awaddr),
-    //     .slv0_awlen  (icache_axi.awlen),
-    //     .slv0_awsize (icache_axi.awsize),
-    //     .slv0_awburst(icache_axi.awburst),
-    //     .slv0_awcache(icache_axi.awcache),
-    //     .slv0_awid   (icache_axi.awid),
-    //     .slv0_wvalid (icache_axi.wvalid),
-    //     .slv0_wready (icache_axi.wready),
-    //     .slv0_wlast  (icache_axi.wlast),
-    //     .slv0_wdata  (icache_axi.wdata),
-    //     .slv0_wstrb  (icache_axi.wstrb),
-    //     .slv0_bvalid (icache_axi.bvalid),
-    //     .slv0_bready (icache_axi.bready),
-    //     .slv0_bid    (icache_axi.bid),
-    //     .slv0_bresp  (icache_axi.bresp),
-    //     .slv0_arvalid(icache_axi.arvalid),
-    //     .slv0_arready(icache_axi.arready),
-    //     .slv0_araddr (icache_axi.araddr),
-    //     .slv0_arlen  (icache_axi.arlen),
-    //     .slv0_arsize (icache_axi.arsize),
-    //     .slv0_arburst(icache_axi.arburst),
-    //     .slv0_arcache(icache_axi.arcache),
-    //     .slv0_arid   (icache_axi.arid),
-    //     .slv0_rvalid (icache_axi.rvalid),
-    //     .slv0_rready (icache_axi.rready),
-    //     .slv0_rid    (icache_axi.rid),
-    //     .slv0_rresp  (icache_axi.rresp),
-    //     .slv0_rdata  (icache_axi.rdata),
-    //     .slv0_rlast  (icache_axi.rlast),
-    //     .slv1_aclk   (aclk),
-    //     .slv1_aresetn(aresetn),
-    //     .slv1_awvalid(dcache_axi.awvalid),
-    //     .slv1_awready(dcache_axi.awready),
-    //     .slv1_awaddr (dcache_axi.awaddr),
-    //     .slv1_awlen  (dcache_axi.awlen),
-    //     .slv1_awsize (dcache_axi.awsize),
-    //     .slv1_awburst(dcache_axi.awburst),
-    //     .slv1_awcache(dcache_axi.awcache),
-    //     .slv1_awid   (dcache_axi.awid),
-    //     .slv1_wvalid (dcache_axi.wvalid),
-    //     .slv1_wready (dcache_axi.wready),
-    //     .slv1_wlast  (dcache_axi.wlast),
-    //     .slv1_wdata  (dcache_axi.wdata),
-    //     .slv1_wstrb  (dcache_axi.wstrb),
-    //     .slv1_bvalid (dcache_axi.bvalid),
-    //     .slv1_bready (dcache_axi.bready),
-    //     .slv1_bid    (dcache_axi.bid),
-    //     .slv1_bresp  (dcache_axi.bresp),
-    //     .slv1_arvalid(dcache_axi.arvalid),
-    //     .slv1_arready(dcache_axi.arready),
-    //     .slv1_araddr (dcache_axi.araddr),
-    //     .slv1_arlen  (dcache_axi.arlen),
-    //     .slv1_arsize (dcache_axi.arsize),
-    //     .slv1_arburst(dcache_axi.arburst),
-    //     .slv1_arcache(dcache_axi.arcache),
-    //     .slv1_arid   (dcache_axi.arid),
-    //     .slv1_rvalid (dcache_axi.rvalid),
-    //     .slv1_rready (dcache_axi.rready),
-    //     .slv1_rid    (dcache_axi.rid),
-    //     .slv1_rresp  (dcache_axi.rresp),
-    //     .slv1_rdata  (dcache_axi.rdata),
-    //     .slv1_rlast  (dcache_axi.rlast),
-    //     .slv2_aclk   (aclk),
-    //     .slv2_aresetn(aresetn),
-    //     .slv2_awvalid(uncache_axi.awvalid),
-    //     .slv2_awready(uncache_axi.awready),
-    //     .slv2_awaddr (uncache_axi.awaddr),
-    //     .slv2_awlen  (uncache_axi.awlen),
-    //     .slv2_awsize (uncache_axi.awsize),
-    //     .slv2_awburst(uncache_axi.awburst),
-    //     .slv2_awcache(uncache_axi.awcache),
-    //     .slv2_awid   (uncache_axi.awid),
-    //     .slv2_wvalid (uncache_axi.wvalid),
-    //     .slv2_wready (uncache_axi.wready),
-    //     .slv2_wlast  (uncache_axi.wlast),
-    //     .slv2_wdata  (uncache_axi.wdata),
-    //     .slv2_wstrb  (uncache_axi.wstrb),
-    //     .slv2_bvalid (uncache_axi.bvalid),
-    //     .slv2_bready (uncache_axi.bready),
-    //     .slv2_bid    (uncache_axi.bid),
-    //     .slv2_bresp  (uncache_axi.bresp),
-    //     .slv2_arvalid(uncache_axi.arvalid),
-    //     .slv2_arready(uncache_axi.arready),
-    //     .slv2_araddr (uncache_axi.araddr),
-    //     .slv2_arlen  (uncache_axi.arlen),
-    //     .slv2_arsize (uncache_axi.arsize),
-    //     .slv2_arburst(uncache_axi.arburst),
-    //     .slv2_arcache(uncache_axi.arcache),
-    //     .slv2_arid   (uncache_axi.arid),
-    //     .slv2_rvalid (uncache_axi.rvalid),
-    //     .slv2_rready (uncache_axi.rready),
-    //     .slv2_rid    (uncache_axi.rid),
-    //     .slv2_rresp  (uncache_axi.rresp),
-    //     .slv2_rdata  (uncache_axi.rdata),
-    //     .slv2_rlast  (uncache_axi.rlast),
-    //     .mst0_aclk   (aclk),
-    //     .mst0_aresetn(aresetn),
-    //     .mst0_awvalid(awvalid),
-    //     .mst0_awready(awready),
-    //     .mst0_awaddr (awaddr),
-    //     .mst0_awlen  (awlen),
-    //     .mst0_awsize (awsize),
-    //     .mst0_awburst(awburst),
-    //     .mst0_awlock (awlock),
-    //     .mst0_awcache(awcache),
-    //     .mst0_awprot (awprot),
-    //     .mst0_awid   (awid),
-    //     .mst0_wvalid (wvalid),
-    //     .mst0_wready (wready),
-    //     .mst0_wlast  (wlast),
-    //     .mst0_wdata  (wdata),
-    //     .mst0_wstrb  (wstrb),
-    //     .mst0_bvalid (bvalid),
-    //     .mst0_bready (bready),
-    //     .mst0_bid    (bid),
-    //     .mst0_bresp  (bresp),
-    //     .mst0_arvalid(arvalid),
-    //     .mst0_arready(arready),
-    //     .mst0_araddr (araddr),
-    //     .mst0_arlen  (arlen),
-    //     .mst0_arsize (arsize),
-    //     .mst0_arburst(arburst),
-    //     .mst0_arlock (arlock),
-    //     .mst0_arcache(arcache),
-    //     .mst0_arprot (arprot),
-    //     .mst0_arid   (arid),
-    //     .mst0_rvalid (rvalid),
-    //     .mst0_rready (rready),
-    //     .mst0_rid    (rid),
-    //     .mst0_rresp  (rresp),
-    //     .mst0_rdata  (rdata),
-    //     .mst0_rlast  (rlast)
-    // );
-
-
-
     // Frontend <-> Instruction Buffer
     logic ib_frontend_stallreq;
     instr_info_t frontend_ib_instr_info[FETCH_WIDTH];
@@ -737,8 +584,9 @@ module cpu_top
     logic backend_redirect;
     logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_redirect_ftq_id;
     logic [COMMIT_WIDTH-1:0] backend_commit_bitmask; // suggest whether last instr in basic block is committed
-    logic [COMMIT_WIDTH-1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_commit_ftq_id;
-    backend_commit_meta_t [COMMIT_WIDTH-1:0] backend_commit_meta;
+    // Currently one branch instruction per cycle is supported
+    logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_commit_ftq_id;
+    backend_commit_meta_t backend_commit_meta;
 
     // All frontend structures
     frontend u_frontend (
@@ -759,7 +607,7 @@ module cpu_top
         .backend_flush_ftq_id_i(backend_redirect_ftq_id),
         .backend_commit_bitmask_i(backend_commit_bitmask),
         .backend_commit_ftq_id_i(backend_commit_ftq_id),
-        .backend_commit_meta_i(),
+        .backend_commit_meta_i(backend_commit_meta),
 
         // <-> Instruction Buffer
         .instr_buffer_stallreq_i(ib_frontend_stallreq),   // instruction buffer is full
@@ -1099,8 +947,10 @@ module cpu_top
         .rst(rst),
 
         // -> Frontend
-        .backend_commit_block_o(backend_commit_bitmask),
-        .backend_flush_ftq_id_o(ctrl_frontend_ftq_id),
+        .backend_commit_block_o (backend_commit_bitmask),
+        .backend_flush_ftq_id_o (ctrl_frontend_ftq_id),
+        .backend_commit_ftq_id_o(backend_commit_ftq_id),
+        .backend_commit_meta_o  (backend_commit_meta),
 
         // <- WB
         .wb_i(wb_ctrl_signal),

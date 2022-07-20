@@ -33,8 +33,8 @@ module frontend
     input logic backend_flush_i,
     input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_flush_ftq_id_i,
     input logic [COMMIT_WIDTH-1:0] backend_commit_bitmask_i,
-    input logic [COMMIT_WIDTH-1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_commit_ftq_id_i,
-    input backend_commit_meta_t [COMMIT_WIDTH-1:0] backend_commit_meta_i,
+    input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_commit_ftq_id_i,
+    input backend_commit_meta_t backend_commit_meta_i,
 
     // <-> Instruction buffer
     input logic instr_buffer_stallreq_i,

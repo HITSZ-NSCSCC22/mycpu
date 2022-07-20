@@ -2,6 +2,7 @@
 `include "TLB/tlb_types.sv"
 `include "csr_defines.sv"
 `include "core_config.sv"
+`include "frontend/frontend_defines.sv"
 
 
 module ctrl
@@ -16,6 +17,9 @@ module ctrl
     // -> Frontend
     output logic [COMMIT_WIDTH-1:0] backend_commit_block_o,  // do backend commit a basic block
     output logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_flush_ftq_id_o,
+    // BPU training meta
+    output backend_commit_meta_t backend_commit_meta_o,
+    output logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_commit_ftq_id_o,
 
     input wb_ctrl_struct [COMMIT_WIDTH-1:0] wb_i,  //流水线传来的信号
 
@@ -90,6 +94,7 @@ module ctrl
     logic advance;  // Advance when all stages are ready
     logic advance_delay;
 
+    // HACK: use a state reg to fit difftest NEMU state when IDLE
     always_ff @(posedge clk) begin
         if (rst) in_idle <= 0;
         else if (excp) in_idle <= 0;  // Something happens, exit idle mode
@@ -106,6 +111,16 @@ module ctrl
             special_info[i] = wb_i[i].instr_info.special_info;
         end
     end
+
+    // BPU training meta
+    // currently one branch instr per cycle is permitted
+    assign backend_commit_ftq_id_o = instr_info[0].ftq_id;
+    assign backend_commit_meta_o = {
+        special_info[0].is_branch,
+        special_info[0].is_conditional,
+        special_info[0].is_taken,
+        special_info[0].predicted_taken
+    };
 
     assign backend_commit_valid[0] = wb_i[0].valid;
     assign backend_commit_valid[1] = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | instr_info[0].excp)? 0 : wb_i[1].valid;
