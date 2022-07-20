@@ -265,7 +265,8 @@ module id
 
 
     assign excp_ine = ~instr_valid & instr_buffer_i.valid; // If IB input is valid, but no valid decode result, then INE is triggered
-    assign excp_ipe = instr_kernel_instr && (csr_plv == 2'b11);
+    // FIXME: No IPE for PMU reading
+    // assign excp_ipe = instr_kernel_instr && (csr_plv == 2'b11);
 
     assign excp_nop = excp_ipe | instr_buffer_i.excp | excp_ine;
     assign excp = excp_ipe | instr_syscall | instr_break | instr_buffer_i.excp | excp_ine | has_int;
