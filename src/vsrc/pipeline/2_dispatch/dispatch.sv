@@ -36,7 +36,14 @@ module dispatch
     output logic [DECODE_WIDTH-1:0] ib_accept_o,
 
     // Dispatch Port, -> EXE
-    output dispatch_ex_struct [DECODE_WIDTH-1:0] exe_o
+    output dispatch_ex_struct [DECODE_WIDTH-1:0] exe_o,
+
+    // PMU
+    output logic [1:0] pmu_dispatch_backend_nop,
+    output logic [1:0] pmu_dispatch_frontend_nop,
+    output logic pmu_dispatch_single_issue,
+    output logic [1:0] pmu_dispatch_datadep_nop,
+    output logic [1:0] pmu_dispatch_instr_cnt
 );
 
     // Reset signal
@@ -249,6 +256,23 @@ module dispatch
             end
         end
     endgenerate
+
+    // PMU
+    assign pmu_dispatch_single_issue = single_issue;
+    always_comb begin
+        pmu_dispatch_instr_cnt = 0;
+        pmu_dispatch_backend_nop = 0;
+        pmu_dispatch_frontend_nop = 0;
+        pmu_dispatch_datadep_nop = 0;
+        for (integer i = 0; i < ISSUE_WIDTH; i++) begin
+            if (~stall & ~flush) pmu_dispatch_instr_cnt = pmu_dispatch_instr_cnt + issue_valid[i];
+            if (stall) pmu_dispatch_backend_nop = pmu_dispatch_backend_nop + issue_valid[i];
+            if (~stall & ~flush)
+                pmu_dispatch_frontend_nop = pmu_dispatch_frontend_nop + 1 - instr_exists_check[i];
+            if (~stall & ~flush)
+                pmu_dispatch_datadep_nop = pmu_dispatch_datadep_nop + 1 - data_dep_check[i];
+        end
+    end
 
 
 `ifdef SIMU

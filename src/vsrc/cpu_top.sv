@@ -246,6 +246,10 @@ module cpu_top
     logic [`RegBus] control_dcache_addr, control_dcache_wdata, control_dcache_rdata;
     logic [3:0] control_dcache_wstrb;
 
+    // PMU
+    pmu_input_t pmu_data;
+    assign pmu_data.ib_full = ib_frontend_stallreq;
+
     LSU u_LSU (
         .clk(clk),
         .rst(rst),
@@ -277,9 +281,9 @@ module cpu_top
         .FE_ADDR_W    (ADDR_WIDTH),
         .FE_DATA_W    (DATA_WIDTH),
         .N_WAYS       (4),
-        .WTBUF_DEPTH_W(16),
-        .LINE_OFF_W   (10),
-        .WORD_OFF_W   (3),
+        .WTBUF_DEPTH_W(8),
+        .LINE_OFF_W   (9),
+        .WORD_OFF_W   (4),
         .REP_POLICY   (1),
         .BE_ADDR_W    (ADDR_WIDTH),
         .BE_DATA_W    (AXI_DATA_WIDTH),
@@ -876,7 +880,14 @@ module cpu_top
         .ib_accept_o(dispatch_id_accept),
 
         // -> EXE
-        .exe_o(dispatch_exe)
+        .exe_o(dispatch_exe),
+
+        // PMU
+        .pmu_dispatch_backend_nop(pmu_data.dispatch_backend_nop),
+        .pmu_dispatch_frontend_nop(pmu_data.dispatch_frontend_nop),
+        .pmu_dispatch_single_issue(pmu_data.dispatch_single_issue),
+        .pmu_dispatch_datadep_nop(pmu_data.dispatch_datadep_nop),
+        .pmu_dispatch_instr_cnt(pmu_data.dispatch_instr_cnt)
     );
 
 
@@ -1194,7 +1205,10 @@ module cpu_top
         .tlbelo0_in(tlb_read_signal_o.tlbelo0),
         .tlbelo1_in(tlb_read_signal_o.tlbelo1),
         .tlbidx_in(tlb_read_signal_o.tlbidx),
-        .asid_in(tlb_read_signal_o.asid)
+        .asid_in(tlb_read_signal_o.asid),
+
+        // PMU
+        .pmu_in(pmu_data)
     );
 
     tlb u_tlb (

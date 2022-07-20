@@ -278,5 +278,24 @@ package core_types;
         logic [DATA_WIDTH-1:0] wdata;
     } store_req_t;
 
+
+    typedef struct packed {
+        logic ib_full;
+        logic [1:0] dispatch_backend_nop;
+        logic [1:0] dispatch_frontend_nop;
+        logic dispatch_single_issue;
+        logic [1:0] dispatch_datadep_nop;
+        logic [1:0] dispatch_instr_cnt;
+        logic icache_req;
+        logic icache_miss;
+        logic dcache_req;
+        logic dcache_miss;
+        logic bpu_valid;
+        logic bpu_miss;
+        logic bpu_branch_instr;
+        logic tlb_req;
+        logic tlb_miss;
+    } pmu_input_t;
+
 endpackage
 `endif
