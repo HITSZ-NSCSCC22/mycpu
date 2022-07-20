@@ -86,7 +86,7 @@ module bpu
     end
     // P1 FTQ output
     always_comb begin
-        if (main_redirect) begin  // TAGE generate a redirect in P1
+        if (main_redirect & ~ftq_full_i) begin  // TAGE generate a redirect in P1
             ftq_p1_o.valid = 1;
             ftq_p1_o.is_cross_cacheline = ftb_entry.is_cross_cacheline;
             ftq_p1_o.start_pc = p1_pc;

@@ -131,6 +131,10 @@ module ex
         pc_delay <= inst_pc_i;
     end
 
+    // Branch
+    logic [ADDR_WIDTH-1:0] jump_target_address;
+    logic [ADDR_WIDTH-1:0] fall_through_address;
+
     assign instr_info = dispatch_i.instr_info;
     assign special_info = dispatch_i.instr_info.special_info;
 
@@ -251,7 +255,7 @@ module ex
         .logicout(logicout),
         .shiftout(shiftout),
         .branch_flag(branch_flag),
-        .branch_target_address(ex_redirect_target_o)
+        .branch_target_address(jump_target_address)
     );
 
 
@@ -398,9 +402,11 @@ module ex
 
 
     // Only when taken & not predicted taken can ex do redirect
-    assign ex_redirect_o = branch_flag && ~special_info.predicted_taken && advance;
+    assign ex_redirect_o = (branch_flag & ~special_info.predicted_taken | ~branch_flag & special_info.predicted_taken) && advance;
+    assign ex_redirect_target_o = branch_flag ? jump_target_address : fall_through_address;
     assign ex_redirect_ftq_id_o = ex_redirect_o ? instr_info.ftq_id : 0;
-    assign ex_fall_through_addr_o = inst_pc_i + 4;
+    assign ex_fall_through_addr_o = fall_through_address;
+    assign fall_through_address = inst_pc_i + 4;
 
 
     always @(*) begin
