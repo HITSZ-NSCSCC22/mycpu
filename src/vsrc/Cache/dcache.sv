@@ -725,7 +725,7 @@ module dcache
     generate
         for (genvar i = 0; i < NWAY; i++) begin : bram_ip
 `ifdef BRAM_IP
-            bram_icache_tag_ram u_tag_bram (
+            bram_dcache_tag_ram u_tag_bram (
                 .clka (clk),
                 .clkb (clk),
                 .ena  (tag_bram_en[i]),

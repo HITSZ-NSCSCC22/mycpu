@@ -111,7 +111,8 @@ module dcache_fifo
 
     //Write Hit
     logic [DEPTH-1:0] write_hit;
-    logic write_hit_head = write_hit[head] & cpu_wreq_i;
+    logic write_hit_head;
+    assign write_hit_head = write_hit[head] & cpu_wreq_i;
     assign write_hit_o = |write_hit;
     always_comb begin
         for (integer i = 0; i < DEPTH; i = i + 1) begin

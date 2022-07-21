@@ -1187,21 +1187,21 @@ module cpu_top
         .probe18(wready),  // input wire [0:0]  probe18 
         .probe19(wvalid),  // input wire [0:0]  probe19
         .probe20(u_cs_reg.timer_64),  // input wire [63:0]  probe20 
-        .probe21(awaddr),  // input wire [31:0]  probe21 
-        .probe22(araddr),  // input wire [31:0]  probe22 
+        .probe21(u_ctrl.excp),  // input wire [31:0]  probe21 
+        .probe22(u_ctrl.excp_num),  // input wire [31:0]  probe22 
         .probe23(u_dispatch.id_i[0].instr_info.pc),  // input wire [31:0]  probe23 
         .probe24(u_dispatch.id_i[1].instr_info.pc),  // input wire [31:0]  probe24 
-        .probe25(u_LSU.cpu_rdata),  // input wire [31:0]  probe25 
-        .probe26(u_LSU.cpu_wdata),  // input wire [31:0]  probe26 
-        .probe27(u_dispatch.single_issue),  // input wire [0:0]  probe27
-        .probe28(u_instr_buffer.buffer_queue[0].pc),  // input wire [31:0]  probe28 
-        .probe29(u_instr_buffer.buffer_queue[1].pc),  // input wire [31:0]  probe29 
-        .probe30(u_instr_buffer.buffer_queue[2].pc),  // input wire [31:0]  probe30 
-        .probe31(u_instr_buffer.buffer_queue[3].pc),  // input wire [31:0]  probe31 
-        .probe32(u_instr_buffer.frontend_instr_i[0].pc),  // input wire [31:0]  probe32 
-        .probe33(u_instr_buffer.frontend_instr_i[1].pc),  // input wire [31:0]  probe33 
-        .probe34(u_instr_buffer.frontend_instr_i[2].pc),  // input wire [31:0]  probe34 
-        .probe35(u_instr_buffer.frontend_instr_i[3].pc)  // input wire [31:0]  probe35
+        .probe25(u_dcache.rdata),  // input wire [31:0]  probe25 
+        .probe26(u_dcache.fifo_axi_wr_addr),  // input wire [31:0]  probe26 
+        .probe27(u_dcache.fifo_axi_wr_data),  // input wire [0:0]  probe27
+        .probe28(u_dcache.axi_rdy_i),  // input wire [31:0]  probe28 
+        .probe29(u_dcache.wdata_buffer),  // input wire [31:0]  probe29 
+        .probe30(u_dcache.wstrb_buffer),  // input wire [31:0]  probe30 
+        .probe31(u_dcache.state),  // input wire [31:0]  probe31 
+        .probe32(u_dcache.fifo_wreq),  // input wire [31:0]  probe32 
+        .probe33(u_dcache.fifo_waddr),  // input wire [31:0]  probe33 
+        .probe34(u_dcache.fifo_wdata),  // input wire [31:0]  probe34 
+        .probe35(u_dcache.fifo_axi_wr_req)  // input wire [31:0]  probe35
     );
 `endif
 

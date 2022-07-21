@@ -1,5 +1,6 @@
 `include "core_config.sv"
 `include "TLB/tlb_types.sv"
+`include "utils/cva5_priority_encoder.sv"
 
 module tlb_entry
     import tlb_types::*;
