@@ -45,9 +45,9 @@ module bpu
     // Parameters
     localparam BASE_CTR_WIDTH = BPU_COMPONENT_CTR_WIDTH[0];
 
-    logic backend_flush_delay;
+    logic flush_delay;
     always_ff @(posedge clk) begin
-        backend_flush_delay <= backend_flush_i;
+        flush_delay <= backend_flush_i | main_redirect;
     end
 
 
@@ -88,7 +88,7 @@ module bpu
 
 
     // P1
-    assign main_redirect = predict_valid & predict_taken & ftb_hit & ~backend_flush_delay;
+    assign main_redirect = predict_valid & predict_taken & ftb_hit & ~flush_delay;
     always_ff @(posedge clk) begin
         p1_pc <= pc_i;
     end

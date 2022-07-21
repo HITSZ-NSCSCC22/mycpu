@@ -403,7 +403,12 @@ module ex
 
 
     // Any mispredict will trigger a redirection
-    assign ex_redirect_o = (branch_flag ^ special_info.predicted_taken) && advance && special_info.is_branch;
+    // Mispredict is defined as:
+    // 1. branch direction mispredict
+    // 2. branch position mispredict
+    assign ex_redirect_o = ((branch_flag & ~instr_info.is_last_in_block) | 
+                            ((branch_flag ^ special_info.predicted_taken) & instr_info.is_last_in_block)) &&
+                            advance && special_info.is_branch;
     assign ex_redirect_target_o = branch_flag ? jump_target_address : fall_through_address;
     assign ex_redirect_ftq_id_o = ex_redirect_o ? instr_info.ftq_id : 0;
     assign ex_jump_target_addr_o = jump_target_address;

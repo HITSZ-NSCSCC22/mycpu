@@ -35,7 +35,8 @@ package core_types;
         logic is_branch;
         logic is_conditional;
         logic is_taken;
-        logic predicted_taken;  // Comes from BPU
+        // Comes from BPU
+        logic predicted_taken;
         // Difftest only
         logic csr_rstat;
     } special_info_t;

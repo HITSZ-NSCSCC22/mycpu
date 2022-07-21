@@ -126,6 +126,7 @@ module ctrl
     assign backend_commit_valid[1] = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | instr_info[0].excp)? 0 : wb_i[1].valid;
 
     // Backend commit basic block
+    logic debug_last_in_block = wb_i[0].is_last_in_block;
     assign backend_commit_block_o = backend_commit_valid & (instr_info[0].excp ? 2'b01:
                                     instr_info[1].excp ? {1'b1 , wb_i[0].is_last_in_block | ertn_flush | idle_flush | refetch_flush} : 
                                     {wb_i[1].is_last_in_block, wb_i[0].is_last_in_block | ertn_flush | idle_flush | refetch_flush});

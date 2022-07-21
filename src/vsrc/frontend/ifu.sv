@@ -108,7 +108,9 @@ module ifu
                         p1_data.tlb_rreq.dmw1_en ? p1_data.csr.dmw1[`DMW_MAT] == 0 : 
                         tlb_i.tlb_mat == 0;
     always_ff @(posedge clk) begin
-        if (backend_flush_i | frontend_redirect_i) begin
+        if (backend_flush_i) begin
+            p1_data <= 0;
+        end else if (p0_advance & frontend_redirect_i) begin
             p1_data <= 0;
         end else if (p0_advance) begin
             p1_data.ftq_block <= ftq_i;

@@ -47,6 +47,7 @@ module ftq
     logic queue_full_delay;
     logic ifu_send_req, ifu_send_req_delay;
     logic main_bpu_redirect_modify_ftq;
+    logic ifu_frontend_redirect, ifu_frontend_redirect_delay;
 
 
     logic [$clog2(COMMIT_WIDTH):0] backend_commit_num;
@@ -60,11 +61,13 @@ module ftq
     // IFU sent rreq
     assign ifu_send_req = FTQ[ifu_ptr].valid & ifu_accept_i;
     assign main_bpu_redirect_modify_ftq = bpu_p1_i.valid & ~queue_full_delay;
+    assign ifu_frontend_redirect = (bpu_ptr == PTR_WIDTH'(ifu_ptr + 1)) & main_bpu_redirect_modify_ftq & (ifu_send_req_delay|ifu_send_req);
     // Queue full
     assign queue_full = (bpu_ptr_plus1 == comm_ptr);
     always_ff @(posedge clk) begin
-        queue_full_delay   <= queue_full;
+        queue_full_delay <= queue_full;
         ifu_send_req_delay <= ifu_send_req;
+        ifu_frontend_redirect_delay <= ifu_frontend_redirect;
     end
     // QUEUE data structure
     ftq_block_t [QUEUE_SIZE-1:0] FTQ, next_FTQ;
@@ -152,7 +155,7 @@ module ftq
     // 1. last cycle send rreq to IFU
     // 2. main BPU redirect had modified the FTQ contents
     // 3. modified FTQ block is the rreq sent last cycle
-    assign ifu_frontend_redirect_o = (bpu_ptr == PTR_WIDTH'(ifu_ptr + 1)) & main_bpu_redirect_modify_ftq & ifu_send_req_delay;
+    assign ifu_frontend_redirect_o = ifu_frontend_redirect;
     // DEBUG
     logic [2:0] debug_length = ifu_o.length;
 
