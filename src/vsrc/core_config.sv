@@ -29,7 +29,7 @@ package core_config;
     parameter integer BPU_COMPONENT_CTR_WIDTH[BPU_TAG_COMPONENT_NUM+1] = '{3, 2, 2, 2, 2};
     parameter integer BPU_COMPONENT_USEFUL_WIDTH[BPU_TAG_COMPONENT_NUM+1] = '{0, 3, 3, 3, 3};
     // FTB
-    parameter integer FTB_DEPTH = 512;
+    parameter integer FTB_DEPTH = 1024;
 
     parameter DECODE_WIDTH = 2;
     parameter ISSUE_WIDTH = 2;

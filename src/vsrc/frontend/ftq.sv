@@ -170,7 +170,7 @@ module ftq
         if (rst) bpu_meta_o <= 0;
         else begin
             bpu_meta_o <= 0;
-            if (backend_commit_bitmask_i[0] & backend_commit_meta_i.is_branch & (backend_commit_meta_i.predicted_taken ^ backend_commit_meta_i.is_taken)) begin // Only update when mispredict
+            if (backend_commit_bitmask_i[0] & backend_commit_meta_i.is_branch ) begin // Only update when mispredict
                 bpu_meta_o.valid <= 1;
                 bpu_meta_o.is_branch <= backend_commit_meta_i.is_branch;
                 bpu_meta_o.is_conditional <= backend_commit_meta_i.is_conditional;
@@ -189,7 +189,11 @@ module ftq
     // BPU meta ram
     ftq_bpu_meta_entry_t FTQ_meta[QUEUE_SIZE-1:0];
     always_ff @(posedge clk) begin
-        FTQ_meta[bpu_ptr].provider_ctr_bits <= bpu_meta_i.provider_ctr_bits;
+        // P1
+        if (bpu_p1_i.valid & ~queue_full_delay)  // If last cycle accepted P0 input
+            FTQ_meta[PTR_WIDTH'(bpu_ptr-1)].provider_ctr_bits <= bpu_meta_i.provider_ctr_bits;
+        else if (bpu_p1_i.valid)
+            FTQ_meta[bpu_ptr].provider_ctr_bits <= bpu_meta_i.provider_ctr_bits;
         if (backend_ftq_meta_update_valid_i) begin
             FTQ_meta[backend_ftq_update_meta_id_i][63:0] <= {
                 backend_ftq_meta_update_jump_target_i, backend_ftq_meta_update_fall_through_i

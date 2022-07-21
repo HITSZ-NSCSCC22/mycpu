@@ -47,7 +47,7 @@ module bpu
 
     logic flush_delay;
     always_ff @(posedge clk) begin
-        flush_delay <= backend_flush_i | main_redirect;
+        flush_delay <= backend_flush_i | (main_redirect);
     end
 
 
@@ -88,7 +88,7 @@ module bpu
 
 
     // P1
-    assign main_redirect = predict_valid & predict_taken & ftb_hit & ~flush_delay;
+    assign main_redirect = predict_valid & ftb_hit & ~flush_delay;
     always_ff @(posedge clk) begin
         p1_pc <= pc_i;
     end
@@ -115,7 +115,7 @@ module bpu
     // PC output
     always_comb begin
         main_redirect_o = main_redirect;
-        main_redirect_pc_o = main_redirect ? ftb_entry.jump_target_address : ftb_entry.fall_through_address;
+        main_redirect_pc_o = predict_taken ? ftb_entry.jump_target_address : ftb_entry.fall_through_address;
     end
 
 
@@ -124,8 +124,10 @@ module bpu
     ////////////////////////////////////////////////////////////////////
     // Update Logic
     ////////////////////////////////////////////////////////////////////
+    logic mispredict;
     base_predictor_update_info_t base_predictor_update_info;
     ftb_entry_t ftb_entry_update;
+    assign mispredict = ftq_meta_i.predicted_taken ^ ftq_meta_i.is_taken;
     always_comb begin
         base_predictor_update_info.valid = ftq_meta_i.valid;
         base_predictor_update_info.is_conditional = ftq_meta_i.is_conditional;
@@ -153,7 +155,8 @@ module bpu
 
         // Update
         .update_pc_i(ftq_meta_i.start_pc),
-        .update_valid_i(ftq_meta_i.valid),
+        // Only conditional will trigger FTB update
+        .update_valid_i(ftq_meta_i.valid & ftq_meta_i.is_conditional & mispredict),
         .update_entry_i(ftb_entry_update)
     );
 

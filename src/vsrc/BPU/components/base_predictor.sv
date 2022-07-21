@@ -49,6 +49,8 @@ module base_predictor
             update_content = 0;
         end
     end
+    // DEBUG
+    logic [CTR_WIDTH-1:0] update_ctr_bits = update_info_i.ctr_bits;
 
     // Table
     // Port A as read port, Port B as write port
@@ -77,7 +79,7 @@ module base_predictor
         .ena  (1'b1),
         .enb  (1'b1),
         .wea  (1'b0),
-        .web  (1'b1),
+        .web  (update_valid),
         .dina (0),
         .addra(query_index),
         .douta(query_entry),

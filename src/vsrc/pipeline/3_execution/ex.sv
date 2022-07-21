@@ -408,12 +408,18 @@ module ex
     // 2. branch position mispredict
     assign ex_redirect_o = ((branch_flag & ~instr_info.is_last_in_block) | 
                             ((branch_flag ^ special_info.predicted_taken) & instr_info.is_last_in_block)) &&
-                            advance && special_info.is_branch;
+                            advance;
     assign ex_redirect_target_o = branch_flag ? jump_target_address : fall_through_address;
     assign ex_redirect_ftq_id_o = ex_redirect_o ? instr_info.ftq_id : 0;
     assign ex_jump_target_addr_o = jump_target_address;
     assign ex_fall_through_addr_o = fall_through_address;
     assign fall_through_address = inst_pc_i + 4;
+
+    // DEBUG assertion
+    always_ff @(posedge clk) begin
+        assert (!(special_info.predicted_taken & ~special_info.is_branch))
+        else $error("FTB polluted");
+    end
 
 
     always @(*) begin
