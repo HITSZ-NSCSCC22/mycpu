@@ -37,6 +37,7 @@ module ex
     // Redirect is only triggered when mispredict happens
     output logic ex_redirect_o,
     output logic [ADDR_WIDTH-1:0] ex_redirect_target_o,
+    output logic [ADDR_WIDTH-1:0] ex_jump_target_addr_o,
     output logic [ADDR_WIDTH-1:0] ex_fall_through_addr_o,
     output logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ex_redirect_ftq_id_o,
 
@@ -401,10 +402,11 @@ module ex
     end
 
 
-    // Only when taken & not predicted taken can ex do redirect
-    assign ex_redirect_o = (branch_flag & ~special_info.predicted_taken | ~branch_flag & special_info.predicted_taken) && advance;
+    // Any mispredict will trigger a redirection
+    assign ex_redirect_o = (branch_flag ^ special_info.predicted_taken) && advance && special_info.is_branch;
     assign ex_redirect_target_o = branch_flag ? jump_target_address : fall_through_address;
     assign ex_redirect_ftq_id_o = ex_redirect_o ? instr_info.ftq_id : 0;
+    assign ex_jump_target_addr_o = jump_target_address;
     assign ex_fall_through_addr_o = fall_through_address;
     assign fall_through_address = inst_pc_i + 4;
 

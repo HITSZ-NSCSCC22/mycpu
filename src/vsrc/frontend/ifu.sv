@@ -14,7 +14,9 @@ module ifu
     input logic rst,
 
     // Flush
-    input flush_i,
+    input logic backend_flush_i,
+    input logic frontend_redirect_i,
+
 
     // <-> Fetch Target Queue
     input ftq_ifu_t ftq_i,
@@ -106,7 +108,7 @@ module ifu
                         p1_data.tlb_rreq.dmw1_en ? p1_data.csr.dmw1[`DMW_MAT] == 0 : 
                         tlb_i.tlb_mat == 0;
     always_ff @(posedge clk) begin
-        if (flush_i) begin
+        if (backend_flush_i | frontend_redirect_i) begin
             p1_data <= 0;
         end else if (p0_advance) begin
             p1_data.ftq_block <= ftq_i;
@@ -169,7 +171,7 @@ module ifu
     always_ff @(posedge clk) begin : is_flushing_ff
         if (rst) begin
             is_flushing_r <= 0;
-        end else if (flush_i & (p2_in_transaction | p1_send_rreq)) begin
+        end else if (backend_flush_i & (p2_in_transaction | p1_send_rreq)) begin
             // Enter a flusing state if flush_i and read transaction on-the-fly
             is_flushing_r <= 1;
         end else if (p2_read_done) begin
@@ -208,7 +210,7 @@ module ifu
     always_ff @(posedge clk) begin : p2_ff
         if (rst) begin
             p2_read_transaction <= 0;
-        end else if (((~p1_send_rreq & p1_advance) | ~(p2_in_transaction | p1_send_rreq)) & flush_i) begin
+        end else if (((~p1_send_rreq & p1_advance) | ~(p2_in_transaction | p1_send_rreq)) & backend_flush_i) begin
             p2_read_transaction <= 0;
         end else if (p1_advance) begin
             p2_read_transaction.sent_req <= p1_send_rreq;
@@ -262,7 +264,7 @@ module ifu
             for (integer i = 0; i < FETCH_WIDTH; i++) begin
                 instr_buffer_o[i] <= 0;
             end
-        end else if (flush_i | (is_flushing_r)) begin
+        end else if (backend_flush_i | (is_flushing_r)) begin
             for (integer i = 0; i < FETCH_WIDTH; i++) begin
                 instr_buffer_o[i] <= 0;
             end

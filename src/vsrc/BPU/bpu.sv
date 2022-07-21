@@ -21,6 +21,9 @@ module bpu
     input logic clk,
     input logic rst,
 
+    // Backend flush
+    input logic backend_flush_i,
+
     // FTQ
     // Predict
     input [ADDR_WIDTH-1:0] pc_i,
@@ -41,6 +44,11 @@ module bpu
 );
     // Parameters
     localparam BASE_CTR_WIDTH = BPU_COMPONENT_CTR_WIDTH[0];
+
+    logic backend_flush_delay;
+    always_ff @(posedge clk) begin
+        backend_flush_delay <= backend_flush_i;
+    end
 
 
     ////////////////////////////////////////////////////////////////////////////////////
@@ -80,7 +88,7 @@ module bpu
 
 
     // P1
-    assign main_redirect = predict_valid & predict_taken & ftb_hit;
+    assign main_redirect = predict_valid & predict_taken & ftb_hit & ~backend_flush_delay;
     always_ff @(posedge clk) begin
         p1_pc <= pc_i;
     end
@@ -90,8 +98,8 @@ module bpu
             ftq_p1_o.valid = 1;
             ftq_p1_o.is_cross_cacheline = ftb_entry.is_cross_cacheline;
             ftq_p1_o.start_pc = p1_pc;
-            ftq_p1_o.length = ftb_entry.fall_through_address[2+$clog2(FETCH_WIDTH)-1:2] -
-                p1_pc[2+$clog2(FETCH_WIDTH)-1:2];
+            ftq_p1_o.length = ftb_entry.fall_through_address[2+$clog2(FETCH_WIDTH):2] -
+                p1_pc[2+$clog2(FETCH_WIDTH):2];  // Use 3bit minus to ensure no overflow
             ftq_p1_o.predicted_taken = predict_taken;
         end else begin
             ftq_p1_o = 0;
@@ -107,7 +115,7 @@ module bpu
     // PC output
     always_comb begin
         main_redirect_o = main_redirect;
-        main_redirect_pc_o = main_redirect ? ftb_entry.jump_target_address : 0;
+        main_redirect_pc_o = main_redirect ? ftb_entry.jump_target_address : ftb_entry.fall_through_address;
     end
 
 

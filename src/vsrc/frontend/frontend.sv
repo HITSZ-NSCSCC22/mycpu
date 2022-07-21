@@ -98,6 +98,10 @@ module frontend
     bpu u_bpu (
         .clk(clk),
         .rst(rst),
+
+        // Backend
+        .backend_flush_i(backend_flush_i),
+
         .pc_i(pc),
         // FTQ
         .ftq_full_i(ftq_full),
@@ -160,7 +164,8 @@ module frontend
         .rst(rst),
 
         // Flush
-        .flush_i(backend_flush_i | ifu_frontend_redirect),
+        .backend_flush_i(backend_flush_i),
+        .frontend_redirect_i(ifu_frontend_redirect),
 
         // <-> FTQ
         .ftq_i       (ftq_ifu_block),
