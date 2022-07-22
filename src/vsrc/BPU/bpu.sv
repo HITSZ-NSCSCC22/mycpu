@@ -45,15 +45,25 @@ module bpu
     // Parameters
     localparam BASE_CTR_WIDTH = BPU_COMPONENT_CTR_WIDTH[0];
 
+    // P1 signals
+    logic [ADDR_WIDTH-1:0] p1_pc;
+    logic main_redirect;
+    // FTB
+    logic ftb_hit;
+    ftb_entry_t ftb_entry;
+    // TAGE
+    logic predict_taken, predict_valid;
+
     logic flush_delay;
     always_ff @(posedge clk) begin
-        flush_delay <= backend_flush_i | (main_redirect);
+        flush_delay <= backend_flush_i | (main_redirect & ~ftq_full_i);
     end
 
 
     ////////////////////////////////////////////////////////////////////////////////////
     // Query logic
     ////////////////////////////////////////////////////////////////////////////////////
+    bpu_ftq_meta_t tage_meta, bpu_meta;
 
     // P0 
     // FTQ Output generate
@@ -76,14 +86,6 @@ module bpu
         end
     end
 
-    // P1 signals
-    logic [ADDR_WIDTH-1:0] p1_pc;
-    logic main_redirect;
-    // FTB
-    logic ftb_hit;
-    ftb_entry_t ftb_entry;
-    // TAGE
-    logic predict_taken, predict_valid;
 
 
 
@@ -117,6 +119,9 @@ module bpu
         main_redirect_o = main_redirect;
         main_redirect_pc_o = predict_taken ? ftb_entry.jump_target_address : ftb_entry.fall_through_address;
     end
+    // FTQ meta output
+    assign bpu_meta.ftb_hit = ftb_hit;
+    assign ftq_meta_o = bpu_meta | tage_meta;
 
 
 
@@ -125,15 +130,24 @@ module bpu
     // Update Logic
     ////////////////////////////////////////////////////////////////////
     logic mispredict;
+    logic ftb_update_valid;
     base_predictor_update_info_t base_predictor_update_info;
     ftb_entry_t ftb_entry_update;
     assign mispredict = ftq_meta_i.predicted_taken ^ ftq_meta_i.is_taken;
+    // Only following conditions will trigger a FTB update:
+    // 1. Instruction not in FTB
+    // 2. This is a conditional branch
+    // 3. This branch has redirected instruction follow
+    assign ftb_update_valid = ftq_meta_i.valid & ~ftq_meta_i.ftb_hit & ftq_meta_i.is_conditional & mispredict;
     always_comb begin
-        base_predictor_update_info.valid = ftq_meta_i.valid;
+        // Direction preditor update policy:
+        // 1. Instruction already in FTB, update normally
+        // 2. Instruction not in FTB, update as if ctr_bits is weak taken
+        base_predictor_update_info.valid = ftq_meta_i.valid & (ftq_meta_i.ftb_hit | mispredict);
         base_predictor_update_info.is_conditional = ftq_meta_i.is_conditional;
         base_predictor_update_info.pc = ftq_meta_i.start_pc;
         base_predictor_update_info.taken = ftq_meta_i.is_taken;
-        base_predictor_update_info.ctr_bits = ftq_meta_i.provider_ctr_bits[BASE_CTR_WIDTH-1:0];
+        base_predictor_update_info.ctr_bits = ftq_meta_i.ftb_hit ? ftq_meta_i.provider_ctr_bits[BASE_CTR_WIDTH-1:0] :  {1'b1, {(BASE_CTR_WIDTH-1){1'b0}}};
     end
 
     always_comb begin
@@ -155,8 +169,7 @@ module bpu
 
         // Update
         .update_pc_i(ftq_meta_i.start_pc),
-        // Only conditional will trigger FTB update
-        .update_valid_i(ftq_meta_i.valid & ftq_meta_i.is_conditional & mispredict),
+        .update_valid_i(ftb_update_valid),
         .update_entry_i(ftb_entry_update)
     );
 
@@ -165,7 +178,7 @@ module bpu
         .rst                    (rst),
         .pc_i                   (pc_i),
         .base_predictor_update_i(base_predictor_update_info),
-        .bpu_meta_o             (ftq_meta_o),
+        .bpu_meta_o             (tage_meta),
         .predict_branch_taken_o (predict_taken),
         .predict_valid_o        (predict_valid),
         .perf_tag_hit_counter   ()

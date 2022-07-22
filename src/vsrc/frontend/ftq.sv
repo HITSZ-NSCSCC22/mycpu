@@ -49,6 +49,16 @@ module ftq
     logic main_bpu_redirect_modify_ftq;
     logic ifu_frontend_redirect, ifu_frontend_redirect_delay;
 
+    logic [PTR_WIDTH-1:0] bpu_ptr, ifu_ptr, comm_ptr;
+    logic [$clog2(QUEUE_SIZE)-1:0] bpu_ptr_plus1;  // Limit the bit width
+    assign bpu_ptr_plus1 = bpu_ptr + 1;
+
+    // QUEUE data structure
+    ftq_block_t [QUEUE_SIZE-1:0] FTQ, next_FTQ;
+    // FTQ meta
+    ftq_bpu_meta_entry_t FTQ_meta[QUEUE_SIZE-1:0];
+
+
 
     logic [$clog2(COMMIT_WIDTH):0] backend_commit_num;
     always_comb begin
@@ -69,8 +79,6 @@ module ftq
         ifu_send_req_delay <= ifu_send_req;
         ifu_frontend_redirect_delay <= ifu_frontend_redirect;
     end
-    // QUEUE data structure
-    ftq_block_t [QUEUE_SIZE-1:0] FTQ, next_FTQ;
     always_ff @(posedge clk) begin
         if (rst) begin
             FTQ <= 0;
@@ -88,7 +96,6 @@ module ftq
     end
 
     // PTR
-    logic [$clog2(QUEUE_SIZE)-1:0] bpu_ptr, ifu_ptr, comm_ptr;
     assign ifu_ftq_id_o = ifu_ptr;
     always_ff @(posedge clk) begin : ptr_ff
         if (rst) begin
@@ -139,7 +146,8 @@ module ftq
         // If backend redirect triggered, clear the committed and predicted entry
         if (backend_flush_i) begin
             for (integer i = 0; i < QUEUE_SIZE; i++) begin
-                if (~(i >= comm_ptr & i <= backend_flush_ftq_id_i)) next_FTQ[i] = 0;
+                if (PTR_WIDTH'(i - comm_ptr) >= PTR_WIDTH'(i - backend_flush_ftq_id_i) && i != backend_flush_ftq_id_i)
+                    next_FTQ[i] = 0;
             end
         end
     end
@@ -161,8 +169,6 @@ module ftq
 
 
     // -> BPU
-    logic [$clog2(QUEUE_SIZE)-1:0] bpu_ptr_plus1;  // Limit the bit width
-    assign bpu_ptr_plus1 = bpu_ptr + 1;
     assign bpu_queue_full_o = queue_full;
 
     // Training meta to BPU
@@ -170,8 +176,9 @@ module ftq
         if (rst) bpu_meta_o <= 0;
         else begin
             bpu_meta_o <= 0;
-            if (backend_commit_bitmask_i[0] & backend_commit_meta_i.is_branch ) begin // Only update when mispredict
+            if (backend_commit_bitmask_i[0] & backend_commit_meta_i.is_branch) begin // Update when a branch is committed 
                 bpu_meta_o.valid <= 1;
+                bpu_meta_o.ftb_hit <= FTQ_meta[backend_commit_ftq_id_i].ftb_hit;
                 bpu_meta_o.is_branch <= backend_commit_meta_i.is_branch;
                 bpu_meta_o.is_conditional <= backend_commit_meta_i.is_conditional;
                 bpu_meta_o.is_taken <= backend_commit_meta_i.is_taken;
@@ -187,13 +194,24 @@ module ftq
 
 
     // BPU meta ram
-    ftq_bpu_meta_entry_t FTQ_meta[QUEUE_SIZE-1:0];
     always_ff @(posedge clk) begin
         // P1
-        if (bpu_p1_i.valid & ~queue_full_delay)  // If last cycle accepted P0 input
+        // Maintain BPU meta info
+        if (bpu_p1_i.valid & ~queue_full_delay) begin  // If last cycle accepted P0 input
+            FTQ_meta[PTR_WIDTH'(bpu_ptr-1)] <= 0;
             FTQ_meta[PTR_WIDTH'(bpu_ptr-1)].provider_ctr_bits <= bpu_meta_i.provider_ctr_bits;
-        else if (bpu_p1_i.valid)
+            FTQ_meta[PTR_WIDTH'(bpu_ptr-1)].ftb_hit <= bpu_meta_i.ftb_hit;
+        end else if (bpu_p1_i.valid) begin
+            FTQ_meta[bpu_ptr] <= 0;
             FTQ_meta[bpu_ptr].provider_ctr_bits <= bpu_meta_i.provider_ctr_bits;
+            FTQ_meta[bpu_ptr].ftb_hit <= bpu_meta_i.ftb_hit;
+        end else if (bpu_p0_i.valid) begin  // If not provided by BPU, clear meta
+            FTQ_meta[bpu_ptr] <= 0;
+            FTQ_meta[bpu_ptr].provider_ctr_bits <= 0;
+            FTQ_meta[bpu_ptr].ftb_hit <= 0;
+        end
+
+        // Update pc from backend
         if (backend_ftq_meta_update_valid_i) begin
             FTQ_meta[backend_ftq_update_meta_id_i][63:0] <= {
                 backend_ftq_meta_update_jump_target_i, backend_ftq_meta_update_fall_through_i

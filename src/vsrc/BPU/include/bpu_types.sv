@@ -37,9 +37,9 @@ package bpu_types;
 
     typedef struct packed {
         logic valid;
+        logic ftb_hit;
         logic [$clog2(BPU_TAG_COMPONENT_NUM+1)-1:0] provider_id;
         logic [$clog2(BPU_TAG_COMPONENT_NUM+1)-1:0] alt_provider_id;
-        logic predict_taken;
         logic useful;
         logic [$clog2(8192)-1:0] provider_entry_id;  // TODO: hard-coded
         logic [3:0] provider_useful_bits;
@@ -48,9 +48,9 @@ package bpu_types;
 
     typedef struct packed {
         logic valid;
+        logic ftb_hit;
         logic [$clog2(BPU_TAG_COMPONENT_NUM+1)-1:0] provider_id;
         logic [$clog2(BPU_TAG_COMPONENT_NUM+1)-1:0] alt_provider_id;
-        logic predict_taken;
         logic useful;
         logic [$clog2(8192)-1:0] provider_entry_id;  // TODO: hard-coded
         logic [3:0] provider_useful_bits;
@@ -67,9 +67,9 @@ package bpu_types;
 
     typedef struct packed {
         logic valid;
+        logic ftb_hit;
         logic [$clog2(BPU_TAG_COMPONENT_NUM+1)-1:0] provider_id;
         logic [$clog2(BPU_TAG_COMPONENT_NUM+1)-1:0] alt_provider_id;
-        logic predict_taken;
         logic useful;
         logic [$clog2(8192)-1:0] provider_entry_id;  // TODO: hard-coded
         logic [3:0] provider_useful_bits;
