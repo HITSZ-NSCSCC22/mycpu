@@ -410,6 +410,7 @@ module cpu_top
         // Port A
         .rreq_1_i         (frontend_icache_rreq[0]),
         .rreq_1_uncached_i(frontend_icache_rreq_uncached[0]),
+        // .rreq_1_uncached_i(0),
         .raddr_1_i        (frontend_icache_addr[0]),
         .rreq_1_ack_o     (icache_frontend_rreq_ack[0]),
         .rvalid_1_o       (icache_frontend_valid[0]),
@@ -417,6 +418,7 @@ module cpu_top
         // Port B
         .rreq_2_i         (frontend_icache_rreq[1]),
         .rreq_2_uncached_i(frontend_icache_rreq_uncached[1]),
+        // .rreq_2_uncached_i(0),
         .raddr_2_i        (frontend_icache_addr[1]),
         .rreq_2_ack_o     (icache_frontend_rreq_ack[1]),
         .rvalid_2_o       (icache_frontend_valid[1]),

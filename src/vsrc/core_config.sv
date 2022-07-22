@@ -35,7 +35,7 @@ package core_config;
     parameter ISSUE_WIDTH = 2;
 
     // ICache parameters
-    parameter ICACHE_NWAY = 4;
+    parameter ICACHE_NWAY = 2;
     parameter ICACHE_NSET = 1024;
 
     // DCache parameters
