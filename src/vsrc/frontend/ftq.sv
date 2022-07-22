@@ -124,7 +124,7 @@ module ftq
 
         // clear out if committed
         for (integer i = 0; i < COMMIT_WIDTH; i++) begin
-            if (i < backend_commit_num) next_FTQ[comm_ptr+i[$clog2(QUEUE_SIZE)-1:0]] = 0;
+            if (i < backend_commit_num) next_FTQ[PTR_WIDTH'(comm_ptr+i)] = 0;
         end
 
         // Accept BPU input

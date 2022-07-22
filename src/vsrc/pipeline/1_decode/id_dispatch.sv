@@ -60,11 +60,9 @@ module id_dispatch
         end else begin
             for (integer i = 0; i < DECODE_WIDTH; i++) begin
                 if (i < DECODE_WIDTH - dispatch_issue_num)
-                    dispatch_o[i] <= dispatch_o[dispatch_issue_num+i[$clog2(DECODE_WIDTH)-1:0]];
+                    dispatch_o[i] <= dispatch_o[$clog2(DECODE_WIDTH)'(dispatch_issue_num+i)];
                 else
-                    dispatch_o[i] <= id_i[i[$clog2(
-                        DECODE_WIDTH
-                    )-1:0]-DECODE_WIDTH+dispatch_issue_num];
+                    dispatch_o[i] <= id_i[$clog2(DECODE_WIDTH)'(i-DECODE_WIDTH+dispatch_issue_num)];
             end
         end
     end
