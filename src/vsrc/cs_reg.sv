@@ -141,12 +141,10 @@ module cs_reg
 
     assign pg_out = excp_tlbrefill & 1'b0  |
                 (eret_tlbrefill_excp && ertn_flush) & 1'b1 |
-                (we == 1'b1 && waddr == `CRMD) & wdata[`PG] |
                 no_forward & csr_crmd[`PG];
 
     assign da_out = excp_tlbrefill & 1'b1                      |
                 (eret_tlbrefill_excp && ertn_flush) & 1'b0 |
-                (we == 1'b1 && waddr == `CRMD)      & wdata[`DA] |
                 no_forward     & csr_crmd[`DA];
 
     assign eret_tlbrefill_excp = csr_estat[`ECODE] == 6'h3f;
@@ -154,8 +152,8 @@ module cs_reg
     assign tlbrd_valid_wr_en = tlbrd_en && !tlbidx_in[`NE];
     assign tlbrd_invalid_wr_en = tlbrd_en && tlbidx_in[`NE];
 
-    assign dmw0_out = we == 1'b1 && waddr == `DMW0 ? wdata : csr_dmw0;
-    assign dmw1_out = we == 1'b1 && waddr == `DMW1 ? wdata : csr_dmw1;
+    assign dmw0_out = csr_dmw0;
+    assign dmw1_out = csr_dmw1;
 
     assign ecode_out = csr_estat[`ECODE];
     assign datf_out = csr_crmd[`DATF];
@@ -203,7 +201,7 @@ module cs_reg
     assign tid_o = csr_tid;
     assign llbit_o = llbit;
     assign asid_out = csr_asid[`TLB_ASID];
-    assign vppn_o = (we && waddr == `TLBEHI) ? wdata[`VPPN] : csr_tlbehi[`VPPN];
+    assign vppn_o = csr_tlbehi[`VPPN];
     assign tlbehi_out = csr_tlbehi;
     assign tlbelo0_out = csr_tlbelo0;
     assign tlbelo1_out = csr_tlbelo1;
