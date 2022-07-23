@@ -274,6 +274,10 @@ module cpu_top
     assign pmu_data.bpu_conditional_branch = backend_commit_meta.is_conditional;
     assign pmu_data.bpu_conditional_miss = backend_commit_meta.is_conditional & (backend_commit_meta.is_taken ^ backend_commit_meta.predicted_taken);
     assign pmu_data.bpu_ftb_dirty = ex_jump_target_mispredict[0];
+    assign pmu_data.dcache_req = u_LSU.state == u_LSU.IDLE & mem_cache_ce;
+    assign pmu_data.dcache_miss = u_LSU.state == u_LSU.IDLE & u_LSU.next_state == u_LSU.REFILL_WAIT;
+    assign pmu_data.icache_req = u_icache.rreq_1_i | u_icache.rreq_2_i;
+    assign pmu_data.icache_miss = u_icache.miss_1_pulse | u_icache.miss_2_pulse;
 
     LSU u_LSU (
         .clk(clk),
