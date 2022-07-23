@@ -309,10 +309,10 @@ module cpu_top
     iob_cache_axi #(
         .FE_ADDR_W    (ADDR_WIDTH),
         .FE_DATA_W    (DATA_WIDTH),
-        .N_WAYS       (4),
+        .N_WAYS       (DCACHE_NWAY),
         .WTBUF_DEPTH_W(8),
-        .LINE_OFF_W   (9),
-        .WORD_OFF_W   (4),
+        .LINE_OFF_W   ($clog2(DCACHE_NSET)),
+        .WORD_OFF_W   ($clog2(DCACHELINE_WIDTH / 8)),
         .REP_POLICY   (1),
         .BE_ADDR_W    (ADDR_WIDTH),
         .BE_DATA_W    (AXI_DATA_WIDTH),

@@ -29,7 +29,7 @@ package core_config;
     parameter integer BPU_COMPONENT_CTR_WIDTH[BPU_TAG_COMPONENT_NUM+1] = '{3, 2, 2, 2, 2};
     parameter integer BPU_COMPONENT_USEFUL_WIDTH[BPU_TAG_COMPONENT_NUM+1] = '{0, 3, 3, 3, 3};
     // FTB
-    parameter integer FTB_DEPTH = 1024;
+    parameter integer FTB_DEPTH = 4096;
 
     parameter DECODE_WIDTH = 2;
     parameter ISSUE_WIDTH = 2;
@@ -40,8 +40,8 @@ package core_config;
 
     // DCache parameters
     parameter DCACHE_NWAY = 2;
-    parameter DCACHE_NSET = 256;
-    parameter DCACHELINE_WIDTH = 128;
+    parameter DCACHE_NSET = 512;
+    parameter DCACHELINE_WIDTH = 256;
 
     // LSU parameters
     parameter LSU_STORE_QUEU_SIZE = 4;

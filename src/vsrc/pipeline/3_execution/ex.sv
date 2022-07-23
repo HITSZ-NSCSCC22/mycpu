@@ -415,7 +415,7 @@ module ex
     // Branch Unit
     ///////////////////////////////////////////////////////////////////////////////////
     // FTQ query
-    assign ftq_query_addr_o = instr_info.ftq_id + 1;
+    assign ftq_query_addr_o = $clog2(FRONTEND_FTQ_SIZE)'(instr_info.ftq_id + 1);
 
     // Any mispredict will trigger a redirection
     // Mispredict is defined as:
@@ -429,7 +429,7 @@ module ex
     assign ex_redirect_target_o = branch_flag ? jump_target_address : fall_through_address;
 
     // BPU meta is feedback to FTQ whenever a branch is executed
-    assign ex_is_branch_o = special_info.is_branch;
+    assign ex_is_branch_o = ex_redirect_o;
     assign ex_jump_target_mispredict_o = branch_target_mispredict;
     assign ex_redirect_ftq_id_o = ex_redirect_o ? instr_info.ftq_id : 0;
     assign ex_jump_target_addr_o = jump_target_address;
