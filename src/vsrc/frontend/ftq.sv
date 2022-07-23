@@ -31,6 +31,10 @@ module ftq
     input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_commit_ftq_id_i,
     input backend_commit_meta_t backend_commit_meta_i,
 
+    // <-> EX query port
+    input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ex_query_addr_i,
+    output logic [ADDR_WIDTH-1:0] ex_query_pc_o,
+
     // <-> IFU
     output ftq_ifu_t ifu_o,
     output logic ifu_frontend_redirect_o,
@@ -166,6 +170,9 @@ module ftq
     assign ifu_frontend_redirect_o = ifu_frontend_redirect;
     // DEBUG
     logic [2:0] debug_length = ifu_o.length;
+
+    // -> EX
+    assign ex_query_pc_o = FTQ[ex_query_addr_i].start_pc;
 
 
     // -> BPU

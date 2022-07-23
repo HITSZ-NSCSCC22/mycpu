@@ -131,8 +131,11 @@ module cpu_top
     logic [ISSUE_WIDTH-1:0] ex_redirect;
     logic [ISSUE_WIDTH-1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] ex_redirect_ftq_id;
     logic [ISSUE_WIDTH-1:0][ADDR_WIDTH-1:0] ex_redirect_target;
+    logic [ISSUE_WIDTH-1:0] ex_is_branch;
     logic [ISSUE_WIDTH-1:0][ADDR_WIDTH-1:0] ex_jump_target_addr;
     logic [ISSUE_WIDTH-1:0][ADDR_WIDTH-1:0] ex_fall_through_addr;
+    logic [ISSUE_WIDTH-1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] ex_ftq_query_addr;
+    logic [ISSUE_WIDTH-1:0][ADDR_WIDTH-1:0] ex_ftq_query_pc;
 
 
     // AXI
@@ -613,10 +616,13 @@ module cpu_top
         .backend_commit_ftq_id_i(backend_commit_ftq_id),
         .backend_commit_meta_i(backend_commit_meta),
 
-        .backend_ftq_meta_update_valid_i(ex_redirect[0]),
+        .backend_ftq_meta_update_valid_i(ex_is_branch[0]),
         .backend_ftq_meta_update_jump_target_i(ex_jump_target_addr[0]),
         .backend_ftq_meta_update_fall_through_i(ex_fall_through_addr[0]),
         .backend_ftq_update_meta_id_i(ex_redirect_ftq_id[0]),
+        // <-> EX
+        .ex_query_addr_i(ex_ftq_query_addr[0]),
+        .ex_query_pc_o(ex_ftq_query_pc[0]),
 
         // <-> Instruction Buffer
         .instr_buffer_stallreq_i(ib_frontend_stallreq),   // instruction buffer is full
@@ -789,11 +795,16 @@ module cpu_top
                 .tid(csr_tid),
                 .csr_ex_signal(csr_mem_signal),
 
-                // -> Ctrl, Redirect signals
+                // <-> FTQ, next FTQ pc query
+                .ftq_query_addr_o(ex_ftq_query_addr[i]),
+                .ftq_query_pc_i  (ex_ftq_query_pc[i]),
+
+                // Redirect signals
                 .ex_redirect_o(ex_redirect[i]),
                 .ex_redirect_target_o(ex_redirect_target[i]),
                 .ex_redirect_ftq_id_o(ex_redirect_ftq_id[i]),
                 // BPU train meta
+                .ex_is_branch_o(ex_is_branch[i]),
                 .ex_jump_target_addr_o(ex_jump_target_addr[i]),
                 .ex_fall_through_addr_o(ex_fall_through_addr[i]),
 

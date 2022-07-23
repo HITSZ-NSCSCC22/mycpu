@@ -40,6 +40,9 @@ module frontend
     input logic [ADDR_WIDTH-1:0] backend_ftq_meta_update_jump_target_i,
     input logic [ADDR_WIDTH-1:0] backend_ftq_meta_update_fall_through_i,
     input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_ftq_update_meta_id_i,
+    // <-> EX
+    input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ex_query_addr_i,
+    output logic [ADDR_WIDTH-1:0] ex_query_pc_o,
 
     // <-> Instruction buffer
     input logic instr_buffer_stallreq_i,
@@ -148,6 +151,9 @@ module frontend
         .backend_ftq_meta_update_fall_through_i(backend_ftq_meta_update_fall_through_i),
         .backend_ftq_meta_update_jump_target_i(backend_ftq_meta_update_jump_target_i),
         .backend_ftq_update_meta_id_i(backend_ftq_update_meta_id_i),
+
+        .ex_query_addr_i(ex_query_addr_i),
+        .ex_query_pc_o  (ex_query_pc_o),
 
         // <-> IFU
         .ifu_o                  (ftq_ifu_block),

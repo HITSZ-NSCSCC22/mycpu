@@ -135,10 +135,9 @@ module bpu
     ftb_entry_t ftb_entry_update;
     assign mispredict = ftq_meta_i.predicted_taken ^ ftq_meta_i.is_taken;
     // Only following conditions will trigger a FTB update:
-    // 1. Instruction not in FTB
-    // 2. This is a conditional branch
-    // 3. This branch has redirected instruction follow
-    assign ftb_update_valid = ftq_meta_i.valid & ~ftq_meta_i.ftb_hit & ftq_meta_i.is_conditional & mispredict;
+    // 1. This is a conditional branch
+    // 2. This branch has redirected instruction follow
+    assign ftb_update_valid = ftq_meta_i.valid & ftq_meta_i.is_conditional & mispredict;
     always_comb begin
         // Direction preditor update policy:
         // 1. Instruction already in FTB, update normally

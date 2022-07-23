@@ -261,6 +261,12 @@ module ifu
     /////////////////////////////////////////////////////////////////////////////////
     // P3, send instr info to IB
     /////////////////////////////////////////////////////////////////////////////////
+    logic [FETCH_WIDTH-1:0] debug_predicted_taken;
+    always_comb begin
+        for (integer i = 0; i < FETCH_WIDTH; ++i) begin
+            debug_predicted_taken[i] = instr_buffer_o[i].special_info.predicted_taken;
+        end
+    end
     always_ff @(posedge clk) begin : p3_ff
         if (rst) begin
             for (integer i = 0; i < FETCH_WIDTH; i++) begin
@@ -273,15 +279,19 @@ module ifu
         end else if (stallreq_i) begin
             // Hold output
         end else if (p2_advance) begin
+            // Default 0
+            for (integer i = 0; i < FETCH_WIDTH; i++) begin
+                instr_buffer_o[i] <= 0;
+            end
             // If p1 read done, pass data to IB
             // However, if p1 read done comes from flushing, do not pass down to IB
             for (integer i = 0; i < FETCH_WIDTH; i++) begin
-                // Default
-                instr_buffer_o[i].is_last_in_block <= 0;
-
                 if (i < p2_ftq_block.length) begin
-                    if (i[2:0] == p2_ftq_block.length - 1) begin
-                        instr_buffer_o[i].is_last_in_block <= 1; // Mark the instruction as last in block, used when commit
+                    if (i == p2_ftq_block.length - 1) begin
+                        // Mark the instruction as last in block, used when commit
+                        instr_buffer_o[i].is_last_in_block <= 1;
+                        // Mark the last instruction if prediction valid
+                        instr_buffer_o[i].special_info.predicted_taken <= p2_ftq_block.predicted_taken;
                     end
                     instr_buffer_o[i].valid <= 1;
                     instr_buffer_o[i].pc <= p2_ftq_block.start_pc + i * 4;  // Instr is 4 bytes long
@@ -291,9 +301,6 @@ module ifu
                     instr_buffer_o[i].excp_num <= p2_read_transaction.excp_num;
                     instr_buffer_o[i].ftq_id <= p2_read_transaction.ftq_id;
                     instr_buffer_o[i].ftq_block_idx <= i[1:0];
-                    instr_buffer_o[i].special_info.predicted_taken <= p2_ftq_block.predicted_taken;
-                end else begin
-                    instr_buffer_o[i] <= 0;
                 end
             end
         end else begin
