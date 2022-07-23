@@ -137,7 +137,7 @@ module bpu
     // Only following conditions will trigger a FTB update:
     // 1. This is a conditional branch
     // 2. This branch has redirected instruction follow
-    assign ftb_update_valid = ftq_meta_i.valid & ftq_meta_i.is_conditional & mispredict;
+    assign ftb_update_valid = ftq_meta_i.valid & ((ftq_meta_i.is_conditional & mispredict) | ftq_meta_i.ftb_dirty);
     always_comb begin
         // Direction preditor update policy:
         // 1. Instruction already in FTB, update normally
@@ -150,7 +150,7 @@ module bpu
     end
 
     always_comb begin
-        ftb_entry_update.valid = 1;
+        ftb_entry_update.valid = ~ftq_meta_i.ftb_dirty;
         ftb_entry_update.tag = ftq_meta_i.start_pc[ADDR_WIDTH-1:$clog2(FTB_DEPTH)+2];
         ftb_entry_update.is_cross_cacheline = ftq_meta_i.is_cross_cacheline;
         ftb_entry_update.jump_target_address = ftq_meta_i.jump_target_address;

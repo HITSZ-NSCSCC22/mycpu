@@ -24,6 +24,7 @@ module ftq
 
     // <-> Backend
     input logic backend_ftq_meta_update_valid_i,
+    input logic backend_ftq_meta_update_ftb_dirty_i,
     input logic [ADDR_WIDTH-1:0] backend_ftq_meta_update_jump_target_i,
     input logic [ADDR_WIDTH-1:0] backend_ftq_meta_update_fall_through_i,
     input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_ftq_update_meta_id_i,
@@ -186,6 +187,7 @@ module ftq
             if (backend_commit_bitmask_i[0] & backend_commit_meta_i.is_branch) begin // Update when a branch is committed 
                 bpu_meta_o.valid <= 1;
                 bpu_meta_o.ftb_hit <= FTQ_meta[backend_commit_ftq_id_i].ftb_hit;
+                bpu_meta_o.ftb_dirty <= FTQ_meta[backend_commit_ftq_id_i].ftb_dirty;
                 bpu_meta_o.is_branch <= backend_commit_meta_i.is_branch;
                 bpu_meta_o.is_conditional <= backend_commit_meta_i.is_conditional;
                 bpu_meta_o.is_taken <= backend_commit_meta_i.is_taken;
@@ -220,9 +222,9 @@ module ftq
 
         // Update pc from backend
         if (backend_ftq_meta_update_valid_i) begin
-            FTQ_meta[backend_ftq_update_meta_id_i][63:0] <= {
-                backend_ftq_meta_update_jump_target_i, backend_ftq_meta_update_fall_through_i
-            };
+            FTQ_meta[backend_ftq_update_meta_id_i].jump_target_address <= backend_ftq_meta_update_jump_target_i;
+            FTQ_meta[backend_ftq_update_meta_id_i].fall_through_address <= backend_ftq_meta_update_fall_through_i;
+            FTQ_meta[backend_ftq_update_meta_id_i].ftb_dirty <= backend_ftq_meta_update_ftb_dirty_i;
         end
     end
 

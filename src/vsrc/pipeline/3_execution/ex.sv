@@ -422,7 +422,7 @@ module ex
     // 1. branch direction mispredict
     // 2. jump target mispredict
     assign branch_direction_mispredict = branch_flag ^ special_info.predicted_taken;
-    assign branch_target_mispredict = branch_flag & (jump_target_address != ftq_query_pc_i);
+    assign branch_target_mispredict = branch_flag & special_info.predicted_taken & (jump_target_address != ftq_query_pc_i);
 
     // Redirect is triggered when any of the mispredict happens
     assign ex_redirect_o = (branch_direction_mispredict | branch_target_mispredict) && advance;

@@ -37,6 +37,7 @@ module frontend
     input backend_commit_meta_t backend_commit_meta_i,
     // FTQ meta value
     input logic backend_ftq_meta_update_valid_i,
+    input logic backend_ftq_meta_update_ftb_dirty_i,
     input logic [ADDR_WIDTH-1:0] backend_ftq_meta_update_jump_target_i,
     input logic [ADDR_WIDTH-1:0] backend_ftq_meta_update_fall_through_i,
     input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_ftq_update_meta_id_i,
@@ -148,6 +149,7 @@ module frontend
         .backend_commit_meta_i(backend_commit_meta_i),
 
         .backend_ftq_meta_update_valid_i(backend_ftq_meta_update_valid_i),
+        .backend_ftq_meta_update_ftb_dirty_i(backend_ftq_meta_update_ftb_dirty_i),
         .backend_ftq_meta_update_fall_through_i(backend_ftq_meta_update_fall_through_i),
         .backend_ftq_meta_update_jump_target_i(backend_ftq_meta_update_jump_target_i),
         .backend_ftq_update_meta_id_i(backend_ftq_update_meta_id_i),

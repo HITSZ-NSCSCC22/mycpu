@@ -49,6 +49,7 @@ package bpu_types;
     typedef struct packed {
         logic valid;
         logic ftb_hit;
+        logic ftb_dirty;
         logic [$clog2(BPU_TAG_COMPONENT_NUM+1)-1:0] provider_id;
         logic [$clog2(BPU_TAG_COMPONENT_NUM+1)-1:0] alt_provider_id;
         logic useful;
@@ -68,6 +69,7 @@ package bpu_types;
     typedef struct packed {
         logic valid;
         logic ftb_hit;
+        logic ftb_dirty;
         logic [$clog2(BPU_TAG_COMPONENT_NUM+1)-1:0] provider_id;
         logic [$clog2(BPU_TAG_COMPONENT_NUM+1)-1:0] alt_provider_id;
         logic useful;

@@ -132,6 +132,7 @@ module cpu_top
     logic [ISSUE_WIDTH-1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] ex_redirect_ftq_id;
     logic [ISSUE_WIDTH-1:0][ADDR_WIDTH-1:0] ex_redirect_target;
     logic [ISSUE_WIDTH-1:0] ex_is_branch;
+    logic [ISSUE_WIDTH-1:0] ex_jump_target_mispredict;
     logic [ISSUE_WIDTH-1:0][ADDR_WIDTH-1:0] ex_jump_target_addr;
     logic [ISSUE_WIDTH-1:0][ADDR_WIDTH-1:0] ex_fall_through_addr;
     logic [ISSUE_WIDTH-1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] ex_ftq_query_addr;
@@ -617,6 +618,7 @@ module cpu_top
         .backend_commit_meta_i(backend_commit_meta),
 
         .backend_ftq_meta_update_valid_i(ex_is_branch[0]),
+        .backend_ftq_meta_update_ftb_dirty_i(ex_jump_target_mispredict[0]),
         .backend_ftq_meta_update_jump_target_i(ex_jump_target_addr[0]),
         .backend_ftq_meta_update_fall_through_i(ex_fall_through_addr[0]),
         .backend_ftq_update_meta_id_i(ex_redirect_ftq_id[0]),
@@ -805,6 +807,7 @@ module cpu_top
                 .ex_redirect_ftq_id_o(ex_redirect_ftq_id[i]),
                 // BPU train meta
                 .ex_is_branch_o(ex_is_branch[i]),
+                .ex_jump_target_mispredict_o(ex_jump_target_mispredict[i]),
                 .ex_jump_target_addr_o(ex_jump_target_addr[i]),
                 .ex_fall_through_addr_o(ex_fall_through_addr[i]),
 
