@@ -117,6 +117,20 @@ module cpu_top
     inst_tlb_t frontend_tlb;
     tlb_inst_t tlb_inst;
 
+    // Frontend <-> Instruction Buffer
+    logic ib_frontend_stallreq;
+    instr_info_t frontend_ib_instr_info[FETCH_WIDTH];
+    logic [`RegBus] next_pc;
+
+    // Frontend <-> Backend 
+    logic backend_redirect;
+    logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_redirect_ftq_id;
+    logic [COMMIT_WIDTH-1:0] backend_commit_bitmask; // suggest whether last instr in basic block is committed
+    // Currently one branch instruction per cycle is supported
+    logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_commit_ftq_id;
+    backend_commit_meta_t backend_commit_meta;
+
+
     logic [`InstBus] excp_instr;
     logic [13:0] dispatch_csr_read_addr;
     logic [`RegBus] dispatch_csr_data;
@@ -254,8 +268,12 @@ module cpu_top
 
     // PMU
     pmu_input_t pmu_data;
-    assign pmu_data.ib_full  = ib_frontend_stallreq;
+    assign pmu_data.ib_full = ib_frontend_stallreq;
     assign pmu_data.ib_empty = u_instr_buffer.write_ptr == u_instr_buffer.read_ptr;
+    assign pmu_data.bpu_branch_instr = backend_commit_meta.is_branch;
+    assign pmu_data.bpu_conditional_branch = backend_commit_meta.is_conditional;
+    assign pmu_data.bpu_conditional_miss = backend_commit_meta.is_conditional & (backend_commit_meta.is_taken ^ backend_commit_meta.predicted_taken);
+    assign pmu_data.bpu_ftb_dirty = ex_jump_target_mispredict[0];
 
     LSU u_LSU (
         .clk(clk),
@@ -582,19 +600,6 @@ module cpu_top
         .m00_axi_rvalid (rvalid),
         .m00_axi_rready (rready)
     );
-
-    // Frontend <-> Instruction Buffer
-    logic ib_frontend_stallreq;
-    instr_info_t frontend_ib_instr_info[FETCH_WIDTH];
-    logic [`RegBus] next_pc;
-
-    // Frontend <-> Backend 
-    logic backend_redirect;
-    logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_redirect_ftq_id;
-    logic [COMMIT_WIDTH-1:0] backend_commit_bitmask; // suggest whether last instr in basic block is committed
-    // Currently one branch instruction per cycle is supported
-    logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_commit_ftq_id;
-    backend_commit_meta_t backend_commit_meta;
 
     // All frontend structures
     frontend u_frontend (

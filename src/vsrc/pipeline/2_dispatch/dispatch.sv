@@ -135,9 +135,11 @@ module dispatch
             end
             // Set unavailable when issued
             for (integer issue_idx = 0; issue_idx < ISSUE_WIDTH; issue_idx++) begin
-                if (issue_wreg[issue_idx] & issue_valid[issue_idx] & ~stall)
+                if (issue_wreg[issue_idx] & issue_valid[issue_idx] & ~stall & id_i[issue_idx].instr_info.special_info.mem_load)
                     regs_available[issue_wreg_addr[issue_idx]] <= 0;
             end
+            // $r0 is always available
+            regs_available[0] <= 1;
         end
     end
     assign ib_accept_o = stall ? 0 : 
@@ -258,7 +260,7 @@ module dispatch
     endgenerate
 
     // PMU
-    assign pmu_dispatch_single_issue = single_issue;
+    assign pmu_dispatch_single_issue = single_issue & ~stall & ~flush & issue_valid[0];
     always_comb begin
         pmu_dispatch_instr_cnt = 0;
         pmu_dispatch_backend_nop = 0;
@@ -270,7 +272,7 @@ module dispatch
             if (~stall & ~flush)
                 pmu_dispatch_frontend_nop = pmu_dispatch_frontend_nop + 1 - instr_exists_check[i];
             if (~stall & ~flush)
-                pmu_dispatch_datadep_nop = pmu_dispatch_datadep_nop + 1 - data_dep_check[i];
+                pmu_dispatch_datadep_nop = pmu_dispatch_datadep_nop + 1 - (data_dep_check[i] && rreg_avail_check[i]);
         end
     end
 
