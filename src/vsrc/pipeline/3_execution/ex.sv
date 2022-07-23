@@ -42,6 +42,10 @@ module ex
     // -> Dispatch
     output data_forward_t data_forward_o,
 
+    //-> Dcache
+    output logic dcache_valid,
+    output [`RegBus] dcache_vaddr,
+
     // -> TLB
     output data_tlb_rreq_t tlb_rreq_o
 );
@@ -157,6 +161,8 @@ module ex
     // TODO:fix vppn select
     assign ex_o.mem_addr = oprand1 + imm;
     assign ex_o.reg2 = oprand2;
+    assign dcache_valid = mem_load_op & !uncache_en;
+    assign dcache_vaddr = oprand1 + imm;
 
     // Data forwarding 
     assign data_forward_o = (muldiv_op != 0) ? {ex_o.wreg, muldiv_already_finish, ex_o.waddr, ex_o.wdata} : // Mul or Div op

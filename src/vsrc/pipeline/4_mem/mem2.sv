@@ -17,7 +17,8 @@ module mem2
     // Previous stage
     input mem1_mem2_struct mem1_i,
 
-    // <- DCache
+    // <-> DCache
+    output logic un_excp,
     input logic data_ok,
     input logic [`RegBus] cache_data_i,
 
@@ -42,7 +43,7 @@ module mem2
 
     assign instr_info = mem1_i.instr_info;
     assign special_info = mem1_i.instr_info.special_info;
-
+    assign un_excp = !instr_info.excp;
 
     assign aluop_i = mem1_i.aluop;
     assign mem_load_op = special_info.mem_load;

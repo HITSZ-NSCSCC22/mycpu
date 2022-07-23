@@ -159,7 +159,7 @@ module mem1
                             icache_op_en ? icacop_ack_i : 1;
 
     // Sanity check
-    assign mem_access_valid = ~excp & instr_info.valid;
+    assign mem_access_valid = instr_info.valid;  //~excp & instr_info.valid;
 
 
     // DCache memory access request
