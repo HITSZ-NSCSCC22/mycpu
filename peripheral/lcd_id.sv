@@ -24,6 +24,8 @@ module lcd_id (
     output logic wr,  //0:read lcd 1:write lcd,distinguish inst kind
     output logic lcd_rs,
     output logic [15:0] data_o,
+    output logic id_fm,
+    output logic read_color_o,
 
     //from lcd inteface
     input logic busy
@@ -257,6 +259,8 @@ module lcd_id (
       wr <= 0;
       lcd_rs <= 0;
       data_o <= 0;
+      id_fm <= 0;
+      read_color_o <= 0;
     end else begin
       case (next_state)
         IDLE: begin
@@ -265,6 +269,8 @@ module lcd_id (
           wr <= 0;
           lcd_rs <= 0;
           data_o <= 0;
+          id_fm <= 0;
+          read_color_o <= 0;
         end
 
         READ_ID: begin
@@ -273,6 +279,8 @@ module lcd_id (
           wr <= 0;
           lcd_rs <= 0;
           data_o <= {opcode, {8{1'b0}}};
+          id_fm <= 0;
+          read_color_o <= 0;
         end
 
         //set scan direction
@@ -447,6 +455,8 @@ module lcd_id (
           wr <= 0;
           lcd_rs <= 0;
           data_o <= {opcode, {8'h00}};
+          id_fm <= 1;
+          read_color_o <= 1;
         end
         default: begin
           write_ok <= 1;
@@ -454,6 +464,8 @@ module lcd_id (
           wr <= 0;
           lcd_rs <= 0;
           data_o <= 0;
+          id_fm <= 0;
+          read_color_o <= 0;
         end
       endcase
     end
