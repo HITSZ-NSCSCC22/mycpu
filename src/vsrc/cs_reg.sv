@@ -124,6 +124,11 @@ module cs_reg
     logic [31:0] pmu_bpu_valid;
     logic [31:0] pmu_bpu_miss;
     logic [31:0] pmu_bpu_branch_instr;
+    logic [31:0] pmu_bpu_conditional_branch;
+    logic [31:0] pmu_bpu_conditional_miss;
+    logic [31:0] pmu_bpu_ftb_dirty;
+    logic [31:0] pmu_bpu_indirect_branch;
+    logic [31:0] pmu_bpu_indirect_miss;
     logic [31:0] pmu_tlb_req;
     logic [31:0] pmu_tlb_miss;
     logic [31:0] pmu_rdata;
@@ -209,6 +214,11 @@ module cs_reg
             pmu_bpu_valid <= 0;
             pmu_bpu_miss <= 0;
             pmu_bpu_branch_instr <= 0;
+            pmu_bpu_conditional_branch <= 0;
+            pmu_bpu_conditional_miss <= 0;
+            pmu_bpu_ftb_dirty <= 0;
+            pmu_bpu_indirect_branch <= 0;
+            pmu_bpu_indirect_miss <= 0;
             pmu_tlb_req <= 0;
             pmu_tlb_miss <= 0;
         end else begin
@@ -226,6 +236,11 @@ module cs_reg
             pmu_bpu_valid <= pmu_bpu_valid + pmu_in.bpu_valid;
             pmu_bpu_miss <= pmu_bpu_miss + pmu_in.bpu_miss;
             pmu_bpu_branch_instr <= pmu_bpu_branch_instr + pmu_in.bpu_branch_instr;
+            pmu_bpu_conditional_branch <= pmu_bpu_conditional_branch + pmu_in.bpu_conditional_branch;
+            pmu_bpu_conditional_miss <= pmu_bpu_conditional_miss + pmu_in.bpu_conditional_miss;
+            pmu_bpu_ftb_dirty <= pmu_bpu_ftb_dirty + pmu_in.bpu_ftb_dirty;
+            pmu_bpu_indirect_branch <= pmu_bpu_indirect_branch + pmu_in.bpu_indirect_branch;
+            pmu_bpu_indirect_miss <= pmu_bpu_indirect_miss + pmu_in.bpu_indirect_miss;
             pmu_tlb_req <= pmu_tlb_req + pmu_in.tlb_req;
             pmu_tlb_miss <= pmu_tlb_miss + pmu_in.tlb_miss;
         end
@@ -237,6 +252,7 @@ module cs_reg
                         {32{raddr == `PMU_DISPATCH_SINGLE_ISSUE}} & pmu_dispatch_single_issue | 
                         {32{raddr == `PMU_DISPATCH_DATADEP_NOP}} & pmu_dispatch_datadep_nop | 
                         {32{raddr == `PMU_DISPATCH_INSTR_CNT}} & pmu_dispatch_instr_cnt | 
+                        {32{raddr == `PMU_IB_EMPTY}} & pmu_ib_empty |
                         {32{raddr == `PMU_ICACHE_REQ}} & pmu_icache_req |
                         {32{raddr == `PMU_ICACHE_MISS}} & pmu_icache_miss |
                         {32{raddr == `PMU_DCACHE_REQ}} & pmu_dcache_req |
@@ -244,6 +260,11 @@ module cs_reg
                         {32{raddr == `PMU_BPU_VALID}} & pmu_bpu_valid |
                         {32{raddr == `PMU_BPU_MISS}} & pmu_bpu_miss |
                         {32{raddr == `PMU_BPU_BRANCH_INSTR}} & pmu_bpu_branch_instr |
+                        {32{raddr == `PMU_BPU_CONDITIONAL_BRANCH}} & pmu_bpu_conditional_branch |
+                        {32{raddr == `PMU_BPU_CONDITIONAL_MISS}} & pmu_bpu_conditional_miss |
+                        {32{raddr == `PMU_BPU_FTB_DIRTY}} & pmu_bpu_ftb_dirty |
+                        {32{raddr == `PMU_BPU_INDIRECT_BRANCH}} & pmu_bpu_indirect_branch |
+                        {32{raddr == `PMU_BPU_INDIRECT_MISS}} & pmu_bpu_indirect_miss |
                         {32{raddr == `PMU_TLB_REQ}} & pmu_tlb_req |
                         {32{raddr == `PMU_TLB_MISS}} & pmu_tlb_miss
                         ;
