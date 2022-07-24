@@ -29,6 +29,7 @@ module ftq
     input logic [ADDR_WIDTH-1:0] backend_ftq_meta_update_fall_through_i,
     input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_ftq_update_meta_id_i,
     input logic [COMMIT_WIDTH-1:0] backend_commit_bitmask_i,
+    input logic [COMMIT_WIDTH-1:0] backend_commit_block_bitmask_i,
     input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_commit_ftq_id_i,
     input backend_commit_meta_t backend_commit_meta_i,
 
@@ -184,14 +185,19 @@ module ftq
         if (rst) bpu_meta_o <= 0;
         else begin
             bpu_meta_o <= 0;
-            if (backend_commit_bitmask_i[0] & backend_commit_meta_i.is_branch) begin // Update when a branch is committed 
+            if (backend_commit_block_bitmask_i[0] & backend_commit_meta_i.is_branch) begin
+                // Update when a branch is committed, defined as:
+                // 1. Must be last in block, which means either a known branch or a mispredicted branch.
+                // 2. Exception introduced block commit is not considered a branch update.
                 bpu_meta_o.valid <= 1;
                 bpu_meta_o.ftb_hit <= FTQ_meta[backend_commit_ftq_id_i].ftb_hit;
                 bpu_meta_o.ftb_dirty <= FTQ_meta[backend_commit_ftq_id_i].ftb_dirty;
+                // Must use accurate decoded info passed from backend
                 bpu_meta_o.is_branch <= backend_commit_meta_i.is_branch;
                 bpu_meta_o.is_conditional <= backend_commit_meta_i.is_conditional;
                 bpu_meta_o.is_taken <= backend_commit_meta_i.is_taken;
                 bpu_meta_o.predicted_taken <= backend_commit_meta_i.predicted_taken;
+
                 bpu_meta_o.start_pc <= FTQ[backend_commit_ftq_id_i].start_pc;
                 bpu_meta_o.is_cross_cacheline <= FTQ[backend_commit_ftq_id_i].is_cross_cacheline;
                 bpu_meta_o.provider_ctr_bits <= FTQ_meta[backend_commit_ftq_id_i].provider_ctr_bits;
@@ -206,6 +212,11 @@ module ftq
     always_ff @(posedge clk) begin
         // P1
         // Maintain BPU meta info
+        if (bpu_p0_i.valid) begin  // If not provided by BPU, clear meta
+            FTQ_meta[bpu_ptr] <= 0;
+            FTQ_meta[bpu_ptr].provider_ctr_bits <= 0;
+            FTQ_meta[bpu_ptr].ftb_hit <= 0;
+        end
         if (bpu_p1_i.valid & ~queue_full_delay) begin  // If last cycle accepted P0 input
             FTQ_meta[PTR_WIDTH'(bpu_ptr-1)] <= 0;
             FTQ_meta[PTR_WIDTH'(bpu_ptr-1)].provider_ctr_bits <= bpu_meta_i.provider_ctr_bits;
@@ -214,10 +225,6 @@ module ftq
             FTQ_meta[bpu_ptr] <= 0;
             FTQ_meta[bpu_ptr].provider_ctr_bits <= bpu_meta_i.provider_ctr_bits;
             FTQ_meta[bpu_ptr].ftb_hit <= bpu_meta_i.ftb_hit;
-        end else if (bpu_p0_i.valid) begin  // If not provided by BPU, clear meta
-            FTQ_meta[bpu_ptr] <= 0;
-            FTQ_meta[bpu_ptr].provider_ctr_bits <= 0;
-            FTQ_meta[bpu_ptr].ftb_hit <= 0;
         end
 
         // Update pc from backend

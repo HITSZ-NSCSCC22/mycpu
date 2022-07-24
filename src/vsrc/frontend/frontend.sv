@@ -33,6 +33,7 @@ module frontend
     input logic backend_flush_i,
     input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_flush_ftq_id_i,
     input logic [COMMIT_WIDTH-1:0] backend_commit_bitmask_i,
+    input logic [COMMIT_WIDTH-1:0] backend_commit_block_bitmask_i,
     input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_commit_ftq_id_i,
     input backend_commit_meta_t backend_commit_meta_i,
     // FTQ meta value
@@ -147,6 +148,7 @@ module frontend
         .backend_commit_bitmask_i(backend_commit_bitmask_i),
         .backend_commit_ftq_id_i(backend_commit_ftq_id_i),
         .backend_commit_meta_i(backend_commit_meta_i),
+        .backend_commit_block_bitmask_i(backend_commit_block_bitmask_i),
 
         .backend_ftq_meta_update_valid_i(backend_ftq_meta_update_valid_i),
         .backend_ftq_meta_update_ftb_dirty_i(backend_ftq_meta_update_ftb_dirty_i),

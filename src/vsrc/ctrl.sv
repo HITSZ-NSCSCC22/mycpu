@@ -15,7 +15,8 @@ module ctrl
     input logic rst,
 
     // -> Frontend
-    output logic [COMMIT_WIDTH-1:0] backend_commit_block_o,  // do backend commit a basic block
+    output logic [COMMIT_WIDTH-1:0] backend_commit_bitmask_o,  // do backend commit a basic block
+    output logic [COMMIT_WIDTH-1:0] backend_commit_block_bitmask_o,
     output logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_flush_ftq_id_o,
     // BPU training meta
     output backend_commit_meta_t backend_commit_meta_o,
@@ -127,9 +128,10 @@ module ctrl
 
     // Backend commit basic block
     logic debug_last_in_block = wb_i[0].is_last_in_block;
-    assign backend_commit_block_o = backend_commit_valid & (instr_info[0].excp ? 2'b01:
+    assign backend_commit_bitmask_o = backend_commit_valid & (instr_info[0].excp ? 2'b01:
                                     instr_info[1].excp ? {1'b1 , wb_i[0].is_last_in_block | ertn_flush | idle_flush | refetch_flush} : 
                                     {wb_i[1].is_last_in_block, wb_i[0].is_last_in_block | ertn_flush | idle_flush | refetch_flush});
+    assign backend_commit_block_bitmask_o = backend_commit_valid & {wb_i[1].is_last_in_block, wb_i[0].is_last_in_block};
     // Backend flush FTQ ID
     assign backend_flush_ftq_id_o = (instr_info[0].excp | ertn_flush | idle_flush | refetch_flush) ? instr_info[0].ftq_id :
                                     (instr_info[1].excp) ? instr_info[1].ftq_id : 0;
