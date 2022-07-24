@@ -200,7 +200,7 @@ module ftq
 
                 bpu_meta_o.start_pc <= FTQ[backend_commit_ftq_id_i].start_pc;
                 bpu_meta_o.is_cross_cacheline <= FTQ[backend_commit_ftq_id_i].is_cross_cacheline;
-                bpu_meta_o.provider_ctr_bits <= FTQ_meta[backend_commit_ftq_id_i].provider_ctr_bits;
+                bpu_meta_o.bpu_meta <= FTQ_meta[backend_commit_ftq_id_i].bpu_meta;
                 bpu_meta_o.jump_target_address <= FTQ_meta[backend_commit_ftq_id_i].jump_target_address;
                 bpu_meta_o.fall_through_address <= FTQ_meta[backend_commit_ftq_id_i].fall_through_address;
             end
@@ -214,17 +214,16 @@ module ftq
         // Maintain BPU meta info
         if (bpu_p0_i.valid) begin  // If not provided by BPU, clear meta
             FTQ_meta[bpu_ptr] <= 0;
-            FTQ_meta[bpu_ptr].provider_ctr_bits <= 0;
-            FTQ_meta[bpu_ptr].ftb_hit <= 0;
         end
         if (bpu_p1_i.valid & ~queue_full_delay) begin  // If last cycle accepted P0 input
             FTQ_meta[PTR_WIDTH'(bpu_ptr-1)] <= 0;
-            FTQ_meta[PTR_WIDTH'(bpu_ptr-1)].provider_ctr_bits <= bpu_meta_i.provider_ctr_bits;
             FTQ_meta[PTR_WIDTH'(bpu_ptr-1)].ftb_hit <= bpu_meta_i.ftb_hit;
+            FTQ_meta[PTR_WIDTH'(bpu_ptr-1)].bpu_meta <= bpu_meta_i.bpu_meta;
         end else if (bpu_p1_i.valid) begin
             FTQ_meta[bpu_ptr] <= 0;
-            FTQ_meta[bpu_ptr].provider_ctr_bits <= bpu_meta_i.provider_ctr_bits;
             FTQ_meta[bpu_ptr].ftb_hit <= bpu_meta_i.ftb_hit;
+            // BPU meta
+            FTQ_meta[bpu_ptr].bpu_meta <= bpu_meta_i.bpu_meta;
         end
 
         // Update pc from backend

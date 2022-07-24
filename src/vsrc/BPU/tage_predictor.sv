@@ -46,6 +46,10 @@ module tage_predictor
     logic rst_n;
     assign rst_n = ~rst;
 
+    // Input
+    tage_meta_t update_meta;
+    assign update_meta = update_info_i.bpu_meta;
+
     // Signals
     // Query
     logic [TAG_COMPONENT_AMOUNT:0] taken;  // All components taken {tag_taken, base_taken}
@@ -66,9 +70,9 @@ module tage_predictor
     // Meta
     logic [TAG_COMPONENT_AMOUNT-1:0][2:0] tag_ctr;
     logic [TAG_COMPONENT_AMOUNT-1:0][2:0] tag_useful;
-    logic [TAG_COMPONENT_AMOUNT-1:0][15:0] tag_query_tag;
-    logic [TAG_COMPONENT_AMOUNT-1:0][15:0] tag_orgin_tag;
-    logic [TAG_COMPONENT_AMOUNT-1:0][15:0] tag_hit_index;
+    logic [TAG_COMPONENT_AMOUNT-1:0][11:0] tag_query_tag;
+    logic [TAG_COMPONENT_AMOUNT-1:0][11:0] tag_origin_tag;
+    logic [TAG_COMPONENT_AMOUNT-1:0][10:0] tag_hit_index;
 
     // Update
     logic [ADDR_WIDTH-1:0] update_pc;
@@ -84,6 +88,7 @@ module tage_predictor
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_inc_useful;
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_realloc_entry;
     logic [TAG_COMPONENT_AMOUNT-1:0][BPU_COMPONENT_USEFUL_WIDTH[1]-1:0] tag_update_query_useful;
+    logic [TAG_COMPONENT_AMOUNT-1:0][11:0] tag_update_new_tag;
     // Indicates the longest history component which useful is 0
     logic [$clog2(TAG_COMPONENT_AMOUNT+1)-1:0] tag_update_useful_zero_id;
 
@@ -126,7 +131,7 @@ module tage_predictor
         .ctr         (base_ctr),
         .update_pc_i (update_pc),
         .inc_ctr     (update_branch_taken),
-        .update_ctr_i(update_info_i.provider_ctr_bits)
+        .update_ctr_i(update_meta.provider_ctr_bits)
     );
     // Tagged Predictor
     generate
@@ -145,19 +150,19 @@ module tage_predictor
                 .useful_bits_o       (tag_useful[provider_id]),
                 .ctr_bits_o          (tag_ctr[provider_id]),
                 .query_tag_o         (tag_query_tag[provider_id]),
-                .origin_tag_o        (tag_orgin_tag[provider_id]),
+                .origin_tag_o        (tag_origin_tag[provider_id]),
                 .hit_index_o         (tag_hit_index[provider_id]),
                 .taken_o             (tag_taken[provider_id]),
                 .tag_hit_o           (tag_hit[provider_id]),
                 .update_valid        (update_valid),
                 .update_useful       (tag_update_useful[provider_id]),
                 .inc_useful          (tag_update_inc_useful[provider_id]),
-                .update_useful_bits_i(),
+                .update_useful_bits_i(update_meta.tag_predictor_useful_bits[provider_id]),
                 .update_ctr          (tag_update_ctr[provider_id]),
                 .inc_ctr             (update_branch_taken),
-                .update_ctr_bits_i   (update_info_i.provider_ctr_bits),
-                .update_tag_i        (),
-                .update_index_i      ()
+                .update_ctr_bits_i   (update_meta.provider_ctr_bits),
+                .update_tag_i        (tag_update_new_tag[provider_id]),
+                .update_index_i      (update_meta.tag_predictor_hit_index[provider_id])
             );
         end
     endgenerate
@@ -191,7 +196,17 @@ module tage_predictor
     assign taken = {tag_taken, base_taken};
     assign predict_branch_taken_o = taken[pred_prediction_id];
     // Meta
-    assign bpu_meta_o.provider_ctr_bits = base_ctr;
+    tage_meta_t query_meta;
+    assign query_meta.provider_ctr_bits = pred_prediction_id == 0 ? base_ctr : tag_ctr[pred_prediction_id-1];
+    assign query_meta.tag_predictor_useful_bits = tag_useful;
+    assign query_meta.tag_predictor_hit_index = tag_hit_index;
+    assign query_meta.tag_predictor_query_tag = tag_query_tag;
+    assign query_meta.tag_predictor_origin_tag = tag_origin_tag;
+    assign query_meta.useful = query_is_useful;
+    assign query_meta.provider_id = pred_prediction_id;
+    assign query_meta.alt_provider_id = altpred_prediction_id;
+    assign bpu_meta_o.bpu_meta = query_meta;
+
 
 
 
@@ -218,10 +233,10 @@ module tage_predictor
     assign update_predict_correct = update_info_i.predict_correct;
     assign update_branch_taken = update_info_i.branch_taken;
     assign update_is_conditional = update_info_i.is_conditional;
-    assign update_provider_id = update_info_i.pred_provider_id;
+    assign update_provider_id = update_meta.provider_id;
     assign update_pc = update_pc_i;
 
-    assign tag_update_query_useful = update_info_i.tag_predictor_useful_bits;
+    assign tag_update_query_useful = update_meta.tag_predictor_useful_bits;
 
 
 
@@ -294,7 +309,7 @@ module tage_predictor
         end
         if (update_is_conditional) begin  // Only update on conditional branches
             // If useful, update useful bits
-            tag_update_useful[update_provider_id-1] = update_info_i.pred_useful;
+            tag_update_useful[update_provider_id-1] = update_meta.useful;
             // Increase if correct, else decrease
             tag_update_inc_useful[update_provider_id-1] = update_info_i.predict_correct;
 
@@ -312,6 +327,12 @@ module tage_predictor
                     end
                 end
             end
+        end
+    end
+    // generate new tag
+    always_comb begin
+        for (integer i = 0; i < TAG_COMPONENT_AMOUNT; i++) begin
+            tag_update_new_tag[i] = tag_update_realloc_entry[i] ? update_meta.tag_predictor_query_tag[i] : update_meta.tag_predictor_origin_tag[i];
         end
     end
 

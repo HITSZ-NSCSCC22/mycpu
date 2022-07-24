@@ -121,6 +121,7 @@ module bpu
     end
     // FTQ meta output
     assign bpu_meta.ftb_hit = ftb_hit;
+    assign bpu_meta.valid = ftb_hit;
     assign ftq_meta_o = bpu_meta | tage_meta;
 
 
@@ -131,7 +132,7 @@ module bpu
     ////////////////////////////////////////////////////////////////////
     logic mispredict;
     logic ftb_update_valid;
-    base_predictor_update_info_t base_predictor_update_info;
+    tage_predictor_update_info_t tage_update_info;
     ftb_entry_t ftb_entry_update;
     assign mispredict = ftq_meta_i.predicted_taken ^ ftq_meta_i.is_taken;
     // Only following conditions will trigger a FTB update:
@@ -143,11 +144,13 @@ module bpu
         // Direction preditor update policy:
         // 1. Instruction already in FTB, update normally
         // 2. Instruction not in FTB, update as if ctr_bits is weak taken
-        base_predictor_update_info.valid = ftq_meta_i.valid & (ftq_meta_i.ftb_hit | mispredict);
-        base_predictor_update_info.is_conditional = ftq_meta_i.is_conditional;
-        base_predictor_update_info.pc = ftq_meta_i.start_pc;
-        base_predictor_update_info.taken = ftq_meta_i.is_taken;
-        base_predictor_update_info.ctr_bits = ftq_meta_i.ftb_hit ? ftq_meta_i.provider_ctr_bits[BASE_CTR_WIDTH-1:0] :  {1'b1, {(BASE_CTR_WIDTH-1){1'b0}}};
+        tage_update_info.valid = ftq_meta_i.valid & (ftq_meta_i.ftb_hit | mispredict);
+        tage_update_info.is_conditional = ftq_meta_i.is_conditional;
+        tage_update_info.branch_taken = ftq_meta_i.is_taken;
+        tage_update_info.bpu_meta = ftq_meta_i.bpu_meta;
+        // Override CTR bits if first occur
+        if (ftq_meta_i.ftb_hit)
+            tage_update_info.bpu_meta.provider_ctr_bits = {1'b1, {(BASE_CTR_WIDTH - 1) {1'b0}}};
     end
 
     always_comb begin
@@ -174,14 +177,15 @@ module bpu
     );
 
     tage_predictor u_tage_predictor (
-        .clk                    (clk),
-        .rst                    (rst),
-        .pc_i                   (pc_i),
-        .base_predictor_update_i(base_predictor_update_info),
-        .bpu_meta_o             (tage_meta),
-        .predict_branch_taken_o (predict_taken),
-        .predict_valid_o        (predict_valid),
-        .perf_tag_hit_counter   ()
+        .clk                   (clk),
+        .rst                   (rst),
+        .pc_i                  (pc_i),
+        .bpu_meta_o            (tage_meta),
+        .predict_branch_taken_o(predict_taken),
+        .predict_valid_o       (predict_valid),
+        .update_pc_i           (ftq_meta_i.start_pc),
+        .update_info_i         (tage_update_info),
+        .perf_tag_hit_counter  ()
     );
 
 
