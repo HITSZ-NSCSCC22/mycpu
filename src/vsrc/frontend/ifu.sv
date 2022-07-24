@@ -290,12 +290,15 @@ module ifu
                     if (i == p2_ftq_block.length - 1) begin
                         // Mark the instruction as last in block, used when commit
                         instr_buffer_o[i].is_last_in_block <= 1;
-                        // Mark the last instruction if prediction valid
-                        instr_buffer_o[i].special_info.predicted_taken <= p2_ftq_block.predicted_taken;
+                        // Mark the last instruction if:
+                        // 1. prediction valid
+                        // 2. no TLBR or other exception detected
+                        instr_buffer_o[i].special_info.predicted_taken <= p2_read_transaction.excp ? 0 : p2_ftq_block.predicted_taken;
                     end
                     instr_buffer_o[i].valid <= 1;
                     instr_buffer_o[i].pc <= p2_ftq_block.start_pc + i * 4;  // Instr is 4 bytes long
-                    instr_buffer_o[i].instr <= cacheline_combined[p2_ftq_block.start_pc[3:2]+i];
+                    // Set to 0 is exception occurs
+                    instr_buffer_o[i].instr <= p2_read_transaction.excp ? 0 : cacheline_combined[p2_ftq_block.start_pc[3:2]+i];
                     // Exception info
                     instr_buffer_o[i].excp <= p2_read_transaction.excp;
                     instr_buffer_o[i].excp_num <= p2_read_transaction.excp_num;

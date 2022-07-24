@@ -26,5 +26,6 @@
     "systemverilog.formatCommand": "verible-verilog-format --indentation_spaces 4",
     "systemverilog.compilerType": "Verilator",
     "systemverilog.antlrVerification": false,
-    "systemverilog.documentSymbolsPrecision": "declaration"
+    "systemverilog.documentSymbolsPrecision": "declaration",
+    "systemverilog.disableIndexing": true
 }

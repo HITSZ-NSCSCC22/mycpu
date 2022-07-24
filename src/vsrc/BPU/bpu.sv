@@ -136,8 +136,9 @@ module bpu
     assign mispredict = ftq_meta_i.predicted_taken ^ ftq_meta_i.is_taken;
     // Only following conditions will trigger a FTB update:
     // 1. This is a conditional branch
-    // 2. This branch has redirected instruction follow
-    assign ftb_update_valid = ftq_meta_i.valid & ftq_meta_i.is_conditional & (mispredict | (ftq_meta_i.ftb_dirty & ftq_meta_i.ftb_hit));
+    // 2. First time a branch jumped
+    // 3. A FTB pollution is detected
+    assign ftb_update_valid = ftq_meta_i.valid & ftq_meta_i.is_conditional & ((mispredict & ~ftq_meta_i.ftb_hit)| (ftq_meta_i.ftb_dirty & ftq_meta_i.ftb_hit));
     always_comb begin
         // Direction preditor update policy:
         // 1. Instruction already in FTB, update normally
