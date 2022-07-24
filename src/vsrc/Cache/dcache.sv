@@ -222,6 +222,7 @@ module dcache
                     next_state = IDLE;
             end
             READ_REQ: begin
+                if (!fifo_state[0]) next_state = READ_REQ;
                 if (axi_rdy_i) next_state = READ_WAIT;  // If AXI ready, send request 
                 else next_state = READ_REQ;
             end
