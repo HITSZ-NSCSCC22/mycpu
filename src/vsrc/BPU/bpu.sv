@@ -145,12 +145,13 @@ module bpu
         // 1. Instruction already in FTB, update normally
         // 2. Instruction not in FTB, update as if ctr_bits is weak taken
         tage_update_info.valid = ftq_meta_i.valid & (ftq_meta_i.ftb_hit | mispredict);
+        tage_update_info.predict_correct = ftq_meta_i.valid & ~mispredict;
         tage_update_info.is_conditional = ftq_meta_i.is_conditional;
         tage_update_info.branch_taken = ftq_meta_i.is_taken;
         tage_update_info.bpu_meta = ftq_meta_i.bpu_meta;
         // Override CTR bits if first occur
-        if (ftq_meta_i.ftb_hit)
-            tage_update_info.bpu_meta.provider_ctr_bits = {1'b1, {(BASE_CTR_WIDTH - 1) {1'b0}}};
+        // if (ftq_meta_i.ftb_hit)
+        // tage_update_info.bpu_meta.provider_ctr_bits = {1'b1, {(BASE_CTR_WIDTH - 1) {1'b0}}};
     end
 
     always_comb begin

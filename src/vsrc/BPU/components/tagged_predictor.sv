@@ -11,7 +11,7 @@ module tagged_predictor
 #(
     parameter INPUT_GHR_LENGTH = 4,
     parameter PHT_DEPTH = 2048,
-    parameter PHT_TAG_WIDTH = 12,
+    parameter PHT_TAG_WIDTH = 11,
     parameter PHT_CTR_WIDTH = 3,
     parameter PHT_USEFUL_WIDTH = 2
 ) (
@@ -19,6 +19,7 @@ module tagged_predictor
     input logic rst,
 
     // Query signal
+    input logic global_history_update_i,
     input logic [INPUT_GHR_LENGTH:0] global_history_i,
     input logic [ADDR_WIDTH-1:0] pc_i,
 
@@ -40,6 +41,7 @@ module tagged_predictor
     input logic update_ctr,
     input logic inc_ctr,
     input logic [PHT_CTR_WIDTH-1:0] update_ctr_bits_i,
+    input logic realloc_entry,
     input logic [PHT_TAG_WIDTH-1:0] update_tag_i,
     input logic [$clog2(PHT_DEPTH)-1:0] update_index_i
 );
@@ -50,23 +52,6 @@ module tagged_predictor
     // Reset
     logic rst_n;
     assign rst_n = ~rst;
-
-    /*
-    // Update Info
-    typedef struct packed {
-        logic [ADDR_WIDTH-1:0] pc;
-
-        // 0:            invalid, decrease, invalid, decrease, no reallocate
-        // 1:            valid, increase, valid, increase, reallocate
-        logic update_ctr;
-        logic inc_ctr;
-        logic update_useful;
-        logic inc_useful;
-        logic realloc_entry;
-    } update_info_struct;
-    update_info_struct update_info;
-    // assign update_info = update_info_i;
-    */
 
     // PHT
     typedef struct packed {
@@ -99,9 +84,9 @@ module tagged_predictor
     // Query logic
     ////////////////////////////////////////////////////////////////////////////////////////////
     // query_index is Fold(GHR) ^ PC[low] ^ PC[high]
-    assign query_index = (hashed_ght_input ^ pc_i[0+:PHT_ADDR_WIDTH] ^ pc_i[PHT_ADDR_WIDTH+:PHT_ADDR_WIDTH]);
+    assign query_index = (hashed_ght_input ^ pc_i[2+:PHT_ADDR_WIDTH] ^ pc_i[2+PHT_ADDR_WIDTH+:PHT_ADDR_WIDTH]);
     // query_tag is XORed from pc_i
-    assign query_tag = pc_i[PHT_TAG_WIDTH-1:0] ^ tag_hash_csr1 ^ {tag_hash_csr2, 1'b0};
+    assign query_tag = pc_i[2+:PHT_TAG_WIDTH] ^ tag_hash_csr1 ^ {tag_hash_csr2, 1'b0};
 
     always_ff @(posedge clk) begin
         query_index_delay <= query_index;
@@ -115,7 +100,7 @@ module tagged_predictor
     assign query_tag_o = query_tag_delay;
     assign origin_tag_o = query_result.tag;
     assign taken_o = (query_result.ctr[PHT_CTR_WIDTH-1] == 1'b1);
-    assign tag_hit_o = (query_tag == query_result.tag);
+    assign tag_hit_o = (query_tag_delay == query_result.tag);
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -154,13 +139,12 @@ module tagged_predictor
                 end
             endcase
         end
+        // Alocate new entry 
+        if (realloc_entry) begin
+            update_entry.ctr = {1'b1, {PHT_CTR_WIDTH - 1{1'b0}}};  // Reset CTR
+            update_entry.useful = 0;  // Clear useful
+        end
     end
-    // // Alocate new entry 
-    // if (update_info.realloc_entry & update_match_valid & PHT[update_index].tag != update_tag) begin
-    //     PHT[update_index].tag <= update_tag;
-    //     PHT[update_index].ctr <= {1'b1, {PHT_CTR_WIDTH - 1{1'b0}}};  // Reset CTR
-    //     PHT[update_index].useful <= 0;  // Reset useful counter
-    // end
 
     // CSR hash
     csr_hash #(
@@ -169,6 +153,7 @@ module tagged_predictor
     ) ght_hash_csr_hash (
         .clk   (clk),
         .rst   (rst),
+        .data_update_i(global_history_update_i),
         .data_i(global_history_i),
         .hash_o(hashed_ght_input)
     );
@@ -178,6 +163,7 @@ module tagged_predictor
     ) pc_hash_csr_hash1 (
         .clk   (clk),
         .rst   (rst),
+        .data_update_i(global_history_update_i),
         .data_i(global_history_i),
         .hash_o(tag_hash_csr1)
     );
@@ -187,6 +173,7 @@ module tagged_predictor
     ) pc_hash_csr_hash2 (
         .clk   (clk),
         .rst   (rst),
+        .data_update_i(global_history_update_i),
         .data_i(global_history_i),
         .hash_o(tag_hash_csr2)
     );

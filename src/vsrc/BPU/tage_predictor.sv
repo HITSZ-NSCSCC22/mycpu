@@ -6,7 +6,7 @@
 `include "BPU/include/bpu_defines.sv"
 `include "BPU/include/bpu_types.sv"
 
-`include "utils/cva5_priority_encoder.sv"
+`include "utils/reverse_priority_encoder.sv"
 `include "utils/lfsr.sv"
 
 // Components
@@ -32,13 +32,13 @@ module tage_predictor
     input tage_predictor_update_info_t update_info_i,
 
     // PMU
-    output logic [5*32-1:0] perf_tag_hit_counter
+    output logic [32-1:0] perf_tag_hit_counter[BPU_TAG_COMPONENT_NUM+1]
 );
 
     // Parameters
     localparam GHR_DEPTH = BPU_GHR_LENGTH;
     localparam TAG_COMPONENT_AMOUNT = BPU_TAG_COMPONENT_NUM;
-    localparam integer HISTORY_LENGTH[TAG_COMPONENT_AMOUNT] = BPU_COMPONENT_HISTORY_LENGTH;
+    localparam integer HISTORY_LENGTH[TAG_COMPONENT_AMOUNT+1] = BPU_COMPONENT_HISTORY_LENGTH;
     localparam integer PHT_DEPTH[TAG_COMPONENT_AMOUNT+1] = BPU_COMPONENT_TABLE_DEPTH;
 
 
@@ -70,8 +70,8 @@ module tage_predictor
     // Meta
     logic [TAG_COMPONENT_AMOUNT-1:0][2:0] tag_ctr;
     logic [TAG_COMPONENT_AMOUNT-1:0][2:0] tag_useful;
-    logic [TAG_COMPONENT_AMOUNT-1:0][11:0] tag_query_tag;
-    logic [TAG_COMPONENT_AMOUNT-1:0][11:0] tag_origin_tag;
+    logic [TAG_COMPONENT_AMOUNT-1:0][10:0] tag_query_tag;
+    logic [TAG_COMPONENT_AMOUNT-1:0][10:0] tag_origin_tag;
     logic [TAG_COMPONENT_AMOUNT-1:0][10:0] tag_hit_index;
 
     // Update
@@ -88,13 +88,13 @@ module tage_predictor
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_inc_useful;
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_realloc_entry;
     logic [TAG_COMPONENT_AMOUNT-1:0][BPU_COMPONENT_USEFUL_WIDTH[1]-1:0] tag_update_query_useful;
-    logic [TAG_COMPONENT_AMOUNT-1:0][11:0] tag_update_new_tag;
+    logic [TAG_COMPONENT_AMOUNT-1:0][10:0] tag_update_new_tag;
     // Indicates the longest history component which useful is 0
     logic [$clog2(TAG_COMPONENT_AMOUNT+1)-1:0] tag_update_useful_zero_id;
 
     // pingpong counter & lfsr
     // is a random number array
-    logic [31:0] random_r;
+    logic [15:0] random_r;
     logic [1:0] tag_update_useful_pingpong_counter[TAG_COMPONENT_AMOUNT];
 
     ////////////////////////////////////////////////////////////////////////////////////////////
@@ -141,26 +141,32 @@ module tage_predictor
             tagged_predictor #(
                 .INPUT_GHR_LENGTH(HISTORY_LENGTH[provider_id+1]),
                 .PHT_DEPTH(PHT_DEPTH[provider_id+1]),
-                .PHT_USEFUL_WIDTH(BPU_COMPONENT_USEFUL_WIDTH[provider_id+1])
+                .PHT_USEFUL_WIDTH(BPU_COMPONENT_USEFUL_WIDTH[provider_id+1]),
+                .PHT_CTR_WIDTH(BPU_COMPONENT_CTR_WIDTH[provider_id+1])
             ) u_tagged_predictor (
-                .clk                 (clk),
-                .rst                 (rst),
-                .global_history_i    (GHR[HISTORY_LENGTH[provider_id]:0]),
-                .pc_i                (pc_i),
-                .useful_bits_o       (tag_useful[provider_id]),
-                .ctr_bits_o          (tag_ctr[provider_id]),
-                .query_tag_o         (tag_query_tag[provider_id]),
-                .origin_tag_o        (tag_origin_tag[provider_id]),
-                .hit_index_o         (tag_hit_index[provider_id]),
-                .taken_o             (tag_taken[provider_id]),
-                .tag_hit_o           (tag_hit[provider_id]),
-                .update_valid        (update_valid),
+                .clk                    (clk),
+                .rst                    (rst),
+                // Query
+                .global_history_update_i(update_valid),
+                .global_history_i       (GHR[HISTORY_LENGTH[provider_id+1]:0]),
+                .pc_i                   (pc_i),
+                .useful_bits_o          (tag_useful[provider_id]),
+                .ctr_bits_o             (tag_ctr[provider_id]),
+                .query_tag_o            (tag_query_tag[provider_id]),
+                .origin_tag_o           (tag_origin_tag[provider_id]),
+                .hit_index_o            (tag_hit_index[provider_id]),
+                .taken_o                (tag_taken[provider_id]),
+                .tag_hit_o              (tag_hit[provider_id]),
+
+                // Update
+                .update_valid        (update_valid & update_is_conditional),
                 .update_useful       (tag_update_useful[provider_id]),
                 .inc_useful          (tag_update_inc_useful[provider_id]),
                 .update_useful_bits_i(update_meta.tag_predictor_useful_bits[provider_id]),
                 .update_ctr          (tag_update_ctr[provider_id]),
                 .inc_ctr             (update_branch_taken),
                 .update_ctr_bits_i   (update_meta.provider_ctr_bits),
+                .realloc_entry       (tag_update_realloc_entry[provider_id]),
                 .update_tag_i        (tag_update_new_tag[provider_id]),
                 .update_index_i      (update_meta.tag_predictor_hit_index[provider_id])
             );
@@ -170,7 +176,7 @@ module tage_predictor
     assign query_is_useful = (taken[pred_prediction_id] != taken[altpred_prediction_id]);
 
     // Select the longest match provider
-    cva5_priority_encoder #(
+    reverse_priority_encoder #(
         .WIDTH(5)
     ) pred_select (
         .priority_vector({tag_hit, 1'b1}),
@@ -184,7 +190,7 @@ module tage_predictor
             altpred_pool[pred_prediction_id] = 1'b0;
         end
     end
-    cva5_priority_encoder #(
+    reverse_priority_encoder #(
         .WIDTH(5)
     ) altpred_select (
         .priority_vector(altpred_pool),
@@ -253,18 +259,18 @@ module tage_predictor
     always_comb begin
         tag_update_useful_zero_id = 0;  // default 0
         for (integer i = TAG_COMPONENT_AMOUNT - 1; i >= 0; i--) begin
-            if (tag_update_query_useful_match[i]) begin
-                // 1/2 probability when longer history tag want to be selected
-                if (tag_update_useful_pingpong_counter[i] != 2'b00) begin
-                    tag_update_useful_zero_id = i + 1;
-                end
+            if (tag_update_query_useful_match[i] && i + 1 > update_provider_id) begin
+                // 1/3 probability when longer history tag want to be selected
+                // if (tag_update_useful_pingpong_counter[i] != 2'b00) begin
+                tag_update_useful_zero_id = i + 1;
+                // end
             end
         end
     end
 
     // LFSR & Ping-pong counter
     lfsr #(
-        .WIDTH(32),
+        .WIDTH(16)
     ) u_pingpong_lfsr (
         .clk  (clk),
         .rst  (rst),
@@ -338,14 +344,11 @@ module tage_predictor
 
 
     // Counter
-    generate
-        genvar i;
-        for (i = 0; i < 5; i = i + 1) begin
-            always @(posedge clk) begin
-                perf_tag_hit_counter[i*32+31:i*32] <= perf_tag_hit_counter[i*32+31:i*32] + {31'b0,(i == pred_prediction_id)};
-            end
+    always_ff @(posedge clk) begin
+        for (integer i = 0; i < TAG_COMPONENT_AMOUNT + 1; i++) begin
+            perf_tag_hit_counter[i] <= perf_tag_hit_counter[i] + {31'b0, (i == pred_prediction_id)};
         end
-    endgenerate
+    end
 
 
 
