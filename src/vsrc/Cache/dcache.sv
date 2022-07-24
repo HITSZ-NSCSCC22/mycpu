@@ -81,7 +81,8 @@ module dcache
     logic [(AXI_DATA_WIDTH/8)-1:0] axi_wstrb_o;
 
     // BRAM signals
-    logic [NWAY-1:0][DCACHELINE_WIDTH-1:0] data_bram_rdata, p3_data_bram_rdata;
+    logic [NWAY-1:0][DCACHELINE_WIDTH-1:0]
+        data_bram_rdata, p2_data_bram_rdata, p3_data_bram_rdata;
     logic [NWAY-1:0][ICACHELINE_WIDTH-1:0] data_bram_wdata, p3_data_bram_wdata;
     logic [NWAY-1:0][$clog2(NSET)-1:0] data_bram_addr, data_bram_raddr, data_bram_waddr;
     logic [NWAY-1:0][15:0] data_bram_we;
@@ -90,7 +91,7 @@ module dcache
     // Tag bram 
     // {1bit dirty,1bit valid, 20bits tag}
     localparam TAG_BRAM_WIDTH = 22;
-    logic [NWAY-1:0][TAG_BRAM_WIDTH-1:0] tag_bram_rdata, p3_tag_bram_rdata;
+    logic [NWAY-1:0][TAG_BRAM_WIDTH-1:0] tag_bram_rdata, p2_tag_bram_rdata, p3_tag_bram_rdata;
     logic [NWAY-1:0][TAG_BRAM_WIDTH-1:0] tag_bram_wdata, p3_tag_bram_wdata;
     logic [NWAY-1:0][$clog2(NSET)-1:0] tag_bram_addr, tag_bram_raddr, tag_bram_waddr;
     logic [NWAY-1:0 ] tag_bram_we;
@@ -222,6 +223,9 @@ module dcache
                     next_state = IDLE;
             end
             READ_REQ: begin
+                // if read miss,we have to wait the fifo
+                // to be clear first,then we send the read
+                // request to axi
                 if (!fifo_state[0]) next_state = READ_REQ;
                 if (axi_rdy_i) next_state = READ_WAIT;  // If AXI ready, send request 
                 else next_state = READ_REQ;
@@ -408,6 +412,19 @@ module dcache
         endcase
     end
 
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            p2_data_bram_rdata <= 0;
+            p2_tag_bram_rdata  <= 0;
+        end else if (next_state != IDLE) begin
+            p2_data_bram_rdata <= data_bram_rdata;
+            p2_tag_bram_rdata  <= tag_bram_rdata;
+        end else begin
+            p2_data_bram_rdata <= 0;
+            p2_tag_bram_rdata  <= 0;
+        end
+    end
+
     logic [`RegBus] wreq_sel_data;
     logic [DCACHELINE_WIDTH-1:0] bram_write_data;
     always_comb begin
@@ -562,7 +579,7 @@ module dcache
         rdata   = 0;
         case (state)
             IDLE: begin
-                if (!miss) begin
+                if (!miss & valid_buffer) begin
                     data_ok = 1;
                     rdata   = hit_data[cpu_addr[3:2]*32+:32];
                 end else if (axi_rvalid_i) begin
@@ -587,6 +604,33 @@ module dcache
         endcase
     end
 
+    // P2 state -> P3 state
+    // we select the P3 state data accroding to the last state
+    // if the last state is idle,we select the data from bram
+    // else we select the data from P2 buffer
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            p3_tag_bram_rdata <= 0;
+            p3_data_bram_rdata <= 0;
+            p3_fifo_r_hit <= 0;
+            p3_tag_hit <= 0;
+        end else begin
+            // not block now,use the read data
+            if (state == IDLE) begin
+                p3_tag_bram_rdata  <= tag_bram_rdata;
+                p3_data_bram_rdata <= data_bram_rdata;
+                // block finish,use the buffer data
+            end else if (next_state == IDLE) begin
+                p3_tag_bram_rdata  <= p2_tag_bram_rdata;
+                p3_data_bram_rdata <= p2_data_bram_rdata;
+                //blocking now,keep data
+            end else begin
+                p3_tag_bram_rdata  <= p3_tag_bram_rdata;
+                p3_data_bram_rdata <= p3_data_bram_rdata;
+            end
+        end
+    end
+
 
     // Miss signal
     assign miss_pulse = valid_buffer & ~hit & (state == LOOK_UP);
@@ -594,10 +638,9 @@ module dcache
     always_ff @(posedge clk) begin
         if (rst) begin
             miss_r <= 0;
-        end else if (next_state == IDLE) miss_r <= 0;
-        else begin
+        end else begin
             case (state)
-                LOOK_UP: begin
+                IDLE: begin
                     miss_r <= miss_pulse;
                 end
                 READ_WAIT, WRITE_WAIT: begin

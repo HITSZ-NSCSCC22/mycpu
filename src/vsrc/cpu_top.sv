@@ -173,7 +173,10 @@ module cpu_top
     logic [1:0] wb_dcache_flush;  // flush dcache if excp
     logic [1:0][`RegBus] wb_dcache_flush_pc;
     logic dcache_ack, dcache_ready, mem_uncache_en;
+    logic dcache_pre_valid[2], dcache_store_req[2];
+    logic [`RegBus] dcache_vaddr[2];
     logic [ISSUE_WIDTH-1:0] dcacop_en;
+    logic un_excp[2];
 
     assign mem_cache_ce = mem_cache_signal[0].ce | mem_cache_signal[1].ce;
     assign mem_cache_we = mem_cache_signal[0].we | mem_cache_signal[1].we;
@@ -241,13 +244,18 @@ module cpu_top
 
     logic [4:0] rand_index_diff;
 
-    logic control_dcache_valid, control_dcache_ready;
-    logic [`RegBus] control_dcache_addr, control_dcache_wdata, control_dcache_rdata;
+    logic control_dcache_valid, control_dcache_ready, control_dcache_pre_valid;
+    logic [`RegBus]
+        control_dcache_vaddr, control_dcache_addr, control_dcache_wdata, control_dcache_rdata;
     logic [3:0] control_dcache_wstrb;
 
     LSU u_LSU (
         .clk(clk),
         .rst(rst),
+
+        .cpu_pre_valid(dcache_pre_valid[0]),
+        .cpu_store_req(dcache_store_req[0]),
+        .cpu_vaddr(dcache_vaddr[0]),
 
         .cpu_valid(mem_cache_ce),
         .cpu_uncached(mem_uncache_en),
@@ -262,8 +270,10 @@ module cpu_top
         .cpu_flush(wb_dcache_flush != 2'b0 | pipeline_flush[2]),
         .cpu_store_commit(dcache_store_commit[0]),  // If excp occurs, flush DCache
 
+        .dcache_pre_valid(control_dcache_pre_valid),
+        .dcache_vaddr(control_dcache_vaddr),
         .dcache_valid(control_dcache_valid),
-        .dcache_addr (control_dcache_addr),
+        .dcache_addr(control_dcache_addr),
         .dcache_wdata(control_dcache_wdata),
         .dcache_wstrb(control_dcache_wstrb),
         .dcache_rdata(control_dcache_rdata),
@@ -275,10 +285,13 @@ module cpu_top
     dcache u_dcache (
         .clk         (clk),
         .rst         (rst),
+        .pre_valid   (control_dcache_pre_valid),
+        .vaddr       (control_dcache_vaddr),
         .valid       (control_dcache_valid),
         .addr        (control_dcache_addr),
         .wstrb       (control_dcache_wstrb),
         .wdata       (control_dcache_wdata),
+        .un_excp     (un_excp[0]),
         .cacop_i     (dcacop_en[0]),
         .cacop_mode_i(dcacop_op_mode[0]),
         .cacop_addr_i({tlb_data_result.tag, tlb_data_result.index, tlb_data_result.offset}),
@@ -661,6 +674,12 @@ module cpu_top
                 .tid(csr_tid),
                 .csr_ex_signal(csr_mem_signal),
 
+                //<->Dcache
+                .dcache_ready(dcache_ready),
+                .dcache_valid(),
+                .dcache_store_req(),
+                .dcache_vaddr(),
+
                 // -> Ctrl, Redirect signals
                 .ex_redirect_o(ex_redirect[i]),
                 .ex_redirect_target_o(ex_redirect_target[i]),
@@ -764,7 +783,8 @@ module cpu_top
                 // -> Dispatch, data forward
                 .data_forward_o(mem2_data_forward[i]),
 
-                // <- DCache
+                // <-> DCache
+                .un_excp(un_excp[i]),
                 .data_ok(mem_data_ok),
                 .cache_data_i(cache_mem_data)
             );

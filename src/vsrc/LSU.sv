@@ -8,6 +8,10 @@ module LSU #(
     input logic clk,
     input logic rst,
 
+    input logic cpu_pre_valid,
+    input logic cpu_store_req,
+    input logic [FE_ADDR_W-1:0] cpu_vaddr,
+
     input logic cpu_valid,
     input logic cpu_uncached,
     input logic [2:0] cpu_req_type,
@@ -25,6 +29,9 @@ module LSU #(
     input logic cpu_store_commit,
 
     // Cache
+    output logic dcache_pre_valid,
+    output logic [FE_ADDR_W-1:0] dcache_vaddr,
+
     output logic dcache_valid,
     output logic [FE_ADDR_W-1:0] dcache_addr,
     output logic [FE_DATA_W-1:0] dcache_wdata,
@@ -92,8 +99,11 @@ module LSU #(
                 else next_state = STORE_COMMIT_WAIT;
             end
             STORE_REQ_SEND: begin
-                if (dcache_ready) next_state = IDLE;
-                else next_state = STORE_REQ_WAIT;
+                // try:if there is a store instr in the
+                // cache,then we don't allow other mem
+                // instr come into the cache
+                //if (dcache_ready) next_state = IDLE;
+                next_state = STORE_REQ_WAIT;
             end
             STORE_REQ_WAIT: begin
                 if (dcache_ready) next_state = IDLE;
@@ -111,7 +121,7 @@ module LSU #(
         endcase
     end
 
-    assign cpu_store = cpu_wstrb != 0 && cpu_valid;
+    assign cpu_store = cpu_store_req;
 
     // DCache handshake
     always_comb begin
@@ -122,6 +132,10 @@ module LSU #(
         dcache_wstrb = 0;
         case (state)
             IDLE: begin
+                if (cpu_pre_valid & ~cpu_flush & cpu_store) begin
+                    dcache_pre_valid = cpu_pre_valid;
+                    dcache_vaddr = cpu_vaddr;
+                end
                 if (cpu_valid & ~cpu_store & ~cpu_uncached & ~cpu_flush) begin  // Read
                     dcache_valid = cpu_valid;
                     dcache_addr  = cpu_addr;

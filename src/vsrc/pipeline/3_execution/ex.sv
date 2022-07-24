@@ -42,8 +42,10 @@ module ex
     // -> Dispatch
     output data_forward_t data_forward_o,
 
-    //-> Dcache
+    //<-> Dcache
+    input logic dcache_ready,
     output logic dcache_valid,
+    output logic dcache_store_req,
     output [`RegBus] dcache_vaddr,
 
     // -> TLB
@@ -161,7 +163,8 @@ module ex
     // TODO:fix vppn select
     assign ex_o.mem_addr = oprand1 + imm;
     assign ex_o.reg2 = oprand2;
-    assign dcache_valid = mem_load_op & !uncache_en;
+    assign dcache_valid = access_mem & !uncache_en;
+    assign dcache_store_req = mem_store_op;
     assign dcache_vaddr = oprand1 + imm;
 
     // Data forwarding 
@@ -206,7 +209,7 @@ module ex
     assign mem_h_op = special_info.mem_h_op;
 
     // notify ctrl is ready to advance
-    assign advance_ready = ~muldiv_stall;
+    assign advance_ready = ~muldiv_stall | (dcache_ready & access_mem);
 
     //////////////////////////////////////////////////////////////////////////////////////
     // TLB request
