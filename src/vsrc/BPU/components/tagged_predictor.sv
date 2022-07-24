@@ -41,8 +41,7 @@ module tagged_predictor
     input logic inc_ctr,
     input logic [PHT_CTR_WIDTH-1:0] update_ctr_bits_i,
     input logic [PHT_TAG_WIDTH-1:0] update_tag_i,
-    input logic [$clog2(PHT_DEPTH)-1:0] update_index_i,
-    input logic [ADDR_WIDTH+4:0] update_info_i
+    input logic [$clog2(PHT_DEPTH)-1:0] update_index_i
 );
 
     // Parameters
@@ -52,6 +51,7 @@ module tagged_predictor
     logic rst_n;
     assign rst_n = ~rst;
 
+    /*
     // Update Info
     typedef struct packed {
         logic [ADDR_WIDTH-1:0] pc;
@@ -66,6 +66,7 @@ module tagged_predictor
     } update_info_struct;
     update_info_struct update_info;
     // assign update_info = update_info_i;
+    */
 
     // PHT
     typedef struct packed {
@@ -84,7 +85,7 @@ module tagged_predictor
     // Generate another hash different from above, as described in PPM-Liked essay
     logic [PHT_TAG_WIDTH-1:0] tag_hash_csr1;
     logic [PHT_TAG_WIDTH-2:0] tag_hash_csr2;
-    logic [PHT_TAG_WIDTH-1:0] query_tag;
+    logic [PHT_TAG_WIDTH-1:0] query_tag, query_tag_delay;
     // Result
     pht_entry query_result;
 
@@ -104,12 +105,15 @@ module tagged_predictor
 
     always_ff @(posedge clk) begin
         query_index_delay <= query_index;
+        query_tag_delay   <= query_tag;
     end
 
     // Output
     assign ctr_bits_o = query_result.ctr;
     assign useful_bits_o = query_result.useful;
     assign hit_index_o = query_index_delay;
+    assign query_tag_o = query_tag_delay;
+    assign origin_tag_o = query_result.tag;
     assign taken_o = (query_result.ctr[PHT_CTR_WIDTH-1] == 1'b1);
     assign tag_hit_o = (query_tag == query_result.tag);
 

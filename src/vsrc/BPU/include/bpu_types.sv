@@ -19,21 +19,16 @@ package bpu_types;
 
     typedef struct packed {
         logic valid;
-        logic is_conditional;
-        logic taken;
-        logic [ADDR_WIDTH-1:0] pc;
-        logic [BPU_COMPONENT_CTR_WIDTH[0]-1:0] ctr_bits;
-    } base_predictor_update_info_t;
-
-
-    typedef struct packed {
-        logic valid;
         logic predict_correct;
         logic branch_taken;
+        logic pred_useful;
+        logic is_conditional;
+        logic [$clog2(BPU_TAG_COMPONENT_NUM+1)-1:0] pred_provider_id;
+        logic [$clog2(BPU_TAG_COMPONENT_NUM+1)-1:0] altpred_provider_id;
         logic [$clog2(2048)-1:0] provider_entry_id;  // TODO: hard-coded for now
         logic [2:0] provider_ctr_bits;
-        logic [2:0] provider_useful_bits;
-    } tag_predictor_update_info_t;
+        logic [BPU_TAG_COMPONENT_NUM-1:0][2:0] tag_predictor_useful_bits;
+    } tage_predictor_update_info_t;
 
     typedef struct packed {
         logic valid;

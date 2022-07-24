@@ -17,7 +17,7 @@ package core_config;
 
     // BPU Parameters
     // BPU
-    parameter BPU_GHR_LENGTH = 200;
+    parameter BPU_GHR_LENGTH = 150;
     parameter BPU_TAG_COMPONENT_NUM = 4;
     parameter integer BPU_COMPONENT_TABLE_DEPTH[BPU_TAG_COMPONENT_NUM+1] = '{
         8192,
@@ -28,6 +28,13 @@ package core_config;
     };
     parameter integer BPU_COMPONENT_CTR_WIDTH[BPU_TAG_COMPONENT_NUM+1] = '{3, 2, 2, 2, 2};
     parameter integer BPU_COMPONENT_USEFUL_WIDTH[BPU_TAG_COMPONENT_NUM+1] = '{0, 3, 3, 3, 3};
+    parameter integer BPU_COMPONENT_HISTORY_LENGTH[BPU_TAG_COMPONENT_NUM+1] = '{
+        0,
+        5,
+        15,
+        44,
+        130
+    };
     // FTB
     parameter integer FTB_DEPTH = 4096;
 
