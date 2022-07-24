@@ -14,17 +14,9 @@ module lcd_interface #(
     output logic lcd_rs,  //0:inst 1:data
     output logic lcd_wr,  //write signal ,low is powerful
     output logic lcd_rd,  //read signal,low is powerful
-    //inout logic [15:0] lcd_data_io,  //16位808并口,双向数据线
     input logic [15:0] lcd_data_i,  //from lcd
     output logic [15:0] lcd_data_o,  //to lcd
     output logic lcd_bl_ctr,  //
-
-    /**触摸屏幕信号**/
-    // inout logic lcd_ct_int,
-    // inout logic lcd_ct_sda,
-    // output logic lcd_ct_scl,
-    // output logic lcd_rstn  //lcd触摸屏幕复位信号
-
     //to lcd top
     output logic lcd_write_data_ctrl,  //写控制信号，用于决定顶层的lcd_data_io
     output logic [31:0] data_reg,

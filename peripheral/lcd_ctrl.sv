@@ -54,14 +54,13 @@ module lcd_ctrl (
     output logic s_bvalid,
     input logic s_bready,
 
-    //to lcd_interface
+    //to lcd_id
     output logic [31:0] lcd_addr_buffer,  //store write reg addr
     output logic [31:0] lcd_data_buffer,  //store data to lcd
     output logic write_lcd,  //write lcd enable signal
 
     //from lcd_interface
-    input logic lcd_write_data_ctrl,  //judge if write lcd now
-    input logic [31:0] lcd_data_i,  //data form lcd input
+    input logic [31:0] lcd_input_data,  //data form lcd input
 
     //from lcd_id
     input logic write_ok  //数据和指令写出去后才能继续写
@@ -123,7 +122,7 @@ module lcd_ctrl (
             //choose data by addr
             case (addr_buffer)
               //TODO
-              `LCD_INPUT: s_rdata <= lcd_data_i;
+              `LCD_INPUT: s_rdata <= lcd_input_data;
               `TOUCH_INPUT: s_rdata <= 32'hffff_ffff;
               default: s_rdata <= 32'heeee_eeee;
             endcase
