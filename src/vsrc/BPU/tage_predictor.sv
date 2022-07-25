@@ -77,7 +77,7 @@ module tage_predictor
     // Update
     logic [ADDR_WIDTH-1:0] update_pc;
     logic base_update_ctr;
-    logic update_valid;
+    logic update_valid, global_history_update;
     logic update_predict_correct;
     logic update_branch_taken;
     logic update_is_conditional;
@@ -112,6 +112,9 @@ module tage_predictor
             // Shift left for every valid branch
             GHR <= {GHR[GHR_DEPTH-2:0], update_branch_taken};
         end
+    end
+    always_ff @(posedge clk) begin
+        global_history_update <= update_valid;
     end
 
 
@@ -261,9 +264,9 @@ module tage_predictor
         for (integer i = TAG_COMPONENT_AMOUNT - 1; i >= 0; i--) begin
             if (tag_update_query_useful_match[i] && i + 1 > update_provider_id) begin
                 // 1/3 probability when longer history tag want to be selected
-                // if (tag_update_useful_pingpong_counter[i] != 2'b00) begin
-                tag_update_useful_zero_id = i + 1;
-                // end
+                if (tag_update_useful_pingpong_counter[i] != 2'b00) begin
+                    tag_update_useful_zero_id = i + 1;
+                end
             end
         end
     end
@@ -300,7 +303,7 @@ module tage_predictor
         for (integer i = 0; i < TAG_COMPONENT_AMOUNT + 1; i++) begin
             update_ctr[i] = 1'b0;
         end
-        if (update_is_conditional) begin  // Only update on conditional branches
+        if (update_is_conditional & update_valid) begin  // Only update on conditional branches
             update_ctr[update_provider_id] = 1'b1;  // One hot
         end
     end
@@ -313,7 +316,7 @@ module tage_predictor
             tag_update_inc_useful[i] = 1'b0;
             tag_update_realloc_entry[i] = 1'b0;
         end
-        if (update_is_conditional) begin  // Only update on conditional branches
+        if (update_is_conditional & update_valid) begin  // Only update on conditional branches
             // If useful, update useful bits
             tag_update_useful[update_provider_id-1] = update_meta.useful;
             // Increase if correct, else decrease
@@ -350,6 +353,16 @@ module tage_predictor
         end
     end
 
+    // DEBUG
+`ifdef SIMULATION
+    logic [TAG_COMPONENT_AMOUNT-1:0][10:0] tag_update_query_tag, tag_update_origin_tag;
+    assign tag_update_query_tag  = update_meta.tag_predictor_query_tag;
+    assign tag_update_origin_tag = update_meta.tag_predictor_origin_tag;
+    integer realloc_entry_cnt;
+    always_ff @(posedge clk) begin
+        realloc_entry_cnt <= realloc_entry_cnt + (tag_update_realloc_entry != 0);
+    end
+`endif
 
 
 

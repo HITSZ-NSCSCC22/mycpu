@@ -142,9 +142,7 @@ module bpu
     assign ftb_update_valid = ftq_meta_i.valid & ftq_meta_i.is_conditional & ((mispredict & ~ftq_meta_i.ftb_hit)| (ftq_meta_i.ftb_dirty & ftq_meta_i.ftb_hit));
     always_comb begin
         // Direction preditor update policy:
-        // 1. Instruction already in FTB, update normally
-        // 2. Instruction not in FTB, update as if ctr_bits is weak taken
-        tage_update_info.valid = ftq_meta_i.valid & (ftq_meta_i.ftb_hit | mispredict);
+        tage_update_info.valid = ftq_meta_i.valid & ftq_meta_i.ftb_hit;
         tage_update_info.predict_correct = ftq_meta_i.valid & ~mispredict;
         tage_update_info.is_conditional = ftq_meta_i.is_conditional;
         tage_update_info.branch_taken = ftq_meta_i.is_taken;

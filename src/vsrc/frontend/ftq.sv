@@ -222,7 +222,6 @@ module ftq
         end else if (bpu_p1_i.valid) begin
             FTQ_meta[bpu_ptr] <= 0;
             FTQ_meta[bpu_ptr].ftb_hit <= bpu_meta_i.ftb_hit;
-            // BPU meta
             FTQ_meta[bpu_ptr].bpu_meta <= bpu_meta_i.bpu_meta;
         end
 

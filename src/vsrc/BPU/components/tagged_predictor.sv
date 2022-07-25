@@ -84,8 +84,9 @@ module tagged_predictor
     // Query logic
     ////////////////////////////////////////////////////////////////////////////////////////////
     // query_index is Fold(GHR) ^ PC[low] ^ PC[high]
-    assign query_index = (hashed_ght_input ^ pc_i[2+:PHT_ADDR_WIDTH] ^ pc_i[2+PHT_ADDR_WIDTH+:PHT_ADDR_WIDTH]);
+    assign query_index = pc_i[2+:PHT_ADDR_WIDTH] ^ pc_i[2+PHT_ADDR_WIDTH+:PHT_ADDR_WIDTH];// ^ hashed_ght_input ;
     // query_tag is XORed from pc_i
+    // assign query_tag = {PHT_TAG_WIDTH{1'b1}};  // ^ tag_hash_csr1 ^ {tag_hash_csr2, 1'b0};
     assign query_tag = pc_i[2+:PHT_TAG_WIDTH] ^ tag_hash_csr1 ^ {tag_hash_csr2, 1'b0};
 
     always_ff @(posedge clk) begin
@@ -117,7 +118,7 @@ module tagged_predictor
                     update_entry.ctr =  inc_ctr ? {{PHT_CTR_WIDTH-1{1'b0}},1'b1} : {PHT_CTR_WIDTH{1'b0}};
                 end
                 {PHT_CTR_WIDTH{1'b1}} : begin
-                    update_entry.ctr =  inc_ctr ? {PHT_CTR_WIDTH{1'b1}}:{{PHT_CTR_WIDTH-1{1'b1}},1'b0};
+                    update_entry.ctr =  inc_ctr ? {PHT_CTR_WIDTH{1'b1}} : {{PHT_CTR_WIDTH-1{1'b1}},1'b0};
                 end
                 default: begin
                     update_entry.ctr = inc_ctr ? update_ctr_bits_i + 1 : update_ctr_bits_i - 1;
@@ -135,13 +136,13 @@ module tagged_predictor
                     update_entry.useful =  inc_useful ? update_useful_bits_i  + 1 : {PHT_USEFUL_WIDTH{1'b0}};
                 end
                 default: begin
-                    update_entry.useful = inc_useful ? update_useful_bits_i + 1 :update_useful_bits_i - 1;
+                    update_entry.useful = inc_useful ? update_useful_bits_i + 1 : update_useful_bits_i - 1;
                 end
             endcase
         end
         // Alocate new entry 
         if (realloc_entry) begin
-            update_entry.ctr = {1'b1, {PHT_CTR_WIDTH - 1{1'b0}}};  // Reset CTR
+            update_entry.ctr = {1'b1, {(PHT_CTR_WIDTH - 1) {1'b0}}};  // Reset CTR
             update_entry.useful = 0;  // Clear useful
         end
     end
