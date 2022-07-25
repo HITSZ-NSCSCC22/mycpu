@@ -49,7 +49,7 @@ module ctrl
     output logic excp_tlb,
     output logic [18:0] excp_tlb_vppn,
     output logic tlbsrch_found,
-    output logic [4:0] tlbsrch_index,
+    output logic [$clog2(TLB_NUM)-1:0] tlbsrch_index,
     output logic tlbrd_en,
 
     output logic tlbwr_en,

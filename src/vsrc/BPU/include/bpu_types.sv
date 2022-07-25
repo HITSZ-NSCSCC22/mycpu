@@ -21,7 +21,7 @@ package bpu_types;
         logic [$clog2(BPU_TAG_COMPONENT_NUM+1)-1:0] provider_id;
         logic [$clog2(BPU_TAG_COMPONENT_NUM+1)-1:0] alt_provider_id;
         logic useful;
-        logic [2:0] provider_ctr_bits;
+        logic [BPU_TAG_COMPONENT_NUM:0][2:0] provider_ctr_bits;
         logic [BPU_TAG_COMPONENT_NUM-1:0][10:0] tag_predictor_query_tag;
         logic [BPU_TAG_COMPONENT_NUM-1:0][10:0] tag_predictor_origin_tag;
         logic [BPU_TAG_COMPONENT_NUM-1:0][10:0] tag_predictor_hit_index;

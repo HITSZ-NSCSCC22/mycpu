@@ -240,7 +240,7 @@ module cpu_top
     logic [31:0] bad_va_i;
     logic tlbsrch_en;
     logic tlbsrch_found;
-    logic [4:0] tlbsrch_index;
+    logic [$clog2(TLB_NUM)-1:0] tlbsrch_index;
     logic excp_tlbrefill;
     logic excp_tlb;
     logic [18:0] excp_tlb_vppn;

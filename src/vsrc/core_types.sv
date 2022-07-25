@@ -264,7 +264,7 @@ package core_types;
     typedef struct packed {
         logic [19:0] tlb_tag;
         logic data_tlb_found;
-        logic [4:0] data_tlb_index;
+        logic [$clog2(TLB_NUM)-1:0] data_tlb_index;
         logic data_tlb_v;
         logic data_tlb_d;
         logic [1:0] data_tlb_mat;

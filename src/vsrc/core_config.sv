@@ -57,9 +57,9 @@ package core_config;
     parameter COMMIT_WIDTH = 2;
 
     // TLB related parameters
-    parameter TLB_NSET = 8;
-    parameter TLB_NWAY = 4;
-    parameter TLB_NUM = TLB_NWAY * TLB_NSET;
+    // parameter TLB_NSET = 8;
+    // parameter TLB_NWAY = 4;
+    parameter TLB_NUM = 128;
 
     // AXI parameters
     parameter AXI_DATA_WIDTH = 128;

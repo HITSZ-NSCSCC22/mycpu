@@ -142,7 +142,7 @@ module bpu
     assign ftb_update_valid = ftq_meta_i.valid & ftq_meta_i.is_conditional & ((mispredict & ~ftq_meta_i.ftb_hit)| (ftq_meta_i.ftb_dirty & ftq_meta_i.ftb_hit));
     always_comb begin
         // Direction preditor update policy:
-        tage_update_info.valid = ftq_meta_i.valid & ftq_meta_i.ftb_hit;
+        tage_update_info.valid = ftq_meta_i.valid;
         tage_update_info.predict_correct = ftq_meta_i.valid & ~mispredict;
         tage_update_info.is_conditional = ftq_meta_i.is_conditional;
         tage_update_info.branch_taken = ftq_meta_i.is_taken;
@@ -159,7 +159,7 @@ module bpu
         ftb_entry_update.jump_target_address = ftq_meta_i.jump_target_address;
         ftb_entry_update.fall_through_address = ftq_meta_i.fall_through_address;
     end
-
+    // assign ftb_hit = 0;
     ftb u_ftb (
         .clk(clk),
         .rst(rst),

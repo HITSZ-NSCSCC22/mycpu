@@ -1,10 +1,12 @@
 `include "defines.sv"
 `include "csr_defines.sv"
 `include "core_types.sv"
+`include "core_config.sv"
 
 module cs_reg
     import csr_defines::*;
     import core_types::*;
+    import core_config::*;
 (
     input logic clk,
     input logic rst,
@@ -22,7 +24,7 @@ module cs_reg
     input logic [31:0] bad_va_i,
     input logic tlbsrch_en,
     input logic tlbsrch_found,
-    input logic [4:0] tlbsrch_index,
+    input logic [$clog2(TLB_NUM)-1:0] tlbsrch_index,
     input logic excp_tlbrefill,
     input logic excp_tlb,
     input logic [18:0] excp_tlb_vppn,

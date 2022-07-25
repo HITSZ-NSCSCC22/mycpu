@@ -21,7 +21,7 @@
 `define ESUBCODE 30:22
 
 //TLBIDX
-`define INDEX 4:0
+`define INDEX 6:0
 `define PS 29:24
 `define NE 31
 
