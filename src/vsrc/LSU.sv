@@ -68,9 +68,6 @@ module LSU #(
     enum integer {
         IDLE,
         REFILL_WAIT,
-        STORE_COMMIT_WAIT,
-        STORE_REQ_SEND,
-        STORE_REQ_WAIT,
         UNCACHE_REQ_SEND,
         UNCACHE_REQ_WAIT
     }
@@ -85,30 +82,12 @@ module LSU #(
             IDLE: begin
                 if (cpu_flush) next_state = IDLE;
                 else if (p1_valid_reg & ~p1_uncache & ~dcache_ready) next_state = REFILL_WAIT;
-                else if (cpu_valid & cpu_uncached & ~cpu_store) next_state = UNCACHE_REQ_SEND;
-                else if (cpu_store) next_state = STORE_COMMIT_WAIT;
+                else if (cpu_valid & cpu_uncached) next_state = UNCACHE_REQ_SEND;
                 else next_state = IDLE;
             end
             REFILL_WAIT: begin
                 if (dcache_ready) next_state = IDLE;
                 else next_state = REFILL_WAIT;
-            end
-            STORE_COMMIT_WAIT: begin
-                if (cpu_store_commit & p1_uncache) next_state = UNCACHE_REQ_SEND;
-                else if (cpu_store_commit) next_state = STORE_REQ_SEND;
-                else if (cpu_flush) next_state = IDLE;
-                else next_state = STORE_COMMIT_WAIT;
-            end
-            STORE_REQ_SEND: begin
-                // try:if there is a store instr in the
-                // cache,then we don't allow other mem
-                // instr come into the cache
-                //if (dcache_ready) next_state = IDLE;
-                next_state = STORE_REQ_WAIT;
-            end
-            STORE_REQ_WAIT: begin
-                if (dcache_ready) next_state = IDLE;
-                else next_state = STORE_REQ_WAIT;
             end
             UNCACHE_REQ_SEND: begin
                 if (uncache_ready) next_state = UNCACHE_REQ_WAIT;
@@ -143,28 +122,18 @@ module LSU #(
                 if (cpu_valid & ~cpu_uncached & ~cpu_flush) begin  // Read
                     dcache_valid = cpu_valid;
                     dcache_addr  = cpu_addr;
+                    dcache_wstrb = cpu_wstrb;
+                    dcache_wdata = cpu_wdata;
                 end else if (~dcache_ready) begin
                     dcache_valid = p1_valid_reg;
                     dcache_addr  = p1_addr_reg;
+                    dcache_wstrb = p1_wstrb_reg;
+                    dcache_wdata = p1_wdata_reg;
                 end
             end
             REFILL_WAIT: begin
                 dcache_valid = p1_valid_reg;
                 dcache_addr  = p1_addr_reg;
-            end
-            STORE_REQ_SEND: begin
-                dcache_valid = 1;
-                dcache_addr  = p1_addr_reg;
-                dcache_wdata = p1_wdata_reg;
-                dcache_wstrb = p1_wstrb_reg;
-            end
-            STORE_REQ_WAIT: begin
-                if (~dcache_ready) begin
-                    dcache_valid = 1;
-                    dcache_addr  = p1_addr_reg;
-                    dcache_wdata = p1_wdata_reg;
-                    dcache_wstrb = p1_wstrb_reg;
-                end
             end
             default: begin
             end
@@ -199,7 +168,7 @@ module LSU #(
 
     // P1 signal
     always_ff @(posedge clk) begin
-        if (cpu_flush & ~cpu_store_commit & state == STORE_COMMIT_WAIT) begin
+        if (cpu_flush) begin
             p1_req_type  <= 0;
             p1_cpu_store <= 0;
             p1_uncache   <= 0;
@@ -238,14 +207,6 @@ module LSU #(
                 cpu_data_valid = dcache_ready;
             end
             REFILL_WAIT: begin
-                cpu_rdata = dcache_rdata;
-                cpu_data_valid = dcache_ready;
-            end
-            // if there is a store after a load
-            // the load will come back at mem2 and
-            // store is wait for commit so we have
-            // to send the load data to mem2
-            STORE_COMMIT_WAIT: begin
                 cpu_rdata = dcache_rdata;
                 cpu_data_valid = dcache_ready;
             end
