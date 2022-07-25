@@ -16,6 +16,11 @@ module lcd_id (
     input logic [31:0] lcd_addr_i,
     input logic [31:0] lcd_data_i,
 
+    //speeder
+    input logic [31:0] buffer_data_i,
+    input logic [31:0] buffer_addr_i,
+    input logic data_valid,
+
     //to lcd ctrl
     output logic write_ok,
 

@@ -130,7 +130,10 @@ module lcd_top (
   logic ctrl_write_lcd_id;
   logic [31:0]ctrl_addr_id;
   logic [31:0]ctrl_data_id;
-  logic write_ok;  
+  logic write_ok;
+  logic [31:0]ctrl_buffer_data_id;
+  logic [31:0]ctrl_buffer_addr_id;
+  logic data_valid;  
 
   lcd_id(
     .pclk(pclk),
@@ -139,6 +142,12 @@ module lcd_top (
     .write_lcd_i(ctrl_write_lcd_id),
     .lcd_addr_i(ctrl_addr_id),
     .lcd_data_i(ctrl_data_id),
+
+    //speeder
+    .buffer_addr_i(ctrl_buffer_addr_id),
+    .buffer_data_i(ctrl_buffer_data_id),
+    .data_valid(data_valid),
+
 
     //to lcd ctrl
     .write_ok(write_ok),
@@ -212,10 +221,15 @@ module lcd_top (
     .lcd_data_buffer(ctrl_data_id),  //store data to lcd
     .write_lcd(ctrl_write_lcd_id),  //write lcd enable signal
 
+    //speeder
+    .buffer_data(ctrl_buffer_data_id),//speeder
+    .buffer_addr(ctrl_buffer_addr_id),//speeder
+    .data_valid(data_valid),//tell lcd_id
+
     //from lcd_interface
     //TODO
     .lcd_input_data(),  //data form lcd input
-
+    
     //from lcd_id
     .write_ok(write_ok)  //数据和指令写出去后才能继续写
     );
