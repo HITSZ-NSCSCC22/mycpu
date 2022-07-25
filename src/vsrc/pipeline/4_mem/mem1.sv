@@ -24,7 +24,7 @@ module mem1
 
     // <-> DCache
     output mem_dcache_rreq_t dcache_rreq_o,
-    input logic dcache_ready_i,
+    input logic uncache_ready_i,
     input logic dcache_ack_i,
 
     // <- TLB
@@ -155,7 +155,7 @@ module mem1
 
     //if mem1 has a mem request and cache is working 
     //then wait until cache finish its work
-    assign advance_ready = (access_mem & mem_access_valid) ? 1 : icache_op_en ? icacop_ack_i : 1;
+    assign advance_ready = (access_mem & mem_access_valid) ? uncache_ready_i : icache_op_en ? icacop_ack_i : 1;
 
     // Sanity check
     assign mem_access_valid = instr_info.valid;  //~excp & instr_info.valid;
@@ -164,7 +164,7 @@ module mem1
     // DCache memory access request
     always_comb begin
         dcache_rreq_o = 0;
-        if (advance & access_mem & mem_access_valid & ~dcache_ack_r) begin
+        if (advance & access_mem & mem_access_valid & uncache_ready_i & ~dcache_ack_r) begin
             dcache_rreq_o.ce = 1;
             dcache_rreq_o.uncache = uncache_en;
             dcache_rreq_o.pc = ex_i.instr_info.pc;

@@ -18,6 +18,7 @@ module LSU #(
     input logic [FE_ADDR_W-1:0] cpu_addr,
     input logic [FE_DATA_W-1:0] cpu_wdata,
     input logic [FE_NBYTES-1:0] cpu_wstrb,
+    output logic uncache_ready_o,
     output logic cpu_ready,
 
     // next cycle
@@ -126,17 +127,20 @@ module LSU #(
     // DCache handshake
     always_comb begin
         // Default
+        dcache_pre_valid = 0;
+        dcache_vaddr = 0;
         dcache_valid = 0;
-        dcache_addr  = 0;
+        dcache_addr = 0;
         dcache_wdata = 0;
         dcache_wstrb = 0;
         case (state)
             IDLE: begin
-                if (cpu_pre_valid & ~cpu_flush & cpu_store) begin
+                if (cpu_pre_valid & ~cpu_flush) begin
                     dcache_pre_valid = cpu_pre_valid;
                     dcache_vaddr = cpu_vaddr;
                 end
-                if (cpu_valid & ~cpu_store & ~cpu_uncached & ~cpu_flush) begin  // Read
+                // store will be block at ex
+                if (cpu_valid & ~cpu_uncached & ~cpu_flush) begin  // Read
                     dcache_valid = cpu_valid;
                     dcache_addr  = cpu_addr;
                 end else if (~dcache_ready) begin
@@ -223,6 +227,7 @@ module LSU #(
     end
 
     assign cpu_ready = state == IDLE & (~p1_valid_reg | dcache_ready);
+    assign uncache_ready_o = ~p1_uncache & uncache_ready;
     // CPU handshake
     always_comb begin
         cpu_rdata = 0;
@@ -233,6 +238,14 @@ module LSU #(
                 cpu_data_valid = dcache_ready;
             end
             REFILL_WAIT: begin
+                cpu_rdata = dcache_rdata;
+                cpu_data_valid = dcache_ready;
+            end
+            // if there is a store after a load
+            // the load will come back at mem2 and
+            // store is wait for commit so we have
+            // to send the load data to mem2
+            STORE_COMMIT_WAIT: begin
                 cpu_rdata = dcache_rdata;
                 cpu_data_valid = dcache_ready;
             end

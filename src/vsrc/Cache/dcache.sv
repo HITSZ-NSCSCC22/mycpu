@@ -51,15 +51,15 @@ module dcache
 
         CACOP_INVALID
     }
-        state, next_state;
+        state, next_state, last_state;
 
     // save the input signal
-    logic valid_buffer;
-    logic [7:0] index_buffer;
-    logic [19:0] tag_buffer;
-    logic [3:0] offset_buffer;
-    logic [3:0] wstrb_buffer;
-    logic [31:0] wdata_buffer;
+    logic p3_valid;
+    logic [7:0] p3_index;
+    logic [19:0] p3_tag;
+    logic [3:0] p3_offset;
+    logic [3:0] p3_wstrb;
+    logic [31:0] p3_wdata;
     logic [2:0] req_type_buffer;
 
     logic cacop_buffer;
@@ -98,11 +98,11 @@ module dcache
     logic [NWAY-1:0 ] tag_bram_en;
 
     logic [ `RegBus]  cpu_addr;
-    logic miss_pulse, miss_r, miss;
+    logic miss_pulse, miss;
     logic hit;
     logic [NWAY-1:0] tag_hit, p3_tag_hit;
 
-    assign cpu_addr = {tag_buffer, index_buffer, offset_buffer};
+    assign cpu_addr = {p3_tag, p3_index, p3_offset};
 
 
     logic [1:0] fifo_state;
@@ -143,8 +143,10 @@ module dcache
 
     always_ff @(posedge clk) begin
         if (rst) begin
+            last_state <= IDLE;
             state <= IDLE;
         end else begin
+            last_state <= state;
             state <= next_state;
         end
     end
@@ -152,57 +154,65 @@ module dcache
 
     always_ff @(posedge clk) begin : data_buffer
         if (rst) begin
-            valid_buffer <= 0;
-            index_buffer <= 0;
-            tag_buffer <= 0;
-            offset_buffer <= 0;
-            wstrb_buffer <= 0;
-            wdata_buffer <= 0;
+            p3_valid <= 0;
+            p3_index <= 0;
+            p3_tag <= 0;
+            p3_offset <= 0;
+            p3_wstrb <= 0;
+            p3_wdata <= 0;
             cacop_buffer <= 0;
             cacop_mode_buffer <= 0;
             cacop_addr_buffer <= 0;
-        end else if (valid) begin  // not accept new request while working
-            valid_buffer <= valid;
-            index_buffer <= addr[11:4];
-            tag_buffer <= addr[31:12];
-            offset_buffer <= addr[3:0];
-            wstrb_buffer <= wstrb;
-            wdata_buffer <= wdata;
+            // if the next state is idle,that means the
+            // instr in p3 will not stall the cache
+            // so we can change the p3 regs
+        end else if (valid & next_state == IDLE) begin
+            p3_valid <= valid;
+            p3_index <= addr[11:4];
+            p3_tag <= addr[31:12];
+            p3_offset <= addr[3:0];
+            p3_wstrb <= wstrb;
+            p3_wdata <= wdata;
             cacop_buffer <= cacop_i;
             cacop_mode_buffer <= cacop_mode_i;
             cacop_addr_buffer <= cacop_addr_i;
-        end else if (next_state == IDLE) begin  //means that cache will finish work,so flush the buffered signal
-            valid_buffer      <= 0;
-            index_buffer      <= 0;
-            tag_buffer        <= 0;
-            offset_buffer     <= 0;
-            wstrb_buffer      <= 0;
-            wdata_buffer      <= 0;
-            cacop_buffer      <= 0;
-            cacop_mode_buffer <= 0;
-            cacop_addr_buffer <= 0;
-        end else begin
-            valid_buffer <= valid_buffer;
-            index_buffer <= index_buffer;
-            tag_buffer <= tag_buffer;
-            offset_buffer <= offset_buffer;
-            wstrb_buffer <= wstrb_buffer;
-            wdata_buffer <= wdata_buffer;
+            // if the next state is not idle which means not hit
+            // we need to stall the cache and wait for req
+            // so we keep p3 regs not change
+        end else if (next_state != IDLE) begin
+            p3_valid <= p3_valid;
+            p3_index <= p3_index;
+            p3_tag <= p3_tag;
+            p3_offset <= p3_offset;
+            p3_wstrb <= p3_wstrb;
+            p3_wdata <= p3_wdata;
             cacop_buffer <= cacop_buffer;
             cacop_mode_buffer <= cacop_mode_buffer;
             cacop_addr_buffer <= cacop_addr_buffer;
+            // other suitation:cache hit and not new req come
+            // so we put p3 regs back to zero
+        end else begin
+            p3_valid <= 0;
+            p3_index <= 0;
+            p3_tag <= 0;
+            p3_offset <= 0;
+            p3_wstrb <= 0;
+            p3_wdata <= 0;
+            cacop_buffer <= 0;
+            cacop_mode_buffer <= 0;
+            cacop_addr_buffer <= 0;
         end
     end
 
     //  the wstrb is not 0 means it is a write request;
-    assign cpu_wreq = wstrb_buffer != 4'b0;
+    assign cpu_wreq = p3_wstrb != 4'b0;
 
     always_comb begin : transition_comb
         case (state)
             IDLE: begin
                 if (cacop_i) next_state = CACOP_INVALID;
                 // if the dcache is idle,then accept the new request
-                else if (valid) begin
+                else if (p3_valid) begin
                     // if write hit,then turn to write idle
                     // if write miss,then wait for read
                     if (cpu_wreq) begin
@@ -285,11 +295,11 @@ module dcache
                     // P3 state:if write hit,the ready to write
                     // if not hit ,the do nothing and come into
                     // the refill state
-                    if (valid_buffer & cpu_wreq & hit) begin
+                    if (p3_valid & cpu_wreq & hit) begin
                         tag_bram_en[i] = 1;
                         data_bram_en[i] = 1;
-                        tag_bram_waddr[i] = index_buffer;
-                        data_bram_waddr[i] = index_buffer;
+                        tag_bram_waddr[i] = p3_index;
+                        data_bram_waddr[i] = p3_index;
                     end
                 end
             end
@@ -297,8 +307,8 @@ module dcache
                 for (integer i = 0; i < NWAY; i++) begin
                     tag_bram_en[i] = 1;
                     data_bram_en[i] = 1;
-                    tag_bram_waddr[i] = index_buffer;
-                    data_bram_waddr[i] = index_buffer;
+                    tag_bram_waddr[i] = p3_index;
+                    data_bram_waddr[i] = p3_index;
                 end
             end
             WRITE_REQ, WRITE_WAIT: begin
@@ -306,8 +316,8 @@ module dcache
                     //if hit ,write the data to the line
                     tag_bram_en[i] = 1;
                     data_bram_en[i] = 1;
-                    tag_bram_waddr[i] = index_buffer;
-                    data_bram_waddr[i] = index_buffer;
+                    tag_bram_waddr[i] = p3_index;
+                    data_bram_waddr[i] = p3_index;
                 end
             end
             CACOP_INVALID: begin
@@ -341,27 +351,27 @@ module dcache
                     if (p3_tag_hit[i] && cpu_wreq) begin
                         tag_bram_we[i] = 1;
                         // make the dirty bit 1'b1
-                        tag_bram_wdata[i] = {1'b1, 1'b1, tag_buffer};
+                        tag_bram_wdata[i] = {1'b1, 1'b1, p3_tag};
                         //select the write bit
-                        case (wstrb_buffer)
+                        case (p3_wstrb)
                             //st.b 
                             4'b0001, 4'b0010, 4'b0100, 4'b1000: begin
-                                data_bram_we[i][offset_buffer] = 1'b1;
-                                data_bram_wdata[i] = {4{wdata_buffer}};
+                                data_bram_we[i][p3_offset] = 1'b1;
+                                data_bram_wdata[i] = {4{p3_wdata}};
                             end
                             //st.h
                             4'b0011, 4'b1100: begin
-                                data_bram_we[i][offset_buffer+1] = 1'b1;
-                                data_bram_we[i][offset_buffer] = 1'b1;
-                                data_bram_wdata[i] = {4{wdata_buffer}};
+                                data_bram_we[i][p3_offset+1] = 1'b1;
+                                data_bram_we[i][p3_offset] = 1'b1;
+                                data_bram_wdata[i] = {4{p3_wdata}};
                             end
                             //st.w
                             4'b1111: begin
-                                data_bram_we[i][offset_buffer+3] = 1'b1;
-                                data_bram_we[i][offset_buffer+2] = 1'b1;
-                                data_bram_we[i][offset_buffer+1] = 1'b1;
-                                data_bram_we[i][offset_buffer] = 1'b1;
-                                data_bram_wdata[i] = {4{wdata_buffer}};
+                                data_bram_we[i][p3_offset+3] = 1'b1;
+                                data_bram_we[i][p3_offset+2] = 1'b1;
+                                data_bram_we[i][p3_offset+1] = 1'b1;
+                                data_bram_we[i][p3_offset] = 1'b1;
+                                data_bram_wdata[i] = {4{p3_wdata}};
                             end
                             default: begin
 
@@ -377,7 +387,7 @@ module dcache
                         if (axi_rvalid_i) begin
                             tag_bram_we[i] = 1;
                             //make the dirty bit 1'b0
-                            tag_bram_wdata[i] = {1'b0, 1'b1, tag_buffer};
+                            tag_bram_wdata[i] = {1'b0, 1'b1, p3_tag};
                             data_bram_we[i] = 16'b1111_1111_1111_1111;
                             data_bram_wdata[i] = axi_data_i;
                         end
@@ -391,7 +401,7 @@ module dcache
                         if (axi_rvalid_i) begin
                             tag_bram_we[i] = 1;
                             //make the dirty bit 1'b1
-                            tag_bram_wdata[i] = {1'b1, 1'b1, tag_buffer};
+                            tag_bram_wdata[i] = {1'b1, 1'b1, p3_tag};
                             data_bram_we[i] = 16'b1111_1111_1111_1111;
                             data_bram_wdata[i] = axi_data_i;
                             data_bram_wdata[i] = bram_write_data;
@@ -430,7 +440,7 @@ module dcache
     always_comb begin
         wreq_sel_data   = 0;
         bram_write_data = 0;
-        case (offset_buffer[3:2])
+        case (p3_offset[3:2])
             2'b00: wreq_sel_data = axi_data_i[31:0];
             2'b01: wreq_sel_data = axi_data_i[63:32];
             2'b10: wreq_sel_data = axi_data_i[95:64];
@@ -438,21 +448,21 @@ module dcache
             default: begin
             end
         endcase
-        case (wstrb_buffer)
+        case (p3_wstrb)
             //st.b 
-            4'b0001: wreq_sel_data[7:0] = wdata_buffer[7:0];
-            4'b0010: wreq_sel_data[15:8] = wdata_buffer[15:8];
-            4'b0100: wreq_sel_data[23:16] = wdata_buffer[23:16];
-            4'b1000: wreq_sel_data[31:24] = wdata_buffer[31:24];
+            4'b0001: wreq_sel_data[7:0] = p3_wdata[7:0];
+            4'b0010: wreq_sel_data[15:8] = p3_wdata[15:8];
+            4'b0100: wreq_sel_data[23:16] = p3_wdata[23:16];
+            4'b1000: wreq_sel_data[31:24] = p3_wdata[31:24];
             //st.h
-            4'b0011: wreq_sel_data[15:0] = wdata_buffer[15:0];
-            4'b1100: wreq_sel_data[31:16] = wdata_buffer[31:16];
+            4'b0011: wreq_sel_data[15:0] = p3_wdata[15:0];
+            4'b1100: wreq_sel_data[31:16] = p3_wdata[31:16];
             //st.w
-            4'b1111: wreq_sel_data = wdata_buffer;
+            4'b1111: wreq_sel_data = p3_wdata;
             default: begin
             end
         endcase
-        case (offset_buffer[3:2])
+        case (p3_offset[3:2])
             2'b00: bram_write_data = {axi_data_i[127:32], wreq_sel_data};
             2'b01: bram_write_data = {axi_data_i[127:64], wreq_sel_data, axi_data_i[31:0]};
             2'b10: bram_write_data = {axi_data_i[127:96], wreq_sel_data, axi_data_i[63:0]};
@@ -485,7 +495,7 @@ module dcache
     always_comb begin : fifo_wreq_sel
         fifo_wreq_sel_data = 0;
         case (state)
-            LOOK_UP: begin
+            IDLE: begin
                 // if write hit the cacheline in the fifo 
                 // then rewrite the cacheline in the fifo 
                 if (p3_fifo_r_hit & cpu_wreq) begin
@@ -496,17 +506,17 @@ module dcache
                         2'b10: fifo_wreq_sel_data = fifo_wdata[95:64];
                         2'b11: fifo_wreq_sel_data = fifo_wdata[127:96];
                     endcase
-                    case (wstrb_buffer)
+                    case (p3_wstrb)
                         //st.b 
-                        4'b0001: fifo_wreq_sel_data[7:0] = wdata_buffer[7:0];
-                        4'b0010: fifo_wreq_sel_data[15:8] = wdata_buffer[15:8];
-                        4'b0100: fifo_wreq_sel_data[23:16] = wdata_buffer[23:16];
-                        4'b1000: fifo_wreq_sel_data[31:24] = wdata_buffer[31:24];
+                        4'b0001: fifo_wreq_sel_data[7:0] = p3_wdata[7:0];
+                        4'b0010: fifo_wreq_sel_data[15:8] = p3_wdata[15:8];
+                        4'b0100: fifo_wreq_sel_data[23:16] = p3_wdata[23:16];
+                        4'b1000: fifo_wreq_sel_data[31:24] = p3_wdata[31:24];
                         //st.h
-                        4'b0011: fifo_wreq_sel_data[15:0] = wdata_buffer[15:0];
-                        4'b1100: fifo_wreq_sel_data[31:16] = wdata_buffer[31:16];
+                        4'b0011: fifo_wreq_sel_data[15:0] = p3_wdata[15:0];
+                        4'b1100: fifo_wreq_sel_data[31:16] = p3_wdata[31:16];
                         //st.w
-                        4'b1111: fifo_wreq_sel_data = wdata_buffer;
+                        4'b1111: fifo_wreq_sel_data = p3_wdata;
                         default: begin
                         end
                     endcase
@@ -546,7 +556,7 @@ module dcache
                         if (axi_rvalid_i) begin
                             if (i[0] == random_r[0] & p3_tag_bram_rdata[i][21] == 1'b1 & !fifo_state[1]) begin
                                 fifo_wreq  <= 1;
-                                fifo_waddr <= {p3_tag_bram_rdata[i][19:0], index_buffer, 4'b0};
+                                fifo_waddr <= {p3_tag_bram_rdata[i][19:0], p3_index, 4'b0};
                                 fifo_wdata <= data_bram_rdata[i];
                             end
                         end
@@ -579,7 +589,7 @@ module dcache
         rdata   = 0;
         case (state)
             IDLE: begin
-                if (!miss & valid_buffer) begin
+                if (hit & p3_valid) begin
                     data_ok = 1;
                     rdata   = hit_data[cpu_addr[3:2]*32+:32];
                 end else if (axi_rvalid_i) begin
@@ -588,10 +598,7 @@ module dcache
                 end
             end
             READ_REQ, READ_WAIT: begin
-                if (!miss) begin
-                    data_ok = 1;
-                    rdata   = hit_data[rd_addr_r[3:2]*32+:32];
-                end else if (axi_rvalid_i) begin
+                if (axi_rvalid_i) begin
                     data_ok = 1;
                     rdata   = axi_data_i[rd_addr_r[3:2]*32+:32];
                 end
@@ -633,18 +640,17 @@ module dcache
 
 
     // Miss signal
-    assign miss_pulse = valid_buffer & ~hit & (state == LOOK_UP);
-    assign miss = miss_pulse | miss_r;
+    assign miss_pulse = valid & ~(tag_hit[0] | tag_hit[1] | fifo_r_hit) & (state == IDLE) & (last_state == IDLE);
     always_ff @(posedge clk) begin
         if (rst) begin
-            miss_r <= 0;
+            miss <= 0;
         end else begin
             case (state)
                 IDLE: begin
-                    miss_r <= miss_pulse;
+                    miss <= miss_pulse;
                 end
                 READ_WAIT, WRITE_WAIT: begin
-                    if (axi_rvalid_i) miss_r <= 0;
+                    if (axi_rvalid_i) miss <= 0;
                 end
                 default: begin
                 end
@@ -659,25 +665,32 @@ module dcache
     // P2 state
     // Hit signal
     always_comb begin
-        tag_hit[0] = tag_bram_rdata[0][19:0] == tag_buffer && tag_bram_rdata[0][20];
-        tag_hit[1] = tag_bram_rdata[1][19:0] == tag_buffer && tag_bram_rdata[1][20];
+        tag_hit[0] = tag_bram_rdata[0][19:0] == addr[31:12] && tag_bram_rdata[0][20];
+        tag_hit[1] = tag_bram_rdata[1][19:0] == addr[31:12] && tag_bram_rdata[1][20];
     end
 
     // P3 state
     // if hit , then we return data to mem2
     logic [DCACHELINE_WIDTH-1:0] hit_data;
     always_ff @(posedge clk) begin
-        hit <= 0;
-        hit_data <= 0;
-        for (integer i = 0; i < NWAY; i++) begin
-            if (tag_hit[i]) begin
+        if (rst) begin
+            hit <= 0;
+            hit_data <= 0;
+        end else begin
+            if (fifo_r_hit | tag_hit[0] | tag_hit[1]) begin
                 hit <= 1;
-                hit_data <= data_bram_rdata[i];
+                for (integer i = 0; i < NWAY; i++) begin
+                    if (tag_hit[i]) begin
+                        hit_data <= data_bram_rdata[i];
+                    end
+                end
+                if (fifo_r_hit) begin
+                    hit_data <= fifo_rdata;
+                end
+            end else begin
+                hit <= 0;
+                hit_data <= 0;
             end
-        end
-        if (fifo_r_hit) begin
-            hit <= 1;
-            hit_data <= fifo_rdata;
         end
     end
 
@@ -743,7 +756,7 @@ module dcache
         //FIFO state
         .state(fifo_state),
         //write to memory 
-        .axi_bvalid_i(axi_rdy_i & (state == IDLE | (state == LOOK_UP & !miss))),
+        .axi_bvalid_i(axi_rdy_i & (state == IDLE & !miss)),
         .axi_wen_o(fifo_axi_wr_req),
         .axi_wdata_o(fifo_axi_wr_data),
         .axi_awaddr_o(fifo_axi_wr_addr)
@@ -823,8 +836,8 @@ module dcache
                 .enb  (tag_bram_en[i]),
                 .wea  (tag_bram_we[i]),
                 .dina (tag_bram_wdata[i]),
-                .addra(tag_bram_addr[i]),
-                .addrb(tag_bram_addr[i]),
+                .addra(tag_bram_waddr[i]),
+                .addrb(tag_bram_raddr[i]),
                 .doutb(tag_bram_rdata[i])
             );
             byte_bram #(
@@ -836,8 +849,8 @@ module dcache
                 .enb  (data_bram_en[i]),
                 .wea  (data_bram_we[i]),
                 .dina (data_bram_wdata[i]),
-                .addra(data_bram_addr[i]),
-                .addrb(data_bram_addr[i]),
+                .addra(data_bram_waddr[i]),
+                .addrb(data_bram_raddr[i]),
                 .doutb(data_bram_rdata[i])
             );
 `endif

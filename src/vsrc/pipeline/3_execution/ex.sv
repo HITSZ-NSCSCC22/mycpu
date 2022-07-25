@@ -209,7 +209,7 @@ module ex
     assign mem_h_op = special_info.mem_h_op;
 
     // notify ctrl is ready to advance
-    assign advance_ready = ~muldiv_stall | (dcache_ready & access_mem);
+    assign advance_ready = ~muldiv_stall & ~(!dcache_ready & access_mem);
 
     //////////////////////////////////////////////////////////////////////////////////////
     // TLB request

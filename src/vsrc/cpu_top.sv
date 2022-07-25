@@ -172,7 +172,7 @@ module cpu_top
     logic [`RegBus] mem_cache_pc;
     logic [1:0] wb_dcache_flush;  // flush dcache if excp
     logic [1:0][`RegBus] wb_dcache_flush_pc;
-    logic dcache_ack, dcache_ready, mem_uncache_en;
+    logic dcache_ack, dcache_ready, mem_uncache_en, uncache_ready;
     logic dcache_pre_valid[2], dcache_store_req[2];
     logic [`RegBus] dcache_vaddr[2];
     logic [ISSUE_WIDTH-1:0] dcacop_en;
@@ -263,6 +263,7 @@ module cpu_top
         .cpu_wdata(mem_cache_data),
         .cpu_req_type(mem_cache_req_type),
         .cpu_wstrb(mem_cache_sel),
+        .uncache_ready_o(uncache_ready),
         .cpu_ready(dcache_ready),
 
         .cpu_rdata(cache_mem_data),
@@ -676,9 +677,9 @@ module cpu_top
 
                 //<->Dcache
                 .dcache_ready(dcache_ready),
-                .dcache_valid(),
-                .dcache_store_req(),
-                .dcache_vaddr(),
+                .dcache_valid(dcache_pre_valid[i]),
+                .dcache_store_req(dcache_store_req[i]),
+                .dcache_vaddr(dcache_vaddr[i]),
 
                 // -> Ctrl, Redirect signals
                 .ex_redirect_o(ex_redirect[i]),
@@ -732,9 +733,9 @@ module cpu_top
                 .mem2_o_buffer(mem1_mem2_signal[i]),
 
                 // <-> DCache
-                .dcache_rreq_o (mem_cache_signal[i]),
-                .dcache_ready_i(dcache_ready),
-                .dcache_ack_i  (dcache_ack),
+                .dcache_rreq_o(mem_cache_signal[i]),
+                .uncache_ready_i(uncache_ready),
+                .dcache_ack_i(dcache_ack),
 
                 // -> ICache, ICACOP
                 .icacop_en_o  (icacop_op_en[i]),
