@@ -99,7 +99,7 @@ module tlb_entry
         {s0_index, s0_ps, s0_ppn, s0_v, s0_d, s0_mat, s0_plv} = 0;
         {s1_index, s1_ps, s1_ppn, s1_v, s1_d, s1_mat, s1_plv} = 0;
         // Match 
-        for (integer j = 0; j < 32; j++) begin
+        for (integer j = 0; j < TLB_NUM; j++) begin
             if (match0[j]) begin
                 {s0_index, s0_ps, s0_ppn, s0_v, s0_d, s0_mat, s0_plv} = {39{s0_odd_page_buffer[j] }} & {j[TLB_INDEX_WIDTH-1:0], tlb_ps[j], tlb_ppn1[j], tlb_v1[j], tlb_d1[j], tlb_mat1[j], tlb_plv1[j]} |
                                                                 {39{~s0_odd_page_buffer[j] }} & {j[TLB_INDEX_WIDTH-1:0], tlb_ps[j], tlb_ppn0[j], tlb_v0[j], tlb_d0[j], tlb_mat0[j], tlb_plv0[j]};

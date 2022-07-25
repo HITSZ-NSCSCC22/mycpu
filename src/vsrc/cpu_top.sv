@@ -261,7 +261,7 @@ module cpu_top
 
 
 
-    logic [4:0] rand_index_diff;
+    logic [$clog2(TLB_NUM)-1:0] rand_index_diff;
 
     logic control_dcache_valid, control_dcache_ready;
     logic [`RegBus] control_dcache_addr, control_dcache_wdata, control_dcache_rdata;
@@ -1079,7 +1079,6 @@ module cpu_top
         .era_out(csr_era),
         .tlbrentry_out(csr_tlbrentry),
         .asid_out(csr_asid),
-        .rand_index(tlb_write_signal_i.rand_index),
         .tlbehi_out(tlb_write_signal_i.tlbehi),
         .tlbelo0_out(tlb_write_signal_i.tlbelo0),
         .tlbelo1_out(tlb_write_signal_i.tlbelo1),
@@ -1156,7 +1155,7 @@ module cpu_top
     logic [5:0] csr_ecode_commit;
     logic [`InstBus] excp_instr_commit;
     logic tlbfill_en_commit;
-    logic [4:0] rand_index_commit;
+    logic [$clog2(TLB_NUM)-1:0] rand_index_commit;
 
     always_ff @(posedge clk) begin
         excp_flush_commit <= excp_flush;

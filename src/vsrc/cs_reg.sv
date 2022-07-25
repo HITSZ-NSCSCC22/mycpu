@@ -52,7 +52,6 @@ module cs_reg
 
     //to tlb
     output logic [9:0] asid_out,
-    output logic [4:0] rand_index,
     output logic [31:0] tlbehi_out,
     output logic [31:0] tlbelo0_out,
     output logic [31:0] tlbelo1_out,
@@ -313,7 +312,6 @@ module cs_reg
     assign tlbelo0_out = csr_tlbelo0;
     assign tlbelo1_out = csr_tlbelo1;
     assign tlbidx_out = csr_tlbidx;
-    assign rand_index = timer_64[4:0];
     assign ecode_out = csr_estat[`ECODE];
     assign datf_out = csr_crmd[`DATF];
     assign datm_out = csr_crmd[`DATM];

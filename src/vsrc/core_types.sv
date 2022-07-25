@@ -247,7 +247,7 @@ package core_types;
         wb_reg_t wb_reg;
         wb_llbit_t llbit;
         tlb_inv_t inv_i;
-        logic [4:0] data_tlb_index;
+        logic [$clog2(TLB_NUM)-1:0] data_tlb_index;
         csr_write_signal csr_signal_o;
         diff_commit diff_commit_o;
     } wb_ctrl_struct;
