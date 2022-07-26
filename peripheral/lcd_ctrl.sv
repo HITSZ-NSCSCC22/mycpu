@@ -63,6 +63,7 @@ module lcd_ctrl (
     output logic [31:0]buffer_data,//speeder
     output logic [31:0]buffer_addr,//speeder
     output logic data_valid,//tell lcd_id
+    output logic [31:0]graph_size,
 
     //from lcd_interface
     input logic [31:0] lcd_input_data,  //data form lcd input
@@ -269,14 +270,14 @@ module lcd_ctrl (
 
   logic [31:0]inst_num;
   logic [31:0]count;
-  logic [31:0]graph_buffer[0:5];
-  logic [31:0]graph_addr[0:5];
+  logic [31:0]graph_buffer[0:6];
+  logic [31:0]graph_addr[0:6];
   logic buffer_ok;//when buffer is full,drawing lcd
 
   /**画一次图需要6条连续的sw指令，所以绘图时只需要存储连续的6条sw指令即可**/
   always_ff @( posedge pclk ) begin : lcd_buffer
     if(~rst_n)begin
-      for(integer i=0;i<6;i++)begin
+      for(integer i=0;i<7;i++)begin
         graph_buffer[i]<=32'b0;
         graph_addr[i]<=32'b0;
       end
@@ -288,6 +289,7 @@ module lcd_ctrl (
       inst_num<=0;
       data_valid<=0;
       delay_time<=2;
+      graph_size<=0;
     end
     else begin
       case(buffer_state)
@@ -329,13 +331,17 @@ module lcd_ctrl (
                 graph_addr[5]<=lcd_addr_buffer;
                 graph_buffer[5]<=s_wdata;
               end
+              6:begin
+                graph_addr[6]<=lcd_addr_buffer;
+                graph_buffer[6]<=s_wdata;
+              end
               default:begin
                 graph_addr<=graph_addr;
                 graph_buffer<=graph_buffer;
               end
             endcase
-            count=count+1;
-            if(count==5)  begin
+            count<=count+1;
+            if(count==6)  begin
               buffer_ok<=1;//buffuer is full,AXI can't receive new wdata
               buffer_state<=DISPATCH_GRAPH;//dispatch inst to lcd_id
             end
@@ -347,6 +353,7 @@ module lcd_ctrl (
                   inst_num<=inst_num+1;
                   buffer_addr<=graph_addr[inst_num];
                   buffer_data<=graph_buffer[inst_num];
+                  graph_size<=graph_buffer[6];
                   data_valid<=1;
                   delay_time<=0;
               end
@@ -356,7 +363,7 @@ module lcd_ctrl (
               end
               else if(write_ok&&inst_num==6)begin
                 //buffer is empty,receive new data from cpu
-                for(integer i=0;i<6;i++)begin
+                for(integer i=0;i<7;i++)begin
                     graph_buffer[i]<=32'b0;
                     graph_addr[i]<=32'b0;
                 end
@@ -368,10 +375,11 @@ module lcd_ctrl (
                 inst_num<=0;
                 data_valid<=0;
                 delay_time<=2;
+                graph_size<=0;
               end
         end
         default:begin
-                for(integer i=0;i<6;i++)begin
+                for(integer i=0;i<7;i++)begin
                     graph_buffer[i]<=32'b0;
                     graph_addr[i]<=32'b0;
                 end
@@ -383,6 +391,7 @@ module lcd_ctrl (
                 inst_num<=0;
                 data_valid<=0;
                 delay_time<=2;
+                graph_size<=0;
         end
       endcase
     end
