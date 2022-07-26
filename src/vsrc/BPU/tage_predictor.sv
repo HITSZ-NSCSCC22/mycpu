@@ -23,7 +23,7 @@ module tage_predictor
 
     // Query signal
     input logic [ADDR_WIDTH-1:0] pc_i,
-    output bpu_ftq_meta_t bpu_meta_o,
+    output bpu_ftq_meta_t bpu_meta_o  /*verilator public*/,
     output logic predict_branch_taken_o,
     output logic predict_valid_o,
 

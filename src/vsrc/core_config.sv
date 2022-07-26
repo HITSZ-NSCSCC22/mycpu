@@ -59,7 +59,7 @@ package core_config;
     // TLB related parameters
     // parameter TLB_NSET = 8;
     // parameter TLB_NWAY = 4;
-    parameter TLB_NUM = 128;
+    parameter TLB_NUM = 32;
 
     // AXI parameters
     parameter AXI_DATA_WIDTH = 128;

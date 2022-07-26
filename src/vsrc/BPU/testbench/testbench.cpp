@@ -76,15 +76,6 @@ int main(int argc, char const *argv[])
     std::cout << "Procceeding with test instructions: " << entries.size() << std::endl;
     std::cout << "First instruction: 0x" << std::hex << entries[0].pc << " " << entries[0].taken << std::dec << std::endl;
 
-    // Delay queue
-    std::queue<instruction_entry> delay_queue_taken;
-    std::queue<bool> delay_queue_valid;
-    for (size_t i = 0; i < BRANCH_LATENCY; i++)
-    {
-        delay_queue_taken.push({});
-        delay_queue_valid.push(false);
-    }
-
     // Reset
     sopc->clk = 0;
     sopc->eval();
@@ -105,14 +96,6 @@ int main(int argc, char const *argv[])
         context->timeInc(1);
 
         sopc->pc_i = entries[i].pc;
-        sopc->branch_valid_i = delay_queue_valid.front();
-        sopc->branch_conditional_i = true;
-        delay_queue_valid.pop();
-        sopc->branch_taken_i = delay_queue_taken.front().taken;
-        sopc->branch_pc_i = delay_queue_taken.front().pc;
-        delay_queue_taken.pop();
-        delay_queue_valid.push(true);
-        delay_queue_taken.push(entries[i]);
 
         // Evaluate cycle
         sopc->clk = 1;
