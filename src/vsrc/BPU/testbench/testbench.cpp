@@ -7,12 +7,14 @@
 #include <queue>
 #include <deque>
 
+#include "struct.hpp"
+
 #define BRANCH_LATENCY (3)
 
 // Work around
 double sc_time_stamp() { return 0; }
 
-static std::string test_filename = "data/gcc-10K.txt";
+static std::string test_filename = "data/gcc-8M.txt";
 
 struct instruction_entry
 {
@@ -75,6 +77,7 @@ int main(int argc, char const *argv[])
     auto entries = parse_test_file(input_filename);
     std::cout << "Procceeding with test instructions: " << entries.size() << std::endl;
     std::cout << "First instruction: 0x" << std::hex << entries[0].pc << " " << entries[0].taken << std::dec << std::endl;
+    std::cout << "Size of output meta: " << sizeof(bpu_ftq_meta_t) << std::endl;
 
     // Reset
     sopc->clk = 0;
@@ -84,6 +87,9 @@ int main(int argc, char const *argv[])
     sopc->rst = 0;
     sopc->eval();
     context->timeInc(1);
+
+    // Store output meta
+    std::deque<bpu_ftq_meta_t> output_meta_queue;
 
     std::deque<bool> prediction_taken;
 
@@ -97,14 +103,51 @@ int main(int argc, char const *argv[])
 
         sopc->pc_i = entries[i].pc;
 
-        // Evaluate cycle
         sopc->clk = 1;
         sopc->eval();
         context->timeInc(1);
 
-        // Retrieve prediction
+        sopc->clk = 0;
+        sopc->eval();
+        context->timeInc(1);
+        sopc->clk = 1;
+        sopc->eval();
+        context->timeInc(1);
+
+        // Retrieve prediction after 1 cycle
         // std::cout << "predicted, truth: " << (uint32_t)sopc->predict_branch_taken_o << " " << entries[i].taken << std::endl;
         prediction_taken.push_back(sopc->predict_branch_taken_o);
+        // Store meta
+        bpu_ftq_meta_t bpu_meta_o;
+        std::memcpy(&bpu_meta_o, sopc->bpu_meta_o, sizeof(bpu_meta_o));
+        output_meta_queue.push_back(bpu_meta_o);
+
+        // More few cycles to simulate FTQ full
+        for (size_t j = 0; j < 4; j++)
+        {
+            sopc->clk = 1 - sopc->clk;
+            sopc->eval();
+            context->timeInc(1);
+        }
+
+        sopc->clk = 0;
+        sopc->eval();
+        context->timeInc(1);
+
+        // Provider update info
+        size_t update_id = i > 5 ? i - 5 : 0;
+        sopc->update_pc_i = entries[update_id].pc;
+        tage_predictor_update_info_t update_info_i;
+        std::memcpy(&update_info_i, &output_meta_queue[update_id], (166 / 8) + 1);
+        update_info_i.valid = 1;
+        update_info_i.predict_correct = prediction_taken[update_id] == entries[update_id].taken;
+        update_info_i.branch_taken = entries[update_id].taken;
+        update_info_i.is_conditional = 1;
+        std::memcpy(sopc->update_info_i, &update_info_i, sizeof(update_info_i));
+
+        sopc->clk = 1;
+        sopc->eval();
+        context->timeInc(1);
     }
     uint32_t perf_tag_hit_counter[5];
     std::memcpy(perf_tag_hit_counter, sopc->perf_tag_hit_counter, sizeof(uint32_t) * 5);

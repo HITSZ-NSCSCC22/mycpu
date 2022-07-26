@@ -1,4 +1,6 @@
 
+all: test
+
 cbp:  *.sv
 	verilator -O3 tage_predictor.sv --exe cbp3.cpp --cc -I../ | true # Ignore errors
 	@make -C obj_dir -f Vtage_predictor.mk 2>&1 >/dev/null
@@ -14,7 +16,7 @@ test: verilate
 	./obj_dir/Vtage_predictor
 	
 
-VERILATOR_FLAGS = -O3 #+define+DUMP_WAVEFORM=1 --trace
+VERILATOR_FLAGS = -O3 #+define+DUMP_WAVEFORM=1 --trace-fst
 
 verilate: *.sv
 	verilator $(VERILATOR_FLAGS) tage_predictor.sv --exe testbench/testbench.cpp --cc -I../ | true # Ignore errors

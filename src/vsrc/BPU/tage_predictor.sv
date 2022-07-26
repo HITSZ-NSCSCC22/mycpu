@@ -35,6 +35,14 @@ module tage_predictor
     output logic [32-1:0] perf_tag_hit_counter[BPU_TAG_COMPONENT_NUM+1]
 );
 
+
+`ifdef DUMP_WAVEFORM
+    initial begin
+        $dumpfile("logs/wave.fst");
+        $dumpvars(0, tage_predictor);
+    end
+`endif
+
     // Parameters
     localparam GHR_DEPTH = BPU_GHR_LENGTH;
     localparam TAG_COMPONENT_AMOUNT = BPU_TAG_COMPONENT_NUM;
@@ -270,7 +278,7 @@ module tage_predictor
         for (integer i = TAG_COMPONENT_AMOUNT - 1; i >= 0; i--) begin
             if (tag_update_query_useful_match[i] && i + 1 > update_provider_id) begin
                 // 1/3 probability when longer history tag want to be selected
-                if (tag_update_useful_pingpong_counter[i] != 2'b00) begin
+                if (tag_update_useful_pingpong_counter[i] > 2'b01) begin
                     tag_update_useful_zero_id = i + 1;
                 end
             end
