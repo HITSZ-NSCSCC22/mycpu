@@ -178,6 +178,7 @@ module cpu_top
     logic [ISSUE_WIDTH-1:0] dcacop_en;
     logic un_excp[2];
 
+    assign mem_cache_pc = mem_cache_signal[0].pc;
     assign mem_cache_ce = mem_cache_signal[0].ce | mem_cache_signal[1].ce;
     assign mem_cache_we = mem_cache_signal[0].we | mem_cache_signal[1].we;
     assign mem_uncache_en = mem_cache_signal[0].uncache | mem_cache_signal[0].uncache;
@@ -246,7 +247,11 @@ module cpu_top
 
     logic control_dcache_valid, control_dcache_ready, control_dcache_pre_valid;
     logic [`RegBus]
-        control_dcache_vaddr, control_dcache_addr, control_dcache_wdata, control_dcache_rdata;
+        control_dcache_vaddr,
+        control_dcache_addr,
+        control_dcache_wdata,
+        control_dcache_rdata,
+        control_dcache_pc;
     logic [3:0] control_dcache_wstrb;
 
     LSU u_LSU (
@@ -258,6 +263,7 @@ module cpu_top
         .cpu_vaddr(dcache_vaddr[0]),
 
         .cpu_valid(mem_cache_ce),
+        .cpu_instr_pc(mem_cache_pc),
         .cpu_uncached(mem_uncache_en),
         .cpu_addr(mem_cache_addr),
         .cpu_wdata(mem_cache_data),
@@ -272,6 +278,7 @@ module cpu_top
         .cpu_store_commit(dcache_store_commit[0]),  // If excp occurs, flush DCache
 
         .dcache_pre_valid(control_dcache_pre_valid),
+        .dcache_instr_pc(control_dcache_pc),
         .dcache_vaddr(control_dcache_vaddr),
         .dcache_valid(control_dcache_valid),
         .dcache_addr(control_dcache_addr),
@@ -289,6 +296,7 @@ module cpu_top
         .pre_valid   (control_dcache_pre_valid),
         .vaddr       (control_dcache_vaddr),
         .valid       (control_dcache_valid),
+        .pc          (control_dcache_pc),
         .addr        (control_dcache_addr),
         .wstrb       (control_dcache_wstrb),
         .wdata       (control_dcache_wdata),

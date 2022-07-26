@@ -14,6 +14,7 @@ module LSU #(
 
     input logic cpu_valid,
     input logic cpu_uncached,
+    input logic [FE_ADDR_W-1:0] cpu_instr_pc,
     input logic [2:0] cpu_req_type,
     input logic [FE_ADDR_W-1:0] cpu_addr,
     input logic [FE_DATA_W-1:0] cpu_wdata,
@@ -34,6 +35,7 @@ module LSU #(
     output logic [FE_ADDR_W-1:0] dcache_vaddr,
 
     output logic dcache_valid,
+    output logic [FE_ADDR_W-1:0] dcache_instr_pc,
     output logic [FE_ADDR_W-1:0] dcache_addr,
     output logic [FE_DATA_W-1:0] dcache_wdata,
     output logic [FE_NBYTES-1:0] dcache_wstrb,
@@ -60,6 +62,7 @@ module LSU #(
     logic p1_cpu_store;
     logic p1_uncache;
     logic [2:0] p1_req_type;
+    logic [FE_ADDR_W-1:0] p1_pc_reg;
     logic [FE_ADDR_W-1:0] p1_addr_reg;
     logic [FE_DATA_W-1:0] p1_wdata_reg;
     logic [FE_NBYTES-1:0] p1_wstrb_reg;
@@ -109,6 +112,7 @@ module LSU #(
         dcache_pre_valid = 0;
         dcache_vaddr = 0;
         dcache_valid = 0;
+        dcache_instr_pc = 0;
         dcache_addr = 0;
         dcache_wdata = 0;
         dcache_wstrb = 0;
@@ -121,12 +125,14 @@ module LSU #(
                 // store will be block at ex
                 if (cpu_valid & ~cpu_uncached & ~cpu_flush) begin  // Read
                     dcache_valid = cpu_valid;
-                    dcache_addr  = cpu_addr;
+                    dcache_instr_pc = cpu_instr_pc;
+                    dcache_addr = cpu_addr;
                     dcache_wstrb = cpu_wstrb;
                     dcache_wdata = cpu_wdata;
                 end else if (~dcache_ready) begin
                     dcache_valid = p1_valid_reg;
-                    dcache_addr  = p1_addr_reg;
+                    dcache_instr_pc = p1_pc_reg;
+                    dcache_addr = p1_addr_reg;
                     dcache_wstrb = p1_wstrb_reg;
                     dcache_wdata = p1_wdata_reg;
                 end
@@ -173,6 +179,7 @@ module LSU #(
             p1_cpu_store <= 0;
             p1_uncache   <= 0;
             p1_valid_reg <= 0;
+            p1_pc_reg    <= 0;
             p1_addr_reg  <= 0;
             p1_wdata_reg <= 0;
             p1_wstrb_reg <= 0;
@@ -181,6 +188,7 @@ module LSU #(
             p1_cpu_store <= cpu_store;
             p1_uncache   <= cpu_uncached;
             p1_valid_reg <= cpu_valid;
+            p1_pc_reg    <= cpu_instr_pc;
             p1_addr_reg  <= cpu_addr;
             p1_wdata_reg <= cpu_wdata;
             p1_wstrb_reg <= cpu_wstrb;
@@ -189,6 +197,7 @@ module LSU #(
             p1_cpu_store <= 0;
             p1_uncache   <= 0;
             p1_valid_reg <= 0;
+            p1_pc_reg    <= 0;
             p1_addr_reg  <= 0;
             p1_wdata_reg <= 0;
             p1_wstrb_reg <= 0;

@@ -35,6 +35,7 @@ module mem2
 
     logic [`AluOpBus] aluop_i;
     logic mem_load_op;
+    logic access_mem;
     logic [ADDR_WIDTH-1:0] mem_addr;
 
     logic data_already_ok;
@@ -47,6 +48,7 @@ module mem2
 
     assign aluop_i = mem1_i.aluop;
     assign mem_load_op = special_info.mem_load;
+    assign access_mem = special_info.mem_load | special_info.mem_store;
     assign mem_addr = mem1_i.mem_addr;
 
     assign data_forward_o = ~(mem_load_op & mem1_i.mem_access_valid) ? {mem1_i.wreg, 1'b1, mem1_i.waddr, mem1_i.wdata} :
@@ -65,7 +67,7 @@ module mem2
         else if (data_ok) cache_data_delay <= cache_data_i;
     end
 
-    assign advance_ready = (mem_load_op & mem1_i.mem_access_valid & (data_ok | data_already_ok)) | ~(mem_load_op  & mem1_i.mem_access_valid);
+    assign advance_ready = (access_mem & mem1_i.mem_access_valid & (data_ok | data_already_ok)) | ~(access_mem  & mem1_i.mem_access_valid);
 
     always_comb begin
         mem2_o.instr_info = instr_info;
@@ -160,6 +162,7 @@ module mem2
     end
 
 `ifdef SIMU
+    logic [`RegBus] debug_wdata = mem2_o.wdata;
     logic [ADDR_WIDTH-1:0] debug_pc = instr_info.pc;
 `endif
 

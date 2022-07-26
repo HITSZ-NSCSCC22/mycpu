@@ -17,11 +17,12 @@ module dcache
     input logic pre_valid,
     input logic [`RegBus] vaddr,
 
-    //cache与CPU流水线的交互接
-    input logic valid,  //表明请求有效
+    
+    input logic valid,  
+    input logic [`RegBus] pc,
     input logic [`RegBus] addr,
-    input logic [3:0] wstrb,  //写字节使能信号
-    input logic [31:0] wdata,  //写数据
+    input logic [3:0] wstrb,  
+    input logic [31:0] wdata, 
 
     input un_excp,
 
@@ -55,6 +56,7 @@ module dcache
 
     // save the input signal
     logic p3_valid;
+    logic [`RegBus] p3_pc;
     logic [7:0] p3_index;
     logic [19:0] p3_tag;
     logic [3:0] p3_offset;
@@ -112,7 +114,7 @@ module dcache
     logic
         fifo_rreq, fifo_wreq, fifo_r_hit, p2_fifo_r_hit,p3_fifo_r_hit, fifo_w_hit, fifo_axi_wr_req, fifo_w_accept;
     logic [`DataAddrBus] fifo_raddr, fifo_waddr, fifo_axi_wr_addr;
-    logic [DCACHELINE_WIDTH-1:0] fifo_rdata, fifo_wdata, fifo_axi_wr_data;
+    logic [DCACHELINE_WIDTH-1:0] fifo_rdata,p2_fifo_rdata,p3_fifo_rdata, fifo_wdata, fifo_axi_wr_data;
 
     // CACOP
     logic cacop_op_mode0, cacop_op_mode1, cacop_op_mode2, cacop_op_mode2_hit;
@@ -159,6 +161,7 @@ module dcache
         if (rst) begin
             p3_valid <= 0;
             p3_index <= 0;
+            p3_pc <= 0;
             p3_tag <= 0;
             p3_offset <= 0;
             p3_wstrb <= 0;
@@ -174,6 +177,7 @@ module dcache
             // we accept this req and check hit
             if(valid & next_state == IDLE)begin
                 p3_valid <= valid;
+                p3_pc <= pc;
                 p3_index <= addr[11:4];
                 p3_tag <= addr[31:12];
                 p3_offset <= addr[3:0];
@@ -188,6 +192,7 @@ module dcache
             // then we choose the next data
             else if(axi_rvalid_i | axi_bvalid_i)begin
                 p3_valid <= 0;
+                p3_pc <= 0;
                 p3_index <= 0;
                 p3_tag <= 0;
                 p3_offset <= 0;
@@ -200,6 +205,7 @@ module dcache
                 // so we get the p2 data to p3
                 if(valid & p2_save_valid)begin
                     p3_valid <= valid;
+                    p3_pc <= pc;
                     p3_index <= addr[11:4];
                     p3_tag <= addr[31:12];
                     p3_offset <= addr[3:0];
@@ -452,24 +458,27 @@ module dcache
             p2_data_bram_rdata <= 0;
             p2_tag_bram_rdata  <= 0;
             p2_fifo_r_hit <= 0;
+            p2_fifo_rdata <= 0;
             p2_tag_hit <= 0;
-            // if there is a addr,means a new req
+            // if the pc is not equal,means a new req
             // is coming from ex, at this times
             // if the next state is not idle,that means
             // the instr at p3 will block the cache
             // so we have to save the data that 
             // only can keep 1 cycle
-        end else if (addr != 0 & next_state != IDLE) begin
+        end else if (pc != 0 & pc != p3_pc & next_state != IDLE) begin
             p2_save_valid <= 1'b1;
             p2_data_bram_rdata <= data_bram_rdata;
             p2_tag_bram_rdata  <= tag_bram_rdata;
             p2_fifo_r_hit <= fifo_r_hit;
+            p2_fifo_rdata <= fifo_rdata;
             p2_tag_hit <= tag_hit;
         end else begin
             p2_save_valid <= 0;
             p2_data_bram_rdata <= 0;
             p2_tag_bram_rdata  <= 0;
             p2_fifo_r_hit <= 0;
+            p2_fifo_rdata <=0;
             p2_tag_hit <= 0;
         end
     end
@@ -578,8 +587,8 @@ module dcache
                     // then rewrite the cacheline in the fifo 
                     if (p3_fifo_r_hit & cpu_wreq) begin
                         fifo_wreq  <= 1;
-                        fifo_waddr <= fifo_raddr;
-                        fifo_wdata <= fifo_rdata;
+                        fifo_waddr <= cpu_addr;
+                        fifo_wdata <= p3_fifo_rdata;
                         case (cpu_addr[3:2])
                             2'b00: fifo_wdata[31:0] <= fifo_wreq_sel_data;
                             2'b01: fifo_wdata[63:32] <= fifo_wreq_sel_data;
@@ -596,7 +605,7 @@ module dcache
                             if (i[0] == random_r[0] & p3_tag_bram_rdata[i][21] == 1'b1 & !fifo_state[1]) begin
                                 fifo_wreq  <= 1;
                                 fifo_waddr <= {p3_tag_bram_rdata[i][19:0], p3_index, 4'b0};
-                                fifo_wdata <= data_bram_rdata[i];
+                                fifo_wdata <= p3_data_bram_rdata[i];
                             end
                         end
                     end
@@ -659,26 +668,30 @@ module dcache
             p3_tag_bram_rdata <= 0;
             p3_data_bram_rdata <= 0;
             p3_fifo_r_hit <= 0;
+            p3_fifo_rdata <= 0;
             p3_tag_hit <= 0;
         end else begin
             // not block now,use the read data
             if (state == IDLE) begin
                 p3_tag_bram_rdata  <= tag_bram_rdata;
                 p3_data_bram_rdata <= data_bram_rdata;
-                p3_fifo_r_hit <= p2_fifo_r_hit;
-                p3_tag_hit <= p2_tag_hit;
+                p3_fifo_r_hit <= fifo_r_hit;
+                p3_fifo_rdata <= fifo_rdata;
+                p3_tag_hit <= tag_hit;
                 // block finish,use the buffer data
             end else if (axi_rvalid_i) begin
                 p3_tag_bram_rdata  <= p2_tag_bram_rdata;
                 p3_data_bram_rdata <= p2_data_bram_rdata;
                 p3_tag_hit <= p2_tag_hit;
                 p3_fifo_r_hit <= p2_fifo_r_hit;
+                p3_fifo_rdata <= p2_fifo_rdata;
                 //blocking now,keep data
             end else begin
                 p3_tag_bram_rdata  <= p3_tag_bram_rdata;
                 p3_data_bram_rdata <= p3_data_bram_rdata;
                 p3_tag_hit <= p3_tag_hit;
                 p3_fifo_r_hit <= p3_fifo_r_hit;
+                p3_fifo_rdata <= p3_fifo_rdata;
             end
         end
     end
@@ -719,43 +732,22 @@ module dcache
     // P3 state
     // if hit , then we return data to mem2
     logic [DCACHELINE_WIDTH-1:0] hit_data;
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            hit <= 0;
-            hit_data <= 0;
-            // if p2 save valid is 1'b1,means the instr before it block
-            // the cache,so the fifo hit and tag hit has lost,we have to
-            // use the data we save at the block time
-        end else if(p2_save_valid)begin
-            if (p2_fifo_r_hit | p2_tag_hit[0] | p2_tag_hit[1]) begin
-                hit <= 1;
-                for (integer i = 0; i < NWAY; i++) begin
-                    if (p2_tag_hit[i]) begin
-                        hit_data <= p2_data_bram_rdata[i];
-                    end
-                end
-                if (p2_fifo_r_hit) begin
-                    hit_data <= fifo_rdata;
-                end
-            end else begin
-                hit <= 0;
-                hit_data <= 0;
+    always_comb begin
+        hit = 0;
+        hit_data = 0;
+        if (p3_fifo_r_hit | p3_tag_hit[0] | p3_tag_hit[1]) begin
+            hit = 1;
+            for (integer i = 0; i < NWAY; i++) begin
+                if (p3_tag_hit[i]) begin
+                    hit_data = p3_data_bram_rdata[i];
+                   end
+            end
+            if (p3_fifo_r_hit) begin
+                hit_data = fifo_rdata;
             end
         end else begin
-            if (fifo_r_hit | tag_hit[0] | tag_hit[1]) begin
-                hit <= 1;
-                for (integer i = 0; i < NWAY; i++) begin
-                    if (tag_hit[i]) begin
-                        hit_data <= data_bram_rdata[i];
-                    end
-                end
-                if (fifo_r_hit) begin
-                    hit_data <= fifo_rdata;
-                end
-            end else begin
-                hit <= 0;
-                hit_data <= 0;
-            end
+            hit = 0;
+            hit_data = 0;
         end
     end
 
