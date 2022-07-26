@@ -473,13 +473,20 @@ module dcache
             p2_fifo_r_hit <= fifo_r_hit;
             p2_fifo_rdata <= fifo_rdata;
             p2_tag_hit <= tag_hit;
-        end else begin
+        end else if(next_state == IDLE)begin
             p2_save_valid <= 0;
             p2_data_bram_rdata <= 0;
             p2_tag_bram_rdata  <= 0;
             p2_fifo_r_hit <= 0;
-            p2_fifo_rdata <=0;
+            p2_fifo_rdata <= 0;
             p2_tag_hit <= 0;
+        end else begin
+            p2_save_valid <= p2_save_valid;
+            p2_data_bram_rdata <= p2_data_bram_rdata;
+            p2_tag_bram_rdata  <= p2_tag_bram_rdata;
+            p2_fifo_r_hit <= p2_fifo_r_hit;
+            p2_fifo_rdata <= p2_fifo_rdata;
+            p2_tag_hit <= p2_tag_hit;
         end
     end
 

@@ -210,6 +210,8 @@ module cpu_top
     csr_to_mem_struct csr_mem_signal;
     tlb_to_mem_struct tlb_mem_signal;
 
+    wb_llbit_t mem2_mem1_llbit[2], wb_mem1_llbit[2];
+
     // CSR signals
     logic excp_flush;
     logic ertn_flush;
@@ -757,6 +759,9 @@ module cpu_top
                 // <- TLB
                 .tlb_result_i(tlb_data_result),
 
+                .mem2_llbit_i(mem2_mem1_llbit[0]),
+                .wb_llbit_i  (wb_mem1_llbit[0]),
+
                 // <- CSR
                 .LLbit_i(LLbit_o),
                 .csr_plv(csr_plv),
@@ -789,6 +794,8 @@ module cpu_top
                 // Next stage
                 .mem2_o_buffer(mem2_wb_signal[i]),
 
+                .mem2_llbit_o(mem2_mem1_llbit[i]),
+
                 // -> Dispatch, data forward
                 .data_forward_o(mem2_data_forward[i]),
 
@@ -820,6 +827,8 @@ module cpu_top
                 // -> DCache
                 .dcache_flush_o(wb_dcache_flush[i]),
                 .dcache_store_commit_o(dcache_store_commit[i]),
+
+                .wb_llbit_o(wb_mem1_llbit[i]),
 
                 // -> Dispatch
                 .data_forward_o(wb_data_forward[i]),

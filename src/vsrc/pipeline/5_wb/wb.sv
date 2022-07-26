@@ -21,6 +21,8 @@ module wb
     // load store relate difftest
     output wb_ctrl_struct wb_ctrl_signal,
 
+    output wb_llbit_t wb_llbit_o,
+
     // <- Dispatch
     output data_forward_t data_forward_o,
 
@@ -67,6 +69,8 @@ module wb
 
     assign data_forward_o = {mem_i.wreg, 1'b1, mem_i.waddr, mem_i.wdata};
 
+    assign wb_llbit_o.we = mem_i.LLbit_we;
+    assign wb_llbit_o.value = mem_i.LLbit_value;
 
     always @(posedge clk) begin
         if (rst) begin

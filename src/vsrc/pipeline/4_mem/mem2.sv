@@ -22,6 +22,9 @@ module mem2
     input logic data_ok,
     input logic [`RegBus] cache_data_i,
 
+    // <- Mem1
+    output wb_llbit_t mem2_llbit_o,
+
     // Dispatch
     output data_forward_t data_forward_o,
     // Next stage
@@ -68,6 +71,9 @@ module mem2
     end
 
     assign advance_ready = (access_mem & mem1_i.mem_access_valid & (data_ok | data_already_ok)) | ~(access_mem  & mem1_i.mem_access_valid);
+
+    assign mem2_llbit_o.we = mem1_i.LLbit_we;
+    assign mem2_llbit_o.value = mem1_i.LLbit_value;
 
     always_comb begin
         mem2_o.instr_info = instr_info;

@@ -37,6 +37,8 @@ module mem1
     // -> EX
     output data_forward_t data_forward_o,
 
+    input wb_llbit_t mem2_llbit_i,
+    input wb_llbit_t wb_llbit_i,
 
     input [1:0] csr_plv,
 
@@ -79,6 +81,8 @@ module mem1
     logic [15:0] excp_num;
 
     logic uncache_en;
+
+    logic llbit, llbit_last;
 
     assign instr_info = ex_i.instr_info;
     assign special_info = ex_i.instr_info.special_info;
@@ -160,6 +164,18 @@ module mem1
     // Sanity check
     assign mem_access_valid = instr_info.valid;  //~excp & instr_info.valid;
 
+    //llbit assign 
+    // used to keep llbit 
+    always_ff @(posedge clk) begin
+        if (rst) llbit_last <= 0;
+        else llbit_last <= llbit;
+    end
+
+    always_comb begin
+        llbit = llbit_last;
+        if (wb_llbit_i.we) llbit = wb_llbit_i.value;
+        if (mem2_llbit_i.we) llbit = mem2_llbit_i.value;
+    end
 
     // DCache memory access request
     always_comb begin
@@ -211,7 +227,7 @@ module mem1
                     dcache_rreq_o.req_type = 3'b010;
                 end
                 `EXE_SC_OP: begin
-                    if (LLbit_i == 1'b1) begin
+                    if (llbit == 1'b1) begin
                         dcache_rreq_o.addr = mem_paddr;
                         dcache_rreq_o.we = 1;
                         dcache_rreq_o.req_type = 3'b010;
@@ -257,7 +273,7 @@ module mem1
                     mem2_o.LLbit_value = 1'b1;
                 end
                 `EXE_SC_OP: begin
-                    if (LLbit_i == 1'b1) begin
+                    if (llbit == 1'b1) begin
                         mem2_o.LLbit_we = 1'b1;
                         mem2_o.LLbit_value = 1'b0;
                         mem2_o.wreg = 1;
