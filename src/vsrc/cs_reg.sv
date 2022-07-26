@@ -110,7 +110,7 @@ module cs_reg
     logic tlbrd_invalid_wr_en;
     logic no_forward;
 
-    //选择有写入信号的进行赋值，同样假设不会有写冲突
+
     logic we;
     logic [13:0] waddr;
     logic [`RegBus] wdata;
@@ -137,7 +137,7 @@ module cs_reg
 
     //data to fronted
     assign tlbrentry_out = csr_tlbrentry;
-    assign no_forward   = !excp_tlbrefill && !(eret_tlbrefill_excp && ertn_flush) && !(we == 1'b1 && waddr == `CRMD);
+    assign no_forward = !excp_tlbrefill && !(eret_tlbrefill_excp && ertn_flush);
 
     assign pg_out = excp_tlbrefill & 1'b0  |
                 (eret_tlbrefill_excp && ertn_flush) & 1'b1 |
@@ -508,9 +508,6 @@ module cs_reg
             csr_tlbrentry[`TLBRENTRY_PA] <= wdata[`TLBRENTRY_PA];
     end
 
-    logic x, y;
-    assign x = wdata[`PLV0];
-    assign y = csr_dmw0[`PLV0];
     //dmw0
     always @(posedge clk) begin
         if (rst) begin

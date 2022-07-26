@@ -100,14 +100,17 @@ module dcache
     logic [ `RegBus]  cpu_addr;
     logic miss_pulse, miss;
     logic hit;
-    logic [NWAY-1:0] tag_hit, p3_tag_hit;
+    logic [NWAY-1:0] tag_hit, p2_tag_hit, p3_tag_hit;
+
+    //if it is 1'b1,means that we should use p2_ data 
+    logic p2_save_valid;
 
     assign cpu_addr = {p3_tag, p3_index, p3_offset};
 
 
     logic [1:0] fifo_state;
     logic
-        fifo_rreq, fifo_wreq, fifo_r_hit, p3_fifo_r_hit, fifo_w_hit, fifo_axi_wr_req, fifo_w_accept;
+        fifo_rreq, fifo_wreq, fifo_r_hit, p2_fifo_r_hit,p3_fifo_r_hit, fifo_w_hit, fifo_axi_wr_req, fifo_w_accept;
     logic [`DataAddrBus] fifo_raddr, fifo_waddr, fifo_axi_wr_addr;
     logic [DCACHELINE_WIDTH-1:0] fifo_rdata, fifo_wdata, fifo_axi_wr_data;
 
@@ -166,43 +169,61 @@ module dcache
             // if the next state is idle,that means the
             // instr in p3 will not stall the cache
             // so we can change the p3 regs
-        end else if (valid & next_state == IDLE) begin
-            p3_valid <= valid;
-            p3_index <= addr[11:4];
-            p3_tag <= addr[31:12];
-            p3_offset <= addr[3:0];
-            p3_wstrb <= wstrb;
-            p3_wdata <= wdata;
-            cacop_buffer <= cacop_i;
-            cacop_mode_buffer <= cacop_mode_i;
-            cacop_addr_buffer <= cacop_addr_i;
-            // if the next state is not idle which means not hit
-            // we need to stall the cache and wait for req
-            // so we keep p3 regs not change
-        end else if (next_state != IDLE) begin
-            p3_valid <= p3_valid;
-            p3_index <= p3_index;
-            p3_tag <= p3_tag;
-            p3_offset <= p3_offset;
-            p3_wstrb <= p3_wstrb;
-            p3_wdata <= p3_wdata;
-            cacop_buffer <= cacop_buffer;
-            cacop_mode_buffer <= cacop_mode_buffer;
-            cacop_addr_buffer <= cacop_addr_buffer;
-            // other suitation:cache hit and not new req come
-            // so we put p3 regs back to zero
         end else begin
-            p3_valid <= 0;
-            p3_index <= 0;
-            p3_tag <= 0;
-            p3_offset <= 0;
-            p3_wstrb <= 0;
-            p3_wdata <= 0;
-            cacop_buffer <= 0;
-            cacop_mode_buffer <= 0;
-            cacop_addr_buffer <= 0;
+            // when a new req come and the cache is idle
+            // we accept this req and check hit
+            if(valid & next_state == IDLE)begin
+                p3_valid <= valid;
+                p3_index <= addr[11:4];
+                p3_tag <= addr[31:12];
+                p3_offset <= addr[3:0];
+                p3_wstrb <= wstrb;
+                p3_wdata <= wdata;
+                cacop_buffer <= cacop_i;
+                cacop_mode_buffer <= cacop_mode_i;
+                cacop_addr_buffer <= cacop_addr_i; 
+            end
+            // if there is a valid from the axi,
+            // we clear the p3 data first
+            // then we choose the next data
+            else if(axi_rvalid_i | axi_bvalid_i)begin
+                p3_valid <= 0;
+                p3_index <= 0;
+                p3_tag <= 0;
+                p3_offset <= 0;
+                p3_wstrb <= 0;
+                p3_wdata <= 0;
+                cacop_buffer <= 0;
+                cacop_mode_buffer <= 0;
+                cacop_addr_buffer <= 0;
+                // p2 valid means there is a instr after it
+                // so we get the p2 data to p3
+                if(valid & p2_save_valid)begin
+                    p3_valid <= valid;
+                    p3_index <= addr[11:4];
+                    p3_tag <= addr[31:12];
+                    p3_offset <= addr[3:0];
+                    p3_wstrb <= wstrb;
+                    p3_wdata <= wdata;
+                    cacop_buffer <= cacop_i;
+                    cacop_mode_buffer <= cacop_mode_i;
+                    cacop_addr_buffer <= cacop_addr_i; 
+                end
+                // keep the p3 data wait for axi valid
+            end else begin
+                p3_valid <= p3_valid;
+                p3_index <= p3_index;
+                p3_tag <= p3_tag;
+                p3_offset <= p3_offset;
+                p3_wstrb <= p3_wstrb;
+                p3_wdata <= p3_wdata;
+                cacop_buffer <= cacop_buffer;
+                cacop_mode_buffer <= cacop_mode_buffer;
+                cacop_addr_buffer <= cacop_addr_buffer;
+            end
         end
     end
+        
 
     //  the wstrb is not 0 means it is a write request;
     assign cpu_wreq = p3_wstrb != 4'b0;
@@ -216,7 +237,7 @@ module dcache
                     // if write hit,then turn to write idle
                     // if write miss,then wait for read
                     if (cpu_wreq) begin
-                        if (miss) next_state = WRITE_REQ;
+                        if (miss) next_state = UNHIT_WAIT;
                         else next_state = IDLE;
                     end  // if hit,then back,if miss then wait for read
                     else begin
@@ -226,8 +247,11 @@ module dcache
                 end else next_state = IDLE;
             end
             UNHIT_WAIT: begin
-                // if not excp then send the read req
-                if (un_excp) next_state = READ_REQ;
+                // if not excp then send the req
+                if (un_excp) begin
+                    if(cpu_wreq)next_state = WRITE_REQ;
+                    else next_state = READ_REQ;
+                end
                 // if load excp then flush back
                 else
                     next_state = IDLE;
@@ -246,7 +270,7 @@ module dcache
                 else next_state = READ_WAIT;
             end
             WRITE_REQ: begin
-                // If AXI is ready and write missthen write req is accept this cycle,and wait until rdata ret
+                // If AXI is ready and write miss then write req is accept this cycle,and wait until rdata ret
                 // If flushed, back to IDLE
                 // if AXi is not ready,then wait until it ready and sent the read req
                 if (axi_rdy_i) next_state = WRITE_WAIT;
@@ -424,14 +448,29 @@ module dcache
 
     always_ff @(posedge clk) begin
         if (rst) begin
+            p2_save_valid <= 0;
             p2_data_bram_rdata <= 0;
             p2_tag_bram_rdata  <= 0;
-        end else if (next_state != IDLE) begin
+            p2_fifo_r_hit <= 0;
+            p2_tag_hit <= 0;
+            // if there is a addr,means a new req
+            // is coming from ex, at this times
+            // if the next state is not idle,that means
+            // the instr at p3 will block the cache
+            // so we have to save the data that 
+            // only can keep 1 cycle
+        end else if (addr != 0 & next_state != IDLE) begin
+            p2_save_valid <= 1'b1;
             p2_data_bram_rdata <= data_bram_rdata;
             p2_tag_bram_rdata  <= tag_bram_rdata;
+            p2_fifo_r_hit <= fifo_r_hit;
+            p2_tag_hit <= tag_hit;
         end else begin
+            p2_save_valid <= 0;
             p2_data_bram_rdata <= 0;
             p2_tag_bram_rdata  <= 0;
+            p2_fifo_r_hit <= 0;
+            p2_tag_hit <= 0;
         end
     end
 
@@ -626,14 +665,20 @@ module dcache
             if (state == IDLE) begin
                 p3_tag_bram_rdata  <= tag_bram_rdata;
                 p3_data_bram_rdata <= data_bram_rdata;
+                p3_fifo_r_hit <= p2_fifo_r_hit;
+                p3_tag_hit <= p2_tag_hit;
                 // block finish,use the buffer data
-            end else if (next_state == IDLE) begin
+            end else if (axi_rvalid_i) begin
                 p3_tag_bram_rdata  <= p2_tag_bram_rdata;
                 p3_data_bram_rdata <= p2_data_bram_rdata;
+                p3_tag_hit <= p2_tag_hit;
+                p3_fifo_r_hit <= p2_fifo_r_hit;
                 //blocking now,keep data
             end else begin
                 p3_tag_bram_rdata  <= p3_tag_bram_rdata;
                 p3_data_bram_rdata <= p3_data_bram_rdata;
+                p3_tag_hit <= p3_tag_hit;
+                p3_fifo_r_hit <= p3_fifo_r_hit;
             end
         end
     end
@@ -651,6 +696,8 @@ module dcache
                 end
                 READ_WAIT, WRITE_WAIT: begin
                     if (axi_rvalid_i) miss <= 0;
+                    if (p2_save_valid)
+                        miss <= ~(p2_tag_hit[0] | p2_tag_hit[1] | p2_fifo_r_hit) & (next_state == IDLE);
                 end
                 default: begin
                 end
@@ -676,6 +723,24 @@ module dcache
         if (rst) begin
             hit <= 0;
             hit_data <= 0;
+            // if p2 save valid is 1'b1,means the instr before it block
+            // the cache,so the fifo hit and tag hit has lost,we have to
+            // use the data we save at the block time
+        end else if(p2_save_valid)begin
+            if (p2_fifo_r_hit | p2_tag_hit[0] | p2_tag_hit[1]) begin
+                hit <= 1;
+                for (integer i = 0; i < NWAY; i++) begin
+                    if (p2_tag_hit[i]) begin
+                        hit_data <= p2_data_bram_rdata[i];
+                    end
+                end
+                if (p2_fifo_r_hit) begin
+                    hit_data <= fifo_rdata;
+                end
+            end else begin
+                hit <= 0;
+                hit_data <= 0;
+            end
         end else begin
             if (fifo_r_hit | tag_hit[0] | tag_hit[1]) begin
                 hit <= 1;
