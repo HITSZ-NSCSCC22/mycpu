@@ -88,7 +88,7 @@ module tagged_predictor
     // Query logic
     ////////////////////////////////////////////////////////////////////////////////////////////
     // query_index is Fold(GHR) ^ PC[low] ^ PC[high]
-    assign query_index = pc_i[2+:PHT_ADDR_WIDTH] ^ pc_i[2+PHT_ADDR_WIDTH+:PHT_ADDR_WIDTH] ^ hashed_ght_input;
+    assign query_index = pc_i[0+:PHT_ADDR_WIDTH] ^ pc_i[0+PHT_ADDR_WIDTH+:PHT_ADDR_WIDTH] ^ hashed_ght_input;
     // query_tag is XORed from pc_i
     // assign query_tag = pc_i[31:31-PHT_TAG_WIDTH+1];
     assign query_tag = pc_i[2+:PHT_TAG_WIDTH] ^ tag_hash_csr1 ^ {tag_hash_csr2, 1'b0};

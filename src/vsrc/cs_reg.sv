@@ -132,6 +132,8 @@ module cs_reg
     logic [31:0] pmu_bpu_indirect_miss;
     logic [31:0] pmu_tlb_req;
     logic [31:0] pmu_tlb_miss;
+    logic [31:0] pmu_tlb_refill_cyc;
+    logic pmu_tlb_refilling;
     logic [31:0] pmu_rdata;
 
     logic llbit;
@@ -200,6 +202,11 @@ module cs_reg
 
     // PMU
     always_ff @(posedge clk) begin
+        if (rst) pmu_tlb_refilling <= 0;
+        else if (excp_tlbrefill) pmu_tlb_refilling <= 1;
+        else if (ertn_flush) pmu_tlb_refilling <= 0;
+    end
+    always_ff @(posedge clk) begin
         if (rst) begin
             pmu_ib_full <= 0;
             pmu_dispatch_backend_nop <= 0;
@@ -222,6 +229,7 @@ module cs_reg
             pmu_bpu_indirect_miss <= 0;
             pmu_tlb_req <= 0;
             pmu_tlb_miss <= 0;
+            pmu_tlb_refill_cyc <= 0;
         end else begin
             pmu_ib_full <= pmu_ib_full + pmu_in.ib_full;
             pmu_dispatch_backend_nop <= pmu_dispatch_backend_nop + pmu_in.dispatch_backend_nop;
@@ -244,6 +252,7 @@ module cs_reg
             pmu_bpu_indirect_miss <= pmu_bpu_indirect_miss + pmu_in.bpu_indirect_miss;
             pmu_tlb_req <= pmu_tlb_req + pmu_in.tlb_req;
             pmu_tlb_miss <= pmu_tlb_miss + pmu_in.tlb_miss;
+            pmu_tlb_refill_cyc <= pmu_tlb_refill_cyc + pmu_tlb_refilling;
         end
 
     end
@@ -267,7 +276,8 @@ module cs_reg
                         {32{raddr == `PMU_BPU_INDIRECT_BRANCH}} & pmu_bpu_indirect_branch |
                         {32{raddr == `PMU_BPU_INDIRECT_MISS}} & pmu_bpu_indirect_miss |
                         {32{raddr == `PMU_TLB_REQ}} & pmu_tlb_req |
-                        {32{raddr == `PMU_TLB_MISS}} & pmu_tlb_miss
+                        {32{raddr == `PMU_TLB_MISS}} & pmu_tlb_miss | 
+                        {32{raddr == `PMU_TLB_REFILL_CYC}} & pmu_tlb_refill_cyc 
                         ;
 
     assign rdata = {32{raddr == `CRMD  }}  & csr_crmd    |

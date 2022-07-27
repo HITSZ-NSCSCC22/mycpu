@@ -130,6 +130,7 @@
 `define PMU_BPU_INDIRECT_MISS 14'h227
 `define PMU_TLB_REQ 14'h230
 `define PMU_TLB_MISS 14'h231
+`define PMU_TLB_REFILL_CYC 14'h232
 
 //error code
 `define ECODE_INT 6'h0
