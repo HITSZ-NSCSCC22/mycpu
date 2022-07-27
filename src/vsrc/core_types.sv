@@ -37,6 +37,7 @@ package core_types;
         logic is_taken;
         // Comes from BPU
         logic predicted_taken;
+        logic predict_valid;  // BPU performance measurement
         // Difftest only
         logic csr_rstat;
     } special_info_t;

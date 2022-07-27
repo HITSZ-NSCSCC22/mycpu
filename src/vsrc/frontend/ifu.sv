@@ -19,7 +19,7 @@ module ifu
 
 
     // <-> Fetch Target Queue
-    input ftq_ifu_t ftq_i,
+    input ftq_block_t ftq_i,
     input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_id_i,
     output logic ftq_accept_o,  // In current cycle
 
@@ -48,12 +48,12 @@ module ifu
     logic p0_advance, p1_advance, p2_advance;
     // P1 signal
     logic p1_send_rreq, p1_send_rreq_delay1;
-    ftq_ifu_t p1_ftq_block;
+    ftq_block_t p1_ftq_block;
     // P2 signal
     logic p2_read_done;  // Read done is same cycle as ICache return valid
     logic p2_rreq_ack;  // Read request is accepted by ICache
     logic p2_in_transaction;  // Currently in transaction and not done yet
-    ftq_ifu_t p2_ftq_block;
+    ftq_block_t p2_ftq_block;
     // Flush state
     logic is_flushing_r;
 
@@ -93,7 +93,7 @@ module ifu
     ////////////////////////////////////////////////////////////////////////////////
     // P1 data structure
     typedef struct packed {
-        ftq_ifu_t ftq_block;
+        ftq_block_t ftq_block;
         logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_id;
         inst_tlb_t tlb_rreq;
         ifu_csr_t csr;
@@ -188,7 +188,7 @@ module ifu
         logic uncached;
         logic excp;
         logic [15:0] excp_num;
-        ftq_ifu_t ftq_block;
+        ftq_block_t ftq_block;
         logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_id;
         logic [1:0] icache_rreq_ack_r;
         logic [1:0] icache_rvalid_r;
@@ -294,6 +294,7 @@ module ifu
                         // 1. prediction valid
                         // 2. no TLBR or other exception detected
                         instr_buffer_o[i].special_info.predicted_taken <= p2_read_transaction.excp ? 0 : p2_ftq_block.predicted_taken;
+                        instr_buffer_o[i].special_info.predict_valid <= p2_read_transaction.excp ? 0 : p2_ftq_block.predict_valid;
                     end
                     instr_buffer_o[i].valid <= 1;
                     instr_buffer_o[i].pc <= p2_ftq_block.start_pc + i * 4;  // Instr is 4 bytes long

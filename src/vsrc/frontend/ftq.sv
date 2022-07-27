@@ -15,8 +15,8 @@ module ftq
     input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_flush_ftq_id_i,
 
     // <-> BPU
-    input bpu_ftq_t bpu_p0_i,
-    input bpu_ftq_t bpu_p1_i,
+    input ftq_block_t bpu_p0_i,
+    input ftq_block_t bpu_p1_i,
     input bpu_ftq_meta_t bpu_meta_i,
     input logic main_bpu_redirect_i,
     output logic bpu_queue_full_o,
@@ -38,7 +38,7 @@ module ftq
     output logic [ADDR_WIDTH-1:0] ex_query_pc_o,
 
     // <-> IFU
-    output ftq_ifu_t ifu_o,
+    output ftq_block_t ifu_o,
     output logic ifu_frontend_redirect_o,
     output [$clog2(FRONTEND_FTQ_SIZE)-1:0] ifu_ftq_id_o,
     input logic ifu_accept_i  // Must return in the same cycle

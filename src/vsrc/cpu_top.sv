@@ -272,6 +272,7 @@ module cpu_top
     assign pmu_data.ib_full = ib_frontend_stallreq;
     assign pmu_data.ib_empty = u_instr_buffer.write_ptr == u_instr_buffer.read_ptr;
     assign pmu_data.bpu_branch_instr = backend_commit_meta.is_branch;
+    assign pmu_data.bpu_valid = ex[0].u_ex.special_info.predict_valid & ex[0].u_ex.advance;
     assign pmu_data.bpu_miss = ex_redirect[0];
     assign pmu_data.bpu_conditional_branch = backend_commit_meta.is_conditional;
     assign pmu_data.bpu_conditional_miss = backend_commit_meta.is_conditional & (backend_commit_meta.is_taken ^ backend_commit_meta.predicted_taken);

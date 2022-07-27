@@ -73,8 +73,8 @@ module frontend
     assign sequential_pc = pc + 4 * bpu_p0_ftq_block.length;
 
     // BPU
-    bpu_ftq_t bpu_p0_ftq_block;
-    bpu_ftq_t bpu_p1_ftq_block;
+    ftq_block_t bpu_p0_ftq_block;
+    ftq_block_t bpu_p1_ftq_block;
     bpu_ftq_meta_t bpu_ftq_meta;
     ftq_bpu_meta_t ftq_bpu_meta;
 
@@ -123,7 +123,7 @@ module frontend
     );
 
 
-    ftq_ifu_t ftq_ifu_block;
+    ftq_block_t ftq_ifu_block;
     logic ifu_frontend_redirect;
     logic ifu_ftq_accept;
     logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_ifu_id;

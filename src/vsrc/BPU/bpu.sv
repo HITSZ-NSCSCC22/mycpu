@@ -28,8 +28,8 @@ module bpu
     // Predict
     input [ADDR_WIDTH-1:0] pc_i,
     input logic ftq_full_i,
-    output bpu_ftq_t ftq_p0_o,
-    output bpu_ftq_t ftq_p1_o,
+    output ftq_block_t ftq_p0_o,
+    output ftq_block_t ftq_p1_o,
     output bpu_ftq_meta_t ftq_meta_o,
     // Train
     input ftq_bpu_meta_t ftq_meta_i,
@@ -83,6 +83,7 @@ module bpu
             // If cross page, length will be cut, so ensures no cacheline cross
             ftq_p0_o.is_cross_cacheline = (pc_i[3:2] != 2'b00) & ~is_cross_page;
             ftq_p0_o.predicted_taken = 0;
+            ftq_p0_o.predict_valid = 0;
         end
     end
 
@@ -103,6 +104,7 @@ module bpu
             ftq_p1_o.length = ftb_entry.fall_through_address[2+$clog2(FETCH_WIDTH):2] -
                 p1_pc[2+$clog2(FETCH_WIDTH):2];  // Use 3bit minus to ensure no overflow
             ftq_p1_o.predicted_taken = predict_taken;
+            ftq_p1_o.predict_valid = 1;
         end else begin
             ftq_p1_o = 0;
         end
