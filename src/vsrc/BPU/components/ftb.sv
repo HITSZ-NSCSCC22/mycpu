@@ -31,7 +31,7 @@ module ftb
     /////////////////////////////////////////////////////////////////////////////////////////
     logic [FTB_DEPTH_WIDTH-1:0] query_index;
     logic [ADDR_WIDTH-FTB_DEPTH_WIDTH-3:0] query_tag_buffer;
-    assign query_index = query_pc_i[FTB_DEPTH_WIDTH+1:2];
+    assign query_index = query_pc_i[2+:FTB_DEPTH_WIDTH];
     always_ff @(posedge clk) begin
         query_tag_buffer <= query_pc_i[ADDR_WIDTH-1:FTB_DEPTH_WIDTH+2];
     end

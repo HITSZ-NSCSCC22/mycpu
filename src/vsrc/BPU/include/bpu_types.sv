@@ -60,7 +60,7 @@ package bpu_types;
         logic [ADDR_WIDTH-1:0] start_pc;
         logic [ADDR_WIDTH-1:0] jump_target_address;
         logic [ADDR_WIDTH-1:0] fall_through_address;
-    } ftq_bpu_meta_t  /*verilator public*/;
+    } ftq_bpu_meta_t;
 
     typedef struct packed {
         logic valid;

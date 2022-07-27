@@ -52,6 +52,7 @@ module ftq
     logic queue_full;
     logic queue_full_delay;
     logic ifu_send_req, ifu_send_req_delay;
+    logic main_bpu_redirect_delay;
     logic main_bpu_redirect_modify_ftq;
     logic ifu_frontend_redirect, ifu_frontend_redirect_delay;
 
@@ -76,14 +77,15 @@ module ftq
 
     // IFU sent rreq
     assign ifu_send_req = FTQ[ifu_ptr].valid & ifu_accept_i;
-    assign main_bpu_redirect_modify_ftq = bpu_p1_i.valid & ~queue_full_delay;
-    assign ifu_frontend_redirect = (bpu_ptr == PTR_WIDTH'(ifu_ptr + 1)) & main_bpu_redirect_modify_ftq & (ifu_send_req_delay|ifu_send_req);
+    assign main_bpu_redirect_modify_ftq = bpu_p1_i.valid;
+    assign ifu_frontend_redirect = (bpu_ptr == PTR_WIDTH'(ifu_ptr + PTR_WIDTH'(1))) & main_bpu_redirect_modify_ftq & (ifu_send_req_delay|ifu_send_req);
     // Queue full
     assign queue_full = (bpu_ptr_plus1 == comm_ptr);
     always_ff @(posedge clk) begin
         queue_full_delay <= queue_full;
         ifu_send_req_delay <= ifu_send_req;
         ifu_frontend_redirect_delay <= ifu_frontend_redirect;
+        main_bpu_redirect_delay <= main_bpu_redirect_i;
     end
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -119,7 +121,7 @@ module ftq
             // BPU ptr
             if (bpu_p0_i.valid) bpu_ptr <= bpu_ptr + 1;
             // P1 redirect, maintain bpu_ptr;
-            if (main_bpu_redirect_i & ~queue_full_delay) bpu_ptr <= bpu_ptr;
+            if (main_bpu_redirect_i) bpu_ptr <= bpu_ptr;
 
             // If backend redirect triggered, back to the next block of the redirect block
             // backend may continue to commit older block
@@ -144,7 +146,7 @@ module ftq
         // P0
         if (bpu_p0_i.valid) next_FTQ[bpu_ptr] = bpu_p0_i;
         // P1
-        if (bpu_p1_i.valid & ~queue_full_delay)  // If last cycle accepted P0 input
+        if (bpu_p1_i.valid & ~main_bpu_redirect_delay)  // If last cycle accepted P0 input
             next_FTQ[PTR_WIDTH'(bpu_ptr-1)] = bpu_p1_i;
         else if (bpu_p1_i.valid)  // Else no override
             next_FTQ[bpu_ptr] = bpu_p1_i;
@@ -160,11 +162,7 @@ module ftq
 
     // Output
     // -> IFU
-    assign ifu_o.valid = FTQ[ifu_ptr].valid;
-    assign ifu_o.is_cross_cacheline = FTQ[ifu_ptr].is_cross_cacheline;
-    assign ifu_o.start_pc = FTQ[ifu_ptr].start_pc;
-    assign ifu_o.length = FTQ[ifu_ptr].length;
-    assign ifu_o.predicted_taken = FTQ[ifu_ptr].predicted_taken;
+    assign ifu_o = FTQ[ifu_ptr];
     // Trigger a IFU flush when:
     // 1. last cycle send rreq to IFU
     // 2. main BPU redirect had modified the FTQ contents
@@ -215,7 +213,7 @@ module ftq
         if (bpu_p0_i.valid) begin  // If not provided by BPU, clear meta
             FTQ_meta[bpu_ptr] <= 0;
         end
-        if (bpu_p1_i.valid & ~queue_full_delay) begin  // If last cycle accepted P0 input
+        if (bpu_p1_i.valid & ~main_bpu_redirect_delay) begin  // If last cycle accepted P0 input
             FTQ_meta[PTR_WIDTH'(bpu_ptr-1)] <= 0;
             FTQ_meta[PTR_WIDTH'(bpu_ptr-1)].ftb_hit <= bpu_meta_i.ftb_hit;
             FTQ_meta[PTR_WIDTH'(bpu_ptr-1)].bpu_meta <= bpu_meta_i.bpu_meta;

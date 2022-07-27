@@ -36,7 +36,7 @@ package core_config;
         130
     };
     // FTB
-    parameter integer FTB_DEPTH = 65536;
+    parameter integer FTB_DEPTH = 4096;
 
     parameter DECODE_WIDTH = 2;
     parameter ISSUE_WIDTH = 2;

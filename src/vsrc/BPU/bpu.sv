@@ -54,9 +54,10 @@ module bpu
     // TAGE
     logic predict_taken, predict_valid;
 
-    logic flush_delay;
+    logic flush_delay, ftq_full_delay;
     always_ff @(posedge clk) begin
-        flush_delay <= backend_flush_i | (main_redirect & ~ftq_full_i);
+        flush_delay <= backend_flush_i | (main_redirect & ~ftq_full_delay);
+        ftq_full_delay <= ftq_full_i;
     end
 
 
@@ -91,13 +92,13 @@ module bpu
 
 
     // P1
-    assign main_redirect = predict_valid & ftb_hit & ~flush_delay;
+    assign main_redirect = predict_valid & ftb_hit & ~flush_delay & ~ftq_full_delay;
     always_ff @(posedge clk) begin
         p1_pc <= pc_i;
     end
     // P1 FTQ output
     always_comb begin
-        if (main_redirect & ~ftq_full_i) begin  // TAGE generate a redirect in P1
+        if (main_redirect) begin  // TAGE generate a redirect in P1
             ftq_p1_o.valid = 1;
             ftq_p1_o.is_cross_cacheline = ftb_entry.is_cross_cacheline;
             ftq_p1_o.start_pc = p1_pc;
@@ -141,7 +142,7 @@ module bpu
     // 1. This is a conditional branch
     // 2. First time a branch jumped
     // 3. A FTB pollution is detected
-    assign ftb_update_valid = ftq_meta_i.valid & ftq_meta_i.is_conditional & ((mispredict & ~ftq_meta_i.ftb_hit)| (ftq_meta_i.ftb_dirty & ftq_meta_i.ftb_hit));
+    assign ftb_update_valid = ftq_meta_i.valid & ftq_meta_i.is_conditional & ((mispredict)| (ftq_meta_i.ftb_dirty & ftq_meta_i.ftb_hit));
     always_comb begin
         // Direction preditor update policy:
         tage_update_info.valid = ftq_meta_i.valid;
@@ -188,6 +189,14 @@ module bpu
         .update_info_i         (tage_update_info),
         .perf_tag_hit_counter  ()
     );
+
+
+    integer ftb_first_time_branch;
+    integer ftb_update_cnt;
+    always_ff @(posedge clk) begin
+        ftb_first_time_branch <= ftb_first_time_branch + (ftb_update_valid & ~ftq_meta_i.ftb_hit);
+        ftb_update_cnt <= ftb_update_cnt + ftb_update_valid;
+    end
 
 
 endmodule

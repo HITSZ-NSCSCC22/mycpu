@@ -86,12 +86,16 @@ module frontend
         end
     end
 
-    logic ftq_full;
+    logic ftq_full, ftq_full_delay;
+
+    always_ff @(posedge clk) begin
+        ftq_full_delay <= ftq_full;
+    end
 
     always_comb begin : next_pc_comb
         if (backend_flush_i) begin
             next_pc = backend_next_pc_i;
-        end else if (ftq_full) begin
+        end else if (ftq_full_delay & ftq_full) begin
             next_pc = pc;
         end else if (main_bpu_redirect) begin
             next_pc = main_bpu_redirect_pc;
