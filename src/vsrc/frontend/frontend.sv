@@ -78,7 +78,7 @@ module frontend
     bpu_ftq_meta_t bpu_ftq_meta;
     ftq_bpu_meta_t ftq_bpu_meta;
 
-    always_ff @(posedge clk or negedge rst_n) begin : pc_ff
+    always_ff @(posedge clk) begin : pc_ff
         if (!rst_n) begin
             pc <= 32'h1c000000;
         end else begin

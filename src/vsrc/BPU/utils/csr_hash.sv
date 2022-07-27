@@ -26,8 +26,8 @@ module csr_hash #(
     end
 
     // Update CSR
-    always_ff @(posedge clk or negedge rst_n) begin : csr_hash_ff
-        if (!rst_n) begin
+    always_ff @(posedge clk) begin : csr_hash_ff
+        if (~rst_n) begin
             CSR <= 0;
         end else if (data_update_i) begin
             CSR <= next_CSR;
