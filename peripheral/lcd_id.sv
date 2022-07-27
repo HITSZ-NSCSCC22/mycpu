@@ -21,6 +21,7 @@ module lcd_id (
     input logic [31:0] buffer_addr_i,
     input logic data_valid,
     input logic [31:0] graph_size_i,
+
     //to lcd ctrl
     output logic write_ok,
 
@@ -33,451 +34,469 @@ module lcd_id (
     output logic read_color_o,
 
     //from lcd inteface
-    input logic busy
+    input logic busy,
+    input logic write_color_ok
 );
-  enum int {
-    IDLE,
-    READ_ID,
-    SCAN_INST,
-    SCAN_DATA,
-    SC_INST1,    //写sc高16bit
-    SC_DATA1,
-    SC_INST2,    //写sc低16bit
-    SC_DATA2,
-    EC_INST1,
-    EC_DATA1,
-    EC_INST2,
-    EC_DATA2,
-    SP_INST1,
-    SP_DATA1,
-    SP_INST2,
-    SP_DATA2,
-    EP_INST1,
-    EP_DATA1,
-    EP_INST2,
-    EP_DATA2,
-    COLOR_INST,
-    COLOR_DATA,
-    READ_COLOR
-  }
-      current_state, next_state;
+    enum int {
+        IDLE,
+        READ_ID,
+        SCAN_INST,
+        SCAN_DATA,
+        SC_INST1,    //写sc高16bit
+        SC_DATA1,
+        SC_INST2,    //写sc低16bit
+        SC_DATA2,
+        EC_INST1,
+        EC_DATA1,
+        EC_INST2,
+        EC_DATA2,
+        SP_INST1,
+        SP_DATA1,
+        SP_INST2,
+        SP_DATA2,
+        EP_INST1,
+        EP_DATA1,
+        EP_INST2,
+        EP_DATA2,
+        COLOR_INST,
+        COLOR_DATA,
+        READ_COLOR
+    }
+        current_state, next_state;
 
-
-  logic [31:0] lcd_data;
-  logic [31:0] lcd_addr;
-  logic [31:0] graph_size;
-  logic write_lcd;
-  //buffer
-  always_ff @(posedge pclk) begin
-    if (~rst_n) begin
-      lcd_data   <= 0;
-      lcd_addr   <= 0;
-      graph_size <= 0;
-    end else if (write_lcd_i) begin
-      lcd_data   <= lcd_data_i;
-      lcd_addr   <= lcd_addr_i;
-      graph_size <= graph_size_i;
-
-    end else begin
-      lcd_data   <= lcd_data;
-      lcd_addr   <= lcd_addr;
-      graph_size <= graph_size;
+    logic [31:0] graph_size;
+    logic [31:0] lcd_data;
+    logic [31:0] lcd_addr;
+    logic write_lcd;
+    logic delay;  //delay one cycle when come to a new state
+    always_ff @(posedge pclk)begin//进入新状态后必须要暂停一拍，因为第一拍的busy被优化掉了，不在敏感信号里面
+        if (~rst_n) delay <= 0;
+        else if (current_state != next_state) delay <= 1;
+        else delay <= 0;
     end
-  end
+    //buffer
+    always_ff @(posedge pclk) begin
+        if (~rst_n) begin
+            lcd_data   <= 0;
+            lcd_addr   <= 0;
+            graph_size <= 0;
+        end else if (write_lcd_i) begin
+            lcd_data   <= lcd_data_i;
+            lcd_addr   <= lcd_addr_i;
+            graph_size <= graph_size_i;
+        end else begin
+            lcd_data   <= lcd_data;
+            lcd_addr   <= lcd_addr;
+            graph_size <= graph_size;
+        end
+    end
 
-  //delay one cycle for write_lcd_i
-  always_ff @(posedge pclk) begin
-    if (~rst_n) write_lcd <= 0;
-    else write_lcd <= write_lcd_i;
-  end
+    //delay one cycle for write_lcd_i
+    always_ff @(posedge pclk) begin
+        if (~rst_n) write_lcd <= 0;
+        else write_lcd <= write_lcd_i;
+    end
 
-  /*****
+    /*****
  一般的指令格式:wdata=8bit opcode+ 8bit func + 16bit 参数
  
  写入颜色的指令:wdata=8bit opcode+ 8bit func + 5 bit red + 6bit green +5 bit blue
   *****/
-  logic [7:0] opcode;
-  assign opcode = lcd_data[31:24];
-  logic [7:0] op1;
-  assign op1 = lcd_data[23:16];
-  logic [15:0] data;
-  assign data = lcd_data[15:0];
-  logic [7:0] coordinate_h;
-  assign coordinate_h = lcd_data[15:8];  //sc,ec,sp,ep的高8bit
-  logic [7:0] coordinate_l;
-  assign coordinate_l = lcd_data[7:0];  //sc,ec,sp,ep的低8bit
-  /*****DFA*****/
-  always_ff @(posedge pclk) begin
-    if (~rst_n) current_state <= IDLE;
-    else current_state <= next_state;
-  end
+    logic [7:0] opcode;
+    assign opcode = lcd_data[31:24];
+    logic [7:0] op1;
+    assign op1 = lcd_data[23:16];
+    logic [15:0] data;
+    assign data = lcd_data[15:0];
+    logic [7:0] coordinate_h;
+    assign coordinate_h = lcd_data[15:8];  //sc,ec,sp,ep的高8bit
+    logic [7:0] coordinate_l;
+    assign coordinate_l = lcd_data[7:0];  //sc,ec,sp,ep的低8bit
 
-  always_comb begin
-    //state transition
-    case (current_state)
-
-      IDLE: begin
-        if (write_lcd) begin
-          case (opcode)
-            `ID1, `ID2, `ID3: next_state = READ_ID;
-            `SCAN: next_state = SCAN_INST;
-            `SC_EC: begin
-              if (op1 == 8'h00) next_state = SC_INST1;
-              else if (op1 == 8'h02) next_state = EC_INST1;
-              else next_state = IDLE;
-            end
-            `SP_EP: begin
-              if (op1 == 8'h00) next_state = SP_INST1;
-              else if (op1 == 8'h02) next_state = EP_INST1;
-              else next_state = IDLE;
-            end
-            `W_COLOR: next_state = COLOR_INST;
-            `R_COLOR: next_state = READ_COLOR;
-            default: next_state = IDLE;
-          endcase
-        end else next_state = IDLE;
-      end
-
-      //read ID
-      READ_ID: begin
-        if (busy) next_state = next_state;
-        else next_state = IDLE;
-      end
-
-      //set scan direction
-      SCAN_INST: begin
-        if (busy) next_state = next_state;
-        else next_state = SCAN_DATA;
-      end
-
-      SCAN_DATA: begin
-        if (busy) next_state = next_state;
-        else next_state = IDLE;
-      end
-
-      //set SC
-      SC_INST1: begin
-        if (busy) next_state = next_state;
-        else next_state = SC_DATA1;
-      end
-
-      SC_DATA1: begin
-        if (busy) next_state = next_state;
-        else next_state = SC_INST2;
-      end
-
-      SC_INST2: begin
-        if (busy) next_state = next_state;
-        else next_state = SC_DATA2;
-      end
-
-      SC_DATA2: begin
-        if (busy) next_state = next_state;
-        else next_state = IDLE;
-      end
-
-      //set EC
-      EC_INST1: begin
-        if (busy) next_state = next_state;
-        else next_state = EC_DATA1;
-      end
-
-      EC_DATA1: begin
-        if (busy) next_state = next_state;
-        else next_state = EC_INST2;
-      end
-
-      EC_INST2: begin
-        if (busy) next_state = next_state;
-        else next_state = EC_DATA2;
-      end
-
-      EC_DATA2: begin
-        if (busy) next_state = next_state;
-        else next_state = IDLE;
-      end
-
-      //set SP
-      SP_INST1: begin
-        if (busy) next_state = next_state;
-        else next_state = SP_DATA1;
-      end
-
-      SP_DATA1: begin
-        if (busy) next_state = next_state;
-        else next_state = SP_INST2;
-      end
-
-      SP_INST2: begin
-        if (busy) next_state = next_state;
-        else next_state = SP_DATA2;
-      end
-
-      SP_DATA2: begin
-        if (busy) next_state = next_state;
-        else next_state = IDLE;
-      end
-
-      //set EP
-      EP_INST1: begin
-        if (busy) next_state = next_state;
-        else next_state = EP_DATA1;
-      end
-
-      EP_DATA1: begin
-        if (busy) next_state = next_state;
-        else next_state = EP_INST2;
-      end
-
-      EP_INST2: begin
-        if (busy) next_state = next_state;
-        else next_state = EP_DATA2;
-      end
-
-      EP_DATA2: begin
-        if (busy) next_state = next_state;
-        else next_state = IDLE;
-      end
-
-      //set color
-      COLOR_INST: begin
-        if (busy) next_state = next_state;
-        else next_state = COLOR_DATA;
-      end
-
-      COLOR_DATA: begin
-        if (busy) next_state = next_state;
-        else next_state = IDLE;
-      end
-
-      //read color
-      READ_COLOR: begin
-        if (busy) next_state = next_state;
-        else next_state = IDLE;
-      end
-
-      default: begin
-        next_state = IDLE;
-      end
-    endcase
-  end
-
-  always_ff @(posedge pclk) begin
-    if (~rst_n) begin
-      write_ok <= 1;
-      we <= 0;
-      wr <= 0;
-      lcd_rs <= 0;
-      data_o <= 0;
-      id_fm <= 0;
-      read_color_o <= 0;
-    end else begin
-      case (next_state)
-        IDLE: begin
-          write_ok <= 1;
-          we <= 0;
-          wr <= 0;
-          lcd_rs <= 0;
-          data_o <= 0;
-          id_fm <= 0;
-          read_color_o <= 0;
-        end
-
-        READ_ID: begin
-          write_ok <= 0;
-          we <= 1;
-          wr <= 0;
-          lcd_rs <= 0;
-          data_o <= {opcode, {8{1'b0}}};
-          id_fm <= 0;
-          read_color_o <= 0;
-        end
-
-        //set scan direction
-        SCAN_INST: begin
-          write_ok <= 0;
-          we <= 1;
-          wr <= 1;
-          lcd_rs <= 0;
-          data_o <= {opcode, {8{1'b0}}};
-        end
-
-        SCAN_DATA: begin
-          write_ok <= 0;
-          we <= 1;
-          wr <= 1;
-          lcd_rs <= 1;
-          data_o <= data;
-        end
-        //set SC
-        SC_INST1: begin
-          write_ok <= 0;
-          we <= 1;
-          wr <= 1;
-          lcd_rs <= 0;
-          data_o <= {opcode, {8{1'b0}}};
-        end
-
-        SC_DATA1: begin
-          write_ok <= 0;
-          we <= 1;
-          wr <= 1;
-          lcd_rs <= 1;
-          data_o <= {{8{1'b0}}, coordinate_h};
-        end
-
-        SC_INST2: begin
-          write_ok <= 0;
-          we <= 1;
-          wr <= 1;
-          lcd_rs <= 0;
-          data_o <= {opcode, {8'h01}};
-        end
-
-        SC_DATA2: begin
-          write_ok <= 0;
-          we <= 1;
-          wr <= 1;
-          lcd_rs <= 1;
-          data_o <= {{8'h00}, coordinate_l};
-        end
-
-        //set EC
-        EC_INST1: begin
-          write_ok <= 0;
-          we <= 1;
-          wr <= 1;
-          lcd_rs <= 0;
-          data_o <= {opcode, {8'h02}};
-        end
-
-        EC_DATA1: begin
-          write_ok <= 0;
-          we <= 1;
-          wr <= 1;
-          lcd_rs <= 1;
-          data_o <= {{8{1'b0}}, coordinate_h};
-        end
-
-        EC_INST2: begin
-          write_ok <= 0;
-          we <= 1;
-          wr <= 1;
-          lcd_rs <= 0;
-          data_o <= {opcode, {8'h03}};
-        end
-
-        EC_DATA2: begin
-          write_ok <= 0;
-          we <= 1;
-          wr <= 1;
-          lcd_rs <= 1;
-          data_o <= {{8'h00}, coordinate_l};
-        end
-
-        //set SP
-        SP_INST1: begin
-          write_ok <= 0;
-          we <= 1;
-          wr <= 1;
-          lcd_rs <= 0;
-          data_o <= {opcode, {8{1'b0}}};
-        end
-
-        SP_DATA1: begin
-          write_ok <= 0;
-          we <= 1;
-          wr <= 1;
-          lcd_rs <= 1;
-          data_o <= {{8{1'b0}}, coordinate_h};
-        end
-
-        SP_INST2: begin
-          write_ok <= 0;
-          we <= 1;
-          wr <= 1;
-          lcd_rs <= 0;
-          data_o <= {opcode, {8'h01}};
-        end
-
-        SP_DATA2: begin
-          write_ok <= 0;
-          we <= 1;
-          wr <= 1;
-          lcd_rs <= 1;
-          data_o <= {{8'h00}, coordinate_l};
-        end
-
-        //set EP
-        EP_INST1: begin
-          write_ok <= 0;
-          we <= 1;
-          wr <= 1;
-          lcd_rs <= 0;
-          data_o <= {opcode, {8'h02}};
-        end
-
-        EP_DATA1: begin
-          write_ok <= 0;
-          we <= 1;
-          wr <= 1;
-          lcd_rs <= 1;
-          data_o <= {{8{1'b0}}, coordinate_h};
-        end
-
-        EP_INST2: begin
-          write_ok <= 0;
-          we <= 1;
-          wr <= 1;
-          lcd_rs <= 0;
-          data_o <= {opcode, {8'h03}};
-        end
-
-        EP_DATA2: begin
-          write_ok <= 0;
-          we <= 1;
-          wr <= 1;
-          lcd_rs <= 1;
-          data_o <= {{8'h00}, coordinate_l};
-        end
-
-        //set color
-        COLOR_INST: begin
-          write_ok <= 0;
-          we <= 1;
-          wr <= 1;
-          lcd_rs <= 0;
-          data_o <= {opcode, {8'h00}};
-        end
-
-        COLOR_DATA: begin
-          write_ok <= 0;
-          we <= 1;
-          wr <= 1;
-          lcd_rs <= 1;
-          data_o <= data;
-        end
-
-        //read color
-        READ_COLOR: begin
-          write_ok <= 0;
-          we <= 1;
-          wr <= 0;
-          lcd_rs <= 0;
-          data_o <= {opcode, {8'h00}};
-          id_fm <= 1;
-          read_color_o <= 1;
-        end
-        default: begin
-          write_ok <= 1;
-          we <= 0;
-          wr <= 0;
-          lcd_rs <= 0;
-          data_o <= 0;
-          id_fm <= 0;
-          read_color_o <= 0;
-        end
-      endcase
+    logic [31:0] draw_counter;
+    //draw counter
+    always_ff @(posedge pclk) begin
+        if (~rst_n) draw_counter <= 0;
+        else if (next_state == IDLE) draw_counter <= 0;
+        else if (next_state == COLOR_DATA && write_color_ok) draw_counter <= draw_counter + 1;
+        else draw_counter <= draw_counter;
     end
-  end
+
+    /*****DFA*****/
+    always_ff @(posedge pclk) begin
+        if (~rst_n) current_state <= IDLE;
+        else current_state <= next_state;
+    end
+
+    always_comb begin
+        //state transition
+        case (current_state)
+
+            IDLE: begin
+                if (write_lcd) begin
+                    case (opcode)
+                        `ID1, `ID2, `ID3: next_state = READ_ID;
+                        `SCAN: next_state = SCAN_INST;
+                        `SC_EC: begin
+                            if (op1 == 8'h00) next_state = SC_INST1;
+                            else if (op1 == 8'h02) next_state = EC_INST1;
+                            else next_state = IDLE;
+                        end
+                        `SP_EP: begin
+                            if (op1 == 8'h00) next_state = SP_INST1;
+                            else if (op1 == 8'h02) next_state = EP_INST1;
+                            else next_state = IDLE;
+                        end
+                        `W_COLOR: next_state = COLOR_INST;
+                        `R_COLOR: next_state = READ_COLOR;
+                        default: next_state = IDLE;
+                    endcase
+                end else next_state = IDLE;
+            end
+
+            //read ID
+            READ_ID: begin
+                if (busy || delay) next_state = next_state;
+                else next_state = IDLE;
+            end
+
+            //set scan direction
+            SCAN_INST: begin
+                if (busy || delay) next_state = next_state;
+                else next_state = SCAN_DATA;
+            end
+
+            SCAN_DATA: begin
+                if (busy || delay) next_state = next_state;
+                else next_state = IDLE;
+            end
+
+            //set SC
+            SC_INST1: begin
+                if (busy || delay) next_state = next_state;
+                else next_state = SC_DATA1;
+            end
+
+            SC_DATA1: begin
+                if (busy || delay) next_state = next_state;
+                else next_state = SC_INST2;
+            end
+
+            SC_INST2: begin
+                if (busy || delay) next_state = next_state;
+                else next_state = SC_DATA2;
+            end
+
+            SC_DATA2: begin
+                if (busy || delay) next_state = next_state;
+                else next_state = IDLE;
+            end
+
+            //set EC
+            EC_INST1: begin
+                if (busy || delay) next_state = next_state;
+                else next_state = EC_DATA1;
+            end
+
+            EC_DATA1: begin
+                if (busy || delay) next_state = next_state;
+                else next_state = EC_INST2;
+            end
+
+            EC_INST2: begin
+                if (busy || delay) next_state = next_state;
+                else next_state = EC_DATA2;
+            end
+
+            EC_DATA2: begin
+                if (busy || delay) next_state = next_state;
+                else next_state = IDLE;
+            end
+
+            //set SP
+            SP_INST1: begin
+                if (busy || delay) next_state = next_state;
+                else next_state = SP_DATA1;
+            end
+
+            SP_DATA1: begin
+                if (busy || delay) next_state = next_state;
+                else next_state = SP_INST2;
+            end
+
+            SP_INST2: begin
+                if (busy || delay) next_state = next_state;
+                else next_state = SP_DATA2;
+            end
+
+            SP_DATA2: begin
+                if (busy || delay) next_state = next_state;
+                else next_state = IDLE;
+            end
+
+            //set EP
+            EP_INST1: begin
+                if (busy || delay) next_state = next_state;
+                else next_state = EP_DATA1;
+            end
+
+            EP_DATA1: begin
+                if (busy || delay) next_state = next_state;
+                else next_state = EP_INST2;
+            end
+
+            EP_INST2: begin
+                if (busy || delay) next_state = next_state;
+                else next_state = EP_DATA2;
+            end
+
+            EP_DATA2: begin
+                if (busy || delay) next_state = next_state;
+                else next_state = IDLE;
+            end
+
+            //set color
+            COLOR_INST: begin
+                if (busy || delay) next_state = next_state;
+                else next_state = COLOR_DATA;
+            end
+
+            COLOR_DATA: begin
+                if (busy || delay) next_state = next_state;
+                else if (draw_counter < graph_size) next_state = next_state;
+                else next_state = IDLE;
+            end
+
+            //read color
+            READ_COLOR: begin
+                if (busy || delay) next_state = next_state;
+                else next_state = IDLE;
+            end
+
+            default: begin
+                next_state = IDLE;
+            end
+        endcase
+    end
+
+    always_ff @(posedge pclk) begin
+        if (~rst_n) begin
+            write_ok <= 1;
+            we <= 0;
+            wr <= 0;
+            lcd_rs <= 0;
+            data_o <= 0;
+            id_fm <= 0;
+            read_color_o <= 0;
+        end else begin
+            case (next_state)
+                IDLE: begin
+                    write_ok <= 1;
+                    we <= 0;
+                    wr <= 0;
+                    lcd_rs <= 0;
+                    data_o <= 0;
+                    id_fm <= 0;
+                    read_color_o <= 0;
+                end
+
+                READ_ID: begin
+                    write_ok <= 0;
+                    we <= 1;
+                    wr <= 0;
+                    lcd_rs <= 0;
+                    data_o <= {opcode, {8{1'b0}}};
+                    id_fm <= 0;
+                    read_color_o <= 0;
+                end
+
+                //set scan direction
+                SCAN_INST: begin
+                    write_ok <= 0;
+                    we <= 1;
+                    wr <= 1;
+                    lcd_rs <= 0;
+                    data_o <= {opcode, {8{1'b0}}};
+                end
+
+                SCAN_DATA: begin
+                    write_ok <= 0;
+                    we <= 1;
+                    wr <= 1;
+                    lcd_rs <= 1;
+                    data_o <= data;
+                end
+                //set SC
+                SC_INST1: begin
+                    write_ok <= 0;
+                    we <= 1;
+                    wr <= 1;
+                    lcd_rs <= 0;
+                    data_o <= {opcode, {8{1'b0}}};
+                end
+
+                SC_DATA1: begin
+                    write_ok <= 0;
+                    we <= 1;
+                    wr <= 1;
+                    lcd_rs <= 1;
+                    data_o <= {{8{1'b0}}, coordinate_h};
+                end
+
+                SC_INST2: begin
+                    write_ok <= 0;
+                    we <= 1;
+                    wr <= 1;
+                    lcd_rs <= 0;
+                    data_o <= {opcode, {8'h01}};
+                end
+
+                SC_DATA2: begin
+                    write_ok <= 0;
+                    we <= 1;
+                    wr <= 1;
+                    lcd_rs <= 1;
+                    data_o <= {{8'h00}, coordinate_l};
+                end
+
+                //set EC
+                EC_INST1: begin
+                    write_ok <= 0;
+                    we <= 1;
+                    wr <= 1;
+                    lcd_rs <= 0;
+                    data_o <= {opcode, {8'h02}};
+                end
+
+                EC_DATA1: begin
+                    write_ok <= 0;
+                    we <= 1;
+                    wr <= 1;
+                    lcd_rs <= 1;
+                    data_o <= {{8{1'b0}}, coordinate_h};
+                end
+
+                EC_INST2: begin
+                    write_ok <= 0;
+                    we <= 1;
+                    wr <= 1;
+                    lcd_rs <= 0;
+                    data_o <= {opcode, {8'h03}};
+                end
+
+                EC_DATA2: begin
+                    write_ok <= 0;
+                    we <= 1;
+                    wr <= 1;
+                    lcd_rs <= 1;
+                    data_o <= {{8'h00}, coordinate_l};
+                end
+
+                //set SP
+                SP_INST1: begin
+                    write_ok <= 0;
+                    we <= 1;
+                    wr <= 1;
+                    lcd_rs <= 0;
+                    data_o <= {opcode, {8{1'b0}}};
+                end
+
+                SP_DATA1: begin
+                    write_ok <= 0;
+                    we <= 1;
+                    wr <= 1;
+                    lcd_rs <= 1;
+                    data_o <= {{8{1'b0}}, coordinate_h};
+                end
+
+                SP_INST2: begin
+                    write_ok <= 0;
+                    we <= 1;
+                    wr <= 1;
+                    lcd_rs <= 0;
+                    data_o <= {opcode, {8'h01}};
+                end
+
+                SP_DATA2: begin
+                    write_ok <= 0;
+                    we <= 1;
+                    wr <= 1;
+                    lcd_rs <= 1;
+                    data_o <= {{8'h00}, coordinate_l};
+                end
+
+                //set EP
+                EP_INST1: begin
+                    write_ok <= 0;
+                    we <= 1;
+                    wr <= 1;
+                    lcd_rs <= 0;
+                    data_o <= {opcode, {8'h02}};
+                end
+
+                EP_DATA1: begin
+                    write_ok <= 0;
+                    we <= 1;
+                    wr <= 1;
+                    lcd_rs <= 1;
+                    data_o <= {{8{1'b0}}, coordinate_h};
+                end
+
+                EP_INST2: begin
+                    write_ok <= 0;
+                    we <= 1;
+                    wr <= 1;
+                    lcd_rs <= 0;
+                    data_o <= {opcode, {8'h03}};
+                end
+
+                EP_DATA2: begin
+                    write_ok <= 0;
+                    we <= 1;
+                    wr <= 1;
+                    lcd_rs <= 1;
+                    data_o <= {{8'h00}, coordinate_l};
+                end
+
+                //set color
+                COLOR_INST: begin
+                    write_ok <= 0;
+                    we <= 1;
+                    wr <= 1;
+                    lcd_rs <= 0;
+                    data_o <= {opcode, {8'h00}};
+                end
+
+                COLOR_DATA: begin
+                    write_ok <= 0;
+                    we <= 1;
+                    wr <= 1;
+                    lcd_rs <= 1;
+                    data_o <= data;
+                end
+
+                //read color
+                READ_COLOR: begin
+                    write_ok <= 0;
+                    we <= 1;
+                    wr <= 0;
+                    lcd_rs <= 0;
+                    data_o <= {opcode, {8'h00}};
+                    id_fm <= 1;
+                    read_color_o <= 1;
+                end
+                default: begin
+                    write_ok <= 1;
+                    we <= 0;
+                    wr <= 0;
+                    lcd_rs <= 0;
+                    data_o <= 0;
+                    id_fm <= 0;
+                    read_color_o <= 0;
+                end
+            endcase
+        end
+    end
+
 endmodule
+

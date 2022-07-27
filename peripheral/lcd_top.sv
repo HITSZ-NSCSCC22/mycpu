@@ -74,171 +74,174 @@ module lcd_top (
     output logic [11:0] vga_wcolor
 
 );
-  //top <-> lcd_ctrl
-  logic [31:0] lcd_input_data;
+    //top <-> lcd_ctrl
+    logic [31:0] lcd_input_data;
 
-  // top <-> lcd_interface
-  logic [15:0] lcd_data_i;
-  logic [15:0] lcd_data_o;
-  logic lcd_write_data_ctrl;
-  logic [31:0] data_reg;
-  assign lcd_data_i  = lcd_data_io;
-  assign lcd_data_io = lcd_write_data_ctrl ? lcd_data_o : 16'bz;
+    // top <-> lcd_interface
+    logic [15:0] lcd_data_i;
+    logic [15:0] lcd_data_o;
+    logic lcd_write_data_ctrl;
+    logic [31:0] data_reg;
+    assign lcd_data_i  = lcd_data_io;
+    assign lcd_data_io = lcd_write_data_ctrl ? lcd_data_o : 16'bz;
 
-  //lcd_id <-> lcd_interface
-  logic interface_busy;
-  logic [15:0] id_data_interface;
-  logic we;
-  logic wr;
-  logic id_lcd_rs_interface;
-  logic id_fm;
-  logic read_color;
+    //lcd_id <-> lcd_interface
+    logic interface_busy;
+    logic [15:0] id_data_interface;
+    logic we;
+    logic wr;
+    logic id_lcd_rs_interface;
+    logic id_fm;
+    logic read_color;
+    logic write_color_ok;
 
-  lcd_interface u_lcd_interface (
-      .pclk (pclk),  //cycle time 20ns,50Mhz
-      .rst_n(rst_n), //low is powerful
+    lcd_interface u_lcd_interface (
+        .pclk (pclk),  //cycle time 20ns,50Mhz
+        .rst_n(rst_n), //low is powerful
 
-      //to lcd 
-      /**屏幕显示信号**/
-      .lcd_rst(lcd_rst),  //lcd 复位键
-      .lcd_cs(lcd_cs),
-      .lcd_rs(lcd_rs),  //0:inst 1:data
-      .lcd_wr(lcd_wr),  //write signal ,low is powerful
-      .lcd_rd(lcd_rd),  //read signal,low is powerful
-      .lcd_data_i(lcd_data_i),  //from lcd
-      .lcd_data_o(lcd_data_o),  //to lcd
-      .lcd_bl_ctr(lcd_bl_ctr),  //
+        //to lcd 
+        /**屏幕显示信号**/
+        .lcd_rst(lcd_rst),  //lcd 复位键
+        .lcd_cs(lcd_cs),
+        .lcd_rs(lcd_rs),  //0:inst 1:data
+        .lcd_wr(lcd_wr),  //write signal ,low is powerful
+        .lcd_rd(lcd_rd),  //read signal,low is powerful
+        .lcd_data_i(lcd_data_i),  //from lcd
+        .lcd_data_o(lcd_data_o),  //to lcd
+        .lcd_bl_ctr(lcd_bl_ctr),  //
 
-      //to lcd top
-      .lcd_write_data_ctrl(lcd_write_data_ctrl),  //写控制信号，用于决定顶层的lcd_data_io
-      .data_reg(data_reg),
+        //to lcd top
+        .lcd_write_data_ctrl(lcd_write_data_ctrl),  //写控制信号，用于决定顶层的lcd_data_io
+        .data_reg(data_reg),
 
-      //from lcd_id
-      .data_i(id_data_interface),
-      .we(we),
-      .wr(wr),
-      .lcd_rs_i(id_lcd_rs_interface),  //distinguish inst or data
-      .id_fm(id_fm),  //distinguish read id or read fm,0:id,1:fm
-      .read_color(read_color),  //if read color ,reading time is at least 2
+        //from lcd_id
+        .data_i(id_data_interface),
+        .we(we),
+        .wr(wr),
+        .lcd_rs_i(id_lcd_rs_interface),  //distinguish inst or data
+        .id_fm(id_fm),  //distinguish read id or read fm,0:id,1:fm
+        .read_color(read_color),  //if read color ,reading time is at least 2
 
-      //to lcd_id
-      .busy(interface_busy)
+        //to lcd_id
+        .busy(interface_busy),
+        .write_color_ok(write_color_ok)
 
-  );
+    );
 
-  //lcd_id <->lcd_ctrl
-  logic ctrl_write_lcd_id;
-  logic [31:0] ctrl_addr_id;
-  logic [31:0] ctrl_data_id;
-  logic write_ok;
-  logic [31:0] ctrl_buffer_data_id;
-  logic [31:0] ctrl_buffer_addr_id;
-  logic data_valid;
-  logic [31:0] graph_size;
+    //lcd_id <->lcd_ctrl
+    logic ctrl_write_lcd_id;
+    logic [31:0] ctrl_addr_id;
+    logic [31:0] ctrl_data_id;
+    logic write_ok;
+    logic [31:0] ctrl_buffer_data_id;
+    logic [31:0] ctrl_buffer_addr_id;
+    logic data_valid;
+    logic [31:0] graph_size;
 
-  lcd_id u_lcd_id (
-      .pclk (pclk),
-      .rst_n(rst_n),
-      //from lcd ctrl
-      // .write_lcd_i(ctrl_write_lcd_id),
-      // .lcd_addr_i(ctrl_addr_id),
-      // .lcd_data_i(ctrl_data_id),
+    lcd_id u_lcd_id (
+        .pclk (pclk),
+        .rst_n(rst_n),
+        //from lcd ctrl
+        // .write_lcd_i(ctrl_write_lcd_id),
+        // .lcd_addr_i(ctrl_addr_id),
+        // .lcd_data_i(ctrl_data_id),
 
-      .write_lcd_i(data_valid),
-      .lcd_addr_i (ctrl_buffer_addr_id),
-      .lcd_data_i (ctrl_buffer_data_id),
+        .write_lcd_i(data_valid),
+        .lcd_addr_i (ctrl_buffer_addr_id),
+        .lcd_data_i (ctrl_buffer_data_id),
 
-      //speeder
-      .buffer_addr_i(ctrl_buffer_addr_id),
-      .buffer_data_i(ctrl_buffer_data_id),
-      .data_valid(data_valid),
-      .graph_size_i(graph_size),
+        //speeder
+        .buffer_addr_i(ctrl_buffer_addr_id),
+        .buffer_data_i(ctrl_buffer_data_id),
+        .data_valid(data_valid),
+        .graph_size_i(graph_size),
 
 
-      //to lcd ctrl
-      .write_ok(write_ok),
+        //to lcd ctrl
+        .write_ok(write_ok),
 
-      //to lcd interface
-      .we(we),  //write enable
-      .wr(wr),  //0:read lcd 1:write lcd,distinguish inst kind
-      .lcd_rs(id_lcd_rs_interface),
-      .data_o(id_data_interface),
-      .id_fm(id_fm),
-      .read_color_o(read_color),
+        //to lcd interface
+        .we(we),  //write enable
+        .wr(wr),  //0:read lcd 1:write lcd,distinguish inst kind
+        .lcd_rs(id_lcd_rs_interface),
+        .data_o(id_data_interface),
+        .id_fm(id_fm),
+        .read_color_o(read_color),
 
-      //from lcd inteface
-      .busy(interface_busy)
-  );
+        //from lcd inteface
+        .busy(interface_busy),
+        .write_color_ok(write_color_ok)
+    );
 
-  lcd_ctrl u_lcd_ctrl (
-      //rst and clk,clk is lower than cpu
-      .pclk (pclk),
-      .rst_n(rst_n),
+    lcd_ctrl u_lcd_ctrl (
+        //rst and clk,clk is lower than cpu
+        .pclk (pclk),
+        .rst_n(rst_n),
 
-      //from AXI
-      //ar
-      .s_arid(s_arid),  //arbitration
-      .s_araddr(s_araddr),
-      .s_arlen(s_arlen),
-      .s_arsize(s_arsize),
-      .s_arburst(s_arburst),
-      .s_arlock(s_arlock),
-      .s_arcache(s_arcache),
-      .s_arprot(s_arprot),
-      .s_arvalid(s_arvalid),
-      .s_arready(s_arready),
+        //from AXI
+        //ar
+        .s_arid(s_arid),  //arbitration
+        .s_araddr(s_araddr),
+        .s_arlen(s_arlen),
+        .s_arsize(s_arsize),
+        .s_arburst(s_arburst),
+        .s_arlock(s_arlock),
+        .s_arcache(s_arcache),
+        .s_arprot(s_arprot),
+        .s_arvalid(s_arvalid),
+        .s_arready(s_arready),
 
-      //r
-      .s_rid(s_rid),
-      .s_rdata(s_rdata),
-      .s_rresp(s_rresp),
-      .s_rlast(s_rlast),  //the last read data
-      .s_rvalid(s_rvalid),
-      .s_rready(s_rready),
+        //r
+        .s_rid(s_rid),
+        .s_rdata(s_rdata),
+        .s_rresp(s_rresp),
+        .s_rlast(s_rlast),  //the last read data
+        .s_rvalid(s_rvalid),
+        .s_rready(s_rready),
 
-      //aw
-      .s_awid(s_awid),
-      .s_awaddr(s_awaddr),
-      .s_awlen(s_awlen),
-      .s_awsize(s_awsize),
-      .s_awburst(s_awburst),
-      .s_awlock(s_awlock),
-      .s_awcache(s_awcache),
-      .s_awprot(s_awprot),
-      .s_awvalid(s_awvalid),
-      .s_awready(s_awready),
+        //aw
+        .s_awid(s_awid),
+        .s_awaddr(s_awaddr),
+        .s_awlen(s_awlen),
+        .s_awsize(s_awsize),
+        .s_awburst(s_awburst),
+        .s_awlock(s_awlock),
+        .s_awcache(s_awcache),
+        .s_awprot(s_awprot),
+        .s_awvalid(s_awvalid),
+        .s_awready(s_awready),
 
-      //w
-      .s_wid(s_wid),
-      .s_wdata(s_wdata),
-      .s_wstrb(s_wstrb),  //字节选通位和sel差不多
-      .s_wlast(s_wlast),
-      .s_wvalid(s_wvalid),
-      .s_wready(s_wready),
+        //w
+        .s_wid(s_wid),
+        .s_wdata(s_wdata),
+        .s_wstrb(s_wstrb),  //字节选通位和sel差不多
+        .s_wlast(s_wlast),
+        .s_wvalid(s_wvalid),
+        .s_wready(s_wready),
 
-      //b
-      .s_bid(s_bid),
-      .s_bresp(s_bresp),
-      .s_bvalid(s_bvalid),
-      .s_bready(s_bready),
+        //b
+        .s_bid(s_bid),
+        .s_bresp(s_bresp),
+        .s_bvalid(s_bvalid),
+        .s_bready(s_bready),
 
-      //to lcd_id
-      .lcd_addr_buffer(ctrl_addr_id),  //store write reg addr
-      .lcd_data_buffer(ctrl_data_id),  //store data to lcd
-      .write_lcd(ctrl_write_lcd_id),  //write lcd enable signal
+        //to lcd_id
+        .lcd_addr_buffer(ctrl_addr_id),  //store write reg addr
+        .lcd_data_buffer(ctrl_data_id),  //store data to lcd
+        .write_lcd(ctrl_write_lcd_id),  //write lcd enable signal
 
-      //speeder
-      .buffer_data(ctrl_buffer_data_id),  //speeder
-      .buffer_addr(ctrl_buffer_addr_id),  //speeder
-      .data_valid(data_valid),  //tell lcd_id can write
-      .graph_size(graph_size),
+        //speeder
+        .buffer_data(ctrl_buffer_data_id),  //speeder
+        .buffer_addr(ctrl_buffer_addr_id),  //speeder
+        .data_valid(data_valid),  //tell lcd_id can write
+        .graph_size(graph_size),
 
-      //from lcd_interface
-      //TODO
-      .lcd_input_data(0),  //data form lcd input
+        //from lcd_interface
+        //TODO
+        .lcd_input_data(0),  //data form lcd input
 
-      //from lcd_id
-      .write_ok(write_ok)  //数据和指令写出去后才能继续写
-  );
+        //from lcd_id
+        .write_ok(write_ok)  //数据和指令写出去后才能继续写
+    );
 
 endmodule
