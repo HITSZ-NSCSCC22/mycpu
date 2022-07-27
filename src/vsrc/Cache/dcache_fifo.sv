@@ -39,21 +39,29 @@ module dcache_fifo
     logic [DEPTH-1:0] queue_valid;
 
     logic full, empty;
+
+    logic [`DataAddrBus] cpu_awaddr;
+    logic [`DataAddrBus] cpu_araddr;
+
+    logic sign_rewrite;
+
+    logic [DEPTH-1:0] read_hit, write_hit;
+
+    logic write_hit_head;
+
     assign state = {full, empty};
 
-    assign full  = queue_valid[tail] == 1'b1;
+    assign full = queue_valid[tail] == 1'b1;
     assign empty = queue_valid[head] == 1'b0;
 
     // read and write the cacheline don't use the offset
-    logic [`DataAddrBus] cpu_awaddr;
     assign cpu_awaddr = {cpu_awaddr_i[31:4], 4'h0};
-    logic [`DataAddrBus] cpu_araddr;
+
     assign cpu_araddr = {cpu_araddr_i[31:4], 4'h0};
 
 
     // if dcache write the data at the head of the queue
     // then don't sent the data to the memory 
-    logic sign_rewrite;
     always @(posedge clk) begin
         if (rst) sign_rewrite <= 1'b0;
         else if (axi_bvalid_i) sign_rewrite <= 1'b0;
@@ -88,7 +96,6 @@ module dcache_fifo
     end
 
     //Read Hit
-    logic [DEPTH-1:0] read_hit;
     assign read_hit_o = |read_hit;
     always_ff @(posedge clk) begin
         for (integer i = 0; i < DEPTH; i = i + 1) begin
@@ -110,8 +117,6 @@ module dcache_fifo
 
 
     //Write Hit
-    logic [DEPTH-1:0] write_hit;
-    logic write_hit_head;
     assign write_hit_head = write_hit[head] & cpu_wreq_i;
     assign write_hit_o = |write_hit;
     always_comb begin

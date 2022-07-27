@@ -95,7 +95,8 @@ module dcache
     logic hit;
     logic [NWAY-1:0] tag_hit;
 
-    assign cpu_addr = {tag_buffer, index_buffer, offset_buffer};
+    logic [`RegBus] wreq_sel_data;
+    logic [DCACHELINE_WIDTH-1:0] bram_write_data;
 
 
     logic [1:0] fifo_state;
@@ -107,6 +108,18 @@ module dcache
     logic cacop_op_mode0, cacop_op_mode1, cacop_op_mode2, cacop_op_mode2_hit;
     logic [$clog2(NWAY)-1:0] cacop_way;
     logic [$clog2(NSET)-1:0] cacop_index;
+
+    logic [1:0] dirty;
+
+    logic [`RegBus] fifo_wreq_sel_data;
+
+    logic rd_req_r;
+    logic [31:0] rd_addr_r;
+    logic [21:0] tag1, tag2;
+    logic [DCACHELINE_WIDTH-1:0] hit_data;
+
+    assign cpu_addr = {tag_buffer, index_buffer, offset_buffer};
+
     assign cacop_op_mode0 = cacop_i & cacop_mode_i == 2'b00;
     assign cacop_op_mode1 = cacop_i & cacop_mode_i == 2'b01;
     assign cacop_op_mode2 = cacop_i & cacop_mode_i == 2'b10;
@@ -119,7 +132,6 @@ module dcache
         DCACHELINE_WIDTH
     )];
 
-    logic [1:0] dirty;
     assign dirty = {tag_bram_rdata[1][21], tag_bram_rdata[0][21]};
 
     //judge if the cacop mode2 hit
@@ -398,8 +410,7 @@ module dcache
         endcase
     end
 
-    logic [`RegBus] wreq_sel_data;
-    logic [DCACHELINE_WIDTH-1:0] bram_write_data;
+
     always_comb begin
         wreq_sel_data   = 0;
         bram_write_data = 0;
@@ -436,8 +447,6 @@ module dcache
     end
 
 
-    logic rd_req_r;
-    logic [31:0] rd_addr_r;
 
     // Handshake with AXI
     always_ff @(posedge clk) begin
@@ -454,7 +463,6 @@ module dcache
 
 
     // write to fifo
-    logic [`RegBus] fifo_wreq_sel_data;
     always_comb begin
         fifo_wreq = 0;
         fifo_waddr = 0;
@@ -584,7 +592,7 @@ module dcache
         end
     end
 
-    logic [21:0] tag1, tag2;
+
     assign tag1 = tag_bram_rdata[0];
     assign tag2 = tag_bram_rdata[1];
 
@@ -594,7 +602,7 @@ module dcache
         tag_hit[1] = tag_bram_rdata[1][19:0] == tag_buffer && tag_bram_rdata[1][20];
     end
 
-    logic [DCACHELINE_WIDTH-1:0] hit_data;
+
     always_comb begin
         hit = 0;
         hit_data = 0;
