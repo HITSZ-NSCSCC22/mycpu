@@ -20,7 +20,7 @@ module lcd_id (
     input logic [31:0] buffer_data_i,
     input logic [31:0] buffer_addr_i,
     input logic data_valid,
-
+    input logic [31:0] graph_size_i,
     //to lcd ctrl
     output logic write_ok,
 
@@ -65,18 +65,23 @@ module lcd_id (
 
   logic [31:0] lcd_data;
   logic [31:0] lcd_addr;
+  logic [31:0] graph_size;
   logic write_lcd;
   //buffer
   always_ff @(posedge pclk) begin
     if (~rst_n) begin
-      lcd_data <= 0;
-      lcd_addr <= 0;
+      lcd_data   <= 0;
+      lcd_addr   <= 0;
+      graph_size <= 0;
     end else if (write_lcd_i) begin
-      lcd_data <= lcd_data_i;
-      lcd_addr <= lcd_addr_i;
+      lcd_data   <= lcd_data_i;
+      lcd_addr   <= lcd_addr_i;
+      graph_size <= graph_size_i;
+
     end else begin
-      lcd_data <= lcd_data;
-      lcd_addr <= lcd_addr;
+      lcd_data   <= lcd_data;
+      lcd_addr   <= lcd_addr;
+      graph_size <= graph_size;
     end
   end
 
@@ -102,7 +107,7 @@ module lcd_id (
   logic [7:0] coordinate_l;
   assign coordinate_l = lcd_data[7:0];  //sc,ec,sp,ep的低8bit
   /*****DFA*****/
-  always_ff @(pclk) begin
+  always_ff @(posedge pclk) begin
     if (~rst_n) current_state <= IDLE;
     else current_state <= next_state;
   end
@@ -475,5 +480,4 @@ module lcd_id (
       endcase
     end
   end
-
 endmodule
