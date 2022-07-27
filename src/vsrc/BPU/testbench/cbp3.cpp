@@ -161,6 +161,14 @@ int main(int argc, char const *argv[])
         sopc->clk = 1;
         sopc->eval();
         context->timeInc(1);
+        sopc->clk = 0;
+        sopc->eval();
+        context->timeInc(1);
+        update_info_i.valid = 0;
+        std::memcpy(sopc->update_info_i, &update_info_i, sizeof(update_info_i));
+        sopc->clk = 1;
+        sopc->eval();
+        context->timeInc(1);
     }
     uint32_t perf_tag_hit_counter[5];
     std::memcpy(perf_tag_hit_counter, sopc->perf_tag_hit_counter, sizeof(uint32_t) * 5);

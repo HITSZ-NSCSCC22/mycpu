@@ -88,10 +88,10 @@ module tagged_predictor
     // Query logic
     ////////////////////////////////////////////////////////////////////////////////////////////
     // query_index is Fold(GHR) ^ PC[low] ^ PC[high]
-    assign query_index = pc_i[2+:PHT_ADDR_WIDTH] ^ pc_i[2+PHT_ADDR_WIDTH+:PHT_ADDR_WIDTH] ^ hashed_ght_input;
+    assign query_index = pc_i[0+:PHT_ADDR_WIDTH] ^ pc_i[0+PHT_ADDR_WIDTH+:PHT_ADDR_WIDTH] ^ hashed_ght_input;
     // query_tag is XORed from pc_i
     // assign query_tag = pc_i[31:31-PHT_TAG_WIDTH+1];
-    assign query_tag = pc_i[2+:PHT_TAG_WIDTH] ^ tag_hash_csr1 ^ {tag_hash_csr2, 1'b0};
+    assign query_tag = pc_i[0+:PHT_TAG_WIDTH] ^ tag_hash_csr1 ^ {tag_hash_csr2, 1'b0};
 
     always_ff @(posedge clk) begin
         query_index_delay <= query_index;
@@ -137,7 +137,7 @@ module tagged_predictor
                     update_entry.useful = inc_useful ? {PHT_USEFUL_WIDTH{1'b1}} : update_useful_bits_i - 1;
                 end
                 {PHT_USEFUL_WIDTH{1'b0}} : begin
-                    update_entry.useful =  inc_useful ? update_useful_bits_i  + 1 : {PHT_USEFUL_WIDTH{1'b0}};
+                    update_entry.useful =  inc_useful ? update_useful_bits_i + 1 : {PHT_USEFUL_WIDTH{1'b0}};
                 end
                 default: begin
                     update_entry.useful = inc_useful ? update_useful_bits_i + 1 : update_useful_bits_i - 1;
@@ -151,65 +151,6 @@ module tagged_predictor
         end
     end
 
-
-    // // Use a buffer to hold the query_index and pc
-    // // This is used when branch update came in with uncertain delay
-    // typedef struct packed {
-    //     bit valid;
-    //     bit [PHT_ADDR_WIDTH-1:0] index;
-    //     bit [PHT_TAG_WIDTH-1:0] tag;
-    //     bit [ADDR_WIDTH-1:0] pc;
-    // } info_buffer_entry;
-    // info_buffer_entry hash_buffer[64];
-    // logic [64-1:0] pc_match_table;  // indicates which entry in the buffer is a match
-
-    // // Move from lower to higher
-    // assign hash_buffer[0] = {(pc_i != 0), query_index, query_tag, pc_i};
-    // generate
-    //     for (genvar i = 1; i < 64; i = i + 1) begin
-    //         always @(posedge clk) begin
-    //             if (i == update_match_index + 1) begin
-    //                 hash_buffer[i].valid <= 0;
-    //                 hash_buffer[i].pc <= 0;
-    //             end else begin
-    //                 hash_buffer[i] <= hash_buffer[i-1];
-    //             end
-    //         end
-    //     end
-    // endgenerate
-
-    // // Match PC
-    // generate
-    //     for (genvar i = 0; i < 64; i = i + 1) begin
-    //         always @(*) begin
-    //             pc_match_table[i] = (hash_buffer[i].pc == update_pc_i);
-    //         end
-    //     end
-    // endgenerate
-
-    // // Get match index
-    // logic [$clog2(64+1)-1:0] update_match_index;
-    // fpa #(
-    //     .LINES(64)
-    // ) u_fpa (
-    //     .unitary_in({pc_match_table}),
-    //     .binary_out(update_match_index)
-    // );
-    // assign update_index = hash_buffer[update_match_index].index;
-    // logic [PHT_TAG_WIDTH-1:0] update_tag;
-    // assign update_tag = hash_buffer[update_match_index].tag;
-    // logic update_match_valid;
-    // assign update_match_valid = (update_match_index != 0) & hash_buffer[update_match_index].valid;
-
-    // always_ff @(posedge clk) begin
-    //     if (update_valid & update_ctr) PHT[update_index].ctr <= update_entry.ctr;
-    //     if (update_valid & update_useful) PHT[update_index].useful <= update_entry.useful;
-    //     if (update_valid & realloc_entry) begin
-    //         PHT[update_index].tag <= update_tag;
-    //         PHT[update_index].useful <= 0;
-    //     end
-    //     query_result <= PHT[query_index];
-    // end
 
     // CSR hash
     csr_hash #(

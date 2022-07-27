@@ -103,7 +103,7 @@ module tage_predictor
     // pingpong counter & lfsr
     // is a random number array
     logic [15:0] random_r;
-    logic [1:0] tag_update_useful_pingpong_counter[TAG_COMPONENT_AMOUNT];
+    logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_useful_pingpong_counter;
 
     ////////////////////////////////////////////////////////////////////////////////////////////
     // END of Defines
@@ -278,7 +278,7 @@ module tage_predictor
         for (integer i = TAG_COMPONENT_AMOUNT - 1; i >= 0; i--) begin
             if (tag_update_query_useful_match[i] && i + 1 > update_provider_id) begin
                 // 1/3 probability when longer history tag want to be selected
-                if (tag_update_useful_pingpong_counter[i] > 2'b01) begin
+                if (tag_update_useful_pingpong_counter[i]) begin
                     tag_update_useful_zero_id = i + 1;
                 end
             end
@@ -294,18 +294,7 @@ module tage_predictor
         .en   (1'b1),
         .value(random_r)
     );
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            for (integer i = 0; i < TAG_COMPONENT_AMOUNT; i++) begin
-                tag_update_useful_pingpong_counter[i] <= 2'b00;
-            end
-        end else begin
-            tag_update_useful_pingpong_counter[0] <= random_r[1:0];
-            for (integer i = 1; i < TAG_COMPONENT_AMOUNT; i++) begin
-                tag_update_useful_pingpong_counter[i] <= tag_update_useful_pingpong_counter[i-1];
-            end
-        end
-    end
+    assign tag_update_useful_pingpong_counter = random_r[TAG_COMPONENT_AMOUNT-1:0];
 
 
 

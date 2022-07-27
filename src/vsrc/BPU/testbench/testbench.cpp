@@ -14,7 +14,7 @@
 // Work around
 double sc_time_stamp() { return 0; }
 
-static std::string test_filename = "data/gcc-8M.txt";
+static std::string test_filename = "data/gcc-10K.txt";
 
 struct instruction_entry
 {
@@ -145,6 +145,14 @@ int main(int argc, char const *argv[])
         update_info_i.is_conditional = 1;
         std::memcpy(sopc->update_info_i, &update_info_i, sizeof(update_info_i));
 
+        sopc->clk = 1;
+        sopc->eval();
+        context->timeInc(1);
+        sopc->clk = 0;
+        sopc->eval();
+        context->timeInc(1);
+        update_info_i.valid = 0;
+        std::memcpy(sopc->update_info_i, &update_info_i, sizeof(update_info_i));
         sopc->clk = 1;
         sopc->eval();
         context->timeInc(1);
