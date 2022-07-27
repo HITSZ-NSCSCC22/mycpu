@@ -4,14 +4,14 @@ all: test
 cbp:  *.sv
 	verilator -O3 tage_predictor.sv --exe testbench/cbp3.cpp --cc -I../ | true # Ignore errors
 	@make -C obj_dir -f Vtage_predictor.mk 2>&1 >/dev/null
+	> logs/mpki.log
 	trace_id=0; while [[ $$trace_id -lt 20 ]]; do \
 		echo $$(./obj_dir/Vtage_predictor $$trace_id | grep MPKI); \
-		> logs/mpki.log \
 		echo $$(./obj_dir/Vtage_predictor $$trace_id | grep MPKI) >> logs/mpki.log; \
 		(( trace_id = trace_id + 1 )); \
 	done
 	@echo "Average MPKI:"
-	cat logs/mpki.log | awk '{sum += $2; cnt+=1} END {print sum / cnt}'
+	@cat logs/mpki.log | awk '{sum += $$2; cnt+=1} END {print sum / cnt}'
 
 
 benchmark: verilate
