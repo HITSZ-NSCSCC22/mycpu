@@ -72,7 +72,7 @@ module decoder_CSR
                     `EXE_CSRRD: begin
                         aluop_o = `EXE_CSRRD_OP;
                         alusel_o = `EXE_RES_CSR;
-                        special_info_o.is_pri = 0;
+                        special_info_o.is_pri = 1;
                         special_info_o.is_csr = 1;
                         special_info_o.csr_rstat = csr_num == 5;
                         kernel_instr = 1;
