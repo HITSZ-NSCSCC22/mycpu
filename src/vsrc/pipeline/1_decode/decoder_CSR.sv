@@ -86,8 +86,8 @@ module decoder_CSR
                         special_info_o.is_csr = 1;
                         special_info_o.csr_rstat = csr_num == 5;
                         // try:just crmd dwm0 dwm1 need forward,so we just refetch these
-                        special_info_o.need_refetch = (csr_num == 14'd0 || csr_num == 14'd180 || 
-                                                      csr_num == 14'd181) ? 1 : 0;
+                        special_info_o.need_refetch = (csr_num == 14'h0 || csr_num == 14'h180 || 
+                                                       csr_num == 14'h11 || csr_num == 14'h181) ? 1 : 0;
                         //special_info_o.need_refetch = 1;  // May change mode or trigger soft intrpt
                         kernel_instr = 1;
                     end
@@ -100,8 +100,8 @@ module decoder_CSR
                         special_info_o.is_csr = 1;
                         special_info_o.csr_rstat = csr_num == 5;
                         // try:just crmd dwm0 dwm1 need forward,so we just refetch these
-                        special_info_o.need_refetch = (csr_num == 14'd0 || csr_num == 14'd180 || 
-                                                      csr_num == 14'd181) ? 1 : 0;
+                        special_info_o.need_refetch = (csr_num == 14'h0 || csr_num == 14'h180 || 
+                                                      csr_num == 14'h11 || csr_num == 14'h181) ? 1 : 0;
                         //special_info_o.need_refetch = 1;  // May change mode
                         kernel_instr = 1;
                     end
