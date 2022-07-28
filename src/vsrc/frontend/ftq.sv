@@ -169,7 +169,8 @@ module ftq
     // 3. modified FTQ block is the rreq sent last cycle
     assign ifu_frontend_redirect_o = ifu_frontend_redirect;
     // DEBUG
-    logic [2:0] debug_length = ifu_o.length;
+    logic [2:0] debug_length;
+    assign debug_length = ifu_o.length;
 
     // -> EX
     assign ex_query_pc_o = FTQ[ex_query_addr_i].start_pc;
@@ -230,6 +231,9 @@ module ftq
             FTQ_meta[backend_ftq_update_meta_id_i].ftb_dirty <= backend_ftq_meta_update_ftb_dirty_i;
         end
     end
+
+    logic commit_error;
+    assign commit_error = (backend_commit_num != 0) && (backend_commit_ftq_id_i != comm_ptr);
 
 
 

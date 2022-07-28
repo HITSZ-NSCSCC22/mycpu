@@ -1327,45 +1327,35 @@ module cpu_top
     ila_1 ila_cpu_top (
         .clk(clk),  // input wire clk
 
-
-        .probe0(arid),  // input wire [3:0]  probe0  
-        .probe1(wid),  // input wire [3:0]  probe1 
-        .probe2(awid),  // input wire [3:0]  probe2 
-        .probe3(u_frontend.u_ifu.p2_ftq_block.length),  // input wire [31:0]  probe3 
-        .probe4(arvalid),  // input wire [0:0]  probe4 
-        .probe5(bvalid),  // input wire [0:0]  probe5 
-        .probe6(u_icache.state),  // input wire [31:0]  probe6 
-        .probe7(u_tlb.data_i.fetch),  // input wire [0:0]  probe7 
-        .probe8(u_tlb.we),  // input wire [0:0]  probe8 
-        .probe9(u_tlb.data_i.vaddr),  // input wire [31:0]  probe9 
-        .probe10({
-            u_tlb.data_o.tag, u_tlb.data_o.index, u_tlb.data_o.offset
-        }),  // input wire [31:0]  probe10 
-        .probe11(u_tlb.data_i.trans_en),  // input wire [0:0]  probe11 
-        .probe12(next_pc),  // input wire [31:0]  probe12 
-        .probe13(u_id_dispatch.id_i[0].instr_info.pc),  // input wire [31:0]  probe13 
-        .probe14(u_id_dispatch.id_i[1].instr_info.pc),  // input wire [31:0]  probe14 
-        .probe15(u_cs_reg.csr_dmw1),  // input wire [31:0]  probe15 
-        .probe16(awready),  // input wire [0:0]  probe16 
-        .probe17(awvalid),  // input wire [0:0]  probe17 
-        .probe18(wready),  // input wire [0:0]  probe18 
-        .probe19(wvalid),  // input wire [0:0]  probe19
-        .probe20(u_cs_reg.timer_64),  // input wire [63:0]  probe20 
-        .probe21(awaddr),  // input wire [31:0]  probe21 
-        .probe22(araddr),  // input wire [31:0]  probe22 
-        .probe23(u_dispatch.id_i[0].instr_info.pc),  // input wire [31:0]  probe23 
-        .probe24(u_dispatch.id_i[1].instr_info.pc),  // input wire [31:0]  probe24 
-        .probe25(u_LSU.cpu_rdata),  // input wire [31:0]  probe25 
-        .probe26(u_LSU.cpu_wdata),  // input wire [31:0]  probe26 
-        .probe27(u_dispatch.single_issue),  // input wire [0:0]  probe27
-        .probe28(u_instr_buffer.buffer_queue[0].pc),  // input wire [31:0]  probe28 
-        .probe29(u_instr_buffer.buffer_queue[1].pc),  // input wire [31:0]  probe29 
-        .probe30(u_instr_buffer.buffer_queue[2].pc),  // input wire [31:0]  probe30 
-        .probe31(u_instr_buffer.buffer_queue[3].pc),  // input wire [31:0]  probe31 
-        .probe32(u_instr_buffer.frontend_instr_i[0].pc),  // input wire [31:0]  probe32 
-        .probe33(u_instr_buffer.frontend_instr_i[1].pc),  // input wire [31:0]  probe33 
-        .probe34(u_instr_buffer.frontend_instr_i[2].pc),  // input wire [31:0]  probe34 
-        .probe35(u_instr_buffer.frontend_instr_i[3].pc)  // input wire [31:0]  probe35
+        .probe0(u_frontend.u_ftq.debug_queue_pc[0][15:0]),  // input wire [15:0]  probe0  
+        .probe1(u_frontend.u_ftq.debug_queue_pc[1][15:0]),  // input wire [15:0]  probe1 
+        .probe2(u_frontend.u_ftq.debug_queue_pc[2][15:0]),  // input wire [15:0]  probe2 
+        .probe3(u_frontend.u_ftq.debug_queue_pc[3][15:0]),  // input wire [15:0]  probe3 
+        .probe4(u_frontend.u_ftq.debug_queue_pc[4][15:0]),  // input wire [15:0]  probe4 
+        .probe5(u_frontend.u_ftq.debug_queue_pc[5][15:0]),  // input wire [15:0]  probe5 
+        .probe6(u_frontend.u_ftq.debug_queue_pc[6][15:0]),  // input wire [15:0]  probe6 
+        .probe7(u_frontend.u_ftq.debug_queue_pc[7][15:0]),  // input wire [15:0]  probe7 
+        .probe8(u_frontend.u_ftq.debug_length),  // input wire [2:0]  probe8 
+        .probe9(u_frontend.u_bpu.u_ftb.update_valid_i),  // input wire [0:0]  probe9 
+        .probe10(u_frontend.u_bpu.u_ftb.update_index),  // input wire [11:0]  probe10 
+        .probe11(u_frontend.u_bpu.u_ftb.update_entry_i),  // input wire [86:0]  probe11 
+        .probe12(u_frontend.u_bpu.u_ftb.query_index),  // input wire [11:0]  probe12 
+        .probe13(u_frontend.u_bpu.u_ftb.query_entry),  // input wire [86:0]  probe13 
+        .probe14(u_frontend.u_bpu.u_ftb.hit),  // input wire [0:0]  probe14 
+        .probe15(ex[0].u_ex.branch_direction_mispredict),  // input wire [0:0]  probe15 
+        .probe16(ex[0].u_ex.branch_target_mispredict),  // input wire [0:0]  probe16 
+        .probe17(ex[0].u_ex.inst_pc_i),  // input wire [31:0]  probe17
+        .probe18(u_frontend.u_ftq.comm_ptr),  // input wire [2:0]  probe18 
+        .probe19(u_frontend.u_ftq.bpu_ptr),  // input wire [2:0]  probe19 
+        .probe20(u_frontend.u_ftq.backend_commit_ftq_id_i),  // input wire [2:0]  probe20 
+        .probe21(u_frontend.u_ftq.backend_ftq_update_meta_id_i),  // input wire [2:0]  probe21 
+        .probe22(u_frontend.u_ftq.backend_commit_num),  // input wire [1:0]  probe22
+        .probe23(u_frontend.u_ftq.commit_error),  // input wire [0:0]  probe23
+        .probe24(u_frontend.u_ifu.instr_buffer_o[0].pc[15:0]),  // input wire [15:0]  probe24 
+        .probe25(u_frontend.u_ftq.ifu_ptr),  // input wire [2:0]  probe25
+        .probe26(u_frontend.u_ifu.p0_pc[15:0]),  // input wire [15:0]  probe26 
+        .probe27(u_frontend.u_ifu.p1_pc[15:0]),  // input wire [15:0]  probe27 
+        .probe28(u_frontend.u_ifu.p2_pc[15:0])  // input wire [15:0]  probe28
     );
 `endif
 
