@@ -92,7 +92,7 @@ module dispatch
         for (integer i = 0; i < ISSUE_WIDTH; i++) begin
             issue_wreg[i] = id_i[i].reg_write_valid;
             issue_wreg_addr[i] = id_i[i].reg_write_addr;
-            issue_csr_we[i] = csr_op[i];
+            issue_csr_we[i] = csr_op[i] && aluop_i[i] != `EXE_CSRRD_OP;
             issue_csr_addr[i] = id_i[i].imm[13:0];
         end
     end
