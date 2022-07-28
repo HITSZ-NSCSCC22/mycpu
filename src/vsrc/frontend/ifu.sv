@@ -14,10 +14,12 @@ module ifu
     input logic rst,
 
     // Flush
-    input flush_i,
+    input logic backend_flush_i,
+    input logic frontend_redirect_i,
+
 
     // <-> Fetch Target Queue
-    input ftq_ifu_t ftq_i,
+    input ftq_block_t ftq_i,
     input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_id_i,
     output logic ftq_accept_o,  // In current cycle
 
@@ -46,12 +48,12 @@ module ifu
     logic p0_advance, p1_advance, p2_advance;
     // P1 signal
     logic p1_send_rreq, p1_send_rreq_delay1;
-    ftq_ifu_t p1_ftq_block;
+    ftq_block_t p1_ftq_block;
     // P2 signal
     logic p2_read_done;  // Read done is same cycle as ICache return valid
     logic p2_rreq_ack;  // Read request is accepted by ICache
     logic p2_in_transaction;  // Currently in transaction and not done yet
-    ftq_ifu_t p2_ftq_block;
+    ftq_block_t p2_ftq_block;
     // Flush state
     logic is_flushing_r;
 
@@ -91,7 +93,7 @@ module ifu
     ////////////////////////////////////////////////////////////////////////////////
     // P1 data structure
     typedef struct packed {
-        ftq_ifu_t ftq_block;
+        ftq_block_t ftq_block;
         logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_id;
         inst_tlb_t tlb_rreq;
         ifu_csr_t csr;
@@ -106,7 +108,9 @@ module ifu
                         p1_data.tlb_rreq.dmw1_en ? p1_data.csr.dmw1[`DMW_MAT] == 0 : 
                         tlb_i.tlb_mat == 0;
     always_ff @(posedge clk) begin
-        if (flush_i) begin
+        if (backend_flush_i) begin
+            p1_data <= 0;
+        end else if (p0_advance & frontend_redirect_i) begin
             p1_data <= 0;
         end else if (p0_advance) begin
             p1_data.ftq_block <= ftq_i;
@@ -169,7 +173,7 @@ module ifu
     always_ff @(posedge clk) begin : is_flushing_ff
         if (rst) begin
             is_flushing_r <= 0;
-        end else if (flush_i & (p2_in_transaction | p1_send_rreq)) begin
+        end else if (backend_flush_i & (p2_in_transaction | p1_send_rreq)) begin
             // Enter a flusing state if flush_i and read transaction on-the-fly
             is_flushing_r <= 1;
         end else if (p2_read_done) begin
@@ -184,7 +188,7 @@ module ifu
         logic uncached;
         logic excp;
         logic [15:0] excp_num;
-        ftq_ifu_t ftq_block;
+        ftq_block_t ftq_block;
         logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_id;
         logic [1:0] icache_rreq_ack_r;
         logic [1:0] icache_rvalid_r;
@@ -208,7 +212,7 @@ module ifu
     always_ff @(posedge clk) begin : p2_ff
         if (rst) begin
             p2_read_transaction <= 0;
-        end else if (((~p1_send_rreq & p1_advance) | ~(p2_in_transaction | p1_send_rreq)) & flush_i) begin
+        end else if (((~p1_send_rreq & p1_advance) | ~(p2_in_transaction | p1_send_rreq)) & backend_flush_i) begin
             p2_read_transaction <= 0;
         end else if (p1_advance) begin
             p2_read_transaction.sent_req <= p1_send_rreq;
@@ -257,39 +261,50 @@ module ifu
     /////////////////////////////////////////////////////////////////////////////////
     // P3, send instr info to IB
     /////////////////////////////////////////////////////////////////////////////////
+    logic [FETCH_WIDTH-1:0] debug_predicted_taken;
+    always_comb begin
+        for (integer i = 0; i < FETCH_WIDTH; ++i) begin
+            debug_predicted_taken[i] = instr_buffer_o[i].special_info.predicted_taken;
+        end
+    end
     always_ff @(posedge clk) begin : p3_ff
         if (rst) begin
             for (integer i = 0; i < FETCH_WIDTH; i++) begin
                 instr_buffer_o[i] <= 0;
             end
-        end else if (flush_i | (is_flushing_r)) begin
+        end else if (backend_flush_i | (is_flushing_r)) begin
             for (integer i = 0; i < FETCH_WIDTH; i++) begin
                 instr_buffer_o[i] <= 0;
             end
         end else if (stallreq_i) begin
             // Hold output
         end else if (p2_advance) begin
+            // Default 0
+            for (integer i = 0; i < FETCH_WIDTH; i++) begin
+                instr_buffer_o[i] <= 0;
+            end
             // If p1 read done, pass data to IB
             // However, if p1 read done comes from flushing, do not pass down to IB
             for (integer i = 0; i < FETCH_WIDTH; i++) begin
-                // Default
-                instr_buffer_o[i].is_last_in_block <= 0;
-
                 if (i < p2_ftq_block.length) begin
-                    if (i[2:0] == p2_ftq_block.length - 1) begin
-                        instr_buffer_o[i].is_last_in_block <= 1; // Mark the instruction as last in block, used when commit
+                    if (i == p2_ftq_block.length - 1) begin
+                        // Mark the instruction as last in block, used when commit
+                        instr_buffer_o[i].is_last_in_block <= 1;
+                        // Mark the last instruction if:
+                        // 1. prediction valid
+                        // 2. no TLBR or other exception detected
+                        instr_buffer_o[i].special_info.predicted_taken <= p2_read_transaction.excp ? 0 : p2_ftq_block.predicted_taken;
+                        instr_buffer_o[i].special_info.predict_valid <= p2_read_transaction.excp ? 0 : p2_ftq_block.predict_valid;
                     end
                     instr_buffer_o[i].valid <= 1;
                     instr_buffer_o[i].pc <= p2_ftq_block.start_pc + i * 4;  // Instr is 4 bytes long
-                    instr_buffer_o[i].instr <= cacheline_combined[p2_ftq_block.start_pc[3:2]+i];
+                    // Set to 0 is exception occurs
+                    instr_buffer_o[i].instr <= p2_read_transaction.excp ? 0 : cacheline_combined[p2_ftq_block.start_pc[3:2]+i];
                     // Exception info
                     instr_buffer_o[i].excp <= p2_read_transaction.excp;
                     instr_buffer_o[i].excp_num <= p2_read_transaction.excp_num;
                     instr_buffer_o[i].ftq_id <= p2_read_transaction.ftq_id;
                     instr_buffer_o[i].ftq_block_idx <= i[1:0];
-                    instr_buffer_o[i].special_info.predicted_taken <= p2_ftq_block.predicted_taken;
-                end else begin
-                    instr_buffer_o[i] <= 0;
                 end
             end
         end else begin

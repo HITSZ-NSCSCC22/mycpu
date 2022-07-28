@@ -33,8 +33,18 @@ module frontend
     input logic backend_flush_i,
     input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_flush_ftq_id_i,
     input logic [COMMIT_WIDTH-1:0] backend_commit_bitmask_i,
-    input logic [COMMIT_WIDTH-1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_commit_ftq_id_i,
-    input backend_commit_meta_t [COMMIT_WIDTH-1:0] backend_commit_meta_i,
+    input logic [COMMIT_WIDTH-1:0] backend_commit_block_bitmask_i,
+    input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_commit_ftq_id_i,
+    input backend_commit_meta_t backend_commit_meta_i,
+    // FTQ meta value
+    input logic backend_ftq_meta_update_valid_i,
+    input logic backend_ftq_meta_update_ftb_dirty_i,
+    input logic [ADDR_WIDTH-1:0] backend_ftq_meta_update_jump_target_i,
+    input logic [ADDR_WIDTH-1:0] backend_ftq_meta_update_fall_through_i,
+    input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_ftq_update_meta_id_i,
+    // <-> EX
+    input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ex_query_addr_i,
+    output logic [ADDR_WIDTH-1:0] ex_query_pc_o,
 
     // <-> Instruction buffer
     input logic instr_buffer_stallreq_i,
@@ -60,13 +70,15 @@ module frontend
 
     logic main_bpu_redirect;
     logic [ADDR_WIDTH-1:0] pc, next_pc, sequential_pc, main_bpu_redirect_pc;
-    assign sequential_pc = pc + 4 * bpu_ftq_block.length;
+    assign sequential_pc = pc + 4 * bpu_p0_ftq_block.length;
 
     // BPU
-    bpu_ftq_t bpu_ftq_block;
+    ftq_block_t bpu_p0_ftq_block;
+    ftq_block_t bpu_p1_ftq_block;
+    bpu_ftq_meta_t bpu_ftq_meta;
     ftq_bpu_meta_t ftq_bpu_meta;
 
-    always_ff @(posedge clk or negedge rst_n) begin : pc_ff
+    always_ff @(posedge clk) begin : pc_ff
         if (!rst_n) begin
             pc <= 32'h1c000000;
         end else begin
@@ -74,12 +86,16 @@ module frontend
         end
     end
 
-    logic ftq_full;
+    logic ftq_full, ftq_full_delay;
+
+    always_ff @(posedge clk) begin
+        ftq_full_delay <= ftq_full;
+    end
 
     always_comb begin : next_pc_comb
         if (backend_flush_i) begin
             next_pc = backend_next_pc_i;
-        end else if (ftq_full) begin
+        end else if (ftq_full_delay & ftq_full) begin
             next_pc = pc;
         end else if (main_bpu_redirect) begin
             next_pc = main_bpu_redirect_pc;
@@ -91,10 +107,16 @@ module frontend
     bpu u_bpu (
         .clk(clk),
         .rst(rst),
+
+        // Backend
+        .backend_flush_i(backend_flush_i),
+
         .pc_i(pc),
         // FTQ
         .ftq_full_i(ftq_full),
-        .ftq_predict_o(bpu_ftq_block),
+        .ftq_p0_o(bpu_p0_ftq_block),
+        .ftq_p1_o(bpu_p1_ftq_block),
+        .ftq_meta_o(bpu_ftq_meta),
         // Train
         .ftq_meta_i(ftq_bpu_meta),
 
@@ -105,7 +127,8 @@ module frontend
     );
 
 
-    ftq_ifu_t ftq_ifu_block;
+    ftq_block_t ftq_ifu_block;
+    logic ifu_frontend_redirect;
     logic ifu_ftq_accept;
     logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_ifu_id;
 
@@ -118,20 +141,33 @@ module frontend
         .backend_flush_ftq_id_i(backend_flush_ftq_id_i),
 
         // <-> BPU
-        .bpu_i           (bpu_ftq_block),
-        .bpu_meta_i      (),
-        .bpu_queue_full_o(ftq_full),
-        .bpu_meta_o      (ftq_bpu_meta),
+        .bpu_p0_i           (bpu_p0_ftq_block),
+        .bpu_p1_i           (bpu_p1_ftq_block),
+        .bpu_meta_i         (bpu_ftq_meta),
+        .main_bpu_redirect_i(main_bpu_redirect),
+        .bpu_queue_full_o   (ftq_full),
+        .bpu_meta_o         (ftq_bpu_meta),
 
         // <-> Backend
         .backend_commit_bitmask_i(backend_commit_bitmask_i),
         .backend_commit_ftq_id_i(backend_commit_ftq_id_i),
         .backend_commit_meta_i(backend_commit_meta_i),
+        .backend_commit_block_bitmask_i(backend_commit_block_bitmask_i),
+
+        .backend_ftq_meta_update_valid_i(backend_ftq_meta_update_valid_i),
+        .backend_ftq_meta_update_ftb_dirty_i(backend_ftq_meta_update_ftb_dirty_i),
+        .backend_ftq_meta_update_fall_through_i(backend_ftq_meta_update_fall_through_i),
+        .backend_ftq_meta_update_jump_target_i(backend_ftq_meta_update_jump_target_i),
+        .backend_ftq_update_meta_id_i(backend_ftq_update_meta_id_i),
+
+        .ex_query_addr_i(ex_query_addr_i),
+        .ex_query_pc_o  (ex_query_pc_o),
 
         // <-> IFU
-        .ifu_o       (ftq_ifu_block),
-        .ifu_ftq_id_o(ftq_ifu_id),
-        .ifu_accept_i(ifu_ftq_accept)
+        .ifu_o                  (ftq_ifu_block),
+        .ifu_frontend_redirect_o(ifu_frontend_redirect),
+        .ifu_ftq_id_o           (ftq_ifu_id),
+        .ifu_accept_i           (ifu_ftq_accept)
     );
 
 
@@ -142,7 +178,8 @@ module frontend
         .rst(rst),
 
         // Flush
-        .flush_i(backend_flush_i),
+        .backend_flush_i(backend_flush_i),
+        .frontend_redirect_i(ifu_frontend_redirect),
 
         // <-> FTQ
         .ftq_i       (ftq_ifu_block),

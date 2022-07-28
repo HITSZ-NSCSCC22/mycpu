@@ -20,5 +20,12 @@
     "systemverilogFormatter.veribleBuild": "none",
     "systemverilogFormatter.commandLineArguments": "--indentation_spaces 4",
     "editor.formatOnSave": true,
-    "verilog.ctags.path": "ctags"
+    "verilog.ctags.path": "ctags",
+    "systemverilog.compileOnSave": true,
+    "systemverilog.launchConfigurationVerilator": "verilator --sv --lint-only --language 1800-2012 --Wall -Isrc -Isrc/vsrc -Isrc/vsrc/axi-crossbar/rtl -DCPU_2CMT -DSIMULATION --bbox-unsup ",
+    "systemverilog.formatCommand": "verible-verilog-format --indentation_spaces 4",
+    "systemverilog.compilerType": "Verilator",
+    "systemverilog.antlrVerification": false,
+    "systemverilog.documentSymbolsPrecision": "declaration",
+    "systemverilog.disableIndexing": true
 }

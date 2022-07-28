@@ -5,7 +5,7 @@ module instr_buffer
 #(
     parameter IF_WIDTH = 2,
     parameter ID_WIDTH = 2,
-    parameter BUFFER_SIZE = 8
+    parameter BUFFER_SIZE = 16
 ) (
     input logic clk,
     input logic rst,
@@ -20,6 +20,8 @@ module instr_buffer
     output instr_info_t backend_instr_o[ID_WIDTH]
 
 );
+
+    localparam PTR_WIDTH = $clog2(BUFFER_SIZE);
 
     // Reset signal
     logic rst_n;
@@ -91,7 +93,7 @@ module instr_buffer
         for (integer i = 0; i < ID_WIDTH; i++) begin
             // Reset entry
             if (i < backend_accept_num) begin
-                next_buffer_queue[read_ptr+$clog2(BUFFER_SIZE)'(i)] = 0;
+                next_buffer_queue[PTR_WIDTH'(read_ptr+i)] = 0;
             end
         end
 
@@ -99,7 +101,7 @@ module instr_buffer
         for (integer i = 0; i < IF_WIDTH; i++) begin
             // Accept entry from frontend
             if (i < frontend_accept_num) begin
-                next_buffer_queue[write_ptr+$clog2(BUFFER_SIZE)'(i)] = frontend_instr_i[i];
+                next_buffer_queue[PTR_WIDTH'(write_ptr+i)] = frontend_instr_i[i];
             end
         end
     end
@@ -107,7 +109,7 @@ module instr_buffer
     // Connect backend_instr_o directly to buffer_queue
     always_comb begin : backend_instr_o_comb
         for (integer i = 0; i < ID_WIDTH; i++) begin
-            backend_instr_o[i] = buffer_queue[read_ptr+$clog2(BUFFER_SIZE)'(i)];
+            backend_instr_o[i] = buffer_queue[PTR_WIDTH'(read_ptr+i)];
         end
     end
 

@@ -5,6 +5,7 @@ module csr_hash #(
 ) (
     input logic clk,
     input logic rst,
+    input logic data_update_i,
     input logic [INPUT_LENGTH-1:0] data_i,
     output logic [OUTPUT_LENGTH-1:0] hash_o
 );
@@ -25,10 +26,10 @@ module csr_hash #(
     end
 
     // Update CSR
-    always_ff @(posedge clk or negedge rst_n) begin : csr_hash_ff
-        if (!rst_n) begin
+    always_ff @(posedge clk) begin : csr_hash_ff
+        if (~rst_n) begin
             CSR <= 0;
-        end else begin
+        end else if (data_update_i) begin
             CSR <= next_CSR;
         end
     end

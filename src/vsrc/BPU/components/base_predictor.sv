@@ -11,10 +11,15 @@ module base_predictor
 (
     input logic clk,
     input logic rst,
+    // Query
     input logic [ADDR_WIDTH-1:0] pc_i,
+    output logic taken,
+    output logic [BPU_COMPONENT_CTR_WIDTH[0]-1:0] ctr,
+    // Update
     input logic update_valid,
-    input base_predictor_update_info_t update_info_i,
-    output logic taken
+    input logic [ADDR_WIDTH-1:0] update_pc_i,
+    input logic inc_ctr,
+    input logic [BPU_COMPONENT_CTR_WIDTH[0]-1:0] update_ctr_i
 );
 
     localparam TABLE_DEPTH = BPU_COMPONENT_TABLE_DEPTH[0];
@@ -30,18 +35,19 @@ module base_predictor
     logic [       CTR_WIDTH-1:0] query_entry;
 
     assign taken = (query_entry[CTR_WIDTH-1] == 1'b1);
+    assign ctr   = (query_entry);
 
     // Update logic
-    logic [TABLE_DEPTH_EXP2-1:0] update_index = update_info_i.pc[TABLE_DEPTH_EXP2+1:2];
+    logic [TABLE_DEPTH_EXP2-1:0] update_index = update_pc_i[TABLE_DEPTH_EXP2+1:2];
     logic [       CTR_WIDTH-1:0] update_content;
     always_comb begin
         if (update_valid) begin
-            if (update_info_i.ctr_bits == {CTR_WIDTH{1'b1}}) begin
-                update_content = update_info_i.taken ? update_info_i.ctr_bits : update_info_i.ctr_bits - 1;
-            end else if (update_info_i.ctr_bits == {CTR_WIDTH{1'b0}}) begin
-                update_content = update_info_i.taken ? update_info_i.ctr_bits + 1 : update_info_i.ctr_bits;
+            if (update_ctr_i == {CTR_WIDTH{1'b1}}) begin
+                update_content = inc_ctr ? update_ctr_i : update_ctr_i - 1;
+            end else if (update_ctr_i == {CTR_WIDTH{1'b0}}) begin
+                update_content = inc_ctr ? update_ctr_i + 1 : update_ctr_i;
             end else begin
-                update_content = update_info_i.taken ? update_info_i.ctr_bits + 1 : update_info_i.ctr_bits - 1;
+                update_content = inc_ctr ? update_ctr_i + 1 : update_ctr_i - 1;
             end
         end else begin
             update_content = 0;
@@ -75,7 +81,7 @@ module base_predictor
         .ena  (1'b1),
         .enb  (1'b1),
         .wea  (1'b0),
-        .web  (1'b1),
+        .web  (update_valid),
         .dina (0),
         .addra(query_index),
         .douta(query_entry),

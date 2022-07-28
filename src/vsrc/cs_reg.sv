@@ -1,7 +1,12 @@
 `include "defines.sv"
 `include "csr_defines.sv"
+`include "core_types.sv"
+`include "core_config.sv"
+
 module cs_reg
     import csr_defines::*;
+    import core_types::*;
+    import core_config::*;
 (
     input logic clk,
     input logic rst,
@@ -19,7 +24,7 @@ module cs_reg
     input logic [31:0] bad_va_i,
     input logic tlbsrch_en,
     input logic tlbsrch_found,
-    input logic [4:0] tlbsrch_index,
+    input logic [$clog2(TLB_NUM)-1:0] tlbsrch_index,
     input logic excp_tlbrefill,
     input logic excp_tlb,
     input logic [18:0] excp_tlb_vppn,
@@ -47,7 +52,6 @@ module cs_reg
 
     //to tlb
     output logic [9:0] asid_out,
-    output logic [4:0] rand_index,
     output logic [31:0] tlbehi_out,
     output logic [31:0] tlbelo0_out,
     output logic [31:0] tlbelo1_out,
@@ -65,7 +69,10 @@ module cs_reg
     input logic [31:0] tlbelo0_in,
     input logic [31:0] tlbelo1_in,
     input logic [31:0] tlbidx_in,
-    input logic [9:0] asid_in
+    input logic [9:0] asid_in,
+
+    // PMU
+    input pmu_input_t pmu_in
 );
 
     logic [31:0] csr_crmd;
@@ -102,6 +109,32 @@ module cs_reg
     logic [31:0] csr_pgd;
     logic timer_en;
     logic [63:0] timer_64;
+
+    // PMU
+    logic [31:0] pmu_ib_full;
+    logic [31:0] pmu_dispatch_backend_nop;
+    logic [31:0] pmu_dispatch_frontend_nop;
+    logic [31:0] pmu_dispatch_single_issue;
+    logic [31:0] pmu_dispatch_datadep_nop;
+    logic [31:0] pmu_dispatch_instr_cnt;
+    logic [31:0] pmu_ib_empty;
+    logic [31:0] pmu_icache_req;
+    logic [31:0] pmu_icache_miss;
+    logic [31:0] pmu_dcache_req;
+    logic [31:0] pmu_dcache_miss;
+    logic [31:0] pmu_bpu_valid;
+    logic [31:0] pmu_bpu_miss;
+    logic [31:0] pmu_bpu_branch_instr;
+    logic [31:0] pmu_bpu_conditional_branch;
+    logic [31:0] pmu_bpu_conditional_miss;
+    logic [31:0] pmu_bpu_ftb_dirty;
+    logic [31:0] pmu_bpu_indirect_branch;
+    logic [31:0] pmu_bpu_indirect_miss;
+    logic [31:0] pmu_tlb_req;
+    logic [31:0] pmu_tlb_miss;
+    logic [31:0] pmu_tlb_refill_cyc;
+    logic pmu_tlb_refilling;
+    logic [1:0][31:0] pmu_rdata;
 
     logic llbit;
 
@@ -169,8 +202,89 @@ module cs_reg
                   {2{ertn_flush}} & csr_prmd[`PPLV] | 
                   {2{!excp_flush && !ertn_flush}} & csr_crmd[`PLV];
 
+    // PMU
+    always_ff @(posedge clk) begin
+        if (rst) pmu_tlb_refilling <= 0;
+        else if (excp_tlbrefill) pmu_tlb_refilling <= 1;
+        else if (ertn_flush) pmu_tlb_refilling <= 0;
+    end
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            pmu_ib_full <= 0;
+            pmu_dispatch_backend_nop <= 0;
+            pmu_dispatch_frontend_nop <= 0;
+            pmu_dispatch_single_issue <= 0;
+            pmu_dispatch_datadep_nop <= 0;
+            pmu_dispatch_instr_cnt <= 0;
+            pmu_ib_empty <= 0;
+            pmu_icache_req <= 0;
+            pmu_icache_miss <= 0;
+            pmu_dcache_req <= 0;
+            pmu_dcache_miss <= 0;
+            pmu_bpu_valid <= 0;
+            pmu_bpu_miss <= 0;
+            pmu_bpu_branch_instr <= 0;
+            pmu_bpu_conditional_branch <= 0;
+            pmu_bpu_conditional_miss <= 0;
+            pmu_bpu_ftb_dirty <= 0;
+            pmu_bpu_indirect_branch <= 0;
+            pmu_bpu_indirect_miss <= 0;
+            pmu_tlb_req <= 0;
+            pmu_tlb_miss <= 0;
+            pmu_tlb_refill_cyc <= 0;
+        end else begin
+            pmu_ib_full <= pmu_ib_full + pmu_in.ib_full;
+            pmu_dispatch_backend_nop <= pmu_dispatch_backend_nop + pmu_in.dispatch_backend_nop;
+            pmu_dispatch_frontend_nop <= pmu_dispatch_frontend_nop + pmu_in.dispatch_frontend_nop;
+            pmu_dispatch_single_issue <= pmu_dispatch_single_issue + pmu_in.dispatch_single_issue;
+            pmu_dispatch_datadep_nop <= pmu_dispatch_datadep_nop + pmu_in.dispatch_datadep_nop;
+            pmu_dispatch_instr_cnt <= pmu_dispatch_instr_cnt + pmu_in.dispatch_instr_cnt;
+            pmu_ib_empty <= pmu_ib_empty + pmu_in.ib_empty;
+            pmu_icache_req <= pmu_icache_req + pmu_in.icache_req;
+            pmu_icache_miss <= pmu_icache_miss + pmu_in.icache_miss;
+            pmu_dcache_req <= pmu_dcache_req + pmu_in.dcache_req;
+            pmu_dcache_miss <= pmu_dcache_miss + pmu_in.dcache_miss;
+            pmu_bpu_valid <= pmu_bpu_valid + pmu_in.bpu_valid;
+            pmu_bpu_miss <= pmu_bpu_miss + pmu_in.bpu_miss;
+            pmu_bpu_branch_instr <= pmu_bpu_branch_instr + pmu_in.bpu_branch_instr;
+            pmu_bpu_conditional_branch <= pmu_bpu_conditional_branch + pmu_in.bpu_conditional_branch;
+            pmu_bpu_conditional_miss <= pmu_bpu_conditional_miss + pmu_in.bpu_conditional_miss;
+            pmu_bpu_ftb_dirty <= pmu_bpu_ftb_dirty + pmu_in.bpu_ftb_dirty;
+            pmu_bpu_indirect_branch <= pmu_bpu_indirect_branch + pmu_in.bpu_indirect_branch;
+            pmu_bpu_indirect_miss <= pmu_bpu_indirect_miss + pmu_in.bpu_indirect_miss;
+            pmu_tlb_req <= pmu_tlb_req + pmu_in.tlb_req;
+            pmu_tlb_miss <= pmu_tlb_miss + pmu_in.tlb_miss;
+            pmu_tlb_refill_cyc <= pmu_tlb_refill_cyc + pmu_tlb_refilling;
+        end
+
+    end
+
+
     generate
         for (i = 0; i < 1; i++) begin
+            assign pmu_rdata[i] = {32{raddr[i] == `PMU_IB_FULL}} & pmu_ib_full |
+                        {32{raddr[i] == `PMU_DISPATCH_BACKEND_NOP}} & pmu_dispatch_backend_nop | 
+                        {32{raddr[i] == `PMU_DISPATCH_FRONTEND_NOP}} & pmu_dispatch_frontend_nop |
+                        {32{raddr[i] == `PMU_DISPATCH_SINGLE_ISSUE}} & pmu_dispatch_single_issue | 
+                        {32{raddr[i] == `PMU_DISPATCH_DATADEP_NOP}} & pmu_dispatch_datadep_nop | 
+                        {32{raddr[i] == `PMU_DISPATCH_INSTR_CNT}} & pmu_dispatch_instr_cnt | 
+                        {32{raddr[i] == `PMU_IB_EMPTY}} & pmu_ib_empty |
+                        {32{raddr[i] == `PMU_ICACHE_REQ}} & pmu_icache_req |
+                        {32{raddr[i] == `PMU_ICACHE_MISS}} & pmu_icache_miss |
+                        {32{raddr[i] == `PMU_DCACHE_REQ}} & pmu_dcache_req |
+                        {32{raddr[i] == `PMU_ICACHE_MISS}} & pmu_dcache_miss |
+                        {32{raddr[i] == `PMU_BPU_VALID}} & pmu_bpu_valid |
+                        {32{raddr[i] == `PMU_BPU_MISS}} & pmu_bpu_miss |
+                        {32{raddr[i] == `PMU_BPU_BRANCH_INSTR}} & pmu_bpu_branch_instr |
+                        {32{raddr[i] == `PMU_BPU_CONDITIONAL_BRANCH}} & pmu_bpu_conditional_branch |
+                        {32{raddr[i] == `PMU_BPU_CONDITIONAL_MISS}} & pmu_bpu_conditional_miss |
+                        {32{raddr[i] == `PMU_BPU_FTB_DIRTY}} & pmu_bpu_ftb_dirty |
+                        {32{raddr[i] == `PMU_BPU_INDIRECT_BRANCH}} & pmu_bpu_indirect_branch |
+                        {32{raddr[i] == `PMU_BPU_INDIRECT_MISS}} & pmu_bpu_indirect_miss |
+                        {32{raddr[i] == `PMU_TLB_REQ}} & pmu_tlb_req |
+                        {32{raddr[i] == `PMU_TLB_MISS}} & pmu_tlb_miss | 
+                        {32{raddr[i] == `PMU_TLB_REFILL_CYC}} & pmu_tlb_refill_cyc 
+                        ;
             assign rdata[i] = {32{raddr[i] == `CRMD  }}  & csr_crmd    |
                  {32{raddr[i] == `PRMD  }}  & csr_prmd    |
                  {32{raddr[i] == `ECTL  }}  & csr_ectl    |
@@ -199,7 +313,7 @@ module cs_reg
                  {32{raddr[i] == `TVAL  }}  & csr_tval    |
                  {32{raddr[i] == `TLBRENTRY}} & csr_tlbrentry   |
                  {32{raddr[i] == `DMW0}}    & csr_dmw0    |
-                 {32{raddr[i] == `DMW1}}    & csr_dmw1    ;
+                 {32{raddr[i] == `DMW1}}    & csr_dmw1    | pmu_rdata[i];
         end
     endgenerate
 
@@ -214,7 +328,6 @@ module cs_reg
     assign tlbelo0_out = csr_tlbelo0;
     assign tlbelo1_out = csr_tlbelo1;
     assign tlbidx_out = csr_tlbidx;
-    assign rand_index = timer_64[4:0];
     assign ecode_out = csr_estat[`ECODE];
     assign datf_out = csr_crmd[`DATF];
     assign datm_out = csr_crmd[`DATM];

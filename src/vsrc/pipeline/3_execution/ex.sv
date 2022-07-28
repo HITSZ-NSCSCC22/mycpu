@@ -33,10 +33,17 @@ module ex
     input [31:0] tid,
     input csr_to_mem_struct csr_ex_signal,
 
+    // EX next FTQ pc query
+    output logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_query_addr_o,
+    input logic [ADDR_WIDTH-1:0] ftq_query_pc_i,
+
     // EX redirect signals
-    // Redirect is only triggered when mispredict happens
     output logic ex_redirect_o,
     output logic [ADDR_WIDTH-1:0] ex_redirect_target_o,
+    output logic ex_is_branch_o,
+    output logic ex_jump_target_mispredict_o,
+    output logic [ADDR_WIDTH-1:0] ex_jump_target_addr_o,
+    output logic [ADDR_WIDTH-1:0] ex_fall_through_addr_o,
     output logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ex_redirect_ftq_id_o,
 
     // -> Dispatch
@@ -65,7 +72,6 @@ module ex
 
     logic [`RegBus] inst_i, inst_pc_i;
 
-    logic branch_flag;
 
     logic wreg_i;
     logic [`RegAddrBus] wd_i;
@@ -101,8 +107,14 @@ module ex
     logic reg1_lt_reg2;
     logic [`RegBus] oprand2_mux;
     logic [`RegBus] result_compare;
-
+    logic last_instr_branch;
+    logic [ADDR_WIDTH-1:0] real_next_pc;
     logic [`RegBus] pc_delay;
+
+    // Branch Unit
+    logic branch_flag;
+    logic branch_direction_mispredict;
+    logic branch_target_mispredict;
 
     //mul and div
     logic [1:0] muldiv_op;  // High effective
@@ -129,6 +141,10 @@ module ex
     always_ff @(posedge clk) begin
         pc_delay <= inst_pc_i;
     end
+
+    // Branch
+    logic [ADDR_WIDTH-1:0] jump_target_address;
+    logic [ADDR_WIDTH-1:0] fall_through_address;
 
     assign instr_info = dispatch_i.instr_info;
     assign special_info = dispatch_i.instr_info.special_info;
@@ -250,7 +266,7 @@ module ex
         .logicout(logicout),
         .shiftout(shiftout),
         .branch_flag(branch_flag),
-        .branch_target_address(ex_redirect_target_o)
+        .branch_target_address(jump_target_address)
     );
 
 
@@ -395,10 +411,32 @@ module ex
         end
     end
 
+    ///////////////////////////////////////////////////////////////////////////////////
+    // Branch Unit
+    ///////////////////////////////////////////////////////////////////////////////////
+    // FTQ query
+    assign ftq_query_addr_o = $clog2(FRONTEND_FTQ_SIZE)'(instr_info.ftq_id + 1);
 
-    // Only when taken & not predicted taken can ex do redirect
-    assign ex_redirect_o = branch_flag && ~special_info.predicted_taken && advance;
+    // Any mispredict will trigger a redirection
+    // Mispredict is defined as:
+    // 1. branch direction mispredict
+    // 2. jump target mispredict
+    assign branch_direction_mispredict = branch_flag ^ special_info.predicted_taken;
+    assign branch_target_mispredict = (branch_flag & special_info.predicted_taken & (jump_target_address != ftq_query_pc_i))  | (~branch_flag & ~special_info.predicted_taken &  instr_info.is_last_in_block & (fall_through_address != ftq_query_pc_i));
+
+    // Redirect is triggered when any of the mispredict happens
+    assign ex_redirect_o = (branch_direction_mispredict | branch_target_mispredict) && advance;
+    assign ex_redirect_target_o = branch_flag ? jump_target_address : fall_through_address;
+
+    // BPU meta is feedback to FTQ whenever a branch is executed
+    assign ex_is_branch_o = ex_redirect_o;
+    assign ex_jump_target_mispredict_o = branch_target_mispredict;
     assign ex_redirect_ftq_id_o = ex_redirect_o ? instr_info.ftq_id : 0;
+    assign ex_jump_target_addr_o = jump_target_address;
+    assign ex_fall_through_addr_o = fall_through_address;
+    assign fall_through_address = inst_pc_i + 4;
+
+    ////////////////////////////////////////////////////////////////////////////////////
 
 
     always @(*) begin

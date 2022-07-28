@@ -43,3 +43,6 @@ src/vsrc/branch_predictor/data
 # System Verilog language server
 .svlint.toml
 .svls.toml
+
+# BPU traces
+**/BPU/data

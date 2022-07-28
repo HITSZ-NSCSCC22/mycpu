@@ -66,7 +66,7 @@ package tlb_types;
         logic [19:0] tag;
         logic [3:0] offset;
         logic found;
-        logic [4:0] tlb_index;
+        logic [$clog2(TLB_NUM)-1:0] tlb_index;
         logic tlb_v;
         logic tlb_d;
         logic [1:0] tlb_mat;
@@ -76,7 +76,7 @@ package tlb_types;
     typedef struct packed {
         logic tlbfill_en;
         logic tlbwr_en;
-        logic [4:0] rand_index;
+        logic [$clog2(TLB_NUM)-1:0] rand_index;
         logic [31:0] tlbehi;
         logic [31:0] tlbelo0;
         logic [31:0] tlbelo1;

@@ -36,7 +36,14 @@ module dispatch
     output logic [DECODE_WIDTH-1:0] ib_accept_o,
 
     // Dispatch Port, -> EXE
-    output dispatch_ex_struct [DECODE_WIDTH-1:0] exe_o
+    output dispatch_ex_struct [DECODE_WIDTH-1:0] exe_o,
+
+    // PMU
+    output logic [1:0] pmu_dispatch_backend_nop,
+    output logic [1:0] pmu_dispatch_frontend_nop,
+    output logic pmu_dispatch_single_issue,
+    output logic [1:0] pmu_dispatch_datadep_nop,
+    output logic [1:0] pmu_dispatch_instr_cnt
 );
 
     // Reset signal
@@ -134,9 +141,11 @@ module dispatch
             end
             // Set unavailable when issued
             for (integer issue_idx = 0; issue_idx < ISSUE_WIDTH; issue_idx++) begin
-                if (issue_wreg[issue_idx] & issue_valid[issue_idx] & ~stall)
+                if (issue_wreg[issue_idx] & issue_valid[issue_idx] & ~stall & id_i[issue_idx].instr_info.special_info.mem_load)
                     regs_available[issue_wreg_addr[issue_idx]] <= 0;
             end
+            // $r0 is always available
+            regs_available[0] <= 1;
         end
     end
 
@@ -323,6 +332,22 @@ module dispatch
             end
         end
     endgenerate
+
+    // PMU
+    assign pmu_dispatch_single_issue = single_issue & ~stall & ~flush & instr_exists_check[1] & data_dep_check[1] & rreg_avail_check[1];
+    always_comb begin
+        pmu_dispatch_instr_cnt = 0;
+        pmu_dispatch_backend_nop = 0;
+        pmu_dispatch_frontend_nop = 0;
+        pmu_dispatch_datadep_nop = 0;
+        for (integer i = 0; i < ISSUE_WIDTH; i++) begin
+            if (~stall & ~flush) pmu_dispatch_instr_cnt = pmu_dispatch_instr_cnt + issue_valid[i];
+            if (stall) pmu_dispatch_backend_nop = pmu_dispatch_backend_nop + instr_exists_check[i];
+            pmu_dispatch_frontend_nop = pmu_dispatch_frontend_nop + ((1 - instr_exists_check[i]) || flush);
+            if (~stall & ~flush)
+                pmu_dispatch_datadep_nop = pmu_dispatch_datadep_nop + (instr_exists_check[i] && ~(data_dep_check[i] && rreg_avail_check[i]));
+        end
+    end
 
 
 `ifdef SIMU

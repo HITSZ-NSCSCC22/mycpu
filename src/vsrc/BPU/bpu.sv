@@ -21,11 +21,16 @@ module bpu
     input logic clk,
     input logic rst,
 
+    // Backend flush
+    input logic backend_flush_i,
+
     // FTQ
     // Predict
     input [ADDR_WIDTH-1:0] pc_i,
     input logic ftq_full_i,
-    output bpu_ftq_t ftq_predict_o,
+    output ftq_block_t ftq_p0_o,
+    output ftq_block_t ftq_p1_o,
+    output bpu_ftq_meta_t ftq_meta_o,
     // Train
     input ftq_bpu_meta_t ftq_meta_i,
 
@@ -37,52 +42,127 @@ module bpu
     // TODO: use PMU to monitor miss-prediction rate and each component useful rate
 
 );
-    ////////////////////////////////////////////////////////////////////////////////////
-    // Query logic
-    ////////////////////////////////////////////////////////////////////////////////////
+    // Parameters
+    localparam BASE_CTR_WIDTH = BPU_COMPONENT_CTR_WIDTH[0];
+
+    // P1 signals
+    logic [ADDR_WIDTH-1:0] p1_pc;
+    logic main_redirect;
     // FTB
     logic ftb_hit;
     ftb_entry_t ftb_entry;
     // TAGE
     logic predict_taken, predict_valid;
 
+    logic flush_delay, ftq_full_delay;
+    always_ff @(posedge clk) begin
+        flush_delay <= backend_flush_i | (main_redirect & ~ftq_full_delay);
+        ftq_full_delay <= ftq_full_i;
+    end
 
+
+    ////////////////////////////////////////////////////////////////////////////////////
+    // Query logic
+    ////////////////////////////////////////////////////////////////////////////////////
+    bpu_ftq_meta_t tage_meta, bpu_meta;
+
+    // P0 
     // FTQ Output generate
     logic is_cross_page;
     assign is_cross_page = pc_i[11:0] > 12'hff0;  // if 4 instr already cross the page limit
     always_comb begin
         if (ftq_full_i) begin
-            ftq_predict_o = 0;
-        end else if (ftb_hit & predict_valid) begin  // There is a branch within FETCH_WIDTH
-            // TODO: check cross page
-            ftq_predict_o.valid = 1;
-            ftq_predict_o.is_cross_cacheline = ftb_entry.is_cross_cacheline;
-            ftq_predict_o.start_pc = pc_i;
-            ftq_predict_o.length = predict_taken ? ftb_entry.fall_through_address - pc_i : FETCH_WIDTH;
-            ftq_predict_o.predicted_taken = predict_taken;
-        end else begin  // No branch is recorded, generate full FETCH_WIDTH
+            ftq_p0_o = 0;
+        end else begin  // P0 generate a next-line prediction
             if (is_cross_page) begin
-                ftq_predict_o.length = (12'h000 - pc_i[11:0]) >> 2;
+                ftq_p0_o.length = (12'h000 - pc_i[11:0]) >> 2;
             end else begin
-                ftq_predict_o.length = 4;
+                ftq_p0_o.length = 4;
             end
-            ftq_predict_o.start_pc = pc_i;
-            ftq_predict_o.valid = 1;
+            ftq_p0_o.start_pc = pc_i;
+            ftq_p0_o.valid = 1;
             // If cross page, length will be cut, so ensures no cacheline cross
-            ftq_predict_o.is_cross_cacheline = (pc_i[3:2] != 2'b00) & ~is_cross_page;
-            ftq_predict_o.predicted_taken = 0;
+            ftq_p0_o.is_cross_cacheline = (pc_i[3:2] != 2'b00) & ~is_cross_page;
+            ftq_p0_o.predicted_taken = 0;
+            ftq_p0_o.predict_valid = 0;
         end
     end
+
+
+
+
+    // P1
+    assign main_redirect = predict_valid & ftb_hit & ~flush_delay & ~ftq_full_delay;
+    always_ff @(posedge clk) begin
+        p1_pc <= pc_i;
+    end
+    // P1 FTQ output
+    always_comb begin
+        if (main_redirect) begin  // TAGE generate a redirect in P1
+            ftq_p1_o.valid = 1;
+            ftq_p1_o.is_cross_cacheline = ftb_entry.is_cross_cacheline;
+            ftq_p1_o.start_pc = p1_pc;
+            ftq_p1_o.length = ftb_entry.fall_through_address[2+$clog2(FETCH_WIDTH):2] -
+                p1_pc[2+$clog2(FETCH_WIDTH):2];  // Use 3bit minus to ensure no overflow
+            ftq_p1_o.predicted_taken = predict_taken;
+            ftq_p1_o.predict_valid = 1;
+        end else begin
+            ftq_p1_o = 0;
+        end
+    end
+
+
+
     // DEBUG
     logic [ADDR_WIDTH-1:0] bpu_pc;
-    assign bpu_pc = ftq_predict_o.start_pc;
+    assign bpu_pc = ftq_p0_o.start_pc;
 
     // PC output
     always_comb begin
-        main_redirect_o = predict_taken;
-        main_redirect_pc_o = predict_taken ? ftb_entry.jump_target_address : 0;
+        main_redirect_o = main_redirect;
+        main_redirect_pc_o = predict_taken ? ftb_entry.jump_target_address : ftb_entry.fall_through_address;
+    end
+    // FTQ meta output
+    assign bpu_meta.ftb_hit = ftb_hit;
+    assign bpu_meta.valid = ftb_hit;
+    assign ftq_meta_o = bpu_meta | tage_meta;
+
+
+
+
+    ////////////////////////////////////////////////////////////////////
+    // Update Logic
+    ////////////////////////////////////////////////////////////////////
+    logic mispredict;
+    logic ftb_update_valid;
+    tage_predictor_update_info_t tage_update_info;
+    ftb_entry_t ftb_entry_update;
+    assign mispredict = ftq_meta_i.predicted_taken ^ ftq_meta_i.is_taken;
+    // Only following conditions will trigger a FTB update:
+    // 1. This is a conditional branch
+    // 2. First time a branch jumped
+    // 3. A FTB pollution is detected
+    assign ftb_update_valid = ftq_meta_i.valid & ftq_meta_i.is_conditional & ((mispredict)| (ftq_meta_i.ftb_dirty & ftq_meta_i.ftb_hit));
+    always_comb begin
+        // Direction preditor update policy:
+        tage_update_info.valid = ftq_meta_i.valid;
+        tage_update_info.predict_correct = ftq_meta_i.valid & ~mispredict;
+        tage_update_info.is_conditional = ftq_meta_i.is_conditional;
+        tage_update_info.branch_taken = ftq_meta_i.is_taken;
+        tage_update_info.bpu_meta = ftq_meta_i.bpu_meta;
+        // Override CTR bits if first occur
+        // if (ftq_meta_i.ftb_hit)
+        // tage_update_info.bpu_meta.provider_ctr_bits = {1'b1, {(BASE_CTR_WIDTH - 1) {1'b0}}};
     end
 
+    always_comb begin
+        ftb_entry_update.valid = ~(ftq_meta_i.ftb_dirty & ftq_meta_i.ftb_hit);
+        ftb_entry_update.tag = ftq_meta_i.start_pc[ADDR_WIDTH-1:$clog2(FTB_DEPTH)+2];
+        ftb_entry_update.is_cross_cacheline = ftq_meta_i.is_cross_cacheline;
+        ftb_entry_update.jump_target_address = ftq_meta_i.jump_target_address;
+        ftb_entry_update.fall_through_address = ftq_meta_i.fall_through_address;
+    end
+    // assign ftb_hit = 0;
     ftb u_ftb (
         .clk(clk),
         .rst(rst),
@@ -93,21 +173,30 @@ module bpu
         .hit(ftb_hit),
 
         // Update
-        .update_pc_i(),
-        .update_valid_i(),
-        .update_entry_i()
+        .update_pc_i(ftq_meta_i.start_pc),
+        .update_valid_i(ftb_update_valid),
+        .update_entry_i(ftb_entry_update)
     );
 
     tage_predictor u_tage_predictor (
-        .clk                      (clk),
-        .rst                      (rst),
-        .pc_i                     (pc_i),
-        .base_predictor_update_i  (),
-        .predicted_branch_target_o(),
-        .predict_branch_taken_o   (predict_taken),
-        .predict_valid_o          (predict_valid_o),
-        .perf_tag_hit_counter     ()
+        .clk                   (clk),
+        .rst                   (rst),
+        .pc_i                  (pc_i),
+        .bpu_meta_o            (tage_meta),
+        .predict_branch_taken_o(predict_taken),
+        .predict_valid_o       (predict_valid),
+        .update_pc_i           (ftq_meta_i.start_pc),
+        .update_info_i         (tage_update_info),
+        .perf_tag_hit_counter  ()
     );
+
+
+    integer ftb_first_time_branch;
+    integer ftb_update_cnt;
+    always_ff @(posedge clk) begin
+        ftb_first_time_branch <= ftb_first_time_branch + (ftb_update_valid & ~ftq_meta_i.ftb_hit);
+        ftb_update_cnt <= ftb_update_cnt + ftb_update_valid;
+    end
 
 
 endmodule

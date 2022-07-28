@@ -49,6 +49,9 @@ module tlb_entry
     input tlb_inv_t inv_i
 );
 
+    // Parameters
+    localparam TLB_INDEX_WIDTH = $clog2(TLB_NUM);
+
     // Data structure
     logic [18:0] tlb_vppn[TLB_NUM-1:0];
     logic [TLB_NUM-1:0] tlb_e;
@@ -89,22 +92,22 @@ module tlb_entry
         end
     endgenerate
 
-    assign s0_found = match0 != 32'b0;  //!(!match0);
-    assign s1_found = match1 != 32'b0;  //!(!match1);
+    assign s0_found = match0 != 0;
+    assign s1_found = match1 != 0;
 
     always_comb begin
         // Default value
         {s0_index, s0_ps, s0_ppn, s0_v, s0_d, s0_mat, s0_plv} = 0;
         {s1_index, s1_ps, s1_ppn, s1_v, s1_d, s1_mat, s1_plv} = 0;
         // Match 
-        for (integer j = 0; j < 32; j++) begin
+        for (integer j = 0; j < TLB_NUM; j++) begin
             if (match0[j]) begin
-                {s0_index, s0_ps, s0_ppn, s0_v, s0_d, s0_mat, s0_plv} = {37{s0_odd_page_buffer[j] }} & {j[4:0], tlb_ps[j], tlb_ppn1[j], tlb_v1[j], tlb_d1[j], tlb_mat1[j], tlb_plv1[j]} |
-                                                                {37{~s0_odd_page_buffer[j] }} & {j[4:0], tlb_ps[j], tlb_ppn0[j], tlb_v0[j], tlb_d0[j], tlb_mat0[j], tlb_plv0[j]};
+                {s0_index, s0_ps, s0_ppn, s0_v, s0_d, s0_mat, s0_plv} = {39{s0_odd_page_buffer[j] }} & {j[TLB_INDEX_WIDTH-1:0], tlb_ps[j], tlb_ppn1[j], tlb_v1[j], tlb_d1[j], tlb_mat1[j], tlb_plv1[j]} |
+                                                                {39{~s0_odd_page_buffer[j] }} & {j[TLB_INDEX_WIDTH-1:0], tlb_ps[j], tlb_ppn0[j], tlb_v0[j], tlb_d0[j], tlb_mat0[j], tlb_plv0[j]};
             end
             if (match1[j]) begin
-                {s1_index, s1_ps, s1_ppn, s1_v, s1_d, s1_mat, s1_plv} = {37{s1_odd_page_buffer[j] }} & {j[4:0], tlb_ps[j], tlb_ppn1[j], tlb_v1[j], tlb_d1[j], tlb_mat1[j], tlb_plv1[j]} |
-                                                                {37{~s1_odd_page_buffer[j] }} & {j[4:0], tlb_ps[j], tlb_ppn0[j], tlb_v0[j], tlb_d0[j], tlb_mat0[j], tlb_plv0[j]};
+                {s1_index, s1_ps, s1_ppn, s1_v, s1_d, s1_mat, s1_plv} = {39{s1_odd_page_buffer[j] }} & {j[TLB_INDEX_WIDTH-1:0], tlb_ps[j], tlb_ppn1[j], tlb_v1[j], tlb_d1[j], tlb_mat1[j], tlb_plv1[j]} |
+                                                                {39{~s1_odd_page_buffer[j] }} & {j[TLB_INDEX_WIDTH-1:0], tlb_ps[j], tlb_ppn0[j], tlb_v0[j], tlb_d0[j], tlb_mat0[j], tlb_plv0[j]};
             end
         end
     end

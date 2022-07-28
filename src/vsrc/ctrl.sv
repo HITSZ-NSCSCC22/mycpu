@@ -2,6 +2,7 @@
 `include "TLB/tlb_types.sv"
 `include "csr_defines.sv"
 `include "core_config.sv"
+`include "frontend/frontend_defines.sv"
 
 
 module ctrl
@@ -14,8 +15,12 @@ module ctrl
     input logic rst,
 
     // -> Frontend
-    output logic [COMMIT_WIDTH-1:0] backend_commit_block_o,  // do backend commit a basic block
+    output logic [COMMIT_WIDTH-1:0] backend_commit_bitmask_o,  // do backend commit a basic block
+    output logic [COMMIT_WIDTH-1:0] backend_commit_block_bitmask_o,
     output logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_flush_ftq_id_o,
+    // BPU training meta
+    output backend_commit_meta_t backend_commit_meta_o,
+    output logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_commit_ftq_id_o,
 
     input wb_ctrl_struct [COMMIT_WIDTH-1:0] wb_i,  //流水线传来的信号
 
@@ -44,7 +49,7 @@ module ctrl
     output logic excp_tlb,
     output logic [18:0] excp_tlb_vppn,
     output logic tlbsrch_found,
-    output logic [4:0] tlbsrch_index,
+    output logic [$clog2(TLB_NUM)-1:0] tlbsrch_index,
     output logic tlbrd_en,
 
     output logic tlbwr_en,
@@ -90,6 +95,7 @@ module ctrl
     logic advance;  // Advance when all stages are ready
     logic advance_delay;
 
+    // HACK: use a state reg to fit difftest NEMU state when IDLE
     always_ff @(posedge clk) begin
         if (rst) in_idle <= 0;
         else if (excp) in_idle <= 0;  // Something happens, exit idle mode
@@ -107,13 +113,25 @@ module ctrl
         end
     end
 
+    // BPU training meta
+    // currently one branch instr per cycle is permitted
+    assign backend_commit_ftq_id_o = instr_info[0].ftq_id;
+    assign backend_commit_meta_o = {
+        special_info[0].is_branch,
+        special_info[0].is_conditional,
+        special_info[0].is_taken,
+        special_info[0].predicted_taken
+    };
+
     assign backend_commit_valid[0] = wb_i[0].valid;
     assign backend_commit_valid[1] = (aluop == `EXE_ERTN_OP | aluop == `EXE_SYSCALL_OP | aluop == `EXE_BREAK_OP | aluop == `EXE_IDLE_OP | instr_info[0].excp)? 0 : wb_i[1].valid;
 
     // Backend commit basic block
-    assign backend_commit_block_o = backend_commit_valid & (instr_info[0].excp ? 2'b01:
+    logic debug_last_in_block = wb_i[0].is_last_in_block;
+    assign backend_commit_bitmask_o = backend_commit_valid & (instr_info[0].excp ? 2'b01:
                                     instr_info[1].excp ? {1'b1 , wb_i[0].is_last_in_block | ertn_flush | idle_flush | refetch_flush} : 
                                     {wb_i[1].is_last_in_block, wb_i[0].is_last_in_block | ertn_flush | idle_flush | refetch_flush});
+    assign backend_commit_block_bitmask_o = backend_commit_valid & {wb_i[1].is_last_in_block, wb_i[0].is_last_in_block};
     // Backend flush FTQ ID
     assign backend_flush_ftq_id_o = (instr_info[0].excp | ertn_flush | idle_flush | refetch_flush) ? instr_info[0].ftq_id :
                                     (instr_info[1].excp) ? instr_info[1].ftq_id : 0;
@@ -240,5 +258,13 @@ module ctrl
     excp_num[14] ? {`ECODE_PIS , valid, error_va, 9'b0, 1'b0, valid, error_va[31:13]} :
     excp_num[15] ? {`ECODE_PIL , valid, error_va, 9'b0, 1'b0, valid, error_va[31:13]} :
     69'b0;
+
+
+    // DEBUG
+    integer pmu_jirl_cnt, pmu_b_cnt;
+    always_ff @(posedge clk) begin
+        pmu_jirl_cnt <= pmu_jirl_cnt + (aluop == `EXE_JIRL_OP);
+        pmu_b_cnt <= pmu_b_cnt + (aluop == `EXE_B_OP || aluop == `EXE_BL_OP);
+    end
 
 endmodule  //ctrl

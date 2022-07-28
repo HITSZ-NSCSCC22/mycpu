@@ -3,52 +3,57 @@
 `include "BPU/include/bpu_defines.sv"
 `include "BPU/utils/csr_hash.sv"
 `include "BPU/utils/fpa.sv"
+`include "utils/bram.sv"
+`include "core_config.sv"
 
 
-module tagged_predictor #(
+module tagged_predictor
+    import core_config::*;
+#(
     parameter INPUT_GHR_LENGTH = 4,
-    parameter PC_WIDTH = 32,
-    parameter PHT_DEPTH_EXP2 = 10,
-    parameter PHT_TAG_WIDTH = 12,
-    parameter PHT_CTR_WIDTH = 3,
-    parameter PHT_USEFUL_WIDTH = 2,
-    parameter HASH_BUFFER_SIZE = 10
+    parameter PHT_DEPTH = 2048,
+    parameter PHT_TAG_WIDTH = 11,
+    parameter PHT_CTR_WIDTH = 2,
+    parameter PHT_USEFUL_WIDTH = 3
 ) (
     input logic clk,
     input logic rst,
 
-    // Require one more bit input
+    // Query signal
+    input logic global_history_update_i,
     input logic [INPUT_GHR_LENGTH:0] global_history_i,
-    input logic [PC_WIDTH-1:0] pc_i,
+    input logic [ADDR_WIDTH-1:0] pc_i,
+
+    // Meta
+    output logic [PHT_USEFUL_WIDTH-1:0] useful_bits_o,
+    output logic [PHT_CTR_WIDTH-1:0] ctr_bits_o,
+    output logic [PHT_TAG_WIDTH-1:0] query_tag_o,
+    output logic [PHT_TAG_WIDTH-1:0] origin_tag_o,
+    output logic [$clog2(PHT_DEPTH)-1:0] hit_index_o,
+    // Query result
+    output logic taken_o,
+    output logic tag_hit_o,
 
     // Update signals
-    input logic [PC_WIDTH+4:0] update_info_i,
-
-    // Useful counter for update policy
-    output logic [PHT_USEFUL_WIDTH-1:0] update_query_useful_o,
-
-    output logic taken_o,
-    output logic tag_hit_o
+    input logic [ADDR_WIDTH-1:0] update_pc_i,
+    input logic update_valid,
+    input logic update_useful,
+    input logic inc_useful,
+    input logic [PHT_USEFUL_WIDTH-1:0] update_useful_bits_i,
+    input logic update_ctr,
+    input logic inc_ctr,
+    input logic [PHT_CTR_WIDTH-1:0] update_ctr_bits_i,
+    input logic realloc_entry,
+    input logic [PHT_TAG_WIDTH-1:0] update_tag_i,
+    input logic [$clog2(PHT_DEPTH)-1:0] update_index_i
 );
+
+    // Parameters
+    localparam PHT_ADDR_WIDTH = $clog2(PHT_DEPTH);
 
     // Reset
     logic rst_n;
     assign rst_n = ~rst;
-
-    // Update Info
-    typedef struct packed {
-        logic [PC_WIDTH-1:0] pc;
-
-        // 0:            invalid, decrease, invalid, decrease, no reallocate
-        // 1:            valid, increase, valid, increase, reallocate
-        logic update_ctr;
-        logic inc_ctr;
-        logic update_useful;
-        logic inc_useful;
-        logic realloc_entry;
-    } update_info_struct;
-    update_info_struct update_info;
-    assign update_info = update_info_i;
 
     // PHT
     typedef struct packed {
@@ -56,36 +61,115 @@ module tagged_predictor #(
         bit [PHT_TAG_WIDTH-1:0] tag;
         bit [PHT_USEFUL_WIDTH-1:0] useful;
     } pht_entry;
-    pht_entry PHT[2**PHT_DEPTH_EXP2];
+
+    // pht_entry [PHT_DEPTH-1:0] PHT;
 
 
     // Query Index
     // Fold GHT input to a fix length, the same as index range
     // Using a CSR, described in PPM-Liked essay
-    logic [PHT_DEPTH_EXP2-1:0] hashed_ght_input;
-    csr_hash #(
-        .INPUT_LENGTH (INPUT_GHR_LENGTH + 1),
-        .OUTPUT_LENGTH(PHT_DEPTH_EXP2)
-    ) ght_hash_csr_hash (
-        .clk   (clk),
-        .rst   (rst),
-        .data_i(global_history_i),
-        .hash_o(hashed_ght_input)
-    );
-    // query_index in Fold(GHR) ^ PC[low] ^ PC[high]
-    logic [PHT_DEPTH_EXP2-1:0] query_index;
-    assign query_index = (hashed_ght_input ^ pc_i[PHT_DEPTH_EXP2-1:0] ^ pc_i[PHT_DEPTH_EXP2*2-1:PHT_DEPTH_EXP2]);
-
+    logic [PHT_ADDR_WIDTH-1:0] hashed_ght_input;
+    logic [PHT_ADDR_WIDTH-1:0] query_index, query_index_delay;
     // Tag
     // Generate another hash different from above, as described in PPM-Liked essay
     logic [PHT_TAG_WIDTH-1:0] tag_hash_csr1;
     logic [PHT_TAG_WIDTH-2:0] tag_hash_csr2;
+    logic [PHT_TAG_WIDTH-1:0] query_tag, query_tag_delay;
+    // Result
+    pht_entry query_result;
+
+    // Update entry
+    pht_entry update_entry;
+    logic [PHT_ADDR_WIDTH-1:0] update_index;
+
+
+
+    ////////////////////////////////////////////////////////////////////////////////////////////
+    // Query logic
+    ////////////////////////////////////////////////////////////////////////////////////////////
+    // query_index is Fold(GHR) ^ PC[low] ^ PC[high]
+    assign query_index = pc_i[0+:PHT_ADDR_WIDTH] ^ pc_i[0+PHT_ADDR_WIDTH+:PHT_ADDR_WIDTH] ^ hashed_ght_input;
+    // query_tag is XORed from pc_i
+    // assign query_tag = pc_i[31:31-PHT_TAG_WIDTH+1];
+    assign query_tag = pc_i[2+:PHT_TAG_WIDTH] ^ tag_hash_csr1 ^ {tag_hash_csr2, 1'b0};
+
+    always_ff @(posedge clk) begin
+        query_index_delay <= query_index;
+        query_tag_delay   <= query_tag;
+    end
+
+    // Output
+    assign ctr_bits_o = query_result.ctr;
+    assign useful_bits_o = query_result.useful;
+    assign hit_index_o = query_index_delay;
+    assign query_tag_o = query_tag_delay;
+    assign origin_tag_o = query_result.tag;
+    assign taken_o = (query_result.ctr[PHT_CTR_WIDTH-1] == 1'b1);
+    assign tag_hit_o = (query_tag_delay == query_result.tag);
+
+
+    ///////////////////////////////////////////////////////////////////////////////////////////
+    // Update logic
+    ///////////////////////////////////////////////////////////////////////////////////////////
+    assign update_index = update_index_i;
+    // Main update comb
+    always_comb begin
+        update_entry.tag = update_tag_i;
+        // Update CTR bits
+        if (update_ctr) begin
+            case (update_ctr_bits_i)
+                {PHT_CTR_WIDTH{1'b0}} : begin
+                    update_entry.ctr =  inc_ctr ? {{PHT_CTR_WIDTH-1{1'b0}},1'b1} : {PHT_CTR_WIDTH{1'b0}};
+                end
+                {PHT_CTR_WIDTH{1'b1}} : begin
+                    update_entry.ctr =  inc_ctr ? {PHT_CTR_WIDTH{1'b1}} : {{PHT_CTR_WIDTH-1{1'b1}},1'b0};
+                end
+                default: begin
+                    update_entry.ctr = inc_ctr ? update_ctr_bits_i + 1 : update_ctr_bits_i - 1;
+                end
+            endcase
+        end else update_entry.ctr = update_ctr_bits_i;
+
+        // Update useful bits
+        if (update_useful) begin
+            case (update_useful_bits_i)
+                {PHT_USEFUL_WIDTH{1'b1}} : begin
+                    update_entry.useful = inc_useful ? {PHT_USEFUL_WIDTH{1'b1}} : update_useful_bits_i - 1;
+                end
+                {PHT_USEFUL_WIDTH{1'b0}} : begin
+                    update_entry.useful =  inc_useful ? update_useful_bits_i + 1 : {PHT_USEFUL_WIDTH{1'b0}};
+                end
+                default: begin
+                    update_entry.useful = inc_useful ? update_useful_bits_i + 1 : update_useful_bits_i - 1;
+                end
+            endcase
+        end else update_entry.useful = update_useful_bits_i;
+        // Alocate new entry 
+        if (realloc_entry) begin
+            update_entry.ctr = {1'b1, {(PHT_CTR_WIDTH - 1) {1'b0}}};  // Reset CTR
+            update_entry.useful = 0;  // Clear useful
+        end
+    end
+
+
+    // CSR hash
+    csr_hash #(
+        .INPUT_LENGTH (INPUT_GHR_LENGTH + 1),
+        .OUTPUT_LENGTH(PHT_ADDR_WIDTH)
+    ) ght_hash_csr_hash (
+        .clk   (clk),
+        .rst   (rst),
+        .data_update_i(global_history_update_i),
+        .data_i(global_history_i),
+        .hash_o(hashed_ght_input)
+    );
     csr_hash #(
         .INPUT_LENGTH (INPUT_GHR_LENGTH + 1),
         .OUTPUT_LENGTH(PHT_TAG_WIDTH)
     ) pc_hash_csr_hash1 (
         .clk   (clk),
         .rst   (rst),
+        .data_update_i(global_history_update_i),
         .data_i(global_history_i),
         .hash_o(tag_hash_csr1)
     );
@@ -95,129 +179,47 @@ module tagged_predictor #(
     ) pc_hash_csr_hash2 (
         .clk   (clk),
         .rst   (rst),
+        .data_update_i(global_history_update_i),
         .data_i(global_history_i),
         .hash_o(tag_hash_csr2)
     );
 
-    logic [PHT_TAG_WIDTH-1:0] query_tag;
-    assign query_tag = pc_i[PHT_TAG_WIDTH-1:0] ^ tag_hash_csr1 ^ {tag_hash_csr2, 1'b0};
 
+    // Table
+    // Port A as read port, Port B as write port
 
-
-
-    // Query logic ========================================== 
-    pht_entry query_result;
-    assign query_result = PHT[query_index];
-
-    // Assign Output
-    assign taken_o = (query_result.ctr[PHT_CTR_WIDTH-1] == 1'b1);
-    assign tag_hit_o = (query_tag == query_result.tag);
-
-
-    // Use a buffer to hold the query_index and pc
-    // This is used when branch update came in with uncertain delay
-    typedef struct packed {
-        bit valid;
-        bit [PC_WIDTH-1:0] pc;
-        bit [PHT_DEPTH_EXP2-1:0] index;
-        bit [PHT_TAG_WIDTH-1:0] tag;
-    } info_buffer_entry;
-    info_buffer_entry hash_buffer[HASH_BUFFER_SIZE];
-    logic [HASH_BUFFER_SIZE-1:0] pc_match_table;  // indicates which entry in the buffer is a match
-
-    // Move from lower to higher
-    assign hash_buffer[0] = {(pc_i != 0), pc_i, query_index, query_tag};
-    generate
-        for (genvar i = 1; i < HASH_BUFFER_SIZE; i = i + 1) begin
-            always @(posedge clk) begin
-                if (i == update_match_index + 1) begin
-                    hash_buffer[i].valid <= 0;
-                    hash_buffer[i].pc <= 0;
-                end else begin
-                    hash_buffer[i] <= hash_buffer[i-1];
-                end
-            end
-        end
-    endgenerate
-
-    // Match PC
-    generate
-        for (genvar i = 0; i < HASH_BUFFER_SIZE; i = i + 1) begin
-            always @(*) begin
-                pc_match_table[i] = (hash_buffer[i].pc == update_info.pc);
-            end
-        end
-    endgenerate
-
-    // Get match index
-    logic [$clog2(HASH_BUFFER_SIZE+1)-1:0] update_match_index;
-    fpa #(
-        .LINES(HASH_BUFFER_SIZE)
-    ) u_fpa (
-        .unitary_in({pc_match_table}),
-        .binary_out(update_match_index)
+`ifdef BRAM_IP
+    bram_bpu_tagged_predictor pht_table (
+        .clka (clk),
+        .clkb (clk),
+        .ena  (1'b1),
+        .enb  (1'b1),
+        .wea  (1'b0),
+        .web  (update_valid),
+        .dina (0),
+        .addra(query_index),
+        .douta(query_result),
+        .dinb (update_entry),
+        .addrb(update_index),
+        .doutb()
     );
-    logic [PHT_DEPTH_EXP2-1:0] update_index;
-    assign update_index = hash_buffer[update_match_index].index;
-    logic [PHT_TAG_WIDTH-1:0] update_tag;
-    assign update_tag = hash_buffer[update_match_index].tag;
-    logic update_match_valid;
-    assign update_match_valid = (update_match_index != 0) & hash_buffer[update_match_index].valid;
-
-
-
-    // Update logic =========================================================== 
-
-    // Give out the matched useful counter
-    assign update_query_useful_o = PHT[update_index].useful;
-
-    // Main update ff
-    always_ff @(posedge clk or negedge rst_n) begin : update_ff
-        if (!rst_n) begin
-            // Reset all PHT, useful to 0, ctr to weak taken
-            for (integer i = 0; i < 2 ** PHT_DEPTH_EXP2; i = i + 1) begin
-                PHT[i].ctr = {1'b1, {PHT_CTR_WIDTH - 1{1'b0}}};
-                PHT[i].tag = 0;
-                PHT[i].useful = 0;
-            end
-        end else begin
-            // Update CTR bits
-            if (update_info.update_ctr & update_match_valid) begin
-                case (PHT[update_index].ctr)
-                    {PHT_CTR_WIDTH{1'b0}} : begin
-                        PHT[update_index].ctr <= update_info.inc_ctr ? {{PHT_CTR_WIDTH-1{1'b0}},1'b1} : {PHT_CTR_WIDTH{1'b0}};
-                    end
-                    {PHT_CTR_WIDTH{1'b1}} : begin
-                        PHT[update_index].ctr <= update_info.inc_ctr ? {PHT_CTR_WIDTH{1'b1}}:{{PHT_CTR_WIDTH-1{1'b1}},1'b0};
-                    end
-                    default: begin
-                        PHT[update_index].ctr <= update_info.inc_ctr ? PHT[update_index].ctr + 1 : PHT[update_index].ctr - 1;
-                    end
-                endcase
-            end
-
-            // Update useful bits
-            if (update_info.update_useful & update_match_valid) begin
-                case (PHT[update_index].useful)
-                    {PHT_USEFUL_WIDTH{1'b1}} : begin
-                        PHT[update_index].useful <= update_info.inc_useful ? {PHT_USEFUL_WIDTH{1'b1}} : PHT[update_index].useful - 1;
-                    end
-                    {PHT_USEFUL_WIDTH{1'b0}} : begin
-                        PHT[update_index].useful <= update_info.inc_useful ? PHT[update_index].useful + 1 : {PHT_USEFUL_WIDTH{1'b0}};
-                    end
-                    default: begin
-                        PHT[update_index].useful <= update_info.inc_useful ? PHT[update_index].useful + 1 : PHT[update_index].useful - 1;
-                    end
-                endcase
-            end
-
-            // Alocate new entry 
-            if (update_info.realloc_entry & update_match_valid & PHT[update_index].tag != update_tag) begin
-                PHT[update_index].tag <= update_tag;
-                PHT[update_index].ctr <= {1'b1, {PHT_CTR_WIDTH - 1{1'b0}}};  // Reset CTR
-                PHT[update_index].useful <= 0;  // Reset useful counter
-            end
-        end
-    end
+`else
+    bram #(
+        .DATA_WIDTH($bits(pht_entry)),
+        .DATA_DEPTH_EXP2(PHT_ADDR_WIDTH),
+    ) pht_table (
+        .clk  (clk),
+        .ena  (1'b1),
+        .enb  (1'b1),
+        .wea  (1'b0),
+        .web  (update_valid),
+        .dina (0),
+        .addra(query_index),
+        .douta(query_result),
+        .dinb (update_entry),
+        .addrb(update_index),
+        .doutb()
+    );
+`endif
 
 endmodule

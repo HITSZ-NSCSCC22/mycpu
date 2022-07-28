@@ -116,6 +116,21 @@ module cpu_top
     inst_tlb_t frontend_tlb;
     tlb_inst_t tlb_inst;
 
+    // Frontend <-> Instruction Buffer
+    logic ib_frontend_stallreq;
+    instr_info_t frontend_ib_instr_info[FETCH_WIDTH];
+    logic [`RegBus] next_pc;
+
+    // Frontend <-> Backend 
+    logic backend_redirect;
+    logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_redirect_ftq_id;
+    logic [COMMIT_WIDTH-1:0] backend_commit_bitmask; // suggest whether last instr in basic block is committed, including exception
+    logic [COMMIT_WIDTH-1:0] backend_commit_block_bitmask;
+    // Currently one branch instruction per cycle is supported
+    logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_commit_ftq_id;
+    backend_commit_meta_t backend_commit_meta;
+
+
     logic [`InstBus] excp_instr;
     logic [1:0][13:0] dispatch_csr_read_addr;
     logic [1:0][`RegBus] dispatch_csr_data;
@@ -130,6 +145,12 @@ module cpu_top
     logic [ISSUE_WIDTH-1:0] ex_redirect;
     logic [ISSUE_WIDTH-1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] ex_redirect_ftq_id;
     logic [ISSUE_WIDTH-1:0][ADDR_WIDTH-1:0] ex_redirect_target;
+    logic [ISSUE_WIDTH-1:0] ex_is_branch;
+    logic [ISSUE_WIDTH-1:0] ex_jump_target_mispredict;
+    logic [ISSUE_WIDTH-1:0][ADDR_WIDTH-1:0] ex_jump_target_addr;
+    logic [ISSUE_WIDTH-1:0][ADDR_WIDTH-1:0] ex_fall_through_addr;
+    logic [ISSUE_WIDTH-1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] ex_ftq_query_addr;
+    logic [ISSUE_WIDTH-1:0][ADDR_WIDTH-1:0] ex_ftq_query_pc;
 
 
     // AXI
@@ -218,7 +239,7 @@ module cpu_top
     logic [31:0] bad_va_i;
     logic tlbsrch_en;
     logic tlbsrch_found;
-    logic [4:0] tlbsrch_index;
+    logic [$clog2(TLB_NUM)-1:0] tlbsrch_index;
     logic excp_tlbrefill;
     logic excp_tlb;
     logic [18:0] excp_tlb_vppn;
@@ -239,11 +260,26 @@ module cpu_top
 
 
 
-    logic [4:0] rand_index_diff;
+    logic [$clog2(TLB_NUM)-1:0] rand_index_diff;
 
     logic control_dcache_valid, control_dcache_ready;
     logic [`RegBus] control_dcache_addr, control_dcache_wdata, control_dcache_rdata;
     logic [3:0] control_dcache_wstrb;
+
+    // PMU
+    pmu_input_t pmu_data;
+    assign pmu_data.ib_full = ib_frontend_stallreq;
+    assign pmu_data.ib_empty = u_instr_buffer.write_ptr == u_instr_buffer.read_ptr;
+    assign pmu_data.bpu_branch_instr = backend_commit_meta.is_branch;
+    assign pmu_data.bpu_valid = ex[0].u_ex.special_info.predict_valid & ex[0].u_ex.advance;
+    assign pmu_data.bpu_miss = ex_redirect[0];
+    assign pmu_data.bpu_conditional_branch = backend_commit_meta.is_conditional;
+    assign pmu_data.bpu_conditional_miss = backend_commit_meta.is_conditional & (backend_commit_meta.is_taken ^ backend_commit_meta.predicted_taken);
+    assign pmu_data.bpu_ftb_dirty = ex_jump_target_mispredict[0];
+    assign pmu_data.dcache_req = u_LSU.state == u_LSU.IDLE & mem_cache_ce;
+    assign pmu_data.dcache_miss = u_LSU.state == u_LSU.IDLE & u_LSU.next_state == u_LSU.REFILL_WAIT;
+    assign pmu_data.icache_req = (u_icache.rreq_1_i | u_icache.rreq_2_i) & u_icache.state == u_icache.IDLE;
+    assign pmu_data.icache_miss = u_icache.miss_1_pulse | u_icache.miss_2_pulse;
 
     LSU u_LSU (
         .clk(clk),
@@ -251,6 +287,7 @@ module cpu_top
 
         .cpu_valid(mem_cache_ce),
         .cpu_uncached(mem_uncache_en),
+        // .cpu_uncached(1'b1),
         .cpu_addr(mem_cache_addr),
         .cpu_wdata(mem_cache_data),
         .cpu_req_type(mem_cache_req_type),
@@ -296,6 +333,7 @@ module cpu_top
         // Port A
         .rreq_1_i         (frontend_icache_rreq[0]),
         .rreq_1_uncached_i(frontend_icache_rreq_uncached[0]),
+        // .rreq_1_uncached_i(0),
         .raddr_1_i        (frontend_icache_addr[0]),
         .rreq_1_ack_o     (icache_frontend_rreq_ack[0]),
         .rvalid_1_o       (icache_frontend_valid[0]),
@@ -303,6 +341,7 @@ module cpu_top
         // Port B
         .rreq_2_i         (frontend_icache_rreq[1]),
         .rreq_2_uncached_i(frontend_icache_rreq_uncached[1]),
+        // .rreq_2_uncached_i(0),
         .raddr_2_i        (frontend_icache_addr[1]),
         .rreq_2_ack_o     (icache_frontend_rreq_ack[1]),
         .rvalid_2_o       (icache_frontend_valid[1]),
@@ -463,19 +502,6 @@ module cpu_top
         .m00_axi_rready (rready)
     );
 
-
-    // Frontend <-> Instruction Buffer
-    logic ib_frontend_stallreq;
-    instr_info_t frontend_ib_instr_info[FETCH_WIDTH];
-    logic [`RegBus] next_pc;
-
-    // Frontend <-> Backend 
-    logic backend_redirect;
-    logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_redirect_ftq_id;
-    logic [COMMIT_WIDTH-1:0] backend_commit_bitmask; // suggest whether last instr in basic block is committed
-    logic [COMMIT_WIDTH-1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_commit_ftq_id;
-    backend_commit_meta_t [COMMIT_WIDTH-1:0] backend_commit_meta;
-
     // All frontend structures
     frontend u_frontend (
         .clk(clk),
@@ -495,7 +521,17 @@ module cpu_top
         .backend_flush_ftq_id_i(backend_redirect_ftq_id),
         .backend_commit_bitmask_i(backend_commit_bitmask),
         .backend_commit_ftq_id_i(backend_commit_ftq_id),
-        .backend_commit_meta_i(),
+        .backend_commit_meta_i(backend_commit_meta),
+        .backend_commit_block_bitmask_i(backend_commit_block_bitmask),
+
+        .backend_ftq_meta_update_valid_i(ex_is_branch[0]),
+        .backend_ftq_meta_update_ftb_dirty_i(ex_jump_target_mispredict[0]),
+        .backend_ftq_meta_update_jump_target_i(ex_jump_target_addr[0]),
+        .backend_ftq_meta_update_fall_through_i(ex_fall_through_addr[0]),
+        .backend_ftq_update_meta_id_i(ex_redirect_ftq_id[0]),
+        // <-> EX
+        .ex_query_addr_i(ex_ftq_query_addr[0]),
+        .ex_query_pc_o(ex_ftq_query_pc[0]),
 
         // <-> Instruction Buffer
         .instr_buffer_stallreq_i(ib_frontend_stallreq),   // instruction buffer is full
@@ -617,7 +653,14 @@ module cpu_top
         .ib_accept_o(dispatch_id_accept),
 
         // -> EXE
-        .exe_o(dispatch_exe)
+        .exe_o(dispatch_exe),
+
+        // PMU
+        .pmu_dispatch_backend_nop(pmu_data.dispatch_backend_nop),
+        .pmu_dispatch_frontend_nop(pmu_data.dispatch_frontend_nop),
+        .pmu_dispatch_single_issue(pmu_data.dispatch_single_issue),
+        .pmu_dispatch_datadep_nop(pmu_data.dispatch_datadep_nop),
+        .pmu_dispatch_instr_cnt(pmu_data.dispatch_instr_cnt)
     );
 
 
@@ -661,10 +704,19 @@ module cpu_top
                 .tid(csr_tid),
                 .csr_ex_signal(csr_mem_signal),
 
-                // -> Ctrl, Redirect signals
+                // <-> FTQ, next FTQ pc query
+                .ftq_query_addr_o(ex_ftq_query_addr[i]),
+                .ftq_query_pc_i  (ex_ftq_query_pc[i]),
+
+                // Redirect signals
                 .ex_redirect_o(ex_redirect[i]),
                 .ex_redirect_target_o(ex_redirect_target[i]),
                 .ex_redirect_ftq_id_o(ex_redirect_ftq_id[i]),
+                // BPU train meta
+                .ex_is_branch_o(ex_is_branch[i]),
+                .ex_jump_target_mispredict_o(ex_jump_target_mispredict[i]),
+                .ex_jump_target_addr_o(ex_jump_target_addr[i]),
+                .ex_fall_through_addr_o(ex_fall_through_addr[i]),
 
                 // -> Dispatch, data forward
                 .data_forward_o(ex_data_forward[i]),
@@ -828,8 +880,11 @@ module cpu_top
         .rst(rst),
 
         // -> Frontend
-        .backend_commit_block_o(backend_commit_bitmask),
+        .backend_commit_bitmask_o(backend_commit_bitmask),
+        .backend_commit_block_bitmask_o(backend_commit_block_bitmask),
         .backend_flush_ftq_id_o(ctrl_frontend_ftq_id),
+        .backend_commit_ftq_id_o(backend_commit_ftq_id),
+        .backend_commit_meta_o(backend_commit_meta),
 
         // <- WB
         .wb_i(wb_ctrl_signal),
@@ -918,7 +973,6 @@ module cpu_top
         .era_out(csr_era),
         .tlbrentry_out(csr_tlbrentry),
         .asid_out(csr_asid),
-        .rand_index(tlb_write_signal_i.rand_index),
         .tlbehi_out(tlb_write_signal_i.tlbehi),
         .tlbelo0_out(tlb_write_signal_i.tlbelo0),
         .tlbelo1_out(tlb_write_signal_i.tlbelo1),
@@ -935,7 +989,10 @@ module cpu_top
         .tlbelo0_in(tlb_read_signal_o.tlbelo0),
         .tlbelo1_in(tlb_read_signal_o.tlbelo1),
         .tlbidx_in(tlb_read_signal_o.tlbidx),
-        .asid_in(tlb_read_signal_o.asid)
+        .asid_in(tlb_read_signal_o.asid),
+
+        // PMU
+        .pmu_in(pmu_data)
     );
 
     tlb u_tlb (
@@ -992,7 +1049,7 @@ module cpu_top
     logic [5:0] csr_ecode_commit;
     logic [`InstBus] excp_instr_commit;
     logic tlbfill_en_commit;
-    logic [4:0] rand_index_commit;
+    logic [$clog2(TLB_NUM)-1:0] rand_index_commit;
 
     always_ff @(posedge clk) begin
         excp_flush_commit <= excp_flush;

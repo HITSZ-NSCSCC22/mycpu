@@ -63,6 +63,7 @@ module decoder_I26
                 aluop_o = `EXE_B_OP;
                 alusel_o = `EXE_RES_JUMP;
                 special_info_o.is_pri = 1;
+                special_info_o.is_branch = 1;
             end
             `EXE_BL: begin
                 aluop_o = `EXE_BL_OP;
@@ -70,6 +71,7 @@ module decoder_I26
                 reg_write_valid_o = 1;
                 reg_write_addr_o = 5'b1;
                 special_info_o.is_pri = 1;
+                special_info_o.is_branch = 1;
             end
             default: begin
                 decode_result_valid_o = 0;

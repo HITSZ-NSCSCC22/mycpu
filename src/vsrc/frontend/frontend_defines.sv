@@ -6,28 +6,15 @@
 
 typedef struct packed {
     logic valid;
-    logic [`InstAddrBus] start_pc;
     logic is_cross_cacheline;
     logic [$clog2(`FETCH_WIDTH+1)-1:0] length;
+    // BPU info
     logic predicted_taken;
-} bpu_ftq_t;
-
-typedef struct packed {
-    logic valid;
+    logic predict_valid;
     logic [`InstAddrBus] start_pc;
-    logic is_cross_cacheline;
-    logic [$clog2(`FETCH_WIDTH+1)-1:0] length;
-    logic predicted_taken;
 } ftq_block_t;
 
-// FTQ <-> IFU
-typedef struct packed {
-    logic valid;
-    logic [`InstAddrBus] start_pc;
-    logic is_cross_cacheline;
-    logic [$clog2(`FETCH_WIDTH+1)-1:0] length;
-    logic predicted_taken;
-} ftq_ifu_t;
+
 
 typedef struct packed {
     logic is_branch;

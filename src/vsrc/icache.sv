@@ -196,8 +196,8 @@ module icache
     // RREQ ack
     // hit or next_state is REQ
     // if next_state is not REQ, means something important is going on, do not accept rreq
-    assign rreq_1_ack_o = state == IDLE & rreq_1_i & (~miss_1 | next_state == REFILL_1_REQ);
-    assign rreq_2_ack_o = state == IDLE & rreq_2_i & (~miss_2 | next_state == REFILL_2_REQ);
+    assign rreq_1_ack_o = state == IDLE & rreq_1_i & ~miss_1 & next_state == IDLE;
+    assign rreq_2_ack_o = state == IDLE & rreq_2_i & ~miss_2 & next_state == IDLE;
 
     // BRAM input signals
     // Addr & EN
@@ -379,23 +379,23 @@ module icache
     end
 
     always_ff @(posedge clk) begin
-        if (rvalid_1_o) begin
-            p1_rreq_1 <= 0;
-            p1_rreq_1_uncached <= 0;
-            p1_raddr_1 <= 0;
-        end else if (rreq_1_ack_o) begin
+        if (rreq_1_ack_o) begin
             p1_rreq_1 <= rreq_1_i;
             p1_rreq_1_uncached <= rreq_1_uncached_i;
             p1_raddr_1 <= raddr_1_i;
+        end else if (rvalid_1_o) begin
+            p1_rreq_1 <= 0;
+            p1_rreq_1_uncached <= 0;
+            p1_raddr_1 <= 0;
         end
-        if (rvalid_2_o) begin
-            p1_rreq_2 <= 0;
-            p1_rreq_2_uncached <= 0;
-            p1_raddr_2 <= 0;
-        end else if (rreq_2_ack_o) begin
+        if (rreq_2_ack_o) begin
             p1_rreq_2 <= rreq_2_i;
             p1_rreq_2_uncached <= rreq_2_uncached_i;
             p1_raddr_2 <= raddr_2_i;
+        end else if (rvalid_2_o) begin
+            p1_rreq_2 <= 0;
+            p1_rreq_2_uncached <= 0;
+            p1_raddr_2 <= 0;
         end
     end
 

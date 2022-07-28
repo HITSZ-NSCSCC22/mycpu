@@ -1,10 +1,13 @@
 `include "defines.sv"
 `include "csr_defines.sv"
 `include "TLB/tlb_types.sv"
+`include "core_config.sv"
+`include "utils/lfsr.sv"
 
 
 module tlb
     import tlb_types::*;
+    import core_config::*;
 (
     input logic clk,
     // According to manual TLB do not reset by hardware
@@ -32,8 +35,23 @@ module tlb
     input logic csr_da,  // mmu disable, direct translate
     input logic csr_pg,  // mmu enable, enable paging
 
-    output logic [4:0] rand_index_diff
+    output logic [$clog2(TLB_NUM)-1:0] rand_index_diff
 );
+
+    // Parameters
+    localparam TLB_INDEX_WIDTH = $clog2(TLB_NUM);
+
+    // Random number generator
+    // Use 16bits LFSR to ensure randomness
+    logic [15:0] random_r;
+    lfsr #(
+        .WIDTH(16)
+    ) u_lfsr (
+        .clk  (clk),
+        .rst  (1'b0),
+        .en   (1'b1),
+        .value(random_r)
+    );
 
     // TLB search 1 & 2
     logic [18:0] s0_vppn;
@@ -48,11 +66,11 @@ module tlb
 
     // TLB write
     logic we;
-    logic [4:0] w_index;
+    logic [TLB_INDEX_WIDTH-1:0] w_index;
     tlb_wr_port w_port;
 
     // TLB read
-    logic [4:0] r_index;
+    logic [TLB_INDEX_WIDTH-1:0] r_index;
     tlb_wr_port r_port;
 
     logic [31:0] inst_vaddr_buffer;
@@ -87,7 +105,7 @@ module tlb
 
     //trans write port sig
     assign we = write_signal_i.tlbfill_en || write_signal_i.tlbwr_en;
-    assign w_index = ({5{write_signal_i.tlbfill_en}} & write_signal_i.rand_index) | ({5{write_signal_i.tlbwr_en}} & write_signal_i.tlbidx[`INDEX]);
+    assign w_index = ({7{write_signal_i.tlbfill_en}} & random_r[TLB_INDEX_WIDTH-1:0]) | ({7{write_signal_i.tlbwr_en}} & write_signal_i.tlbidx[`INDEX]);
     assign w_port.asid = asid;
     assign w_port.vppn = write_signal_i.tlbehi[`VPPN];
     assign w_port.g = write_signal_i.tlbelo0[`TLB_G] && write_signal_i.tlbelo1[`TLB_G];
