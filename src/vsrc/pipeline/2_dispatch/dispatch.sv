@@ -260,7 +260,7 @@ module dispatch
     endgenerate
 
     // PMU
-    assign pmu_dispatch_single_issue = single_issue & ~stall & ~flush & issue_valid[0];
+    assign pmu_dispatch_single_issue = single_issue & ~stall & ~flush & instr_exists_check[1] & data_dep_check[1] & rreg_avail_check[1];
     always_comb begin
         pmu_dispatch_instr_cnt = 0;
         pmu_dispatch_backend_nop = 0;
@@ -268,11 +268,10 @@ module dispatch
         pmu_dispatch_datadep_nop = 0;
         for (integer i = 0; i < ISSUE_WIDTH; i++) begin
             if (~stall & ~flush) pmu_dispatch_instr_cnt = pmu_dispatch_instr_cnt + issue_valid[i];
-            if (stall) pmu_dispatch_backend_nop = pmu_dispatch_backend_nop + issue_valid[i];
+            if (stall) pmu_dispatch_backend_nop = pmu_dispatch_backend_nop + instr_exists_check[i];
+            pmu_dispatch_frontend_nop = pmu_dispatch_frontend_nop + ((1 - instr_exists_check[i]) || flush);
             if (~stall & ~flush)
-                pmu_dispatch_frontend_nop = pmu_dispatch_frontend_nop + 1 - instr_exists_check[i];
-            if (~stall & ~flush)
-                pmu_dispatch_datadep_nop = pmu_dispatch_datadep_nop + 1 - (data_dep_check[i] && rreg_avail_check[i]);
+                pmu_dispatch_datadep_nop = pmu_dispatch_datadep_nop + (instr_exists_check[i] && ~(data_dep_check[i] && rreg_avail_check[i]));
         end
     end
 

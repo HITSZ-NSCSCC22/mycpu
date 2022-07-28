@@ -259,4 +259,12 @@ module ctrl
     excp_num[15] ? {`ECODE_PIL , valid, error_va, 9'b0, 1'b0, valid, error_va[31:13]} :
     69'b0;
 
+
+    // DEBUG
+    integer pmu_jirl_cnt, pmu_b_cnt;
+    always_ff @(posedge clk) begin
+        pmu_jirl_cnt <= pmu_jirl_cnt + (aluop == `EXE_JIRL_OP);
+        pmu_b_cnt <= pmu_b_cnt + (aluop == `EXE_B_OP || aluop == `EXE_BL_OP);
+    end
+
 endmodule  //ctrl
