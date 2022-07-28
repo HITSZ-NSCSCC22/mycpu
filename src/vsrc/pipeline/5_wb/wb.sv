@@ -65,7 +65,7 @@ module wb
     assign dcache_flush_o = excp | special_info.redirect | special_info.need_refetch;
     assign dcache_store_commit_o = mem_store_op & ~excp;
 
-    assign data_forward_o = {mem_i.wreg, 1'b1, mem_i.waddr, mem_i.wdata};
+    assign data_forward_o = {mem_i.wreg, 1'b1, mem_i.waddr, mem_i.wdata, mem_i.csr_signal};
 
 
     always @(posedge clk) begin

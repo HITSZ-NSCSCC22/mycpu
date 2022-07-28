@@ -29,8 +29,8 @@ module dispatch
 
     //<-> CSR
     //get wdata from csr
-    output [13:0] csr_read_addr,
-    input [`RegBus] csr_data,
+    output [1:0][13:0] csr_read_addr,
+    input [1:0][`RegBus] csr_data,
 
     // -> Instruction Buffer, wire
     output logic [DECODE_WIDTH-1:0] ib_accept_o,
@@ -51,6 +51,7 @@ module dispatch
     logic [ISSUE_WIDTH-1:0] data_dep_check;
     logic [ISSUE_WIDTH-1:0] single_issue_check;
     logic [ISSUE_WIDTH-1:0] rreg_avail_check;
+    logic [ISSUE_WIDTH-1:0] csr_avail_check;
     logic [DECODE_WIDTH-1:0] instr_exists_check;
     // Final decision
     logic [ISSUE_WIDTH-1:0] issue_valid;
@@ -60,10 +61,13 @@ module dispatch
     logic csr_op[2];
     // Read oprands
     logic [ISSUE_WIDTH-1:0][1:0][DATA_WIDTH-1:0] oprands;
+    logic [ISSUE_WIDTH-1:0][DATA_WIDTH-1:0] csr_oprand;
     // Reg data available
     logic [GPR_NUM-1:0] regs_available;
-    logic [ISSUE_WIDTH-1:0] issue_wreg;
+    logic [181:0] csr_available;
+    logic [ISSUE_WIDTH-1:0] issue_wreg, issue_csr_we;
     logic [ISSUE_WIDTH-1:0][`RegAddrBus] issue_wreg_addr;
+    logic [ISSUE_WIDTH-1:0][13:0] issue_csr_addr;
 
     assign rst_n = ~rst;
 
@@ -77,8 +81,8 @@ module dispatch
     assign csr_op[1] = id_i[1].instr_info.special_info.is_csr;
 
     // csr related instrution is single issued
-    assign csr_read_addr = csr_op[0] ? id_i[0].imm[13:0] : csr_op[1] ? id_i[1].imm[13:0] : 14'b0;
-
+    assign csr_read_addr[0] = csr_op[0] ? id_i[0].imm[13:0] : 0;
+    assign csr_read_addr[1] = csr_op[1] ? id_i[1].imm[13:0] : 14'b0;
     // Force most branch, mem, privilege instr to issue only 1 instr per cycle
     assign is_both_mem_instr = id_i[0].instr_info.special_info.mem_load | id_i[0].instr_info.special_info.mem_store | id_i[1].instr_info.special_info.mem_load | id_i[1].instr_info.special_info.mem_store;
 
@@ -88,6 +92,8 @@ module dispatch
         for (integer i = 0; i < ISSUE_WIDTH; i++) begin
             issue_wreg[i] = id_i[i].reg_write_valid;
             issue_wreg_addr[i] = id_i[i].reg_write_addr;
+            issue_csr_we[i] = csr_op[i];
+            issue_csr_addr[i] = id_i[i].imm[13:0];
         end
     end
     // Detect reg availability using a [GPR_NUM-1:0] register
@@ -133,6 +139,39 @@ module dispatch
             end
         end
     end
+
+    always_ff @(posedge clk) begin
+        if (!rst_n) csr_available <= {182{1'b1}};
+        else if (flush) csr_available <= {182{1'b1}};
+        else begin
+            // WB data available
+            for (integer i = 0; i < ISSUE_WIDTH; i++) begin
+                if (wb_data_forward_i[i].csr_we)
+                    csr_available[wb_data_forward_i[i].csr_addr[7:0]] <= 1;
+            end
+            // MEM2 data available
+            for (integer i = 0; i < ISSUE_WIDTH; i++) begin
+                if (mem2_data_forward_i[i].csr_we)
+                    csr_available[mem2_data_forward_i[i].csr_addr[7:0]] <= 1;
+            end
+            // MEM1 data available
+            for (integer i = 0; i < ISSUE_WIDTH; i++) begin
+                if (mem1_data_forward_i[i].csr_we)
+                    csr_available[mem1_data_forward_i[i].csr_addr[7:0]] <= 1;
+            end
+            // EX data available
+            for (integer i = 0; i < ISSUE_WIDTH; i++) begin
+                if (ex_data_forward_i[i].csr_we)
+                    csr_available[ex_data_forward_i[i].csr_addr[7:0]] <= 1;
+            end
+            // Set unavailable when issued
+            for (integer issue_idx = 0; issue_idx < ISSUE_WIDTH; issue_idx++) begin
+                if (issue_csr_we[issue_idx] & issue_valid[issue_idx] & ~stall)
+                    csr_available[issue_csr_addr[issue_idx][7:0]] <= 0;
+            end
+        end
+    end
+
     assign ib_accept_o = stall ? 0 : 
                         do_we_issue == 2'b01 ? do_we_issue | ~instr_exists_check : do_we_issue;
 
@@ -145,19 +184,24 @@ module dispatch
     // Reg read available check
     assign rreg_avail_check[0] = regs_available[id_i[0].reg_read_addr[0]] & regs_available[id_i[0].reg_read_addr[1]] ;
     assign rreg_avail_check[1] = regs_available[id_i[1].reg_read_addr[0]] & regs_available[id_i[1].reg_read_addr[1]] & rreg_avail_check[0];
+    // Csr read available check
+    assign csr_avail_check[0] = issue_csr_we[0] ? csr_available[issue_csr_addr[0][7:0]] : 1;
+    assign csr_avail_check[1] = issue_csr_we[1] ? csr_available[issue_csr_addr[1][7:0]] : 1;
     // Data dependency check 
     always_comb begin
         if (id_i[1].reg_read_addr[0] == id_i[0].reg_write_addr && id_i[1].reg_read_valid[0] && id_i[0].reg_write_valid) begin
             data_dep_check = 2'b01;
         end else if (id_i[1].reg_read_addr[1] == id_i[0].reg_write_addr && id_i[1].reg_read_valid[1] && id_i[0].reg_write_valid) begin
             data_dep_check = 2'b01;
+        end else if (csr_op[0] && csr_op[1] && issue_csr_addr[0] == issue_csr_addr[1]) begin
+            data_dep_check = 2'b01;
         end else data_dep_check = 2'b11;
     end
     // Single issue check
-    assign single_issue = pri_op[0]| pri_op[1] | csr_op[0] | csr_op[1] | is_both_mem_instr | id_i[0].instr_info.excp | id_i[1].instr_info.excp;
+    assign single_issue = pri_op[0]| pri_op[1] | is_both_mem_instr | id_i[0].instr_info.excp | id_i[1].instr_info.excp;
     assign single_issue_check = single_issue ? 2'b01 : 2'b11;
     // Do we issue ?
-    assign do_we_issue = single_issue_check & data_dep_check & rreg_avail_check;
+    assign do_we_issue = single_issue_check & data_dep_check & rreg_avail_check & csr_avail_check;
     // Final decision
     assign issue_valid = do_we_issue & instr_exists_check;
 
@@ -172,6 +216,36 @@ module dispatch
         end
     endgenerate
 
+    generate
+        for (genvar issue_idx = 0; issue_idx < ISSUE_WIDTH; issue_idx++) begin : issue_csr_gen
+            always_comb begin
+                begin
+                    // Noraml read regfile
+                    csr_oprand[issue_idx] = csr_data[issue_idx];
+                    // WB data forward overide
+                    for (integer i = 0; i < ISSUE_WIDTH; i++) begin
+                        if (wb_data_forward_i[i].csr_we && wb_data_forward_i[i].csr_addr == csr_read_addr[issue_idx])
+                            csr_oprand[issue_idx] = wb_data_forward_i[i].csr_data;
+                    end
+                    // MEM2 data forward overide
+                    for (integer i = 0; i < ISSUE_WIDTH; i++) begin
+                        if (mem2_data_forward_i[i].csr_we && mem2_data_forward_i[i].csr_addr == csr_read_addr[issue_idx])
+                            csr_oprand[issue_idx] = mem2_data_forward_i[i].csr_data;
+                    end
+                    // MEM1 data forward overide
+                    for (integer i = 0; i < ISSUE_WIDTH; i++) begin
+                        if (mem1_data_forward_i[i].csr_we && mem1_data_forward_i[i].csr_addr == csr_read_addr[issue_idx])
+                            csr_oprand[issue_idx] = mem1_data_forward_i[i].csr_data;
+                    end
+                    // EX data forward overide
+                    for (integer i = 0; i < ISSUE_WIDTH; i++) begin
+                        if (ex_data_forward_i[i].csr_we && ex_data_forward_i[i].csr_addr == csr_read_addr[issue_idx])
+                            csr_oprand[issue_idx] = ex_data_forward_i[i].csr_data;
+                    end
+                end
+            end
+        end
+    endgenerate
 
 
     generate
@@ -240,7 +314,7 @@ module dispatch
                     exe_o[i].csr_signal.we <= csr_op[i] && aluop_i[i] != `EXE_CSRRD_OP;
                     exe_o[i].csr_signal.addr <= id_i[i].imm[13:0];
                     exe_o[i].csr_signal.data <= oprands[i][0];
-                    exe_o[i].csr_reg_data <= csr_data;
+                    exe_o[i].csr_reg_data <= csr_oprand[i];
                 end else begin
                     // Cannot be issued, so do not issue,just issue the excp
                     exe_o[i] <= 0;  //.excp <= id_i[i].excp;

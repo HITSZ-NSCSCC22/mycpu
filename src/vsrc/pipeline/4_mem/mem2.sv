@@ -48,8 +48,8 @@ module mem2
     assign mem_load_op = special_info.mem_load;
     assign mem_addr = mem1_i.mem_addr;
 
-    assign data_forward_o = ~(mem_load_op & mem1_i.mem_access_valid) ? {mem1_i.wreg, 1'b1, mem1_i.waddr, mem1_i.wdata} :
-       {mem2_o.wreg, data_ok | data_already_ok, mem2_o.waddr, mem2_o.wdata};
+    assign data_forward_o = ~(mem_load_op & mem1_i.mem_access_valid) ? {mem1_i.wreg, 1'b1, mem1_i.waddr, mem1_i.wdata,mem2_o.csr_signal} :
+       {mem2_o.wreg, data_ok | data_already_ok, mem2_o.waddr, mem2_o.wdata,mem2_o.csr_signal};
 
     always_ff @(posedge clk) begin
         if (rst) data_already_ok <= 0;

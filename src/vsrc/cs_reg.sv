@@ -24,8 +24,8 @@ module cs_reg
     input logic excp_tlb,
     input logic [18:0] excp_tlb_vppn,
 
-    input logic [13:0] raddr,
-    output logic [`RegBus] rdata,
+    input logic [1:0][13:0] raddr,
+    output logic [1:0][`RegBus] rdata,
 
     //timer 64
     output logic [63:0] timer_64_o,
@@ -115,6 +115,8 @@ module cs_reg
     logic [13:0] waddr;
     logic [`RegBus] wdata;
 
+    genvar i;
+
     always @(*) begin
         if (rst) begin
             we = 1'b0;
@@ -167,35 +169,39 @@ module cs_reg
                   {2{ertn_flush}} & csr_prmd[`PPLV] | 
                   {2{!excp_flush && !ertn_flush}} & csr_crmd[`PLV];
 
-    assign rdata = {32{raddr == `CRMD  }}  & csr_crmd    |
-                 {32{raddr == `PRMD  }}  & csr_prmd    |
-                 {32{raddr == `ECTL  }}  & csr_ectl    |
-                 {32{raddr == `ESTAT }}  & csr_estat   |
-                 {32{raddr == `ERA   }}  & csr_era	   |
-                 {32{raddr == `BADV  }}  & csr_badv    |
-                 {32{raddr == `EENTRY}}  & csr_eentry  |
-                 {32{raddr == `TLBIDX}}  & csr_tlbidx  |
-                 {32{raddr == `TLBEHI}}  & csr_tlbehi  |
-                 {32{raddr == `TLBELO0}} & csr_tlbelo0 |
-                 {32{raddr == `TLBELO1}} & csr_tlbelo1 |
-                 {32{raddr == `ASID  }}  & csr_asid    |
-                 {32{raddr == `PGDL  }}  & csr_pgdl    |
-                 {32{raddr == `PGDH  }}  & csr_pgdh    |
-                 {32{raddr == `PGD   }}  & csr_pgd     |
-                 {32{raddr == `CPUID }}  & csr_cpuid   |
-                 {32{raddr == `SAVE0 }}  & csr_save0   |
-                 {32{raddr == `SAVE1 }}  & csr_save1   |
-                 {32{raddr == `SAVE2 }}  & csr_save2   |
-                 {32{raddr == `SAVE3 }}  & csr_save3   |
-                 {32{raddr == `TID   }}  & csr_tid     |
-                 {32{raddr == `TCFG  }}  & csr_tcfg    |
-                 {32{raddr == `CNTC  }}  & csr_cntc    |
-                 {32{raddr == `TICLR }}  & csr_ticlr   |
-                 {32{raddr == `LLBCTL}}  & {csr_llbctl[31:1], llbit} |
-                 {32{raddr == `TVAL  }}  & csr_tval    |
-                 {32{raddr == `TLBRENTRY}} & csr_tlbrentry   |
-                 {32{raddr == `DMW0}}    & csr_dmw0    |
-                 {32{raddr == `DMW1}}    & csr_dmw1    ;
+    generate
+        for (i = 0; i < 1; i++) begin
+            assign rdata[i] = {32{raddr[i] == `CRMD  }}  & csr_crmd    |
+                 {32{raddr[i] == `PRMD  }}  & csr_prmd    |
+                 {32{raddr[i] == `ECTL  }}  & csr_ectl    |
+                 {32{raddr[i] == `ESTAT }}  & csr_estat   |
+                 {32{raddr[i] == `ERA   }}  & csr_era	   |
+                 {32{raddr[i] == `BADV  }}  & csr_badv    |
+                 {32{raddr[i] == `EENTRY}}  & csr_eentry  |
+                 {32{raddr[i] == `TLBIDX}}  & csr_tlbidx  |
+                 {32{raddr[i] == `TLBEHI}}  & csr_tlbehi  |
+                 {32{raddr[i] == `TLBELO0}} & csr_tlbelo0 |
+                 {32{raddr[i] == `TLBELO1}} & csr_tlbelo1 |
+                 {32{raddr[i] == `ASID  }}  & csr_asid    |
+                 {32{raddr[i] == `PGDL  }}  & csr_pgdl    |
+                 {32{raddr[i] == `PGDH  }}  & csr_pgdh    |
+                 {32{raddr[i] == `PGD   }}  & csr_pgd     |
+                 {32{raddr[i] == `CPUID }}  & csr_cpuid   |
+                 {32{raddr[i] == `SAVE0 }}  & csr_save0   |
+                 {32{raddr[i] == `SAVE1 }}  & csr_save1   |
+                 {32{raddr[i] == `SAVE2 }}  & csr_save2   |
+                 {32{raddr[i] == `SAVE3 }}  & csr_save3   |
+                 {32{raddr[i] == `TID   }}  & csr_tid     |
+                 {32{raddr[i] == `TCFG  }}  & csr_tcfg    |
+                 {32{raddr[i] == `CNTC  }}  & csr_cntc    |
+                 {32{raddr[i] == `TICLR }}  & csr_ticlr   |
+                 {32{raddr[i] == `LLBCTL}}  & {csr_llbctl[31:1], llbit} |
+                 {32{raddr[i] == `TVAL  }}  & csr_tval    |
+                 {32{raddr[i] == `TLBRENTRY}} & csr_tlbrentry   |
+                 {32{raddr[i] == `DMW0}}    & csr_dmw0    |
+                 {32{raddr[i] == `DMW1}}    & csr_dmw1    ;
+        end
+    endgenerate
 
     assign eentry_out = csr_eentry;
     assign era_out = csr_era;

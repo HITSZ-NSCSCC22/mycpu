@@ -191,7 +191,7 @@ module ctrl
                      (excp_flush && excp_tlbrefill) ? csr_tlbrentry_i :
                      ertn_flush ? csr_era_i :
                      idle_flush ? idle_pc : 
-                     refetch_flush ? idle_pc +4 : 0;
+                     refetch_flush ? idle_pc + 4 : 0;
 
     //提交difftest
     always_comb begin

@@ -117,8 +117,8 @@ module cpu_top
     tlb_inst_t tlb_inst;
 
     logic [`InstBus] excp_instr;
-    logic [13:0] dispatch_csr_read_addr;
-    logic [`RegBus] dispatch_csr_data;
+    logic [1:0][13:0] dispatch_csr_read_addr;
+    logic [1:0][`RegBus] dispatch_csr_data;
 
     logic icacop_op_en[2], dcacop_op_en[2];
     logic icacop_ack, dcacop_ack;
