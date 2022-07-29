@@ -181,7 +181,15 @@ module LSU #(
 
     // P1 signal
     always_ff @(posedge clk) begin
-        if (cpu_flush & ~cpu_store_commit & state == STORE_COMMIT_WAIT) begin
+        if (rst) begin
+            p1_req_type  <= 0;
+            p1_cpu_store <= 0;
+            p1_uncache   <= 0;
+            p1_valid_reg <= 0;
+            p1_addr_reg  <= 0;
+            p1_wdata_reg <= 0;
+            p1_wstrb_reg <= 0;
+        end else if (cpu_flush & ~cpu_store_commit & state == STORE_COMMIT_WAIT) begin
             p1_req_type  <= 0;
             p1_cpu_store <= 0;
             p1_uncache   <= 0;

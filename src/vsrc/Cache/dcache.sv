@@ -202,13 +202,13 @@ module dcache
     assign cpu_wreq = wstrb_buffer != 4'b0;
 
     always_comb begin : transition_comb
+        next_state = IDLE;
         case (state)
             IDLE: begin
                 if (cacop_i) next_state = CACOP_INVALID;
                 // if the dcache is idle,then accept the new request
-                else if (valid) begin
-                    next_state = LOOK_UP;
-                end
+                else if (valid) next_state = LOOK_UP;
+                else next_state = IDLE;
             end
             LOOK_UP: begin
                 if (valid) begin
@@ -265,6 +265,8 @@ module dcache
             data_bram_addr[i] = 0;
             tag_bram_en[i] = 0;
             data_bram_en[i] = 0;
+            fifo_rreq = 0;
+            fifo_raddr = 0;
         end
         case (state)
             IDLE: begin
@@ -655,12 +657,12 @@ module dcache
             READ_REQ, WRITE_REQ: begin
                 if (axi_rdy_i) begin
                     axi_req_o  = 1;
-                    axi_addr_o = cpu_addr;
+                    axi_addr_o = {tag_buffer, index_buffer, 4'b0};
                 end
             end
             // wait for the data back
             READ_WAIT, WRITE_WAIT: begin
-                axi_addr_o = cpu_addr;
+                axi_addr_o = {tag_buffer, index_buffer, 4'b0};
             end
             default: begin
                 axi_req_o = 0;
