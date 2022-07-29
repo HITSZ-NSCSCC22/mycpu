@@ -4,16 +4,33 @@
 
 ## ICache BRAM
 
-Enable Port Type: Always Enabled
+Enable Port Type: use Enable PIN
 
 no primitive output register
 
 Tag BRAM:
 - module name: bram_icache_tag_ram
 - width: 21
-- depth: 256
+- depth: 1024
 
 Data BRAM:
 - module name: bram_icache_data_ram
 - width: 128
-- depth: 256
+- depth: 1024
+
+## BPU BRAM
+
+FTB BRAM:
+- module name: bram_ftb
+- width: 87
+- depth: 4096
+
+TAGE base predictor BRAM:
+- module name: bram_bpu_base_predictor
+- width: 3 
+- depth: 8192 
+
+TAGE tagged predictor BRAM:
+- module name: bram_bpu_tagged_predictor
+- width: 16
+- depth: 2048
