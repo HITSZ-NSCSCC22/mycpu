@@ -293,8 +293,8 @@ module ifu
                         // Mark the last instruction if:
                         // 1. prediction valid
                         // 2. no TLBR or other exception detected
-                        instr_buffer_o[i].special_info.predicted_taken <= p2_read_transaction.excp ? 0 : p2_ftq_block.predicted_taken;
-                        instr_buffer_o[i].special_info.predict_valid <= p2_read_transaction.excp ? 0 : p2_ftq_block.predict_valid;
+                        instr_buffer_o[i].special_info.predicted_taken <= p2_ftq_block.predicted_taken;
+                        instr_buffer_o[i].special_info.predict_valid <= p2_ftq_block.predict_valid;
                     end
                     instr_buffer_o[i].valid <= 1;
                     instr_buffer_o[i].pc <= p2_ftq_block.start_pc + i * 4;  // Instr is 4 bytes long

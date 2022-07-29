@@ -53,6 +53,7 @@ module dispatch
 
     logic single_issue;
     logic is_both_mem_instr;
+    logic is_bpu_predict_valid;
     logic [ISSUE_WIDTH-1:0] do_we_issue;
     // issue condition check
     logic [ISSUE_WIDTH-1:0] data_dep_check;
@@ -92,6 +93,7 @@ module dispatch
     assign csr_read_addr[1] = csr_op[1] ? id_i[1].imm[13:0] : 14'b0;
     // Force most branch, mem, privilege instr to issue only 1 instr per cycle
     assign is_both_mem_instr = id_i[0].instr_info.special_info.mem_load | id_i[0].instr_info.special_info.mem_store | id_i[1].instr_info.special_info.mem_load | id_i[1].instr_info.special_info.mem_store;
+    assign is_bpu_predict_valid = id_i[0].instr_info.special_info.predict_valid | id_i[1].instr_info.special_info.predict_valid;
 
 
 
@@ -207,7 +209,7 @@ module dispatch
         end else data_dep_check = 2'b11;
     end
     // Single issue check
-    assign single_issue = pri_op[0]| pri_op[1] | is_both_mem_instr | id_i[0].instr_info.excp | id_i[1].instr_info.excp;
+    assign single_issue = pri_op[0]| pri_op[1] | is_both_mem_instr | is_bpu_predict_valid | id_i[0].instr_info.excp | id_i[1].instr_info.excp;
     assign single_issue_check = single_issue ? 2'b01 : 2'b11;
     // Do we issue ?
     assign do_we_issue = single_issue_check & data_dep_check & rreg_avail_check & csr_avail_check;

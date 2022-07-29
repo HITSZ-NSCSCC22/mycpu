@@ -261,7 +261,7 @@ module id
     assign dispatch_o.instr_info.instr = instr_i;
     assign dispatch_o.instr_info.is_last_in_block = is_last_in_block;
     assign dispatch_o.instr_info.ftq_id = instr_buffer_i.valid ? instr_buffer_i.ftq_id : 0;
-    assign dispatch_o.instr_info.special_info = instr_valid ? instr_special_info | instr_buffer_i.special_info : 0;
+    assign dispatch_o.instr_info.special_info = instr_buffer_i.special_info | (instr_valid ? instr_special_info : 0);
 
 
     assign excp_ine = ~instr_valid & instr_buffer_i.valid; // If IB input is valid, but no valid decode result, then INE is triggered
