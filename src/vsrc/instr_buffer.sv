@@ -78,8 +78,8 @@ module instr_buffer
             read_ptr  <= 0;
             write_ptr <= 0;
         end else begin
-            read_ptr  <= read_ptr + backend_accept_num;
-            write_ptr <= write_ptr + frontend_accept_num;
+            read_ptr  <= read_ptr + {2'b0, backend_accept_num};
+            write_ptr <= write_ptr + {2'b0, frontend_accept_num};
         end
     end
 
@@ -93,7 +93,7 @@ module instr_buffer
         for (integer i = 0; i < ID_WIDTH; i++) begin
             // Reset entry
             if (i < backend_accept_num) begin
-                next_buffer_queue[PTR_WIDTH'(read_ptr+i)] = 0;
+                next_buffer_queue[PTR_WIDTH'(read_ptr+i[3:0])] = 0;
             end
         end
 
@@ -101,7 +101,7 @@ module instr_buffer
         for (integer i = 0; i < IF_WIDTH; i++) begin
             // Accept entry from frontend
             if (i < frontend_accept_num) begin
-                next_buffer_queue[PTR_WIDTH'(write_ptr+i)] = frontend_instr_i[i];
+                next_buffer_queue[PTR_WIDTH'(write_ptr+i[3:0])] = frontend_instr_i[i];
             end
         end
     end
@@ -109,7 +109,7 @@ module instr_buffer
     // Connect backend_instr_o directly to buffer_queue
     always_comb begin : backend_instr_o_comb
         for (integer i = 0; i < ID_WIDTH; i++) begin
-            backend_instr_o[i] = buffer_queue[PTR_WIDTH'(read_ptr+i)];
+            backend_instr_o[i] = buffer_queue[PTR_WIDTH'(read_ptr+i[3:0])];
         end
     end
 

@@ -1225,39 +1225,37 @@ module cpu_top
         .probe1(u_LSU.u_uncache_channel.next_state),  // input wire [3:0]  probe1 
         .probe2(u_dcache.req_type_buffer),  // input wire [3:0]  probe2 
         .probe3(mem1[0].u_mem1.mem_paddr),  // input wire [31:0]  probe3 
-        .probe4(mem1[0].u_mem1.uncache_en),  // input wire [0:0]  probe4 
+        .probe4(u_icache.miss_1_pulse),  // input wire [0:0]  probe4 
         .probe5(u_LSU.cpu_uncached),  // input wire [0:0]  probe5 
-        .probe6(u_dcache.state),  // input wire [31:0]  probe6 
-        .probe7(u_dcache.valid),  // input wire [0:0]  probe7 
-        .probe8(u_dcache.data_ok),  // input wire [0:0]  probe8 
-        .probe9(u_LSU.cpu_rdata),  // input wire [31:0]  probe9 
-        .probe10({
-            u_tlb.data_o.tag, u_tlb.data_o.index, u_tlb.data_o.offset
-        }),  // input wire [31:0]  probe10 
-        .probe11(u_dcache.axi_addr_o),  // input wire [0:0]  probe11 
-        .probe12(u_dcache.axi_wdata_o),  // input wire [31:0]  probe12 
-        .probe13(u_LSU.u_uncache_channel.axi_data_i),  // input wire [31:0]  probe13 
+        .probe6(u_icache.state),  // input wire [31:0]  probe6 
+        .probe7(u_icache.rreq_1_uncached_i),  // input wire [0:0]  probe7 
+        .probe8(u_icache.rreq_1_i),  // input wire [0:0]  probe8 
+        .probe9(u_icache.raddr_1_i),  // input wire [31:0]  probe9 
+        .probe10(u_LSU.u_uncache_channel.wdata),  // input wire [31:0]  probe10 
+        .probe11(u_icache.axi_data_i),  // input wire [0:0]  probe11 
+        .probe12(u_LSU.u_uncache_channel.rdata),  // input wire [31:0]  probe12 
+        .probe13(u_LSU.u_uncache_channel.axi_wdata_o),  // input wire [31:0]  probe13 
         .probe14(u_LSU.p1_addr_reg),  // input wire [31:0]  probe14 
-        .probe15(u_dcache.wstrb_buffer),  // input wire [31:0]  probe15 
-        .probe16(u_LSU.state),  // input wire [0:0]  probe16 
+        .probe15(u_LSU.cpu_wstrb),  // input wire [31:0]  probe15 
+        .probe16(0),  // input wire [0:0]  probe16 
         .probe17(u_dcache.index_buffer),  // input wire [0:0]  probe17 
         .probe18(u_dcache.tag_buffer),  // input wire [0:0]  probe18 
-        .probe19(u_LSU.u_uncache_channel.state),  // input wire [0:0]  probe19
+        .probe19(0),  // input wire [0:0]  probe19
         .probe20(u_cs_reg.timer_64),  // input wire [63:0]  probe20 
         .probe21(u_LSU.p1_valid_reg),  // input wire [31:0]  probe21 
         .probe22(u_ctrl.excp_num),  // input wire [31:0]  probe22 
-        .probe23(u_dcache.wdata_buffer),  // input wire [31:0]  probe23 
+        .probe23(u_LSU.u_uncache_channel.addr),  // input wire [31:0]  probe23 
         .probe24(mem1[0].u_mem1.ex_i.instr_info.pc),  // input wire [31:0]  probe24 
-        .probe25(u_dcache.rdata),  // input wire [31:0]  probe25 
+        .probe25(mem1[0].u_mem1.ex_i.instr_info.instr),  // input wire [31:0]  probe25 
         .probe26(u_LSU.dcache_ready),  // input wire [31:0]  probe26 
         .probe27(u_LSU.dcache_valid),  // input wire [0:0]  probe27
         .probe28(u_LSU.cpu_valid),  // input wire [31:0]  probe28 
         .probe29(u_LSU.cpu_flush),  // input wire [31:0]  probe29 
-        .probe30(u_dcache.cpu_addr),  // input wire [31:0]  probe30 
+        .probe30(u_LSU.cpu_addr),  // input wire [31:0]  probe30 
         .probe31(u_LSU.cpu_store),  // input wire [31:0]  probe31 
         .probe32(cpu_flush),  // input wire [31:0]  probe32 
-        .probe33(u_dcache.rdata),  // input wire [31:0]  probe33 
-        .probe34(u_dcache.fifo_waddr),  // input wire [31:0]  probe34 
+        .probe33(u_LSU.u_uncache_channel.axi_addr_o),  // input wire [31:0]  probe33 
+        .probe34(u_LSU.cpu_wdata),  // input wire [31:0]  probe34 
         .probe35(u_dcache.axi_rvalid_i)  // input wire [31:0]  probe35
     );
 `endif
