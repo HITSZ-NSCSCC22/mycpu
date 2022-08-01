@@ -229,7 +229,7 @@ module ex
     assign da_mode = csr_ex_signal.csr_da && !csr_ex_signal.csr_pg;
 
     assign tlbsrch_en = aluop_i == `EXE_TLBSRCH_OP;
-    assign data_fetch = (access_mem | tlbsrch_en | icacop_op_en | dcacop_op_en) & instr_info.valid;
+    assign data_fetch = (access_mem | tlbsrch_en | icacop_op_en | (dcacop_op_en & cacop_op_mode == 2'b10)) & instr_info.valid;
 
     assign tlb_vaddr = ex_o.mem_addr;
 

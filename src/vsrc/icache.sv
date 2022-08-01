@@ -133,7 +133,7 @@ module icache
     assign cacop_op_mode0 = cacop_i & cacop_mode_i == 2'b00;
     assign cacop_op_mode1 = cacop_i & cacop_mode_i == 2'b01;
     assign cacop_op_mode2 = cacop_i & cacop_mode_i == 2'b10;
-    assign cacop_way = cacop_addr_i[NWAY-1:0];
+    assign cacop_way = cacop_addr_i[$clog2(NWAY)-1:0];
     assign cacop_index = cacop_addr_i[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
 
 

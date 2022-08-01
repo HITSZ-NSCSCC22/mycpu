@@ -33,6 +33,11 @@ module dcache
 
     localparam NWAY = DCACHE_NWAY;
     localparam NSET = DCACHE_NSET;
+    localparam OFFSET_WIDTH = $clog2(DCACHELINE_WIDTH / 8);
+    localparam NSET_WIDTH = $clog2(NSET);
+    localparam NWAY_WIDTH = $clog2(NWAY);
+    localparam TAG_WIDTH = ADDR_WIDTH - NSET_WIDTH - OFFSET_WIDTH;
+    localparam TAG_BRAM_WIDTH = 22;
 
     enum int {
         IDLE,
@@ -83,7 +88,6 @@ module dcache
 
     // Tag bram 
     // {1bit dirty,1bit valid, 20bits tag}
-    localparam TAG_BRAM_WIDTH = 22;
     logic [NWAY-1:0][TAG_BRAM_WIDTH-1:0] tag_bram_rdata;
     logic [NWAY-1:0][TAG_BRAM_WIDTH-1:0] tag_bram_wdata;
     logic [NWAY-1:0][$clog2(NSET)-1:0] tag_bram_addr;
@@ -120,17 +124,12 @@ module dcache
 
     assign cpu_addr = {tag_buffer, index_buffer, offset_buffer};
 
+    assign cacop_ack_o = 0;
     assign cacop_op_mode0 = cacop_i & cacop_mode_i == 2'b00;
     assign cacop_op_mode1 = cacop_i & cacop_mode_i == 2'b01;
     assign cacop_op_mode2 = cacop_i & cacop_mode_i == 2'b10;
     assign cacop_way = cacop_addr_i[$clog2(NWAY)-1:0];
-    assign cacop_index = cacop_addr_i[$clog2(
-        DCACHELINE_WIDTH
-    )+$clog2(
-        NSET
-    )-1:$clog2(
-        DCACHELINE_WIDTH
-    )];
+    assign cacop_index = cacop_addr_i[11:4];
 
     assign dirty = {tag_bram_rdata[1][21], tag_bram_rdata[0][21]};
 
@@ -317,7 +316,7 @@ module dcache
                     tag_bram_en[i]  = 0;
                     data_bram_en[i] = 0;
                     data_bram_en[i] = 0;
-                    if (cacop_way == i[0]) begin
+                    if (cacop_way == i[$clog2(NWAY)-1:0]) begin
                         tag_bram_addr[i] = cacop_index;
                         tag_bram_en[i]   = 1;
                     end
@@ -401,7 +400,7 @@ module dcache
             end
             CACOP_INVALID: begin
                 for (integer i = 0; i < NWAY; i++) begin
-                    if (cacop_way == i[0]) begin
+                    if (cacop_way == i[$clog2(NWAY)-1:0]) begin
                         tag_bram_we[i] = 1;
                         tag_bram_wdata[i] = 0;
                     end
