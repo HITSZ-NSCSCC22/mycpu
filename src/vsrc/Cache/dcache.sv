@@ -61,8 +61,11 @@ module dcache
     logic [31:0] wdata_buffer;
     logic [2:0] req_type_buffer;
 
-    logic cacop_buffer;
-    logic [1:0] cacop_mode_buffer;
+    logic cacop_op_mode0_buffer;
+    logic cacop_op_mode1_buffer;
+    logic cacop_op_mode2_buffer;
+    logic cacop_way_buffer;
+    logic [7:0] cacop_index_buffer;
     logic [ADDR_WIDTH-1:0] cacop_addr_buffer;
 
     logic cpu_wreq;
@@ -124,7 +127,7 @@ module dcache
 
     assign cpu_addr = {tag_buffer, index_buffer, offset_buffer};
 
-    assign cacop_ack_o = 0;
+    assign cacop_ack_o = state == CACOP_INVALID;
     assign cacop_op_mode0 = cacop_i & cacop_mode_i == 2'b00;
     assign cacop_op_mode1 = cacop_i & cacop_mode_i == 2'b01;
     assign cacop_op_mode2 = cacop_i & cacop_mode_i == 2'b10;
@@ -136,9 +139,9 @@ module dcache
     //judge if the cacop mode2 hit
     always_comb begin
         cacop_op_mode2_hit = 0;
-        if (cacop_op_mode2) begin
-            if(tag_bram_rdata[cacop_way][19:0] == cacop_addr_buffer[31:12] 
-                && tag_bram_rdata[cacop_way][20] == 1'b1)
+        if (cacop_op_mode2_buffer) begin
+            if(tag_bram_rdata[cacop_way_buffer][19:0] == cacop_addr_buffer[31:12] 
+                && tag_bram_rdata[cacop_way_buffer][20] == 1'b1)
                 cacop_op_mode2_hit = 1;
         end else cacop_op_mode2_hit = 0;
     end
@@ -161,8 +164,11 @@ module dcache
             offset_buffer <= 0;
             wstrb_buffer <= 0;
             wdata_buffer <= 0;
-            cacop_buffer <= 0;
-            cacop_mode_buffer <= 0;
+            cacop_op_mode0_buffer <= 0;
+            cacop_op_mode1_buffer <= 0;
+            cacop_op_mode2_buffer <= 0;
+            cacop_way_buffer <= 0;
+            cacop_index_buffer <= 0;
             cacop_addr_buffer <= 0;
         end else if (valid) begin  // not accept new request while working
             valid_buffer <= valid;
@@ -171,19 +177,26 @@ module dcache
             offset_buffer <= addr[3:0];
             wstrb_buffer <= wstrb;
             wdata_buffer <= wdata;
-            cacop_buffer <= cacop_i;
-            cacop_mode_buffer <= cacop_mode_i;
+        end else if (cacop_i) begin
+            cacop_op_mode0_buffer <= cacop_op_mode0;
+            cacop_op_mode1_buffer <= cacop_op_mode1;
+            cacop_op_mode2_buffer <= cacop_op_mode2;
+            cacop_way_buffer <= cacop_way;
+            cacop_index_buffer <= cacop_index;
             cacop_addr_buffer <= cacop_addr_i;
         end else if (next_state == IDLE) begin  //means that cache will finish work,so flush the buffered signal
-            valid_buffer      <= 0;
-            index_buffer      <= 0;
-            tag_buffer        <= 0;
-            offset_buffer     <= 0;
-            wstrb_buffer      <= 0;
-            wdata_buffer      <= 0;
-            cacop_buffer      <= 0;
-            cacop_mode_buffer <= 0;
-            cacop_addr_buffer <= 0;
+            valid_buffer          <= 0;
+            index_buffer          <= 0;
+            tag_buffer            <= 0;
+            offset_buffer         <= 0;
+            wstrb_buffer          <= 0;
+            wdata_buffer          <= 0;
+            cacop_op_mode0_buffer <= 0;
+            cacop_op_mode1_buffer <= 0;
+            cacop_op_mode2_buffer <= 0;
+            cacop_way_buffer      <= 0;
+            cacop_index_buffer    <= 0;
+            cacop_addr_buffer     <= 0;
         end else begin
             valid_buffer <= valid_buffer;
             index_buffer <= index_buffer;
@@ -191,8 +204,11 @@ module dcache
             offset_buffer <= offset_buffer;
             wstrb_buffer <= wstrb_buffer;
             wdata_buffer <= wdata_buffer;
-            cacop_buffer <= cacop_buffer;
-            cacop_mode_buffer <= cacop_mode_buffer;
+            cacop_op_mode0_buffer <= cacop_op_mode0_buffer;
+            cacop_op_mode1_buffer <= cacop_op_mode1_buffer;
+            cacop_op_mode2_buffer <= cacop_op_mode2_buffer;
+            cacop_way_buffer <= cacop_way_buffer;
+            cacop_index_buffer <= cacop_index_buffer;
             cacop_addr_buffer <= cacop_addr_buffer;
         end
     end
@@ -260,8 +276,6 @@ module dcache
         for (integer i = 0; i < NWAY; i++) begin
             tag_bram_addr[i] = 0;
             data_bram_addr[i] = 0;
-            tag_bram_addr[i] = 0;
-            data_bram_addr[i] = 0;
             tag_bram_en[i] = 0;
             data_bram_en[i] = 0;
             fifo_rreq = 0;
@@ -270,7 +284,6 @@ module dcache
         case (state)
             IDLE: begin
                 for (integer i = 0; i < NWAY; i++) begin
-                    // Port 1
                     if (valid) begin
                         tag_bram_en[i] = 1;
                         data_bram_en[i] = 1;
@@ -278,6 +291,12 @@ module dcache
                         data_bram_addr[i] = addr[11:4];
                         fifo_rreq = 1;
                         fifo_raddr = addr;
+                    end
+                    if (cacop_i) begin
+                        tag_bram_en[i] = 1;
+                        data_bram_en[i] = 1;
+                        tag_bram_addr[i] = cacop_addr_i[11:4];
+                        data_bram_addr[i] = cacop_addr_i[11:4];
                     end
                 end
             end
@@ -312,12 +331,10 @@ module dcache
             end
             CACOP_INVALID: begin
                 for (integer i = 0; i < NWAY; i++) begin
-                    tag_bram_en[i]  = 0;
-                    tag_bram_en[i]  = 0;
-                    data_bram_en[i] = 0;
-                    data_bram_en[i] = 0;
-                    if (cacop_way == i[$clog2(NWAY)-1:0]) begin
-                        tag_bram_addr[i] = cacop_index;
+                    tag_bram_en[i]   = 0;
+                    tag_bram_addr[i] = 0;
+                    if (cacop_way_buffer == i[$clog2(NWAY)-1:0]) begin
+                        tag_bram_addr[i] = cacop_index_buffer;
                         tag_bram_en[i]   = 1;
                     end
                 end
@@ -400,7 +417,7 @@ module dcache
             end
             CACOP_INVALID: begin
                 for (integer i = 0; i < NWAY; i++) begin
-                    if (cacop_way == i[$clog2(NWAY)-1:0]) begin
+                    if (cacop_way_buffer == i[$clog2(NWAY)-1:0]) begin
                         tag_bram_we[i] = 1;
                         tag_bram_wdata[i] = 0;
                     end
@@ -525,7 +542,10 @@ module dcache
                     // write the invalidate cacheline back to mem
                     // cacop mode == 1 always write back
                     // cacop mode == 2 write back when hit
-                    if (cacop_op_mode1 | (cacop_op_mode2 & cacop_op_mode2_hit)) begin
+                    if (cacop_way_buffer == i[$clog2(
+                            NWAY
+                        )-1:0] && (cacop_op_mode1_buffer |
+                                   (cacop_op_mode2_buffer & cacop_op_mode2_hit))) begin
                         fifo_wreq  = 1;
                         fifo_waddr = cacop_addr_buffer;
                         fifo_wdata = data_bram_rdata[i];
