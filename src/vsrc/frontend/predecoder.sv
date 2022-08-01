@@ -7,6 +7,7 @@ module predecoder
     import core_config::*;
 (
     input logic [DATA_WIDTH-1:0] instr_i,
+    input logic [ADDR_WIDTH-1:0] pc_i,
 
     output logic is_unconditional_o,
     output logic is_register_jump_o,
@@ -23,7 +24,7 @@ module predecoder
             `EXE_B, `EXE_BL: begin
                 is_unconditional_o = 1;
                 is_register_jump_o = 0;
-                jump_target_address_o = {{4{imm_26[25]}}, imm_26, 2'b0};
+                jump_target_address_o = {{4{imm_26[25]}}, imm_26, 2'b0} + pc_i;
             end
             `EXE_JIRL: begin
                 is_unconditional_o = 1;

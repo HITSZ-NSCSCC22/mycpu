@@ -78,13 +78,17 @@ module frontend
     bpu_ftq_meta_t bpu_ftq_meta;
     ftq_bpu_meta_t ftq_bpu_meta;
 
-    always_ff @(posedge clk) begin : pc_ff
-        if (!rst_n) begin
-            pc <= 32'h1c000000;
-        end else begin
-            pc <= next_pc;
-        end
-    end
+    // FTQ
+    ftq_block_t ftq_ifu_block;
+    logic ifu_frontend_redirect;
+    logic ifu_ftq_accept;
+    logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_ifu_id;
+
+    // IFU
+    logic ifu_redirect;
+    logic [ADDR_WIDTH-1:0] ifu_redirect_target;
+    logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ifu_redirect_ftq_id;
+    instr_info_t ifu_instr_output[FETCH_WIDTH];
 
     logic ftq_full, ftq_full_delay;
 
@@ -92,9 +96,20 @@ module frontend
         ftq_full_delay <= ftq_full;
     end
 
+
+    // PC generate
+    always_ff @(posedge clk) begin : pc_ff
+        if (!rst_n) begin
+            pc <= 32'h1c000000;
+        end else begin
+            pc <= next_pc;
+        end
+    end
     always_comb begin : next_pc_comb
         if (backend_flush_i) begin
             next_pc = backend_next_pc_i;
+        end else if (ifu_redirect) begin
+            next_pc = ifu_redirect_target;
         end else if (ftq_full_delay & ftq_full) begin
             next_pc = pc;
         end else if (main_bpu_redirect) begin
@@ -104,12 +119,17 @@ module frontend
         end
     end
 
+    // Output
+    assign instr_buffer_o = instr_buffer_stallreq_i ? '{FETCH_WIDTH{0}} : ifu_instr_output;
+
+
+
     bpu u_bpu (
         .clk(clk),
         .rst(rst),
 
         // Backend
-        .backend_flush_i(backend_flush_i),
+        .backend_flush_i(backend_flush_i | ifu_redirect),
 
         .pc_i(pc),
         // FTQ
@@ -126,12 +146,6 @@ module frontend
 
     );
 
-
-    ftq_block_t ftq_ifu_block;
-    logic ifu_frontend_redirect;
-    logic ifu_ftq_accept;
-    logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ftq_ifu_id;
-
     ftq u_ftq (
         .clk(clk),
         .rst(rst),
@@ -139,6 +153,8 @@ module frontend
         // Flush
         .backend_flush_i(backend_flush_i),
         .backend_flush_ftq_id_i(backend_flush_ftq_id_i),
+        .ifu_flush_i(ifu_redirect),
+        .ifu_flush_ftq_id_i(ifu_redirect_ftq_id),
 
         // <-> BPU
         .bpu_p0_i           (bpu_p0_ftq_block),
@@ -170,9 +186,6 @@ module frontend
         .ifu_accept_i           (ifu_ftq_accept)
     );
 
-
-    instr_info_t ifu_instr_output[FETCH_WIDTH];
-    assign instr_buffer_o = instr_buffer_stallreq_i ? '{FETCH_WIDTH{0}} : ifu_instr_output;
     ifu u_ifu (
         .clk(clk),
         .rst(rst),
@@ -190,6 +203,11 @@ module frontend
         .tlb_i(tlb_i),
         .tlb_o(tlb_o),
 
+        // Predecoder Redirect
+        .predecoder_redirect_o(ifu_redirect),
+        .predecoder_redirect_target_o(ifu_redirect_target),
+        .predecoder_redirect_ftq_id_o(ifu_redirect_ftq_id),
+
         // <-> Frontend <-> ICache
         .icache_rreq_o(icache_read_req_o),
         .icache_rreq_uncached_o(icache_read_req_uncached_o),
@@ -203,7 +221,6 @@ module frontend
         .stallreq_i    (instr_buffer_stallreq_i),
         .instr_buffer_o(ifu_instr_output)
     );
-
 
 
 endmodule
