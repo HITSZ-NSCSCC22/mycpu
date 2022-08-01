@@ -37,6 +37,8 @@ package core_config;
     };
     // FTB
     parameter integer FTB_DEPTH = 4096;
+    // RAS
+    parameter integer RAS_ENTRY_NUM = 32;
 
     parameter DECODE_WIDTH = 2;
     parameter ISSUE_WIDTH = 2;

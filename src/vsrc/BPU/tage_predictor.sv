@@ -3,7 +3,6 @@
 
 `include "defines.sv"
 `include "core_config.sv"
-`include "BPU/include/bpu_defines.sv"
 `include "BPU/include/bpu_types.sv"
 
 `include "utils/reverse_priority_encoder.sv"
