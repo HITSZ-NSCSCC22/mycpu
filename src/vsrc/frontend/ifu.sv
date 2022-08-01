@@ -234,7 +234,7 @@ module ifu
     always_ff @(posedge clk) begin : p2_ff
         if (rst) begin
             p2_read_transaction <= 0;
-        end else if (((~p1_send_rreq & p1_advance) | ~(p2_in_transaction | p1_send_rreq)) & backend_flush_i) begin
+        end else if (((~p1_send_rreq & p1_advance) | ~(p2_in_transaction | p1_send_rreq)) & (backend_flush_i| predecoder_redirect_o)) begin
             p2_read_transaction <= 0;
         end else if (p1_advance) begin
             p2_read_transaction.sent_req <= p1_send_rreq;
