@@ -1026,8 +1026,8 @@ module cpu_top
 
     always_ff @(posedge clk) begin
         difftest_commit_info_delay1 <= difftest_commit_info;
-        csr_rstat_commit[0] <= csr_write[0].we && (csr_write[0].addr == 14'h5) | difftest_commit_info[0].csr_rstat;
-        csr_data_commit[0] <= difftest_commit_info[0].csr_rstat ? u_cs_reg.csr_estat : csr_write[0].data;
+        csr_rstat_commit[0] <= (csr_write[0].we && (csr_write[0].addr == 14'h5)) | difftest_commit_info[0].csr_rstat;
+        csr_data_commit[0] <= difftest_commit_info[0].csr_rstat ? regfile_write[0].wdata : csr_write[0].data;
     end
 
     always_ff @(posedge clk) begin
