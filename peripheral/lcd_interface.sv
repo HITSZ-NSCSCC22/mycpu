@@ -29,10 +29,13 @@ module lcd_interface #(
     input logic read_color,  //if read color ,reading time is at least 2
     //to lcd_id
     output logic busy,
-    output logic write_color_ok  //write one color 
+    output logic write_color_ok,  //write one color
+
+    //to lcd_init 
+    output logic init_write_ok
 
 );
-    always @(posedge pclk) begin
+    always_ff @(posedge pclk) begin
         if (~rst_n) lcd_bl_ctr <= 0;
         else lcd_bl_ctr <= 1;
     end
@@ -142,55 +145,55 @@ module lcd_interface #(
             IDLE: begin
                 if (we) begin
                     next_state = SETUP_WRITE;
-                    busy = 1;
-                    write_color_ok = 1;
+                    // busy = 1;
+                    // write_color_ok=1;
                 end else begin
                     next_state = IDLE;
-                    busy = 0;
-                    write_color_ok = 0;
+                    // busy = 0;
+                    // write_color_ok=0;
                 end
             end
             SETUP_WRITE: begin
                 next_state = WRITING;
-                busy = 1;
-                write_color_ok = 0;
+                // busy = 1;
+                // write_color_ok=0;
             end
             WRITING: begin
                 if (wr) begin
                     next_state = IDLE;
-                    busy = 0;
-                    write_color_ok = 0;
+                    // busy = 0;
+                    // write_color_ok=0;
                 end else begin
                     next_state = SETUP_READ;
-                    busy = 1;
-                    write_color_ok = 0;
+                    // busy = 1;
+                    // write_color_ok=0;
                 end
             end
             SETUP_READ: begin
                 if (time_counter == delay_time) next_state = READING;
                 else next_state = SETUP_READ;
-                busy = 1;
-                write_color_ok = 0;
+                // busy = 1;
+                // write_color_ok=0;
             end
             READING: begin
                 if (time_counter == delay_time) begin
                     if (read_counter == read_number) begin
                         next_state = IDLE;
-                        busy = 0;
+                        // busy = 0;
                     end else begin
                         next_state = SETUP_READ;
-                        busy = 1;
+                        // busy = 1;
                     end
                 end else begin
                     next_state = READING;
-                    busy = 1;
+                    // busy = 1;
                 end
-                write_color_ok = 0;
+                // write_color_ok=0;
             end
             default: begin
                 next_state = IDLE;
-                busy = 0;
-                write_color_ok = 0;
+                // busy = 0;
+                // write_color_ok=0;
             end
         endcase
     end
@@ -204,6 +207,9 @@ module lcd_interface #(
             lcd_data_o <= 16'bz;
             lcd_write_data_ctrl <= 0;
             data_reg <= 32'b0;
+            busy <= 0;
+            write_color_ok <= 0;
+            init_write_ok <= 0;
         end else begin
             case (next_state)
                 //Waiting
@@ -215,6 +221,9 @@ module lcd_interface #(
                     lcd_data_o <= 16'bz;
                     lcd_write_data_ctrl <= 0;
                     data_reg <= 0;
+                    busy <= 0;
+                    write_color_ok <= 0;
+                    init_write_ok <= 0;
                 end
                 //Write Preparation
                 SETUP_WRITE: begin
@@ -224,15 +233,27 @@ module lcd_interface #(
                     lcd_rd <= 1;
                     lcd_data_o <= data_i;
                     lcd_write_data_ctrl <= 1;
+                    busy <= 1;
+                    write_color_ok <= 1;
+                    init_write_ok <= 0;
                 end
                 //Write lcd
                 WRITING: begin
                     lcd_cs <= 0;
-                    lcd_rs <= lcd_rs_i;
+                    lcd_rs <= lcd_rs;
                     lcd_wr <= 1;
                     lcd_rd <= 1;
                     lcd_data_o <= lcd_data_o;
                     lcd_write_data_ctrl <= 1;
+                    init_write_ok <= 1;
+                    if (wr) begin
+                        busy <= 0;
+                    end else begin
+                        busy <= 1;
+                    end
+
+                    write_color_ok <= 0;
+
                 end
                 //Read Preparation
                 SETUP_READ: begin
@@ -243,6 +264,9 @@ module lcd_interface #(
                     lcd_data_o <= 16'bz;
                     lcd_write_data_ctrl <= 0;
                     //data_reg <= {data_reg[31:16], lcd_data_i};
+                    busy <= 1;
+                    write_color_ok <= 0;
+                    init_write_ok <= 0;
                 end
                 //Read lcd
                 READING: begin
@@ -254,6 +278,9 @@ module lcd_interface #(
                     lcd_write_data_ctrl <= 0;
                     //data_reg <= data_reg;
                     data_reg <= {data_reg[15:0], lcd_data_i};
+                    busy <= 1;
+                    write_color_ok <= 0;
+                    init_write_ok <= 0;
                 end
 
             endcase

@@ -156,120 +156,120 @@ module lcd_id (
 
             //read ID
             READ_ID: begin
-                if (busy || delay) next_state = next_state;
+                if (busy || delay) next_state = READ_ID;
                 else next_state = IDLE;
             end
 
             //set scan direction
             SCAN_INST: begin
-                if (busy || delay) next_state = next_state;
+                if (busy || delay) next_state = SCAN_INST;
                 else next_state = SCAN_DATA;
             end
 
             SCAN_DATA: begin
-                if (busy || delay) next_state = next_state;
+                if (busy || delay) next_state = SCAN_DATA;
                 else next_state = IDLE;
             end
 
             //set SC
             SC_INST1: begin
-                if (busy || delay) next_state = next_state;
+                if (busy || delay) next_state = SC_INST1;
                 else next_state = SC_DATA1;
             end
 
             SC_DATA1: begin
-                if (busy || delay) next_state = next_state;
+                if (busy || delay) next_state = SC_DATA1;
                 else next_state = SC_INST2;
             end
 
             SC_INST2: begin
-                if (busy || delay) next_state = next_state;
+                if (busy || delay) next_state = SC_INST2;
                 else next_state = SC_DATA2;
             end
 
             SC_DATA2: begin
-                if (busy || delay) next_state = next_state;
+                if (busy || delay) next_state = SC_DATA2;
                 else next_state = IDLE;
             end
 
             //set EC
             EC_INST1: begin
-                if (busy || delay) next_state = next_state;
+                if (busy || delay) next_state = EC_INST1;
                 else next_state = EC_DATA1;
             end
 
             EC_DATA1: begin
-                if (busy || delay) next_state = next_state;
+                if (busy || delay) next_state = EC_DATA1;
                 else next_state = EC_INST2;
             end
 
             EC_INST2: begin
-                if (busy || delay) next_state = next_state;
+                if (busy || delay) next_state = EC_INST2;
                 else next_state = EC_DATA2;
             end
 
             EC_DATA2: begin
-                if (busy || delay) next_state = next_state;
+                if (busy || delay) next_state = EC_DATA2;
                 else next_state = IDLE;
             end
 
             //set SP
             SP_INST1: begin
-                if (busy || delay) next_state = next_state;
+                if (busy || delay) next_state = SP_INST1;
                 else next_state = SP_DATA1;
             end
 
             SP_DATA1: begin
-                if (busy || delay) next_state = next_state;
+                if (busy || delay) next_state = SP_DATA1;
                 else next_state = SP_INST2;
             end
 
             SP_INST2: begin
-                if (busy || delay) next_state = next_state;
+                if (busy || delay) next_state = SP_INST2;
                 else next_state = SP_DATA2;
             end
 
             SP_DATA2: begin
-                if (busy || delay) next_state = next_state;
+                if (busy || delay) next_state = SP_DATA2;
                 else next_state = IDLE;
             end
 
             //set EP
             EP_INST1: begin
-                if (busy || delay) next_state = next_state;
+                if (busy || delay) next_state = EP_INST1;
                 else next_state = EP_DATA1;
             end
 
             EP_DATA1: begin
-                if (busy || delay) next_state = next_state;
+                if (busy || delay) next_state = EP_DATA1;
                 else next_state = EP_INST2;
             end
 
             EP_INST2: begin
-                if (busy || delay) next_state = next_state;
+                if (busy || delay) next_state = EP_INST2;
                 else next_state = EP_DATA2;
             end
 
             EP_DATA2: begin
-                if (busy || delay) next_state = next_state;
+                if (busy || delay) next_state = EP_DATA2;
                 else next_state = IDLE;
             end
 
             //set color
             COLOR_INST: begin
-                if (busy || delay) next_state = next_state;
+                if (busy || delay) next_state = COLOR_INST;
                 else next_state = COLOR_DATA;
             end
 
             COLOR_DATA: begin
-                if (busy || delay) next_state = next_state;
-                else if (draw_counter < graph_size) next_state = next_state;
+                if (busy || delay) next_state = COLOR_DATA;
+                else if (draw_counter < graph_size) next_state = COLOR_DATA;
                 else next_state = IDLE;
             end
 
             //read color
             READ_COLOR: begin
-                if (busy || delay) next_state = next_state;
+                if (busy || delay) next_state = READ_COLOR;
                 else next_state = IDLE;
             end
 
@@ -499,4 +499,3 @@ module lcd_id (
     end
 
 endmodule
-
