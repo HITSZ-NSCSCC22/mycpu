@@ -429,9 +429,9 @@ module ex
     assign ex_redirect_target_o = branch_flag ? jump_target_address : fall_through_address;
 
     // BPU meta is feedback to FTQ whenever a branch is executed
-    assign ex_is_branch_o = ex_redirect_o;
+    assign ex_is_branch_o = special_info.is_branch;
     assign ex_jump_target_mispredict_o = branch_target_mispredict;
-    assign ex_redirect_ftq_id_o = ex_redirect_o ? instr_info.ftq_id : 0;
+    assign ex_redirect_ftq_id_o = instr_info.ftq_id;
     assign ex_jump_target_addr_o = jump_target_address;
     assign ex_fall_through_addr_o = fall_through_address;
     assign fall_through_address = inst_pc_i + 4;

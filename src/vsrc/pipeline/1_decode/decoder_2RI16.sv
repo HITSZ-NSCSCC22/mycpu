@@ -77,8 +77,11 @@ module decoder_2RI16
                 reg_read_addr_o = {5'b0, rj};
                 special_info_o.is_pri = 1;
                 special_info_o.is_branch = 1;
+                // Consider 'jirl $r1, $rX, 0' is a function call
                 // Consider 'jirl $r0, $r1, 0' is a function call return
-                special_info_o.branch_type = (rj == 1) ? BRANCH_TYPE_RET : BRANCH_TYPE_UNCOND;
+                special_info_o.branch_type = (rj == 1) ? BRANCH_TYPE_RET : 
+                                                (rd == 1) ? BRANCH_TYPE_CALL :
+                                                BRANCH_TYPE_UNCOND;
             end
             `EXE_BEQ: begin
                 aluop_o = `EXE_BEQ_OP;

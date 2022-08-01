@@ -11,6 +11,7 @@
 
 `include "BPU/components/ftb.sv"
 `include "BPU/tage_predictor.sv"
+`include "BPU/ras.sv"
 
 
 module bpu
@@ -53,6 +54,8 @@ module bpu
     ftb_entry_t ftb_entry;
     // TAGE
     logic predict_taken, predict_valid;
+    // RAS
+    logic [ADDR_WIDTH-1:0] ras_top_addr;
 
     logic flush_delay, ftq_full_delay;
     always_ff @(posedge clk) begin
@@ -92,35 +95,59 @@ module bpu
 
 
     // P1
-    assign main_redirect = predict_valid & ftb_hit & ~flush_delay & ~ftq_full_delay;
+    assign main_redirect = ftb_hit & ~flush_delay & ~ftq_full_delay;
     always_ff @(posedge clk) begin
         p1_pc <= pc_i;
     end
     // P1 FTQ output
     always_comb begin
-        if (main_redirect) begin  // TAGE generate a redirect in P1
-            ftq_p1_o.valid = 1;
-            ftq_p1_o.is_cross_cacheline = ftb_entry.is_cross_cacheline;
-            ftq_p1_o.start_pc = p1_pc;
-            ftq_p1_o.length = ftb_entry.fall_through_address[2+$clog2(FETCH_WIDTH):2] -
-                p1_pc[2+$clog2(FETCH_WIDTH):2];  // Use 3bit minus to ensure no overflow
-            ftq_p1_o.predicted_taken = predict_taken;
-            ftq_p1_o.predict_valid = 1;
-        end else begin
-            ftq_p1_o = 0;
-        end
+        ftq_p1_o = 0;
+        case (ftb_entry.branch_type)
+            BRANCH_TYPE_COND: begin
+                if (main_redirect) begin  // TAGE generate a redirect in P1
+                    ftq_p1_o.valid = 1;
+                    ftq_p1_o.is_cross_cacheline = ftb_entry.is_cross_cacheline;
+                    ftq_p1_o.start_pc = p1_pc;
+                    ftq_p1_o.length = ftb_entry.fall_through_address[2+$clog2(FETCH_WIDTH):2] -
+                        p1_pc[2+$clog2(FETCH_WIDTH):2];  // Use 3bit minus to ensure no overflow
+                    ftq_p1_o.predicted_taken = predict_taken;
+                    ftq_p1_o.predict_valid = 1;
+                end
+            end
+            BRANCH_TYPE_CALL, BRANCH_TYPE_RET: begin
+                if (main_redirect) begin  // FTB consider there is a function call or return
+                    ftq_p1_o.valid = 1;
+                    ftq_p1_o.is_cross_cacheline = ftb_entry.is_cross_cacheline;
+                    ftq_p1_o.start_pc = p1_pc;
+                    ftq_p1_o.length = ftb_entry.fall_through_address[2+$clog2(FETCH_WIDTH):2] -
+                        p1_pc[2+$clog2(FETCH_WIDTH):2];  // Use 3bit minus to ensure no overflow
+                    ftq_p1_o.predicted_taken = 1;  // is a unconditional branch
+                    ftq_p1_o.predict_valid = 1;
+                end
+            end
+            BRANCH_TYPE_UNCOND: begin
+            end
+        endcase
     end
 
 
 
     // DEBUG
     logic [ADDR_WIDTH-1:0] bpu_pc;
+    logic [1:0] ftb_branch_type;
     assign bpu_pc = ftq_p0_o.start_pc;
+    assign ftb_branch_type = ftb_entry.branch_type;
 
     // PC output
     always_comb begin
         main_redirect_o = main_redirect;
-        main_redirect_pc_o = predict_taken ? ftb_entry.jump_target_address : ftb_entry.fall_through_address;
+        case (ftb_entry.branch_type)
+            BRANCH_TYPE_COND:
+            main_redirect_pc_o = predict_taken ? ftb_entry.jump_target_address : ftb_entry.fall_through_address;
+            BRANCH_TYPE_CALL, BRANCH_TYPE_UNCOND:
+            main_redirect_pc_o = ftb_entry.jump_target_address;
+            BRANCH_TYPE_RET: main_redirect_pc_o = ras_top_addr;
+        endcase
     end
     // FTQ meta output
     assign bpu_meta.ftb_hit = ftb_hit;
@@ -137,12 +164,18 @@ module bpu
     logic ftb_update_valid;
     tage_predictor_update_info_t tage_update_info;
     ftb_entry_t ftb_entry_update;
+    logic ras_push;
+    logic ras_pop;
+    logic [ADDR_WIDTH-1:0] ras_push_addr;
+    assign ras_push = ftq_meta_i.valid & (ftq_meta_i.branch_type == BRANCH_TYPE_CALL);
+    assign ras_push_addr = ftq_meta_i.fall_through_address;
+    assign ras_pop = ftq_meta_i.valid & (ftq_meta_i.branch_type == BRANCH_TYPE_RET);
     assign mispredict = ftq_meta_i.predicted_taken ^ ftq_meta_i.is_taken;
     // Only following conditions will trigger a FTB update:
     // 1. This is a conditional branch
     // 2. First time a branch jumped
     // 3. A FTB pollution is detected
-    assign ftb_update_valid = ftq_meta_i.valid & ((mispredict)| (ftq_meta_i.ftb_dirty & ftq_meta_i.ftb_hit));
+    assign ftb_update_valid = ftq_meta_i.valid & ((mispredict)| (ftq_meta_i.ftb_dirty & ftq_meta_i.ftb_hit)) & (ftq_meta_i.branch_type != BRANCH_TYPE_UNCOND);
     always_comb begin
         // Direction preditor update policy:
         tage_update_info.valid = ftq_meta_i.valid;
@@ -191,13 +224,26 @@ module bpu
         .perf_tag_hit_counter  ()
     );
 
+    ras u_ras (
+        .clk        (clk),
+        .rst        (rst),
+        .push_i     (ras_push),
+        .call_addr_i(ras_push_addr),
+        .pop_i      (ras_pop),
+        .top_addr_o (ras_top_addr)
+    );
 
+
+
+`ifdef SIMULATION
+    // Performance counter
     integer ftb_first_time_branch;
     integer ftb_update_cnt;
     always_ff @(posedge clk) begin
         ftb_first_time_branch <= ftb_first_time_branch + (ftb_update_valid & ~ftq_meta_i.ftb_hit);
         ftb_update_cnt <= ftb_update_cnt + ftb_update_valid;
     end
+`endif
 
 
 endmodule
