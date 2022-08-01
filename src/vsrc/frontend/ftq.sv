@@ -207,7 +207,7 @@ module ftq
                 bpu_meta_o.ftb_dirty <= FTQ_meta[backend_commit_ftq_id_i].ftb_dirty;
                 // Must use accurate decoded info passed from backend
                 bpu_meta_o.is_branch <= backend_commit_meta_i.is_branch;
-                bpu_meta_o.is_conditional <= backend_commit_meta_i.is_conditional;
+                bpu_meta_o.branch_type <= backend_commit_meta_i.branch_type;
                 bpu_meta_o.is_taken <= backend_commit_meta_i.is_taken;
                 bpu_meta_o.predicted_taken <= backend_commit_meta_i.predicted_taken;
 

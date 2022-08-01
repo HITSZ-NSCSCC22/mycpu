@@ -77,48 +77,50 @@ module decoder_2RI16
                 reg_read_addr_o = {5'b0, rj};
                 special_info_o.is_pri = 1;
                 special_info_o.is_branch = 1;
+                // Consider 'jirl $r0, $r1, 0' is a function call return
+                special_info_o.branch_type = (rj == 1) ? BRANCH_TYPE_RET : BRANCH_TYPE_UNCOND;
             end
             `EXE_BEQ: begin
                 aluop_o = `EXE_BEQ_OP;
                 alusel_o = `EXE_RES_JUMP;
                 special_info_o.is_pri = 1;
                 special_info_o.is_branch = 1;
-                special_info_o.is_conditional = 1;
+                special_info_o.branch_type = BRANCH_TYPE_COND;
             end
             `EXE_BNE: begin
                 aluop_o = `EXE_BNE_OP;
                 alusel_o = `EXE_RES_JUMP;
                 special_info_o.is_pri = 1;
                 special_info_o.is_branch = 1;
-                special_info_o.is_conditional = 1;
+                special_info_o.branch_type = BRANCH_TYPE_COND;
             end
             `EXE_BLT: begin
                 aluop_o = `EXE_BLT_OP;
                 alusel_o = `EXE_RES_JUMP;
                 special_info_o.is_pri = 1;
                 special_info_o.is_branch = 1;
-                special_info_o.is_conditional = 1;
+                special_info_o.branch_type = BRANCH_TYPE_COND;
             end
             `EXE_BGE: begin
                 aluop_o = `EXE_BGE_OP;
                 alusel_o = `EXE_RES_JUMP;
                 special_info_o.is_pri = 1;
                 special_info_o.is_branch = 1;
-                special_info_o.is_conditional = 1;
+                special_info_o.branch_type = BRANCH_TYPE_COND;
             end
             `EXE_BLTU: begin
                 aluop_o = `EXE_BLTU_OP;
                 alusel_o = `EXE_RES_JUMP;
                 special_info_o.is_pri = 1;
                 special_info_o.is_branch = 1;
-                special_info_o.is_conditional = 1;
+                special_info_o.branch_type = BRANCH_TYPE_COND;
             end
             `EXE_BGEU: begin
                 aluop_o = `EXE_BGEU_OP;
                 alusel_o = `EXE_RES_JUMP;
                 special_info_o.is_pri = 1;
                 special_info_o.is_branch = 1;
-                special_info_o.is_conditional = 1;
+                special_info_o.branch_type = BRANCH_TYPE_COND;
             end
             default: begin
                 decode_result_valid_o = 0;

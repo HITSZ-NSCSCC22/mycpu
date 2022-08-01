@@ -52,7 +52,7 @@ package bpu_types;
 
         // Backend Decode Info
         logic is_branch;
-        logic is_conditional;
+        logic [1:0] branch_type;
         logic is_taken;
         logic predicted_taken;
 
