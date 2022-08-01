@@ -199,7 +199,7 @@ module ex
     assign icacop_op_en = icacop_inst && !excp && !(flush);
     assign dcacop_inst = cacop_instr && (cacop_op[2:0] == 3'b1);
     assign dcacop_op_en = dcacop_inst && !excp && !(flush);
-    assign cacop_op_mode = cacop_op[4:3];
+    assign cacop_op_mode = {2{dcacop_op_en}} & cacop_op[4:3];
 
     assign excp_ale = access_mem && ((mem_b_op & 1'b0)| (mem_h_op & ex_o.mem_addr[0])| 
                     (!(mem_b_op | mem_h_op) & (ex_o.mem_addr[0] | ex_o.mem_addr[1]))) ;
@@ -229,7 +229,7 @@ module ex
     assign da_mode = csr_ex_signal.csr_da && !csr_ex_signal.csr_pg;
 
     assign tlbsrch_en = aluop_i == `EXE_TLBSRCH_OP;
-    assign data_fetch = (access_mem | tlbsrch_en | icacop_op_en | (dcacop_op_en & cacop_op_mode == 2'b10)) & instr_info.valid;
+    assign data_fetch = (access_mem | tlbsrch_en | icacop_op_en | dcacop_op_en) & instr_info.valid;
 
     assign tlb_vaddr = ex_o.mem_addr;
 
