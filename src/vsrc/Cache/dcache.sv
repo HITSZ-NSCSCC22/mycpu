@@ -77,9 +77,9 @@ module dcache
 
     // BRAM signals
     logic [NWAY-1:0][DCACHELINE_WIDTH-1:0] data_bram_rdata;
-    logic [NWAY-1:0][ICACHELINE_WIDTH-1:0] data_bram_wdata;
+    logic [NWAY-1:0][DCACHELINE_WIDTH-1:0] data_bram_wdata;
     logic [NWAY-1:0][$clog2(NSET)-1:0] data_bram_addr;
-    logic [NWAY-1:0][15:0] data_bram_we;
+    logic [NWAY-1:0][(DCACHELINE_WIDTH/8)-1:0] data_bram_we;
     logic [NWAY-1:0] data_bram_en;
 
     // Tag bram 
@@ -765,7 +765,7 @@ module dcache
                 .doutb(tag_bram_rdata[i])
             );
             byte_bram #(
-                .DATA_WIDTH     (ICACHELINE_WIDTH),
+                .DATA_WIDTH     (DCACHELINE_WIDTH),
                 .DATA_DEPTH_EXP2($clog2(NSET))
             ) u_data_bram (
                 .clk  (clk),

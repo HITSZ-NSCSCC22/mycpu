@@ -43,12 +43,12 @@ package core_config;
 
     // ICache parameters
     parameter ICACHE_NWAY = 2;
-    parameter ICACHE_NSET = 1024;
+    parameter ICACHE_NSET = 128;
 
     // DCache parameters
     parameter DCACHE_NWAY = 2;
-    parameter DCACHE_NSET = 512;
-    parameter DCACHELINE_WIDTH = 256;
+    parameter DCACHE_NSET = 128;
+    parameter DCACHELINE_WIDTH = 128;
 
     // LSU parameters
     parameter LSU_STORE_QUEU_SIZE = 4;
