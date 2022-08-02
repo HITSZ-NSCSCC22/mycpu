@@ -133,7 +133,7 @@ module dcache
     always_comb begin
         cacop_op_mode2_hit = 0;
         if (cacop_op_mode2) begin
-            if(tag_bram_rdata[cacop_way][19:0] == cacop_addr[31:12] 
+            if(tag_bram_rdata[cacop_way][19:0] == cacop_addr_i[31:12] 
                 && tag_bram_rdata[cacop_way][20] == 1'b1)
                 cacop_op_mode2_hit = 1;
         end else cacop_op_mode2_hit = 0;
@@ -514,7 +514,7 @@ module dcache
                             NWAY
                         )-1:0] && (cacop_op_mode1 | (cacop_op_mode2 & cacop_op_mode2_hit))) begin
                         fifo_wreq  = 1;
-                        fifo_waddr = cacop_addr;
+                        fifo_waddr = cacop_addr_i;
                         fifo_wdata = data_bram_rdata[i];
                     end
                 end

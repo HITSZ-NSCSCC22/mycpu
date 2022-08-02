@@ -1229,8 +1229,8 @@ module cpu_top
         .probe1(u_dcache.cacop_mode_i),  // input wire [3:0]  probe1 
         .probe2(u_dcache.req_type_buffer),  // input wire [3:0]  probe2 
         .probe3(mem1[0].u_mem1.mem_paddr),  // input wire [31:0]  probe3 
-        .probe4(u_dcache.cacop_op_mode0_buffer),  // input wire [0:0]  probe4 
-        .probe5(u_dcache.cacop_op_mode1_buffer),  // input wire [0:0]  probe5 
+        .probe4(0),  // input wire [0:0]  probe4 
+        .probe5(0),  // input wire [0:0]  probe5 
         .probe6(u_dcache.state),  // input wire [31:0]  probe6 
         .probe7(u_dcache.cacop_op_mode0),  // input wire [0:0]  probe7 
         .probe8(u_dcache.cacop_i),  // input wire [0:0]  probe8 
@@ -1239,15 +1239,15 @@ module cpu_top
         .probe11(u_dcache.tag_bram_wdata[0]),  // input wire [0:0]  probe11 
         .probe12(u_dcache.tag_bram_addr[1]),  // input wire [31:0]  probe12 
         .probe13(u_dcache.tag_bram_wdata[1]),  // input wire [31:0]  probe13 
-        .probe14(u_dcache.cacop_addr_buffer),  // input wire [31:0]  probe14 
-        .probe15(u_dcache.cacop_index_buffer),  // input wire [31:0]  probe15 
-        .probe16(u_dcache.cacop_way_buffer),  // input wire [0:0]  probe16 
+        .probe14(0),  // input wire [31:0]  probe14 
+        .probe15(0),  // input wire [31:0]  probe15 
+        .probe16(0),  // input wire [0:0]  probe16 
         .probe17(u_dcache.cacop_index),  // input wire [0:0]  probe17 
         .probe18(mem1[0].u_mem1.cacop_op),  // input wire [0:0]  probe18 
         .probe19(0),  // input wire [0:0]  probe19
         .probe20(u_cs_reg.timer_64),  // input wire [63:0]  probe20 
         .probe21(u_dcache.cacop_op_mode1),  // input wire [31:0]  probe21 
-        .probe22(u_dcache.cacop_op_mode2_buffer),  // input wire [31:0]  probe22 
+        .probe22(0),  // input wire [31:0]  probe22 
         .probe23(u_LSU.u_uncache_channel.addr),  // input wire [31:0]  probe23 
         .probe24(mem1[0].u_mem1.ex_i.instr_info.pc),  // input wire [31:0]  probe24 
         .probe25(mem1[0].u_mem1.ex_i.instr_info.instr),  // input wire [31:0]  probe25 
