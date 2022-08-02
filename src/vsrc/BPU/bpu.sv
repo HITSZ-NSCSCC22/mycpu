@@ -60,7 +60,7 @@ module bpu
 
     logic flush_delay, ftq_full_delay;
     always_ff @(posedge clk) begin
-        flush_delay <= backend_flush_i | (main_redirect & ~ftq_full_delay);
+        flush_delay <= backend_flush_i | (main_redirect & ~ftq_full_delay) | rst;
         ftq_full_delay <= ftq_full_i;
     end
 
