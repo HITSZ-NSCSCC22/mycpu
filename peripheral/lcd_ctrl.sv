@@ -62,7 +62,7 @@ module lcd_ctrl (
     //speeder
     output logic [31:0]buffer_data,//speeder
     output logic [31:0]buffer_addr,//speeder
-    output logic data_valid,//tell lcd_id
+    output logic data_valid,//tell lcd_id can receive data
     output logic [31:0]graph_size,
 
     //from lcd_interface
@@ -120,8 +120,6 @@ module lcd_ctrl (
             s_rvalid <= 0;
           end
 
-
-          
         end
         R_DATA: begin
           if (s_rvalid && s_rready) begin
@@ -177,7 +175,7 @@ module lcd_ctrl (
     end else begin
       case (w_state)
         W_IDLE:begin   //使用buffer时，只需要把write_ok换成!buffer_ok
-          if(write_ok)// lcd is not busy,allow to write lcd now
+          if(!buffer_ok)// lcd is not busy,allow to write lcd now
           begin
             w_state <= W_ADDR;
             s_awready <= 1;
@@ -198,7 +196,7 @@ module lcd_ctrl (
           end
         end
         W_ADDR: begin
-          if (s_awvalid && s_wready) begin
+          if (s_awvalid && s_awready) begin
             w_state <= W_DATA;
             s_awready <= 0;
             s_wready <= 1;
@@ -220,7 +218,7 @@ module lcd_ctrl (
           end 
         end
         W_RESP: begin
-          if (s_bvalid && s_wready) begin
+          if (s_bvalid && s_bready) begin
             w_state <=  W_IDLE;
             s_awready <= 0;
             s_wready <= 0;
@@ -301,7 +299,7 @@ module lcd_ctrl (
           inst_num<=0;
           data_valid<=0;
           delay_time<=2;
-          if(s_awvalid&&s_awvalid)  buffer_state<=GRAPH;
+          if(s_awvalid&&s_awready)  buffer_state<=GRAPH;
         end
         GRAPH:begin
           //连续缓存6条sw

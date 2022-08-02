@@ -1,11 +1,15 @@
 //lcd top to connect lcd to cpu
 `include "axi_defines.sv"
-module lcd_top (
+`include "lcd_types.sv"
+module lcd_top
+    import lcd_types::*;
+(
     //rst and clk,clk is lower than cpu
     input logic pclk,
     input logic rst_n,
 
     /** from AXI **/
+`ifdef AXI
     //ar
     input logic [`ID] s_arid,  //arbitration
     input logic [`ADDR] s_araddr,
@@ -51,6 +55,7 @@ module lcd_top (
     output logic [`Resp] s_bresp,
     output logic s_bvalid,
     input logic s_bready,
+`endif
 
     /**display LCD**/
     output logic lcd_rst,
@@ -74,6 +79,12 @@ module lcd_top (
     output logic [11:0] vga_wcolor
 
 );
+    //default signal
+    assign lcd_ct_int  = 1'bz;
+    assign lcd_ct_sda  = 1'bz;
+    assign lcd_ct_scl  = 1;
+    assign lcd_ct_rstn = rst_n;
+
     //top <-> lcd_ctrl
     logic [31:0] lcd_input_data;
 
@@ -85,15 +96,47 @@ module lcd_top (
     assign lcd_data_i  = lcd_data_io;
     assign lcd_data_io = lcd_write_data_ctrl ? lcd_data_o : 16'bz;
 
-    //lcd_id <-> lcd_interface
-    logic interface_busy;
-    logic [15:0] id_data_interface;
-    logic we;
-    logic wr;
-    logic id_lcd_rs_interface;
-    logic id_fm;
-    logic read_color;
-    logic write_color_ok;
+    id_mux_struct id_mux_signal;
+    init_mux_struct init_mux_signal;
+    interface_mux_struct inter_mux_signal;
+
+    lcd_mux u_lcd_mux (
+        .pclk(pclk),
+        .rst_n(rst_n),
+        //from lcd_id
+        .id_we(id_mux_signal.id_we),  //write enable
+        .id_wr(id_mux_signal.id_wr),  //0:read lcd 1:write lcd,distinguish inst kind
+        .id_lcd_rs(id_mux_signal.id_lcd_rs),
+        .id_data_o(id_mux_signal.id_data),
+        .id_fm_i(id_mux_signal.id_fm),
+        .id_read_color_o(id_mux_signal.id_read_color),
+        //to lcd_id
+        .busy_o(id_mux_signal.busy),
+        .write_color_ok_o(id_mux_signal.write_color_ok),  //write one color
+
+        //from lcd_init
+        .init_data(init_mux_signal.init_data),
+        .init_we(init_mux_signal.init_we),
+        .init_wr(init_mux_signal.init_wr),
+        .init_rs(init_mux_signal.init_rs),
+        .init_work(init_mux_signal.init_work),
+        .init_finish(init_mux_signal.init_finish),
+        //to lcd_init
+        .init_write_ok_o(init_mux_signal.init_write_ok),
+
+        //from lcd_interface
+        .init_write_ok_i(inter_mux_signal.init_write_ok),
+        .busy_i(inter_mux_signal.busy),
+        .write_color_ok_i(inter_mux_signal.write_color_ok),  //write one color
+        //to lcd_interface 
+        .data_o(inter_mux_signal.data),
+        .we_o(inter_mux_signal.we),
+        .wr_o(inter_mux_signal.wr),
+        .lcd_rs_o(inter_mux_signal.lcd_rs),  //distinguish inst or data
+        .id_fm_o(inter_mux_signal.id_fm),  //distinguish read id or read fm,0:id,1:fm
+        .read_color_o(inter_mux_signal.read_color)  //if read color ,reading time is at least 2
+    );
+
 
     lcd_interface u_lcd_interface (
         .pclk (pclk),  //cycle time 20ns,50Mhz
@@ -108,23 +151,24 @@ module lcd_top (
         .lcd_rd(lcd_rd),  //read signal,low is powerful
         .lcd_data_i(lcd_data_i),  //from lcd
         .lcd_data_o(lcd_data_o),  //to lcd
-        .lcd_bl_ctr(lcd_bl_ctr),  //
+        .lcd_bl_ctr(lcd_bl_ctr),
 
         //to lcd top
         .lcd_write_data_ctrl(lcd_write_data_ctrl),  //写控制信号，用于决定顶层的lcd_data_io
         .data_reg(data_reg),
 
         //from lcd_id
-        .data_i(id_data_interface),
-        .we(we),
-        .wr(wr),
-        .lcd_rs_i(id_lcd_rs_interface),  //distinguish inst or data
-        .id_fm(id_fm),  //distinguish read id or read fm,0:id,1:fm
-        .read_color(read_color),  //if read color ,reading time is at least 2
+        .data_i(inter_mux_signal.data),
+        .we(inter_mux_signal.we),
+        .wr(inter_mux_signal.wr),
+        .lcd_rs_i(inter_mux_signal.lcd_rs),  //distinguish inst or data
+        .id_fm(inter_mux_signal.id_fm),  //distinguish read id or read fm,0:id,1:fm
+        .read_color(inter_mux_signal.read_color),  //if read color ,reading time is at least 2
 
         //to lcd_id
-        .busy(interface_busy),
-        .write_color_ok(write_color_ok)
+        .busy(inter_mux_signal.busy),
+        .write_color_ok(inter_mux_signal.write_color_ok),
+        .init_write_ok(inter_mux_signal.init_write_ok)
 
     );
 
@@ -139,16 +183,12 @@ module lcd_top (
     logic [31:0] graph_size;
 
     lcd_id u_lcd_id (
-        .pclk (pclk),
+        .pclk(pclk),
         .rst_n(rst_n),
         //from lcd ctrl
-        // .write_lcd_i(ctrl_write_lcd_id),
-        // .lcd_addr_i(ctrl_addr_id),
-        // .lcd_data_i(ctrl_data_id),
-
         .write_lcd_i(data_valid),
-        .lcd_addr_i (ctrl_buffer_addr_id),
-        .lcd_data_i (ctrl_buffer_data_id),
+        .lcd_addr_i(ctrl_buffer_addr_id),
+        .lcd_data_i(ctrl_buffer_data_id),
 
         //speeder
         .buffer_addr_i(ctrl_buffer_addr_id),
@@ -161,18 +201,18 @@ module lcd_top (
         .write_ok(write_ok),
 
         //to lcd interface
-        .we(we),  //write enable
-        .wr(wr),  //0:read lcd 1:write lcd,distinguish inst kind
-        .lcd_rs(id_lcd_rs_interface),
-        .data_o(id_data_interface),
-        .id_fm(id_fm),
-        .read_color_o(read_color),
+        .we(id_mux_signal.id_we),  //write enable
+        .wr(id_mux_signal.id_wr),  //0:read lcd 1:write lcd,distinguish inst kind
+        .lcd_rs(id_mux_signal.id_lcd_rs),
+        .data_o(id_mux_signal.id_data),
+        .id_fm(id_mux_signal.id_fm),
+        .read_color_o(id_mux_signal.id_read_color),
 
         //from lcd inteface
-        .busy(interface_busy),
-        .write_color_ok(write_color_ok)
+        .busy(id_mux_signal.busy),
+        .write_color_ok(id_mux_signal.write_color_ok)
     );
-
+`ifdef AXI
     lcd_ctrl u_lcd_ctrl (
         //rst and clk,clk is lower than cpu
         .pclk (pclk),
@@ -243,5 +283,71 @@ module lcd_top (
         //from lcd_id
         .write_ok(write_ok)  //数据和指令写出去后才能继续写
     );
+`else
+    lcd_test_ctrl u_lcd_ctrl (
+        //rst and clk,clk is lower than cpu
+        .pclk(pclk),
+        .rst_n(rst_n),
+        //speeder
+        .buffer_data(ctrl_buffer_data_id),  //speeder
+        .buffer_addr(ctrl_buffer_addr_id),  //speeder
+        .data_valid(data_valid),  //tell lcd_id
+        .graph_size(graph_size),
 
+        //from lcd_interface
+        //TODO
+        .lcd_input_data(0),  //data form lcd input
+
+        //from lcd_id
+        .write_ok(write_ok)  //æ•°ï¿½?ï¿½å’ŒæŒ‡ä»¤å†™å‡ºåŽ»ï¿½?ï¿½ï¿½?èƒ½ç»§ç»­å†™
+    );
+`endif
+
+    lcd_init u_lcd_init (
+        .pclk(pclk),
+        .rst_n(rst_n),
+        .init_write_ok(init_mux_signal.init_write_ok),
+        .init_data(init_mux_signal.init_data),
+        .we(init_mux_signal.init_we),
+        .wr(init_mux_signal.init_wr),
+        .rs(init_mux_signal.init_rs),
+        .init_work(init_mux_signal.init_work),
+        .init_finish(init_mux_signal.init_finish)
+    );
+
+    ila_0 lcd_top_debug (
+        .clk(pclk),  // input wire clk
+
+
+        .probe0(rst_n),  // input wire [0:0]  probe0  
+        .probe1(lcd_cs),  // input wire [0:0]  probe1 
+        .probe2(lcd_rs),  // input wire [0:0]  probe2 
+        .probe3(lcd_wr),  // input wire [0:0]  probe3 
+        .probe4(lcd_rd),  // input wire [0:0]  probe4 
+        .probe5(lcd_data_io),  // input wire [15:0]  probe5 
+        .probe6(lcd_rst),  // input wire [0:0]  probe6 
+        .probe7(lcd_write_data_ctrl),  // input wire [0:0]  probe7 
+        .probe8(count),  // input wire [31:0]  probe8 
+        .probe9(0),  // input wire [31:0]  probe9 
+        .probe10(lcd_data_o),  // input wire [15:0]  probe10 
+        .probe11(0),  // input wire [31:0]  probe11 
+        .probe12(graph_size),  // input wire [31:0]  probe12 
+        .probe13(lcd_data_i),  // input wire [15:0]  probe13 
+        .probe14(data_i),  // input wire [15:0]  probe14 
+        .probe15(0),  // input wire [0:0]  probe15 
+        .probe16(0),  // input wire [0:0]  probe16 
+        .probe17(0),  // input wire [0:0]  probe17 
+        .probe18(0),  // input wire [0:0]  probe18 
+        .probe19(0),  // input wire [0:0]  probe19 
+        .probe20(0),  // input wire [0:0]  probe20 
+        .probe21(0),  // input wire [0:0]  probe21 
+        .probe22(0),  // input wire [0:0]  probe22 
+        .probe23(0),  // input wire [0:0]  probe23 
+        .probe24(0),  // input wire [0:0]  probe24 
+        .probe25(0),  // input wire [0:0]  probe25 
+        .probe26(0),  // input wire [0:0]  probe26 
+        .probe27(0),  // input wire [0:0]  probe27 
+        .probe28(0),  // input wire [0:0]  probe28 
+        .probe29(0)  // input wire [0:0]  probe29
+    );
 endmodule
