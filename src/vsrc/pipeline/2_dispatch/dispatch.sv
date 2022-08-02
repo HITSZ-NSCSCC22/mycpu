@@ -196,8 +196,8 @@ module dispatch
     assign rreg_avail_check[0] = regs_available[id_i[0].reg_read_addr[0]] & regs_available[id_i[0].reg_read_addr[1]] ;
     assign rreg_avail_check[1] = regs_available[id_i[1].reg_read_addr[0]] & regs_available[id_i[1].reg_read_addr[1]] & rreg_avail_check[0];
     // Csr read available check
-    assign csr_avail_check[0] = issue_csr_we[0] ? csr_available[issue_csr_addr[0][7:0]] : 1;
-    assign csr_avail_check[1] = issue_csr_we[1] ? csr_available[issue_csr_addr[1][7:0]] : 1;
+    assign csr_avail_check[0] = issue_csr_we[0] ? (csr_available[issue_csr_addr[0][7:0]] | issue_csr_addr[0][7:0] > 181): 1;
+    assign csr_avail_check[1] = issue_csr_we[1] ? (csr_available[issue_csr_addr[1][7:0]] | issue_csr_addr[1][7:0] > 181): 1;
     // Data dependency check 
     always_comb begin
         if (id_i[1].reg_read_addr[0] == id_i[0].reg_write_addr && id_i[1].reg_read_valid[0] && id_i[0].reg_write_valid) begin
