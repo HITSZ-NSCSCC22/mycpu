@@ -104,7 +104,8 @@ module dcache
     logic [DCACHELINE_WIDTH-1:0] fifo_rdata, fifo_wdata, fifo_axi_wr_data;
 
     // CACOP
-    logic cacop_op_mode0, cacop_op_mode1, cacop_op_mode2, cacop_op_mode2_hit[2];
+    logic cacop_op_mode0, cacop_op_mode1, cacop_op_mode2;
+    logic [1:0] cacop_op_mode2_hit;
     logic [$clog2(NWAY)-1:0] cacop_way;
     logic [$clog2(NSET)-1:0] cacop_index;
 
