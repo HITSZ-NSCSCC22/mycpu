@@ -211,13 +211,14 @@ module uncache_channel
     end
 
     axi_master #(
-        .ID(1)
+        .ID(0)
     ) u_axi_master (
         .clk        (clk),
         .rst        (rst),
         .m_axi      (m_axi),
         .new_request(axi_req_o),
         .we         (axi_we_o),
+        .uncached   (1'b1),
         .addr       (axi_addr_o),
         .size       (req_type_buffer),
         .data_in    (axi_wdata_o),

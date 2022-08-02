@@ -11,6 +11,12 @@ package core_types;
     import csr_defines::*;
     import core_config::*;
 
+    parameter logic [1:0] BRANCH_TYPE_COND = 2'b00;
+    parameter logic [1:0] BRANCH_TYPE_CALL = 2'b01;
+    parameter logic [1:0] BRANCH_TYPE_RET = 2'b10;
+    parameter logic [1:0] BRANCH_TYPE_UNCOND = 2'b11;
+
+
     // CSR info passed to IFU
     typedef struct packed {
         logic pg;
@@ -33,7 +39,7 @@ package core_types;
         logic need_refetch;  // Instruction modify IF logic, any instr after it may be totaly wrong
         logic redirect;
         logic is_branch;
-        logic is_conditional;
+        logic [1:0] branch_type;
         logic is_taken;
         // Comes from BPU
         logic predicted_taken;

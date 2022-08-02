@@ -13,6 +13,8 @@ module ftq
     // <-> Frontend
     input logic backend_flush_i,
     input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] backend_flush_ftq_id_i,
+    input logic ifu_flush_i,
+    input logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ifu_flush_ftq_id_i,
 
     // <-> BPU
     input ftq_block_t bpu_p0_i,
@@ -123,6 +125,11 @@ module ftq
             // P1 redirect, maintain bpu_ptr;
             if (main_bpu_redirect_i) bpu_ptr <= bpu_ptr;
 
+            // If IFU predecoder found a redirect
+            if (ifu_flush_i) begin
+                ifu_ptr <= ifu_flush_ftq_id_i + 1;
+                bpu_ptr <= ifu_flush_ftq_id_i + 1;
+            end
             // If backend redirect triggered, back to the next block of the redirect block
             // backend may continue to commit older block
             if (backend_flush_i) begin
@@ -151,6 +158,13 @@ module ftq
         else if (bpu_p1_i.valid)  // Else no override
             next_FTQ[bpu_ptr] = bpu_p1_i;
 
+        // If predecoder redirect triggered, clear the committed and predicted entry
+        if (ifu_flush_i) begin
+            for (integer i = 0; i < QUEUE_SIZE; i++) begin
+                if (PTR_WIDTH'(i - comm_ptr) >= PTR_WIDTH'(i - ifu_flush_ftq_id_i) && i != ifu_flush_ftq_id_i)
+                    next_FTQ[i] = 0;
+            end
+        end
         // If backend redirect triggered, clear the committed and predicted entry
         if (backend_flush_i) begin
             for (integer i = 0; i < QUEUE_SIZE; i++) begin
@@ -190,10 +204,11 @@ module ftq
                 // 2. Exception introduced block commit is not considered a branch update.
                 bpu_meta_o.valid <= 1;
                 bpu_meta_o.ftb_hit <= FTQ_meta[backend_commit_ftq_id_i].ftb_hit;
+                bpu_meta_o.ftb_hit_index <= FTQ_meta[backend_commit_ftq_id_i].ftb_hit_index;
                 bpu_meta_o.ftb_dirty <= FTQ_meta[backend_commit_ftq_id_i].ftb_dirty;
                 // Must use accurate decoded info passed from backend
                 bpu_meta_o.is_branch <= backend_commit_meta_i.is_branch;
-                bpu_meta_o.is_conditional <= backend_commit_meta_i.is_conditional;
+                bpu_meta_o.branch_type <= backend_commit_meta_i.branch_type;
                 bpu_meta_o.is_taken <= backend_commit_meta_i.is_taken;
                 bpu_meta_o.predicted_taken <= backend_commit_meta_i.predicted_taken;
 
@@ -217,10 +232,12 @@ module ftq
         if (bpu_p1_i.valid & ~main_bpu_redirect_delay) begin  // If last cycle accepted P0 input
             FTQ_meta[PTR_WIDTH'(bpu_ptr-1)] <= 0;
             FTQ_meta[PTR_WIDTH'(bpu_ptr-1)].ftb_hit <= bpu_meta_i.ftb_hit;
+            FTQ_meta[PTR_WIDTH'(bpu_ptr-1)].ftb_hit_index <= bpu_meta_i.ftb_hit_index;
             FTQ_meta[PTR_WIDTH'(bpu_ptr-1)].bpu_meta <= bpu_meta_i.bpu_meta;
         end else if (bpu_p1_i.valid) begin
             FTQ_meta[bpu_ptr] <= 0;
             FTQ_meta[bpu_ptr].ftb_hit <= bpu_meta_i.ftb_hit;
+            FTQ_meta[bpu_ptr].ftb_hit_index <= bpu_meta_i.ftb_hit_index;
             FTQ_meta[bpu_ptr].bpu_meta <= bpu_meta_i.bpu_meta;
         end
 

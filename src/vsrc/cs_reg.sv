@@ -111,6 +111,7 @@ module cs_reg
     logic [63:0] timer_64;
 
     // PMU
+    pmu_input_t pmu_in_r;
     logic [31:0] pmu_ib_full;
     logic [31:0] pmu_dispatch_backend_nop;
     logic [31:0] pmu_dispatch_frontend_nop;
@@ -209,6 +210,9 @@ module cs_reg
         else if (ertn_flush) pmu_tlb_refilling <= 0;
     end
     always_ff @(posedge clk) begin
+        pmu_in_r <= pmu_in;
+    end
+    always_ff @(posedge clk) begin
         if (rst) begin
             pmu_ib_full <= 0;
             pmu_dispatch_backend_nop <= 0;
@@ -233,27 +237,27 @@ module cs_reg
             pmu_tlb_miss <= 0;
             pmu_tlb_refill_cyc <= 0;
         end else begin
-            pmu_ib_full <= pmu_ib_full + pmu_in.ib_full;
-            pmu_dispatch_backend_nop <= pmu_dispatch_backend_nop + pmu_in.dispatch_backend_nop;
-            pmu_dispatch_frontend_nop <= pmu_dispatch_frontend_nop + pmu_in.dispatch_frontend_nop;
-            pmu_dispatch_single_issue <= pmu_dispatch_single_issue + pmu_in.dispatch_single_issue;
-            pmu_dispatch_datadep_nop <= pmu_dispatch_datadep_nop + pmu_in.dispatch_datadep_nop;
-            pmu_dispatch_instr_cnt <= pmu_dispatch_instr_cnt + pmu_in.dispatch_instr_cnt;
-            pmu_ib_empty <= pmu_ib_empty + pmu_in.ib_empty;
-            pmu_icache_req <= pmu_icache_req + pmu_in.icache_req;
-            pmu_icache_miss <= pmu_icache_miss + pmu_in.icache_miss;
-            pmu_dcache_req <= pmu_dcache_req + pmu_in.dcache_req;
-            pmu_dcache_miss <= pmu_dcache_miss + pmu_in.dcache_miss;
-            pmu_bpu_valid <= pmu_bpu_valid + pmu_in.bpu_valid;
-            pmu_bpu_miss <= pmu_bpu_miss + pmu_in.bpu_miss;
-            pmu_bpu_branch_instr <= pmu_bpu_branch_instr + pmu_in.bpu_branch_instr;
-            pmu_bpu_conditional_branch <= pmu_bpu_conditional_branch + pmu_in.bpu_conditional_branch;
-            pmu_bpu_conditional_miss <= pmu_bpu_conditional_miss + pmu_in.bpu_conditional_miss;
-            pmu_bpu_ftb_dirty <= pmu_bpu_ftb_dirty + pmu_in.bpu_ftb_dirty;
-            pmu_bpu_indirect_branch <= pmu_bpu_indirect_branch + pmu_in.bpu_indirect_branch;
-            pmu_bpu_indirect_miss <= pmu_bpu_indirect_miss + pmu_in.bpu_indirect_miss;
-            pmu_tlb_req <= pmu_tlb_req + pmu_in.tlb_req;
-            pmu_tlb_miss <= pmu_tlb_miss + pmu_in.tlb_miss;
+            pmu_ib_full <= pmu_ib_full + pmu_in_r.ib_full;
+            pmu_dispatch_backend_nop <= pmu_dispatch_backend_nop + pmu_in_r.dispatch_backend_nop;
+            pmu_dispatch_frontend_nop <= pmu_dispatch_frontend_nop + pmu_in_r.dispatch_frontend_nop;
+            pmu_dispatch_single_issue <= pmu_dispatch_single_issue + pmu_in_r.dispatch_single_issue;
+            pmu_dispatch_datadep_nop <= pmu_dispatch_datadep_nop + pmu_in_r.dispatch_datadep_nop;
+            pmu_dispatch_instr_cnt <= pmu_dispatch_instr_cnt + pmu_in_r.dispatch_instr_cnt;
+            pmu_ib_empty <= pmu_ib_empty + pmu_in_r.ib_empty;
+            pmu_icache_req <= pmu_icache_req + pmu_in_r.icache_req;
+            pmu_icache_miss <= pmu_icache_miss + pmu_in_r.icache_miss;
+            pmu_dcache_req <= pmu_dcache_req + pmu_in_r.dcache_req;
+            pmu_dcache_miss <= pmu_dcache_miss + pmu_in_r.dcache_miss;
+            pmu_bpu_valid <= pmu_bpu_valid + pmu_in_r.bpu_valid;
+            pmu_bpu_miss <= pmu_bpu_miss + pmu_in_r.bpu_miss;
+            pmu_bpu_branch_instr <= pmu_bpu_branch_instr + pmu_in_r.bpu_branch_instr;
+            pmu_bpu_conditional_branch <= pmu_bpu_conditional_branch + pmu_in_r.bpu_conditional_branch;
+            pmu_bpu_conditional_miss <= pmu_bpu_conditional_miss + pmu_in_r.bpu_conditional_miss;
+            pmu_bpu_ftb_dirty <= pmu_bpu_ftb_dirty + pmu_in_r.bpu_ftb_dirty;
+            pmu_bpu_indirect_branch <= pmu_bpu_indirect_branch + pmu_in_r.bpu_indirect_branch;
+            pmu_bpu_indirect_miss <= pmu_bpu_indirect_miss + pmu_in_r.bpu_indirect_miss;
+            pmu_tlb_req <= pmu_tlb_req + pmu_in_r.tlb_req;
+            pmu_tlb_miss <= pmu_tlb_miss + pmu_in_r.tlb_miss;
             pmu_tlb_refill_cyc <= pmu_tlb_refill_cyc + pmu_tlb_refilling;
         end
 

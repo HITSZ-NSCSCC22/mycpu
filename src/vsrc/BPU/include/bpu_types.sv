@@ -10,9 +10,9 @@ package bpu_types;
     typedef struct packed {
         logic valid;
         logic is_cross_cacheline;
-        logic [2:0] branch_type;
+        logic [1:0] branch_type;
         // Virtual tag, pc[1:0] is always 0, so not used in index or tag
-        logic [ADDR_WIDTH-3-$clog2(FTB_DEPTH):0] tag;
+        logic [ADDR_WIDTH-3-$clog2(FTB_NSET):0] tag;
         logic [ADDR_WIDTH-1:0] jump_target_address;
         logic [ADDR_WIDTH-1:0] fall_through_address;
     } ftb_entry_t;
@@ -39,12 +39,14 @@ package bpu_types;
     typedef struct packed {
         logic valid;
         logic ftb_hit;
+        logic [$clog2(FTB_NWAY)-1:0] ftb_hit_index;
         tage_meta_t bpu_meta;
     } bpu_ftq_meta_t;
 
     typedef struct packed {
         logic valid;
         logic ftb_hit;
+        logic [$clog2(FTB_NWAY)-1:0] ftb_hit_index;
         logic ftb_dirty;
         logic is_cross_cacheline;
 
@@ -52,7 +54,7 @@ package bpu_types;
 
         // Backend Decode Info
         logic is_branch;
-        logic is_conditional;
+        logic [1:0] branch_type;
         logic is_taken;
         logic predicted_taken;
 
@@ -65,6 +67,7 @@ package bpu_types;
     typedef struct packed {
         logic valid;
         logic ftb_hit;
+        logic [$clog2(FTB_NWAY)-1:0] ftb_hit_index;
         logic ftb_dirty;
 
         tage_meta_t bpu_meta;

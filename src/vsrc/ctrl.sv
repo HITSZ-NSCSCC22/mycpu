@@ -118,7 +118,7 @@ module ctrl
     assign backend_commit_ftq_id_o = instr_info[0].ftq_id;
     assign backend_commit_meta_o = {
         special_info[0].is_branch,
-        special_info[0].is_conditional,
+        special_info[0].branch_type,
         special_info[0].is_taken,
         special_info[0].predicted_taken
     };

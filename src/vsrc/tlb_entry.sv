@@ -1,6 +1,6 @@
 `include "core_config.sv"
 `include "TLB/tlb_types.sv"
-`include "utils/cva5_priority_encoder.sv"
+`include "utils/one_hot_to_index.sv"
 
 module tlb_entry
     import tlb_types::*;
@@ -95,22 +95,28 @@ module tlb_entry
     assign s0_found = match0 != 0;
     assign s1_found = match1 != 0;
 
-    always_comb begin
-        // Default value
-        {s0_index, s0_ps, s0_ppn, s0_v, s0_d, s0_mat, s0_plv} = 0;
-        {s1_index, s1_ps, s1_ppn, s1_v, s1_d, s1_mat, s1_plv} = 0;
-        // Match 
-        for (integer j = 0; j < TLB_NUM; j++) begin
-            if (match0[j]) begin
-                {s0_index, s0_ps, s0_ppn, s0_v, s0_d, s0_mat, s0_plv} = {39{s0_odd_page_buffer[j] }} & {j[TLB_INDEX_WIDTH-1:0], tlb_ps[j], tlb_ppn1[j], tlb_v1[j], tlb_d1[j], tlb_mat1[j], tlb_plv1[j]} |
-                                                                {39{~s0_odd_page_buffer[j] }} & {j[TLB_INDEX_WIDTH-1:0], tlb_ps[j], tlb_ppn0[j], tlb_v0[j], tlb_d0[j], tlb_mat0[j], tlb_plv0[j]};
-            end
-            if (match1[j]) begin
-                {s1_index, s1_ps, s1_ppn, s1_v, s1_d, s1_mat, s1_plv} = {39{s1_odd_page_buffer[j] }} & {j[TLB_INDEX_WIDTH-1:0], tlb_ps[j], tlb_ppn1[j], tlb_v1[j], tlb_d1[j], tlb_mat1[j], tlb_plv1[j]} |
-                                                                {39{~s1_odd_page_buffer[j] }} & {j[TLB_INDEX_WIDTH-1:0], tlb_ps[j], tlb_ppn0[j], tlb_v0[j], tlb_d0[j], tlb_mat0[j], tlb_plv0[j]};
-            end
-        end
-    end
+    one_hot_to_index #(
+        .C_WIDTH(TLB_NUM)
+    ) u_s0_index (
+        .one_hot(match0),
+        .int_out(s0_index)
+    );
+    one_hot_to_index #(
+        .C_WIDTH(TLB_NUM)
+    ) u_s1_index (
+        .one_hot(match1),
+        .int_out(s1_index)
+    );
+
+
+
+    assign  {s0_ps, s0_ppn, s0_v, s0_d, s0_mat, s0_plv} = 
+    {32{s0_odd_page_buffer[s0_index] }} & {tlb_ps[s0_index], tlb_ppn1[s0_index], tlb_v1[s0_index], tlb_d1[s0_index], tlb_mat1[s0_index], tlb_plv1[s0_index]} |
+    {32{~s0_odd_page_buffer[s0_index] }} & {tlb_ps[s0_index], tlb_ppn0[s0_index], tlb_v0[s0_index], tlb_d0[s0_index], tlb_mat0[s0_index], tlb_plv0[s0_index]};
+    assign   {s1_ps, s1_ppn, s1_v, s1_d, s1_mat, s1_plv} = 
+    {32{s1_odd_page_buffer[s1_index] }} & {tlb_ps[s1_index], tlb_ppn1[s1_index], tlb_v1[s1_index], tlb_d1[s1_index], tlb_mat1[s1_index], tlb_plv1[s1_index]} |
+    {32{~s1_odd_page_buffer[s1_index] }} & {tlb_ps[s1_index], tlb_ppn0[s1_index], tlb_v0[s1_index], tlb_d0[s1_index], tlb_mat0[s1_index], tlb_plv0[s1_index]};
+
 
 
     always @(posedge clk) begin
