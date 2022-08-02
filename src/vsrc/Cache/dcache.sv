@@ -23,7 +23,6 @@ module dcache
     input logic cacop_i,
     input logic [1:0] cacop_mode_i,
     input logic [ADDR_WIDTH-1:0] cacop_addr_i,
-    output cacop_ack_o,
 
     output logic data_ok,             //该次请求的数据传输Ok，读：数据返回；写：数据写入完成
     output logic [31:0] rdata,  //读Cache的结果
@@ -120,7 +119,6 @@ module dcache
 
     assign cpu_addr = {tag_buffer, index_buffer, offset_buffer};
 
-    assign cacop_ack_o = state == CACOP_INVALID;
     assign cacop_op_mode0 = cacop_i & cacop_mode_i == 2'b00;
     assign cacop_op_mode1 = cacop_i & cacop_mode_i == 2'b01;
     assign cacop_op_mode2 = cacop_i & cacop_mode_i == 2'b10;
@@ -555,6 +553,9 @@ module dcache
                 if (axi_rvalid_i) begin
                     data_ok = 1;
                 end
+            end
+            CACOP_INVALID: begin
+                data_ok = 1;
             end
         endcase
     end

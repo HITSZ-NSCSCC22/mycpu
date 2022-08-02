@@ -47,7 +47,6 @@ module mem1
 
     output logic dcacop_en_o,
     output logic [1:0] dcacop_mode_o,
-    input logic dcacop_ack_i,
 
     // Next stage
     output mem1_mem2_struct mem2_o_buffer
@@ -158,7 +157,7 @@ module mem1
     //if mem1 has a mem request and cache is working 
     //then wait until cache finish its work
     assign advance_ready = (access_mem & mem_access_valid ) ? dcache_ready_i :
-                            icache_op_en ? icacop_ack_i : dcache_op_en ? dcacop_ack_i : 1;
+                            icache_op_en ? icacop_ack_i : 1;
 
     // Sanity check
     assign mem_access_valid = ~excp & instr_info.valid;

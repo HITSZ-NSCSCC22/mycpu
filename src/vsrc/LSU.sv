@@ -24,6 +24,11 @@ module LSU #(
     input logic cpu_flush,
     input logic cpu_store_commit,
 
+    // cacop from mem
+    input logic cpu_cacop,
+    input logic [1:0] cpu_cacop_mode,
+    input logic [FE_ADDR_W-1:0] cpu_cacop_addr,
+
     // Cache
     output logic dcache_valid,
     output logic [FE_ADDR_W-1:0] dcache_addr,
@@ -32,6 +37,9 @@ module LSU #(
     input logic [FE_DATA_W-1:0] dcache_rdata,
     input logic dcache_ready,
 
+    output logic dcache_cacop,
+    output logic [1:0] dcache_cacop_mode,
+    output logic [FE_ADDR_W-1:0] dcache_cacop_addr,
     // Uncache AXI
     axi_interface.master uncache_axi
 );
@@ -51,7 +59,10 @@ module LSU #(
     logic p1_valid_reg;
     logic p1_cpu_store;
     logic p1_uncache;
+    logic p1_cacop;
     logic [2:0] p1_req_type;
+    logic [1:0] p1_cacop_mode;
+    logic [FE_ADDR_W-1:0] p1_cacop_addr;
     logic [FE_ADDR_W-1:0] p1_addr_reg;
     logic [FE_DATA_W-1:0] p1_wdata_reg;
     logic [FE_NBYTES-1:0] p1_wstrb_reg;
@@ -64,7 +75,8 @@ module LSU #(
         STORE_REQ_SEND,
         STORE_REQ_WAIT,
         UNCACHE_REQ_SEND,
-        UNCACHE_REQ_WAIT
+        UNCACHE_REQ_WAIT,
+        CACOP_INVALID_WAIT
     }
         state, next_state;
     // State machine
@@ -79,6 +91,7 @@ module LSU #(
                 else if (p1_valid_reg & ~p1_uncache & ~dcache_ready) next_state = REFILL_WAIT;
                 else if (cpu_valid & cpu_uncached & ~cpu_store) next_state = UNCACHE_REQ_SEND;
                 else if (cpu_store) next_state = STORE_COMMIT_WAIT;
+                else if (cpu_cacop) next_state = CACOP_INVALID_WAIT;
                 else next_state = IDLE;
             end
             REFILL_WAIT: begin
@@ -106,6 +119,10 @@ module LSU #(
             UNCACHE_REQ_WAIT: begin
                 if (uncache_data_ok) next_state = IDLE;
                 else next_state = UNCACHE_REQ_WAIT;
+            end
+            CACOP_INVALID_WAIT: begin
+                if (dcache_ready) next_state = IDLE;
+                else next_state = CACOP_INVALID_WAIT;
             end
             default: next_state = IDLE;
         endcase
@@ -179,24 +196,45 @@ module LSU #(
         endcase
     end
 
+    always_comb begin
+        dcache_cacop = 0;
+        dcache_cacop_mode = 0;
+        dcache_cacop_addr = 0;
+        case (state)
+            CACOP_INVALID_WAIT: begin
+                dcache_cacop = 1;
+                dcache_cacop_mode = p1_cacop_mode;
+                dcache_cacop_addr = p1_cacop_addr;
+            end
+            default: begin
+            end
+        endcase
+    end
+
     // P1 signal
     always_ff @(posedge clk) begin
         if (rst) begin
-            p1_req_type  <= 0;
+            p1_req_type <= 0;
             p1_cpu_store <= 0;
-            p1_uncache   <= 0;
+            p1_uncache <= 0;
             p1_valid_reg <= 0;
-            p1_addr_reg  <= 0;
+            p1_addr_reg <= 0;
             p1_wdata_reg <= 0;
             p1_wstrb_reg <= 0;
+            p1_cacop <= 0;
+            p1_cacop_addr <= 0;
+            p1_cacop_mode <= 0;
         end else if (cpu_flush & ~cpu_store_commit & state == STORE_COMMIT_WAIT) begin
-            p1_req_type  <= 0;
+            p1_req_type <= 0;
             p1_cpu_store <= 0;
-            p1_uncache   <= 0;
+            p1_uncache <= 0;
             p1_valid_reg <= 0;
-            p1_addr_reg  <= 0;
+            p1_addr_reg <= 0;
             p1_wdata_reg <= 0;
             p1_wstrb_reg <= 0;
+            p1_cacop <= 0;
+            p1_cacop_addr <= 0;
+            p1_cacop_mode <= 0;
         end else if (cpu_valid & ~cpu_flush) begin
             p1_req_type  <= cpu_req_type;
             p1_cpu_store <= cpu_store;
@@ -205,14 +243,21 @@ module LSU #(
             p1_addr_reg  <= cpu_addr;
             p1_wdata_reg <= cpu_wdata;
             p1_wstrb_reg <= cpu_wstrb;
+        end else if (cpu_cacop & ~cpu_flush) begin
+            p1_cacop <= cpu_cacop;
+            p1_cacop_mode <= cpu_cacop_mode;
+            p1_cacop_addr <= cpu_cacop_addr;
         end else if (dcache_ready | uncache_data_ok) begin
-            p1_req_type  <= 0;
+            p1_req_type <= 0;
             p1_cpu_store <= 0;
-            p1_uncache   <= 0;
+            p1_uncache <= 0;
             p1_valid_reg <= 0;
-            p1_addr_reg  <= 0;
+            p1_addr_reg <= 0;
             p1_wdata_reg <= 0;
             p1_wstrb_reg <= 0;
+            p1_cacop <= 0;
+            p1_cacop_addr <= 0;
+            p1_cacop_mode <= 0;
         end
     end
 

@@ -135,10 +135,10 @@ module cpu_top
     logic [1:0][13:0] dispatch_csr_read_addr;
     logic [1:0][`RegBus] dispatch_csr_data;
 
-    logic icacop_op_en[2], dcacop_op_en[2];
+    logic icacop_op_en[2], dcacop_op_en[2], control_dcache_cacop;
     logic icacop_ack, dcacop_ack;
-    logic [1:0] icacop_op_mode[2];
-    logic [1:0] dcacop_op_mode[2];
+    logic [1:0] icacop_op_mode[2], dcacop_op_mode[2], control_dcache_cacop_mode;
+    logic [`RegBus] control_dcache_cacop_addr;
     logic has_int;
 
     // EX
@@ -297,6 +297,9 @@ module cpu_top
         .cpu_data_valid(mem_data_ok),
         .cpu_flush(wb_dcache_flush != 2'b0 | pipeline_flush[2]),
         .cpu_store_commit(dcache_store_commit[0]),  // If excp occurs, flush DCache
+        .cpu_cacop(dcacop_op_en[0]),
+        .cpu_cacop_mode(dcacop_op_mode[0]),
+        .cpu_cacop_addr({tlb_data_result.tag, tlb_data_result.index, tlb_data_result.offset}),
 
         .dcache_valid(control_dcache_valid),
         .dcache_addr (control_dcache_addr),
@@ -304,6 +307,10 @@ module cpu_top
         .dcache_wstrb(control_dcache_wstrb),
         .dcache_rdata(control_dcache_rdata),
         .dcache_ready(control_dcache_ready),
+
+        .dcache_cacop(control_dcache_cacop),
+        .dcache_cacop_mode(control_dcache_cacop_mode),
+        .dcache_cacop_addr(control_dcache_cacop_addr),
 
         .uncache_axi(uncache_axi)
     );
@@ -315,10 +322,9 @@ module cpu_top
         .addr        (control_dcache_addr),
         .wstrb       (control_dcache_wstrb),
         .wdata       (control_dcache_wdata),
-        .cacop_i     (dcacop_op_en[0]),
-        .cacop_mode_i(dcacop_op_mode[0]),
-        .cacop_addr_i({tlb_data_result.tag, tlb_data_result.index, tlb_data_result.offset}),
-        .cacop_ack_o (dcacop_ack),
+        .cacop_i     (control_dcache_cacop),
+        .cacop_mode_i(control_dcache_cacop_mode),
+        .cacop_addr_i(control_dcache_cacop_addr),
         .data_ok     (control_dcache_ready),
         .rdata       (control_dcache_rdata),
 
@@ -775,7 +781,6 @@ module cpu_top
 
                 .dcacop_en_o  (dcacop_op_en[i]),
                 .dcacop_mode_o(dcacop_op_mode[i]),
-                .dcacop_ack_i (dcacop_ack),
 
                 // <- TLB
                 .tlb_result_i(tlb_data_result),
