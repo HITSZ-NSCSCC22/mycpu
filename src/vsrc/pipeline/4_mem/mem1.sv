@@ -89,9 +89,15 @@ module mem1
     // ICACOP
     assign icacop_en_o = icache_op_en;
     assign icacop_mode_o = cacop_op[4:3];
-    // DCACOP
-    assign dcacop_en_o = dcache_op_en;
-    assign dcacop_mode_o = cacop_op[4:3];
+
+    always_comb begin
+        dcacop_en_o   = 0;
+        dcacop_mode_o = 0;
+        if (advance & ~excp & dcache_ready_i & ~dcache_ack_r) begin
+            dcacop_en_o   = dcache_op_en;
+            dcacop_mode_o = cacop_op[4:3];
+        end
+    end
 
     assign aluop_i = ex_i.aluop;
 
@@ -156,7 +162,7 @@ module mem1
 
     //if mem1 has a mem request and cache is working 
     //then wait until cache finish its work
-    assign advance_ready = (access_mem & mem_access_valid ) ? dcache_ready_i :
+    assign advance_ready = (access_mem & mem_access_valid | dcache_op_en) ? dcache_ready_i :
                             icache_op_en ? icacop_ack_i : 1;
 
     // Sanity check
