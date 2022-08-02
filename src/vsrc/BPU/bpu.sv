@@ -175,7 +175,7 @@ module bpu
     // 1. This is a conditional branch
     // 2. First time a branch jumped
     // 3. A FTB pollution is detected
-    assign ftb_update_valid = ftq_meta_i.valid & ((mispredict)| (ftq_meta_i.ftb_dirty & ftq_meta_i.ftb_hit)) & (ftq_meta_i.branch_type != BRANCH_TYPE_UNCOND);
+    assign ftb_update_valid = ftq_meta_i.valid & ((mispredict & ~ftq_meta_i.ftb_hit)| (ftq_meta_i.ftb_dirty & ftq_meta_i.ftb_hit)) & (ftq_meta_i.branch_type != BRANCH_TYPE_UNCOND);
     always_comb begin
         // Direction preditor update policy:
         tage_update_info.valid = ftq_meta_i.valid;
@@ -190,7 +190,7 @@ module bpu
 
     always_comb begin
         ftb_entry_update.valid = ~(ftq_meta_i.ftb_dirty & ftq_meta_i.ftb_hit);
-        ftb_entry_update.tag = ftq_meta_i.start_pc[ADDR_WIDTH-1:$clog2(FTB_DEPTH)+2];
+        ftb_entry_update.tag = ftq_meta_i.start_pc[ADDR_WIDTH-1:$clog2(FTB_NSET)+2];
         ftb_entry_update.branch_type = ftq_meta_i.branch_type;
         ftb_entry_update.is_cross_cacheline = ftq_meta_i.is_cross_cacheline;
         ftb_entry_update.jump_target_address = ftq_meta_i.jump_target_address;
@@ -209,6 +209,7 @@ module bpu
         // Update
         .update_pc_i(ftq_meta_i.start_pc),
         .update_valid_i(ftb_update_valid),
+        .update_dirty_i(ftq_meta_i.ftb_dirty && (ftq_meta_i.branch_type == BRANCH_TYPE_COND)),
         .update_entry_i(ftb_entry_update)
     );
 
