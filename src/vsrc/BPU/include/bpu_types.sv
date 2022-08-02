@@ -39,12 +39,14 @@ package bpu_types;
     typedef struct packed {
         logic valid;
         logic ftb_hit;
+        logic [$clog2(FTB_NWAY)-1:0] ftb_hit_index;
         tage_meta_t bpu_meta;
     } bpu_ftq_meta_t;
 
     typedef struct packed {
         logic valid;
         logic ftb_hit;
+        logic [$clog2(FTB_NWAY)-1:0] ftb_hit_index;
         logic ftb_dirty;
         logic is_cross_cacheline;
 
@@ -65,6 +67,7 @@ package bpu_types;
     typedef struct packed {
         logic valid;
         logic ftb_hit;
+        logic [$clog2(FTB_NWAY)-1:0] ftb_hit_index;
         logic ftb_dirty;
 
         tage_meta_t bpu_meta;

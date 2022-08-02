@@ -51,6 +51,7 @@ module bpu
     logic main_redirect;
     // FTB
     logic ftb_hit;
+    logic [$clog2(FTB_NWAY)-1:0] ftb_hit_index;
     ftb_entry_t ftb_entry;
     // TAGE
     logic predict_taken, predict_valid;
@@ -151,6 +152,7 @@ module bpu
     end
     // FTQ meta output
     assign bpu_meta.ftb_hit = ftb_hit;
+    assign bpu_meta.ftb_hit_index = ftb_hit_index;
     assign bpu_meta.valid = ftb_hit;
     assign ftq_meta_o = bpu_meta | tage_meta;
 
@@ -205,11 +207,13 @@ module bpu
         .query_pc_i(pc_i),
         .query_entry_o(ftb_entry),
         .hit(ftb_hit),
+        .hit_index_o(ftb_hit_index),
 
         // Update
         .update_pc_i(ftq_meta_i.start_pc),
+        .update_way_index_i(ftq_meta_i.ftb_hit_index),
         .update_valid_i(ftb_update_valid),
-        .update_dirty_i(ftq_meta_i.ftb_dirty && (ftq_meta_i.branch_type == BRANCH_TYPE_COND)),
+        .update_dirty_i(ftq_meta_i.ftb_dirty & ftq_meta_i.ftb_hit),
         .update_entry_i(ftb_entry_update)
     );
 

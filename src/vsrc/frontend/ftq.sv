@@ -204,6 +204,7 @@ module ftq
                 // 2. Exception introduced block commit is not considered a branch update.
                 bpu_meta_o.valid <= 1;
                 bpu_meta_o.ftb_hit <= FTQ_meta[backend_commit_ftq_id_i].ftb_hit;
+                bpu_meta_o.ftb_hit_index <= FTQ_meta[backend_commit_ftq_id_i].ftb_hit_index;
                 bpu_meta_o.ftb_dirty <= FTQ_meta[backend_commit_ftq_id_i].ftb_dirty;
                 // Must use accurate decoded info passed from backend
                 bpu_meta_o.is_branch <= backend_commit_meta_i.is_branch;
@@ -231,10 +232,12 @@ module ftq
         if (bpu_p1_i.valid & ~main_bpu_redirect_delay) begin  // If last cycle accepted P0 input
             FTQ_meta[PTR_WIDTH'(bpu_ptr-1)] <= 0;
             FTQ_meta[PTR_WIDTH'(bpu_ptr-1)].ftb_hit <= bpu_meta_i.ftb_hit;
+            FTQ_meta[PTR_WIDTH'(bpu_ptr-1)].ftb_hit_index <= bpu_meta_i.ftb_hit_index;
             FTQ_meta[PTR_WIDTH'(bpu_ptr-1)].bpu_meta <= bpu_meta_i.bpu_meta;
         end else if (bpu_p1_i.valid) begin
             FTQ_meta[bpu_ptr] <= 0;
             FTQ_meta[bpu_ptr].ftb_hit <= bpu_meta_i.ftb_hit;
+            FTQ_meta[bpu_ptr].ftb_hit_index <= bpu_meta_i.ftb_hit_index;
             FTQ_meta[bpu_ptr].bpu_meta <= bpu_meta_i.bpu_meta;
         end
 

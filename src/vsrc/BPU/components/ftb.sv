@@ -17,10 +17,12 @@ module ftb
     // Query
     input logic [ADDR_WIDTH-1:0] query_pc_i,
     output ftb_entry_t query_entry_o,
+    output logic [$clog2(FTB_NWAY)-1:0] hit_index_o,
     output logic hit,
 
     // Update signals
     input logic [ADDR_WIDTH-1:0] update_pc_i,
+    input logic [$clog2(FTB_NWAY)-1:0] update_way_index_i,
     input logic update_valid_i,
     input logic update_dirty_i,
     input ftb_entry_t update_entry_i
@@ -65,6 +67,7 @@ module ftb
     // Query output
     assign query_entry_o = way_query_entry[way_hit_index];
     assign hit = |way_hit;
+    assign hit_index_o = way_hit_index;
 
     /////////////////////////////////////////////////////////////////////////////////////////
     // Update logic 
@@ -73,12 +76,14 @@ module ftb
     always_comb begin
         if (update_dirty_i) begin  // Just override all entry in this group to ensure old entry is cleared
             update_entry = update_entry_i;
-            update_we = {NWAY{1'b1}};
+            update_we = 0;
+            update_we[update_way_index_i] = update_valid_i;
         end else begin  // Update a new entry in
             update_entry = update_entry_i;
             update_we = 0;
             for (integer way_idx = 0; way_idx < NWAY; way_idx++) begin
-                if (way_idx[NWAY_WIDTH-1:0] == random_r[NWAY_WIDTH-1:0]) update_we[way_idx] = 1;
+                if (way_idx[NWAY_WIDTH-1:0] == random_r[NWAY_WIDTH-1:0])
+                    update_we[way_idx] = update_valid_i;
             end
         end
     end
