@@ -133,9 +133,10 @@ module dcache
     always_comb begin
         cacop_op_mode2_hit = 0;
         if (cacop_op_mode2) begin
-            if(tag_bram_rdata[cacop_way][19:0] == cacop_addr_i[31:12] 
-                && tag_bram_rdata[cacop_way][20] == 1'b1)
-                cacop_op_mode2_hit = 1;
+            for (integer i = 0; i < NWAY; i++) begin
+                if (tag_bram_rdata[i][19:0] == cacop_addr_i[31:12] && tag_bram_rdata[i][20] == 1'b1)
+                    cacop_op_mode2_hit = 1;
+            end
         end else cacop_op_mode2_hit = 0;
     end
 
