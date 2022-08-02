@@ -104,7 +104,7 @@ module dcache
     logic [DCACHELINE_WIDTH-1:0] fifo_rdata, fifo_wdata, fifo_axi_wr_data;
 
     // CACOP
-    logic cacop_op_mode0, cacop_op_mode1, cacop_op_mode2, cacop_op_mode2_hit;
+    logic cacop_op_mode0, cacop_op_mode1, cacop_op_mode2, cacop_op_mode2_hit[2];
     logic [$clog2(NWAY)-1:0] cacop_way;
     logic [$clog2(NSET)-1:0] cacop_index;
 
@@ -133,9 +133,9 @@ module dcache
         if (cacop_op_mode2) begin
             for (integer i = 0; i < NWAY; i++) begin
                 if (tag_bram_rdata[i][19:0] == cacop_addr_i[31:12] && tag_bram_rdata[i][20] == 1'b1)
-                    cacop_op_mode2_hit = 1;
+                    cacop_op_mode2_hit[i] = 1;
             end
-        end else cacop_op_mode2_hit = 0;
+        end
     end
 
 
@@ -300,9 +300,15 @@ module dcache
                 for (integer i = 0; i < NWAY; i++) begin
                     tag_bram_en[i]   = 0;
                     tag_bram_addr[i] = 0;
-                    if (cacop_way == i[$clog2(NWAY)-1:0]) begin
-                        tag_bram_addr[i] = cacop_index;
-                        tag_bram_en[i]   = 1;
+                    if ((cacop_way == i[$clog2(NWAY)-1:0])) begin
+                        if (cacop_op_mode0 | cacop_op_mode1) begin
+                            tag_bram_en[i]   = 1;
+                            tag_bram_addr[i] = cacop_index;
+                        end
+                        if (cacop_op_mode2_hit[i]) begin
+                            tag_bram_en[i]   = 1;
+                            tag_bram_addr[i] = cacop_index;
+                        end
                     end
                 end
             end
@@ -384,9 +390,15 @@ module dcache
             end
             CACOP_INVALID: begin
                 for (integer i = 0; i < NWAY; i++) begin
-                    if (cacop_way == i[$clog2(NWAY)-1:0]) begin
-                        tag_bram_we[i] = 1;
-                        tag_bram_wdata[i] = 0;
+                    if ((cacop_way == i[$clog2(NWAY)-1:0])) begin
+                        if (cacop_op_mode0 | cacop_op_mode1) begin
+                            tag_bram_we[i] = 1;
+                            tag_bram_wdata[i] = 0;
+                        end
+                        if (cacop_op_mode2_hit[i]) begin
+                            tag_bram_we[i] = 1;
+                            tag_bram_wdata[i] = 0;
+                        end
                     end
                 end
             end
@@ -509,9 +521,12 @@ module dcache
                     // write the invalidate cacheline back to mem
                     // cacop mode == 1 always write back
                     // cacop mode == 2 write back when hit
-                    if (cacop_way == i[$clog2(
-                            NWAY
-                        )-1:0] && (cacop_op_mode1 | (cacop_op_mode2 & cacop_op_mode2_hit))) begin
+                    if (cacop_way == i[$clog2(NWAY)-1:0] && cacop_op_mode1) begin
+                        fifo_wreq  = 1;
+                        fifo_waddr = cacop_addr_i;
+                        fifo_wdata = data_bram_rdata[i];
+                    end
+                    if (cacop_op_mode2_hit[i]) begin
                         fifo_wreq  = 1;
                         fifo_waddr = cacop_addr_i;
                         fifo_wdata = data_bram_rdata[i];
