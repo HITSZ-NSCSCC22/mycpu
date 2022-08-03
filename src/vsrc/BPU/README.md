@@ -36,3 +36,9 @@ MPKI: 2.19501
 Avg: 2.70
 ```
 
+
+With new entry opt:
+Average MPKI: 2.79402
+
+No new entry opt:
+Average MPKI: 2.78838

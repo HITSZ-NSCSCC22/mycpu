@@ -9,7 +9,7 @@
 
 #include "struct.hpp"
 
-#define BRANCH_LATENCY (1)
+#define BRANCH_LATENCY (0)
 
 // Work around
 double sc_time_stamp() { return 0; }
@@ -148,7 +148,7 @@ int main(int argc, char const *argv[])
         context->timeInc(1);
 
         // Provider update info
-        size_t update_id = i > 5 ? i - 5 : 0;
+        size_t update_id = i > BRANCH_LATENCY ? i - BRANCH_LATENCY : 0;
         sopc->update_pc_i = entries[update_id].pc;
         tage_predictor_update_info_t update_info_i;
         std::memcpy(&update_info_i, &output_meta_queue[update_id], (166 / 8) + 1);

@@ -34,7 +34,7 @@ module base_predictor
     logic [TABLE_DEPTH_EXP2-1:0] query_index = pc_i[2+TABLE_DEPTH_EXP2-1:2];
     logic [       CTR_WIDTH-1:0] query_entry;
 
-    assign taken = (query_entry[CTR_WIDTH-1] == 1'b1);
+    assign taken = (query_entry[CTR_WIDTH-1] == 1'b0);
     assign ctr   = (query_entry);
 
     // Update logic
@@ -42,9 +42,9 @@ module base_predictor
     logic [       CTR_WIDTH-1:0] update_content;
     always_comb begin
         if (update_valid) begin
-            if (update_ctr_i == {CTR_WIDTH{1'b1}}) begin
+            if (update_ctr_i == {1'b0, {CTR_WIDTH - 1{1'b1}}}) begin
                 update_content = inc_ctr ? update_ctr_i : update_ctr_i - 1;
-            end else if (update_ctr_i == {CTR_WIDTH{1'b0}}) begin
+            end else if (update_ctr_i == {1'b1, {CTR_WIDTH - 1{1'b0}}}) begin
                 update_content = inc_ctr ? update_ctr_i + 1 : update_ctr_i;
             end else begin
                 update_content = inc_ctr ? update_ctr_i + 1 : update_ctr_i - 1;
