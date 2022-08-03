@@ -11,7 +11,6 @@
 `include "frontend/frontend.sv"
 `include "instr_buffer.sv"
 `include "icache.sv"
-`include "LSU.sv"
 `include "Cache/dcache.sv"
 `include "ctrl.sv"
 `include "Reg/regs_file.sv"
