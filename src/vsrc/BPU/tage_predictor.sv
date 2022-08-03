@@ -104,6 +104,11 @@ module tage_predictor
     logic [15:0] random_r;
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_useful_pingpong_counter;
 
+    // USE_ALT_ON_NA counter
+    logic [3:0] use_alt_on_na_counter;
+    logic use_alt;
+    integer use_alt_cnt;
+
     ////////////////////////////////////////////////////////////////////////////////////////////
     // END of Defines
     ////////////////////////////////////////////////////////////////////////////////////////////
@@ -211,7 +216,7 @@ module tage_predictor
     // Output logic
     assign predict_valid_o = 1;
     assign taken = {tag_taken, base_taken};
-    assign predict_branch_taken_o = taken[pred_prediction_id];
+    assign predict_branch_taken_o = use_alt ? taken[altpred_prediction_id] : taken[pred_prediction_id];
     // Meta
     tage_meta_t query_meta;
     assign query_meta.tag_predictor_useful_bits = tag_useful;
@@ -238,6 +243,19 @@ module tage_predictor
     ////////////////////////////////////////////////////////////////////////////////////////////
     // Update policy
     ////////////////////////////////////////////////////////////////////////////////////////////
+
+    // USE_ALT_ON_NA
+    assign use_alt = (use_alt_on_na_counter[3] == 1) && tag_useful[pred_prediction_id-1][2] == 0 && tag_ctr[pred_prediction_id-1] == 3'b010 && query_is_useful;
+    always_ff @(posedge clk) begin
+        if (rst) use_alt_on_na_counter <= 0;
+        else if (update_valid & update_meta.useful & ~update_info_i.predict_correct)
+            use_alt_on_na_counter <= use_alt_on_na_counter == 4'b1111 ? 4'b1111 : use_alt_on_na_counter +1;
+        else if (update_valid & update_meta.useful & update_info_i.predict_correct)
+            use_alt_on_na_counter <= use_alt_on_na_counter == 0 ? 0 : use_alt_on_na_counter - 1;
+    end
+    always_ff @(posedge clk) begin
+        if (use_alt) use_alt_cnt <= use_alt_cnt + 1;
+    end
 
     // CTR policy
     // Update on a correct prediction: update the ctr bits of the provider
