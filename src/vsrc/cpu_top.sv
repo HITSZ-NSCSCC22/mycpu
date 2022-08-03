@@ -326,8 +326,8 @@ module cpu_top
         .uncache_en(mem_uncache_en),
         .paddr({tlb_data_result.tag, tlb_data_result.index, tlb_data_result.offset}),
 
-        .cacop_i     (control_dcache_cacop),
-        .cacop_mode_i(control_dcache_cacop_mode),
+        .cacop_i     (dcacop_op_en[0]),
+        .cacop_mode_i(dcacop_op_mode[0]),
 
         .data_ok(mem_data_ok),
         .rdata  (cache_mem_data),
@@ -604,37 +604,37 @@ module cpu_top
         .s01_axi_rlast  (dcache_axi.rlast),
         .s01_axi_rvalid (dcache_axi.rvalid),
         .s01_axi_rready (dcache_axi.rready),
-        .s02_axi_awid   (uncache_axi.awid),
-        .s02_axi_awaddr (uncache_axi.awaddr),
-        .s02_axi_awlen  (uncache_axi.awlen),
-        .s02_axi_awsize (uncache_axi.awsize),
-        .s02_axi_awburst(uncache_axi.awburst),
-        .s02_axi_awcache(uncache_axi.awcache),
-        .s02_axi_awvalid(uncache_axi.awvalid),
-        .s02_axi_awready(uncache_axi.awready),
-        .s02_axi_wdata  (uncache_axi.wdata),
-        .s02_axi_wstrb  (uncache_axi.wstrb),
-        .s02_axi_wlast  (uncache_axi.wlast),
-        .s02_axi_wvalid (uncache_axi.wvalid),
-        .s02_axi_wready (uncache_axi.wready),
-        .s02_axi_bid    (uncache_axi.bid),
-        .s02_axi_bresp  (uncache_axi.bresp),
-        .s02_axi_bvalid (uncache_axi.bvalid),
-        .s02_axi_bready (uncache_axi.bready),
-        .s02_axi_arid   (uncache_axi.arid),
-        .s02_axi_araddr (uncache_axi.araddr),
-        .s02_axi_arlen  (uncache_axi.arlen),
-        .s02_axi_arsize (uncache_axi.arsize),
-        .s02_axi_arburst(uncache_axi.arburst),
-        .s02_axi_arcache(uncache_axi.arcache),
-        .s02_axi_arvalid(uncache_axi.arvalid),
-        .s02_axi_arready(uncache_axi.arready),
-        .s02_axi_rid    (uncache_axi.rid),
-        .s02_axi_rdata  (uncache_axi.rdata),
-        .s02_axi_rresp  (uncache_axi.rresp),
-        .s02_axi_rlast  (uncache_axi.rlast),
-        .s02_axi_rvalid (uncache_axi.rvalid),
-        .s02_axi_rready (uncache_axi.rready),
+        // .s02_axi_awid   (uncache_axi.awid),
+        // .s02_axi_awaddr (uncache_axi.awaddr),
+        // .s02_axi_awlen  (uncache_axi.awlen),
+        // .s02_axi_awsize (uncache_axi.awsize),
+        // .s02_axi_awburst(uncache_axi.awburst),
+        // .s02_axi_awcache(uncache_axi.awcache),
+        // .s02_axi_awvalid(uncache_axi.awvalid),
+        // .s02_axi_awready(uncache_axi.awready),
+        // .s02_axi_wdata  (uncache_axi.wdata),
+        // .s02_axi_wstrb  (uncache_axi.wstrb),
+        // .s02_axi_wlast  (uncache_axi.wlast),
+        // .s02_axi_wvalid (uncache_axi.wvalid),
+        // .s02_axi_wready (uncache_axi.wready),
+        // .s02_axi_bid    (uncache_axi.bid),
+        // .s02_axi_bresp  (uncache_axi.bresp),
+        // .s02_axi_bvalid (uncache_axi.bvalid),
+        // .s02_axi_bready (uncache_axi.bready),
+        // .s02_axi_arid   (uncache_axi.arid),
+        // .s02_axi_araddr (uncache_axi.araddr),
+        // .s02_axi_arlen  (uncache_axi.arlen),
+        // .s02_axi_arsize (uncache_axi.arsize),
+        // .s02_axi_arburst(uncache_axi.arburst),
+        // .s02_axi_arcache(uncache_axi.arcache),
+        // .s02_axi_arvalid(uncache_axi.arvalid),
+        // .s02_axi_arready(uncache_axi.arready),
+        // .s02_axi_rid    (uncache_axi.rid),
+        // .s02_axi_rdata  (uncache_axi.rdata),
+        // .s02_axi_rresp  (uncache_axi.rresp),
+        // .s02_axi_rlast  (uncache_axi.rlast),
+        // .s02_axi_rvalid (uncache_axi.rvalid),
+        // .s02_axi_rready (uncache_axi.rready),
         .m00_axi_awid   (awid),
         .m00_axi_awaddr (awaddr),
         .m00_axi_awlen  (awlen),
@@ -879,6 +879,16 @@ module cpu_top
                 // <-> FTQ, next FTQ pc query
                 .ftq_query_addr_o(ex_ftq_query_addr[i]),
                 .ftq_query_pc_i  (ex_ftq_query_pc[i]),
+
+                .dcache_rreq_o (mem_cache_signal[i]),
+                .dcache_ready_i(),
+
+                .icacop_en_o  (icacop_op_en[i]),
+                .icacop_mode_o(icacop_op_mode[i]),
+                .icacop_ack_i (icacop_ack),
+
+                .dcacop_en_o  (dcacop_op_en[i]),
+                .dcacop_mode_o(dcacop_op_mode[i]),
 
                 // Redirect signals
                 .ex_redirect_o(ex_redirect[i]),
@@ -1405,17 +1415,17 @@ module cpu_top
         .probe20(u_cs_reg.timer_64),  // input wire [63:0]  probe20 
         .probe21(u_dcache.cacop_op_mode1),  // input wire [31:0]  probe21 
         .probe22(0),  // input wire [31:0]  probe22 
-        .probe23(u_LSU.u_uncache_channel.addr),  // input wire [31:0]  probe23 
+        .probe23(0),  // input wire [31:0]  probe23 
         .probe24(mem1[0].u_mem1.ex_i.instr_info.pc),  // input wire [31:0]  probe24 
         .probe25(mem1[0].u_mem1.ex_i.instr_info.instr),  // input wire [31:0]  probe25 
-        .probe26(u_LSU.dcache_ready),  // input wire [31:0]  probe26 
+        .probe26(0),  // input wire [31:0]  probe26 
         .probe27(u_dcache.cacop_op_mode2_hit),  // input wire [0:0]  probe27
         .probe28(u_dcache.cacop_op_mode2),  // input wire [31:0]  probe28 
         .probe29(u_dcache.cacop_way),  // input wire [31:0]  probe29 
         .probe30(u_dcache.fifo_waddr),  // input wire [31:0]  probe30 
         .probe31(u_dcache.fifo_wreq),  // input wire [31:0]  probe31 
         .probe32(mem1[0].u_mem1.dcacop_en_o),  // input wire [31:0]  probe32 
-        .probe33(u_LSU.u_uncache_channel.axi_addr_o),  // input wire [31:0]  probe33 
+        .probe33(0),  // input wire [31:0]  probe33 
         .probe34(u_dcache.fifo_wdata),  // input wire [31:0]  probe34 
         .probe35(u_dcache.axi_rvalid_i)  // input wire [31:0]  probe35
     );
