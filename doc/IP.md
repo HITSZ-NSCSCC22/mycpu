@@ -24,14 +24,14 @@ Data BRAM:
 
 FTB BRAM:
 - module name: bram_ftb
-- width: 87
-- depth: 4096
+- width: 88
+- depth: 1024
 - operating mode: Read First
 
 TAGE base predictor BRAM:
 - module name: bram_bpu_base_predictor
-- width: 3 
-- depth: 8192 
+- width: 2
+- depth: 16384 
 - operating mode: Write First
 
 TAGE tagged predictor BRAM:
