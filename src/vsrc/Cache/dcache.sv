@@ -120,9 +120,9 @@ module dcache
 
     assign cpu_addr = {tag_buffer, index_buffer, offset_buffer};
 
-    assign cacop_op_mode0 = cacop_i & cacop_mode_i == 2'b00;
-    assign cacop_op_mode1 = cacop_i & cacop_mode_i == 2'b01;
-    assign cacop_op_mode2 = cacop_i & cacop_mode_i == 2'b10;
+    assign cacop_op_mode0 = cacop_i && cacop_mode_i == 2'b00;
+    assign cacop_op_mode1 = cacop_i && (cacop_mode_i == 2'b01 || cacop_mode_i == 2'b11);
+    assign cacop_op_mode2 = cacop_i && cacop_mode_i == 2'b10;
     assign cacop_way = cacop_addr_i[$clog2(NWAY)-1:0];
     assign cacop_index = cacop_addr_i[11:4];
 
@@ -133,7 +133,7 @@ module dcache
         cacop_op_mode2_hit = 0;
         if (cacop_op_mode2 && cacop_i) begin
             for (integer i = 0; i < NWAY; i++) begin
-                if (tag_bram_rdata[i][19:0] == cacop_addr_i[31:12] && tag_bram_rdata[i][20] == 1'b1)
+                if (tag_bram_rdata[i][19:0] == cacop_addr_i[31:12] && tag_bram_rdata[i][20])
                     cacop_op_mode2_hit[i] = 1;
             end
         end
@@ -525,14 +525,16 @@ module dcache
                     // write the invalidate cacheline back to mem
                     // cacop mode == 1 always write back
                     // cacop mode == 2 write back when hit
-                    if (cacop_way == i[$clog2(NWAY)-1:0] && cacop_op_mode1) begin
+                    if (cacop_way == i[$clog2(
+                            NWAY
+                        )-1:0] && cacop_op_mode1 && tag_bram_rdata[i][20]) begin
                         fifo_wreq  = 1;
-                        fifo_waddr = {tag_bram_rdata[i], cacop_addr_i[11:0]};
+                        fifo_waddr = {tag_bram_rdata[i][19:0], cacop_addr_i[11:0]};
                         fifo_wdata = data_bram_rdata[i];
                     end
                     if (cacop_op_mode2_hit[i]) begin
                         fifo_wreq  = 1;
-                        fifo_waddr = {tag_bram_rdata[i], cacop_addr_i[11:0]};
+                        fifo_waddr = {tag_bram_rdata[i][19:0], cacop_addr_i[11:0]};
                         fifo_wdata = data_bram_rdata[i];
                     end
                 end
