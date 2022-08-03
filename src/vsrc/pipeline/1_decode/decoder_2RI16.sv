@@ -78,8 +78,9 @@ module decoder_2RI16
                 special_info_o.is_pri = 1;
                 special_info_o.is_branch = 1;
                 // Consider 'jirl $r1, $rX, 0' is a function call
-                // Consider 'jirl $r0, $rX, 0' is a function call return
-                special_info_o.branch_type = (rd == 0) ? BRANCH_TYPE_RET : 
+                // Consider 'jirl $r0, $r1, 0' is a function call return
+                // Other    'jirl $r0, $rX, 0' is not a function call return, but just a relay
+                special_info_o.branch_type = (rd == 0 & rj == 1) ? BRANCH_TYPE_RET : 
                                                 (rd == 1) ? BRANCH_TYPE_CALL :
                                                 BRANCH_TYPE_UNCOND;
             end
