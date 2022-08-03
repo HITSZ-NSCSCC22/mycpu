@@ -18,6 +18,7 @@ module mem2
     input mem1_mem2_struct mem1_i,
 
     // <- DCache
+    output logic excp_o,
     input logic data_ok,
     input logic [`RegBus] cache_data_i,
 
@@ -65,6 +66,8 @@ module mem2
     end
 
     assign advance_ready = (mem_load_op & mem1_i.mem_access_valid & (data_ok | data_already_ok)) | ~(mem_load_op  & mem1_i.mem_access_valid);
+
+    assign excp_o = !mem1_i.mem_access_valid;
 
     always_comb begin
         mem2_o.instr_info = instr_info;

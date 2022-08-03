@@ -29,6 +29,7 @@ module ex
     output ex_mem_struct ex_o_buffer,
 
     // <- CSR
+    input logic LLbit_i,
     input [63:0] timer_64,
     input [31:0] tid,
     input csr_to_mem_struct csr_ex_signal,
@@ -48,6 +49,18 @@ module ex
 
     // -> Dispatch
     output data_forward_t data_forward_o,
+
+    //<-> Dcache
+    output mem_dcache_rreq_t dcache_rreq_o,
+    input logic dcache_ready_i,
+
+    // <-> ICache, CACOP
+    output logic icacop_en_o,
+    output logic [1:0] icacop_mode_o,
+    input logic icacop_ack_i,
+
+    output logic dcacop_en_o,
+    output logic [1:0] dcacop_mode_o,
 
     // -> TLB
     output data_tlb_rreq_t tlb_rreq_o
@@ -172,7 +185,7 @@ module ex
 
     // TODO:fix vppn select
     assign ex_o.mem_addr = oprand1 + imm;
-    assign ex_o.reg2 = oprand2;
+    assign ex_o.store_data = dcache_rreq_o.data;
 
     // Data forwarding 
     assign data_forward_o = (muldiv_op != 0) ? {ex_o.wreg, muldiv_already_finish, ex_o.waddr, ex_o.wdata,ex_o.csr_signal} : // Mul or Div op
@@ -200,6 +213,10 @@ module ex
     assign dcacop_inst = cacop_instr && (cacop_op[2:0] == 3'b1);
     assign dcacop_op_en = dcacop_inst && !excp && !(flush);
     assign cacop_op_mode = {2{dcacop_op_en}} & cacop_op[4:3];
+    assign icacop_en_o = icacop_op_en;
+    assign dcacop_en_o = dcacop_op_en;
+    assign icacop_mode_o = cacop_op_mode;
+    assign dcacop_mode_o = cacop_op_mode;
 
     assign excp_ale = access_mem && ((mem_b_op & 1'b0)| (mem_h_op & ex_o.mem_addr[0])| 
                     (!(mem_b_op | mem_h_op) & (ex_o.mem_addr[0] | ex_o.mem_addr[1]))) ;
@@ -216,7 +233,8 @@ module ex
     assign mem_h_op = special_info.mem_h_op;
 
     // notify ctrl is ready to advance
-    assign advance_ready = ~muldiv_stall;
+    assign advance_ready = access_mem | dcacop_op_en ? dcache_ready_i :
+                            icacop_op_en ? icacop_ack_i : ~muldiv_stall;
 
     //////////////////////////////////////////////////////////////////////////////////////
     // TLB request
@@ -406,11 +424,78 @@ module ex
         end
     end
 
+    // DCache memory access request
+    always_comb begin
+        dcache_rreq_o = 0;
+        if (advance & access_mem & dcache_ready_i) begin
+            dcache_rreq_o.ce = 1;
+            dcache_rreq_o.uncache = uncache_en;
+            case (aluop_i)
+                `EXE_LD_B_OP, `EXE_LD_BU_OP: begin
+                    dcache_rreq_o.addr = ex_o.mem_addr;
+                    dcache_rreq_o.sel = 4'b0001 << ex_o.mem_addr[1:0];
+                    dcache_rreq_o.req_type = 3'b000;
+                end
+                `EXE_LD_H_OP, `EXE_LD_HU_OP: begin
+                    dcache_rreq_o.addr = ex_o.mem_addr;
+                    dcache_rreq_o.sel = 4'b0011 << ex_o.mem_addr[1:0];
+                    dcache_rreq_o.req_type = 3'b001;
+                end
+                `EXE_LD_W_OP: begin
+                    dcache_rreq_o.addr = ex_o.mem_addr;
+                    dcache_rreq_o.sel = 4'b1111;
+                    dcache_rreq_o.req_type = 3'b010;
+                end
+                `EXE_ST_B_OP: begin
+                    dcache_rreq_o.addr = ex_o.mem_addr;
+                    dcache_rreq_o.we = 1;
+                    dcache_rreq_o.req_type = 3'b000;
+                    dcache_rreq_o.sel = 4'b0001 << ex_o.mem_addr[1:0];
+                    dcache_rreq_o.data = {24'b0, oprand2[7:0]} << (8 * ex_o.mem_addr[1:0]);
+                end
+                `EXE_ST_H_OP: begin
+                    dcache_rreq_o.addr = ex_o.mem_addr;
+                    dcache_rreq_o.we = 1;
+                    dcache_rreq_o.req_type = 3'b001;
+                    dcache_rreq_o.sel = 4'b0011 << ex_o.mem_addr[1:0];
+                    dcache_rreq_o.data = {16'b0, oprand2[15:0]} << (8 * ex_o.mem_addr[1:0]);
+                end
+                `EXE_ST_W_OP: begin
+                    dcache_rreq_o.addr = ex_o.mem_addr;
+                    dcache_rreq_o.we = 1;
+                    dcache_rreq_o.req_type = 3'b010;
+                    dcache_rreq_o.sel = 4'b1111;
+                    dcache_rreq_o.data = oprand2;
+                end
+                `EXE_LL_OP: begin
+                    dcache_rreq_o.addr = ex_o.mem_addr;
+                    dcache_rreq_o.sel = 4'b1111;
+                    dcache_rreq_o.req_type = 3'b010;
+                end
+                `EXE_SC_OP: begin
+                    if (LLbit_i == 1'b1) begin
+                        dcache_rreq_o.addr = ex_o.mem_addr;
+                        dcache_rreq_o.we = 1;
+                        dcache_rreq_o.req_type = 3'b010;
+                        dcache_rreq_o.sel = 4'b1111;
+                        dcache_rreq_o.data = oprand2;
+                    end else begin
+                        dcache_rreq_o = 0;
+                    end
+                end
+                default: begin
+                    // Reset AXI signals, IMPORTANT!
+                    dcache_rreq_o = 0;
+                end
+            endcase
+        end
+    end
+
     ///////////////////////////////////////////////////////////////////////////////////
     // Branch Unit
     ///////////////////////////////////////////////////////////////////////////////////
     // FTQ query
-    assign ftq_query_addr_o = $clog2(FRONTEND_FTQ_SIZE)'(instr_info.ftq_id + 1);
+    assign ftq_query_addr_o = $clog2(FRONTEND_FTQ_SIZE)'(instr_info.ftq_id + 3'b1);
 
     // Any mispredict will trigger a redirection
     // Mispredict is defined as:
@@ -455,7 +540,7 @@ module ex
     always_comb begin
         ex_o.instr_info = instr_info;
         ex_o.instr_info.excp = excp;
-        ex_o.instr_info.excp_num = excp_num;
+        ex_o.instr_info.excp_num = {6'b0, excp_num};
 
         // If the branch taken, then this basic block should be ended
         if (branch_flag) begin

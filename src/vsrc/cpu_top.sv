@@ -194,11 +194,10 @@ module cpu_top
     logic [`RegBus] mem_cache_pc;
     logic [1:0] wb_dcache_flush;  // flush dcache if excp
     logic [1:0][`RegBus] wb_dcache_flush_pc;
-    logic dcache_ack, dcache_ready, mem_uncache_en;
+    logic dcache_ack, dcache_ready, mem_uncache_en, mem_dcache_excp;
 
     assign mem_cache_ce = mem_cache_signal[0].ce | mem_cache_signal[1].ce;
     assign mem_cache_we = mem_cache_signal[0].we | mem_cache_signal[1].we;
-    assign mem_uncache_en = mem_cache_signal[0].uncache | mem_cache_signal[0].uncache;
     assign mem_cache_sel =  mem_cache_signal[0].we ? mem_cache_signal[0].sel : mem_cache_signal[1].we ? mem_cache_signal[1].sel : 0;
     assign mem_cache_req_type = mem_cache_signal[0].ce ? mem_cache_signal[0].req_type : mem_cache_signal[1].ce ? mem_cache_signal[1].req_type : 0;
     assign mem_cache_addr = mem_cache_signal[0].addr | mem_cache_signal[1].addr;
@@ -258,8 +257,6 @@ module cpu_top
     logic [1:0] csr_datm;
     logic [1:0] csr_plv;
 
-
-
     logic [$clog2(TLB_NUM)-1:0] rand_index_diff;
 
     logic control_dcache_valid, control_dcache_ready;
@@ -276,58 +273,65 @@ module cpu_top
     assign pmu_data.bpu_conditional_branch = (backend_commit_meta.branch_type == BRANCH_TYPE_COND) & backend_commit_meta.is_branch;
     assign pmu_data.bpu_conditional_miss = (backend_commit_meta.branch_type == BRANCH_TYPE_COND) & (backend_commit_meta.is_taken ^ backend_commit_meta.predicted_taken) & backend_commit_meta.is_branch;
     assign pmu_data.bpu_ftb_dirty = ex_jump_target_mispredict[0];
-    assign pmu_data.dcache_req = u_LSU.state == u_LSU.IDLE & mem_cache_ce;
-    assign pmu_data.dcache_miss = u_LSU.state == u_LSU.IDLE & u_LSU.next_state == u_LSU.REFILL_WAIT;
+    assign pmu_data.dcache_req = u_dcache.state == u_dcache.IDLE & mem_cache_ce;
+    assign pmu_data.dcache_miss = u_dcache.state == u_dcache.IDLE & u_dcache.next_state == u_dcache.READ_REQ| u_dcache.next_state == u_dcache.WRITE_REQ;
     assign pmu_data.icache_req = (u_icache.rreq_1_i | u_icache.rreq_2_i) & u_icache.state == u_icache.IDLE;
     assign pmu_data.icache_miss = u_icache.miss_1_pulse | u_icache.miss_2_pulse;
 
-    LSU u_LSU (
-        .clk(clk),
-        .rst(rst),
+    // LSU u_LSU (
+    //     .clk(clk),
+    //     .rst(rst),
 
-        .cpu_valid(mem_cache_ce),
-        .cpu_uncached(mem_uncache_en),
-        // .cpu_uncached(1'b1),
-        .cpu_addr(mem_cache_addr),
-        .cpu_wdata(mem_cache_data),
-        .cpu_req_type(mem_cache_req_type),
-        .cpu_wstrb(mem_cache_sel),
-        .cpu_ready(dcache_ready),
+    //     .cpu_valid(mem_cache_ce),
+    //     .cpu_uncached(mem_uncache_en),
+    //     // .cpu_uncached(1'b1),
+    //     .cpu_addr(mem_cache_addr),
+    //     .cpu_wdata(mem_cache_data),
+    //     .cpu_req_type(mem_cache_req_type),
+    //     .cpu_wstrb(mem_cache_sel),
+    //     .cpu_ready(dcache_ready),
 
-        .cpu_rdata(cache_mem_data),
-        .cpu_data_valid(mem_data_ok),
-        .cpu_flush(wb_dcache_flush != 2'b0 | pipeline_flush[2]),
-        .cpu_store_commit(dcache_store_commit[0]),  // If excp occurs, flush DCache
-        .cpu_cacop(dcacop_op_en[0]),
-        .cpu_cacop_mode(dcacop_op_mode[0]),
-        .cpu_cacop_addr({tlb_data_result.tag, tlb_data_result.index, tlb_data_result.offset}),
+    //     .cpu_rdata(cache_mem_data),
+    //     .cpu_data_valid(mem_data_ok),
+    //     .cpu_flush(wb_dcache_flush != 2'b0 | pipeline_flush[2]),
+    //     .cpu_store_commit(dcache_store_commit[0]),  // If excp occurs, flush DCache
+    //     .cpu_cacop(dcacop_op_en[0]),
+    //     .cpu_cacop_mode(dcacop_op_mode[0]),
+    //     .cpu_cacop_addr({tlb_data_result.tag, tlb_data_result.index, tlb_data_result.offset}),
 
-        .dcache_valid(control_dcache_valid),
-        .dcache_addr (control_dcache_addr),
-        .dcache_wdata(control_dcache_wdata),
-        .dcache_wstrb(control_dcache_wstrb),
-        .dcache_rdata(control_dcache_rdata),
-        .dcache_ready(control_dcache_ready),
+    //     .dcache_valid(control_dcache_valid),
+    //     .dcache_addr (control_dcache_addr),
+    //     .dcache_wdata(control_dcache_wdata),
+    //     .dcache_wstrb(control_dcache_wstrb),
+    //     .dcache_rdata(control_dcache_rdata),
+    //     .dcache_ready(control_dcache_ready),
 
-        .dcache_cacop(control_dcache_cacop),
-        .dcache_cacop_mode(control_dcache_cacop_mode),
-        .dcache_cacop_addr(control_dcache_cacop_addr),
+    //     .dcache_cacop(control_dcache_cacop),
+    //     .dcache_cacop_mode(control_dcache_cacop_mode),
+    //     .dcache_cacop_addr(control_dcache_cacop_addr),
 
-        .uncache_axi(uncache_axi)
-    );
+    //     .uncache_axi(uncache_axi)
+    // );
 
     dcache u_dcache (
-        .clk         (clk),
-        .rst         (rst),
-        .valid       (control_dcache_valid),
-        .addr        (control_dcache_addr),
-        .wstrb       (control_dcache_wstrb),
-        .wdata       (control_dcache_wdata),
+        .clk (clk),
+        .rst (rst),
+        .excp(mem_dcache_excp),
+
+        .valid   (mem_cache_ce),
+        .vaddr   (mem_cache_addr),
+        .req_type(mem_cache_req_type),
+        .wstrb   (mem_cache_sel),
+        .wdata   (mem_cache_data),
+
+        .uncache_en(mem_uncache_en),
+        .paddr({tlb_data_result.tag, tlb_data_result.index, tlb_data_result.offset}),
+
         .cacop_i     (control_dcache_cacop),
         .cacop_mode_i(control_dcache_cacop_mode),
-        .cacop_addr_i(control_dcache_cacop_addr),
-        .data_ok     (control_dcache_ready),
-        .rdata       (control_dcache_rdata),
+
+        .data_ok(mem_data_ok),
+        .rdata  (cache_mem_data),
 
         .m_axi(dcache_axi)
     );
@@ -933,18 +937,7 @@ module cpu_top
                 // Next stage
                 .mem2_o_buffer(mem1_mem2_signal[i]),
 
-                // <-> DCache
-                .dcache_rreq_o (mem_cache_signal[i]),
-                .dcache_ready_i(dcache_ready),
-                .dcache_ack_i  (dcache_ack),
-
-                // -> ICache, ICACOP
-                .icacop_en_o  (icacop_op_en[i]),
-                .icacop_mode_o(icacop_op_mode[i]),
-                .icacop_ack_i (icacop_ack),
-
-                .dcacop_en_o  (dcacop_op_en[i]),
-                .dcacop_mode_o(dcacop_op_mode[i]),
+                .uncache_en(mem_uncache_en),
 
                 // <- TLB
                 .tlb_result_i(tlb_data_result),
@@ -985,6 +978,7 @@ module cpu_top
                 .data_forward_o(mem2_data_forward[i]),
 
                 // <- DCache
+                .excp_o(mem_dcache_excp),
                 .data_ok(mem_data_ok),
                 .cache_data_i(cache_mem_data)
             );
@@ -1105,8 +1099,6 @@ module cpu_top
         .excp_instr(excp_instr),
         .difftest_commit_o(difftest_commit_info)
     );
-
-
 
     cs_reg u_cs_reg (
         .clk(clk),

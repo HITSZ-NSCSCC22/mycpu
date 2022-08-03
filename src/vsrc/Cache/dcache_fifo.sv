@@ -99,7 +99,8 @@ module dcache_fifo
     assign read_hit_o = |read_hit;
     always_ff @(posedge clk) begin
         for (integer i = 0; i < DEPTH; i = i + 1) begin
-            read_hit[i] <= ((cpu_araddr == addr_queue[i]) && queue_valid[i]) ? 1'b1 : 1'b0;
+            if (cpu_rreq_i)
+                read_hit[i] <= ((cpu_araddr == addr_queue[i]) && queue_valid[i]) ? 1'b1 : 1'b0;
         end
     end
 
