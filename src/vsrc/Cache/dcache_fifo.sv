@@ -4,7 +4,7 @@
 module dcache_fifo
     import core_config::*;
 #(
-    parameter int unsigned DEPTH = 8,
+    parameter int unsigned DEPTH = 64,
     parameter int unsigned DCACHE_WIDTH = 128
 ) (
     input clk,
@@ -78,7 +78,7 @@ module dcache_fifo
         end  //if dcache sent a new data which don't hit 
              //put it at the tail of the queue
         if (cpu_wreq_i == `WriteEnable && write_hit_o == 1'b0) begin
-            if (tail == DEPTH[2:0] - 1) begin
+            if (tail == DEPTH[$clog2(DEPTH)-1:0] - 1) begin
                 tail <= 0;
             end else begin
                 tail <= tail + 1;
@@ -87,7 +87,7 @@ module dcache_fifo
         end  // if axi is free and there is not write collsion then sent the data
         if (axi_bvalid_i == 1'b1 && !sign_rewrite && !write_hit_head) begin
             queue_valid[head] <= 1'b0;
-            if (head == DEPTH[2:0] - 1) begin
+            if (head == DEPTH[$clog2(DEPTH)-1:0] - 1) begin
                 head <= 0;
             end else begin
                 head <= head + 1;

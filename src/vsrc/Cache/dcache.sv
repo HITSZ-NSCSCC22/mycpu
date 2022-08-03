@@ -200,7 +200,6 @@ module dcache
                     if (cpu_wreq) begin
                         // if hit the dirty cacheline but the fifo is full
                         // then wait until then fifo is not full
-                        if (hit & (tag_hit & dirty) != 2'b0 & fifo_state[1]) next_state = LOOK_UP;
                         if (miss) next_state = WRITE_REQ;
                         else next_state = IDLE;
                     end  // if hit,then back,if miss then wait for read
@@ -233,7 +232,7 @@ module dcache
             end
             CACOP_INVALID: begin
                 if (fifo_state[1]) next_state = CACOP_INVALID;
-                next_state = IDLE;
+                else next_state = IDLE;
             end
             default: begin
                 next_state = IDLE;
@@ -525,17 +524,19 @@ module dcache
                     // write the invalidate cacheline back to mem
                     // cacop mode == 1 always write back
                     // cacop mode == 2 write back when hit
-                    if (cacop_way == i[$clog2(
-                            NWAY
-                        )-1:0] && cacop_op_mode1 && tag_bram_rdata[i][20]) begin
-                        fifo_wreq  = 1;
-                        fifo_waddr = {tag_bram_rdata[i][19:0], cacop_addr_i[11:0]};
-                        fifo_wdata = data_bram_rdata[i];
-                    end
-                    if (cacop_op_mode2_hit[i]) begin
-                        fifo_wreq  = 1;
-                        fifo_waddr = {tag_bram_rdata[i][19:0], cacop_addr_i[11:0]};
-                        fifo_wdata = data_bram_rdata[i];
+                    if (!fifo_state[1]) begin
+                        if (cacop_way == i[$clog2(
+                                NWAY
+                            )-1:0] && cacop_op_mode1 && tag_bram_rdata[i][20]) begin
+                            fifo_wreq  = 1;
+                            fifo_waddr = {tag_bram_rdata[i][19:0], cacop_addr_i[11:0]};
+                            fifo_wdata = data_bram_rdata[i];
+                        end
+                        if (cacop_op_mode2_hit[i]) begin
+                            fifo_wreq  = 1;
+                            fifo_waddr = {tag_bram_rdata[i][19:0], cacop_addr_i[11:0]};
+                            fifo_wdata = data_bram_rdata[i];
+                        end
                     end
                 end
             end
@@ -673,8 +674,17 @@ module dcache
             READ_WAIT, WRITE_WAIT: begin
                 axi_addr_o = {tag_buffer, index_buffer, 4'b0};
             end
+            CACOP_INVALID: begin
+                if (axi_rdy_i & !fifo_state[0]) begin
+                    fifo_w_accept = 1;
+                    axi_req_o = 1;
+                    axi_we_o = fifo_axi_wr_req;
+                    axi_addr_o = fifo_axi_wr_addr;
+                    axi_wdata_o = fifo_axi_wr_data;
+                    axi_wstrb_o = 16'b1111_1111_1111_1111;
+                end
+            end
             default: begin
-                axi_req_o = 0;
                 fifo_w_accept = 0;
                 axi_req_o = 0;
                 axi_addr_o = 0;
