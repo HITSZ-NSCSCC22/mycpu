@@ -1390,10 +1390,7 @@ module cpu_top
 
 
         .probe0({
-            u_dcache.tag_bram_en[0],
-            u_dcache.tag_bram_en[1],
-            u_dcache.data_bram_en[0],
-            u_dcache.data_bram_en[1]
+            u_dcache.data_bram_en[0], u_dcache.data_bram_en[1]
         }),  // input wire [3:0]  probe0  
         .probe1(u_dcache.cacop_mode_i),  // input wire [3:0]  probe1 
         .probe2(u_dcache.req_type_buffer),  // input wire [3:0]  probe2 

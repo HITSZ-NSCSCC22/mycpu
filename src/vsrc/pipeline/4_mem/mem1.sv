@@ -70,8 +70,6 @@ module mem1
     logic [`RegBus] reg2_i;
     logic [ADDR_WIDTH-1:0] mem_vaddr, mem_paddr;
 
-    // DCache ACK
-    logic dcache_ack_r;
 
     // Exception handling
     logic excp, excp_adem, excp_tlbr, excp_pil, excp_pis, excp_ppi, excp_pme;
@@ -93,7 +91,7 @@ module mem1
     always_comb begin
         dcacop_en_o   = 0;
         dcacop_mode_o = 0;
-        if (advance & ~excp & dcache_ready_i & ~dcache_ack_r) begin
+        if (advance & ~excp & dcache_ready_i) begin
             dcacop_en_o   = dcache_op_en;
             dcacop_mode_o = cacop_op[4:3];
         end
@@ -105,11 +103,6 @@ module mem1
     assign mem_vaddr = ex_i.mem_addr;
     assign reg2_i = ex_i.reg2;
 
-    always_ff @(posedge clk) begin
-        if (rst) dcache_ack_r <= 0;
-        else if (advance | flush) dcache_ack_r <= 0;
-        else if (dcache_ack_i) dcache_ack_r <= 1;
-    end
 
     assign uncache_en = ex_i.data_uncache_en || (ex_i.data_addr_trans_en && (tlb_result_i.tlb_mat == 2'b0));
 
@@ -172,7 +165,7 @@ module mem1
     // DCache memory access request
     always_comb begin
         dcache_rreq_o = 0;
-        if (advance & access_mem & mem_access_valid & dcache_ready_i & ~dcache_ack_r) begin
+        if (advance & access_mem & mem_access_valid & dcache_ready_i) begin
             dcache_rreq_o.ce = 1;
             dcache_rreq_o.uncache = uncache_en;
             dcache_rreq_o.pc = ex_i.instr_info.pc;

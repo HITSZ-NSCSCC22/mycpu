@@ -391,11 +391,6 @@ module ex
             case (aluop_i)
                 `EXE_ADD_OP: arithout = oprand1 + oprand2;
                 `EXE_SUB_OP: arithout = oprand1 - oprand2;
-                // `EXE_DIV_OP, `EXE_DIVU_OP, `EXE_MODU_OP, `EXE_MOD_OP: begin
-                //     // Select result from multi-cycle divider
-                //     arithout = muldiv_result;
-                // end
-
                 `EXE_MUL_OP, `EXE_MULH_OP, `EXE_MULHU_OP: arithout = mul_result;
                 `EXE_DIV_OP, `EXE_DIVU_OP: begin
                     arithout = muldiv_finish ? quotient : div_result;
