@@ -189,11 +189,12 @@ module cpu_top
     logic mem_cache_we, mem_cache_ce;
     logic [2:0] mem_cache_req_type;
     logic [3:0] mem_cache_sel;
+    logic [2:0] mem_uncache_en;
     logic [31:0] mem_cache_addr, mem_cache_data;
     logic [`RegBus] mem_cache_pc;
     logic [1:0] wb_dcache_flush;  // flush dcache if excp
     logic [1:0][`RegBus] wb_dcache_flush_pc;
-    logic dcache_ack, dcache_ready, mem_uncache_en, mem_dcache_excp;
+    logic dcache_ack, dcache_ready, mem_dcache_excp;
 
     assign mem_cache_ce = mem_cache_signal[0].ce | mem_cache_signal[1].ce;
     assign mem_cache_we = mem_cache_signal[0].we | mem_cache_signal[1].we;
@@ -288,7 +289,7 @@ module cpu_top
         .wstrb   (mem_cache_sel),
         .wdata   (mem_cache_data),
 
-        .uncache_en(mem_uncache_en),
+        .uncache_en(mem_uncache_en[0]),
         .paddr({tlb_data_result.tag, tlb_data_result.index, tlb_data_result.offset}),
 
         .cacop_i     (dcacop_op_en[0]),
@@ -915,7 +916,7 @@ module cpu_top
                 // Next stage
                 .mem2_o_buffer(mem1_mem2_signal[i]),
 
-                .uncache_en(mem_uncache_en),
+                .uncache_en(mem_uncache_en[i]),
 
                 // <- TLB
                 .tlb_result_i(tlb_data_result),

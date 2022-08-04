@@ -73,6 +73,7 @@ module tage_predictor
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_taken;
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_hit;
     logic query_is_useful;  // Indicates whether the pred component is useful
+    logic query_new_entry_flag;  // Indicates the provider is new
 
     // Meta
     logic [TAG_COMPONENT_AMOUNT-1:0][2:0] tag_ctr;
@@ -88,13 +89,14 @@ module tage_predictor
     logic update_predict_correct;
     logic update_branch_taken;
     logic update_is_conditional;
+    logic update_new_entry_flag;  // Indicates the provider is new
     logic [$clog2(TAG_COMPONENT_AMOUNT+1)-1:0] update_provider_id;
     logic [TAG_COMPONENT_AMOUNT:0] update_ctr;  // Whether a component should updated its ctr
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_ctr;
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_useful;
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_inc_useful;
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_realloc_entry;
-    logic [TAG_COMPONENT_AMOUNT-1:0][BPU_COMPONENT_USEFUL_WIDTH[1]-1:0] tag_update_query_useful;
+    logic [TAG_COMPONENT_AMOUNT-1:0][2:0] tag_update_query_useful;
     logic [TAG_COMPONENT_AMOUNT-1:0][10:0] tag_update_new_tag;
     // Indicates the longest history component which useful is 0
     logic [$clog2(TAG_COMPONENT_AMOUNT+1)-1:0] tag_update_useful_zero_id;
@@ -103,6 +105,11 @@ module tage_predictor
     // is a random number array
     logic [15:0] random_r;
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_useful_pingpong_counter;
+
+    // USE_ALT_ON_NA counter
+    logic [3:0] use_alt_on_na_counter;
+    logic use_alt;
+    integer use_alt_cnt;
 
     ////////////////////////////////////////////////////////////////////////////////////////////
     // END of Defines
@@ -211,7 +218,12 @@ module tage_predictor
     // Output logic
     assign predict_valid_o = 1;
     assign taken = {tag_taken, base_taken};
-    assign predict_branch_taken_o = taken[pred_prediction_id];
+    assign query_new_entry_flag = tag_useful[pred_prediction_id-1][2] == 0 && 
+                                    (tag_ctr[pred_prediction_id-1] == 3'b010 || tag_ctr[pred_prediction_id-1] == 3'b001) && 
+                                    pred_prediction_id != 0;
+    // assign use_alt = (use_alt_on_na_counter[3] == 1) && query_new_entry_flag;
+    assign use_alt = 0;
+    assign predict_branch_taken_o = use_alt ? taken[altpred_prediction_id] : taken[pred_prediction_id];
     // Meta
     tage_meta_t query_meta;
     assign query_meta.tag_predictor_useful_bits = tag_useful;
@@ -238,6 +250,19 @@ module tage_predictor
     ////////////////////////////////////////////////////////////////////////////////////////////
     // Update policy
     ////////////////////////////////////////////////////////////////////////////////////////////
+
+    // USE_ALT_ON_NA
+    assign update_new_entry_flag = update_meta.tag_predictor_useful_bits[update_provider_id-1] == 0 && (update_meta.provider_ctr_bits[update_provider_id-1] == 3'b010 || update_meta.provider_ctr_bits[update_provider_id-1] == 3'b001) && update_provider_id != 0;
+    always_ff @(posedge clk) begin
+        if (rst) use_alt_on_na_counter <= 0;
+        else if (update_valid & update_new_entry_flag & update_meta.useful & ~update_info_i.predict_correct)
+            use_alt_on_na_counter <= use_alt_on_na_counter == 4'b1111 ? 4'b1111 : use_alt_on_na_counter +1;
+        else if (update_valid & update_new_entry_flag & update_meta.useful & update_info_i.predict_correct)
+            use_alt_on_na_counter <= use_alt_on_na_counter == 0 ? 0 : use_alt_on_na_counter - 1;
+    end
+    always_ff @(posedge clk) begin
+        if (use_alt) use_alt_cnt <= use_alt_cnt + 1;
+    end
 
     // CTR policy
     // Update on a correct prediction: update the ctr bits of the provider
@@ -276,7 +301,7 @@ module tage_predictor
         tag_update_useful_zero_id = 0;  // default 0
         for (integer i = TAG_COMPONENT_AMOUNT - 1; i >= 0; i--) begin
             if (tag_update_query_useful_match[i] && i + 1 > update_provider_id) begin
-                // 1/3 probability when longer history tag want to be selected
+                // 1/2 probability when longer history tag want to be selected
                 if (tag_update_useful_pingpong_counter[i]) begin
                     tag_update_useful_zero_id = i + 1;
                 end
