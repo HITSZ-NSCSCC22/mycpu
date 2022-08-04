@@ -12,7 +12,7 @@ module dcache
 (
     input logic clk,
     input logic rst,
-    input logic excp,
+    input logic mem_valid,
 
     // mem req,come from ex
     input logic valid,
@@ -156,10 +156,10 @@ module dcache
             IDLE: begin
                 if (cacop_i) next_state = CACOP_INVALID;
                 // if the dcache is idle,then accept the new request
-                else if (p3_valid & p3_uncache_en & !cpu_flush & !excp) begin
+                else if (p3_valid & p3_uncache_en & !cpu_flush & mem_valid) begin
                     if (cpu_wreq) next_state = UNCACHE_WRITE_REQ;
                     else next_state = UNCACHE_READ_REQ;
-                end else if (p3_valid & !p3_hit & !cpu_flush & !excp) begin
+                end else if (p3_valid & !p3_hit & !cpu_flush & mem_valid) begin
                     if (cpu_wreq) next_state = WRITE_REQ;
                     else next_state = READ_REQ;
                 end else next_state = IDLE;
