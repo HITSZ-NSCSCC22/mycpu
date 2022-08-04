@@ -277,41 +277,6 @@ module cpu_top
     assign pmu_data.icache_req = (u_icache.rreq_1_i | u_icache.rreq_2_i) & u_icache.state == u_icache.IDLE;
     assign pmu_data.icache_miss = u_icache.miss_1_pulse | u_icache.miss_2_pulse;
 
-    // LSU u_LSU (
-    //     .clk(clk),
-    //     .rst(rst),
-
-    //     .cpu_valid(mem_cache_ce),
-    //     .cpu_uncached(mem_uncache_en),
-    //     // .cpu_uncached(1'b1),
-    //     .cpu_addr(mem_cache_addr),
-    //     .cpu_wdata(mem_cache_data),
-    //     .cpu_req_type(mem_cache_req_type),
-    //     .cpu_wstrb(mem_cache_sel),
-    //     .cpu_ready(dcache_ready),
-
-    //     .cpu_rdata(cache_mem_data),
-    //     .cpu_data_valid(mem_data_ok),
-    //     .cpu_flush(wb_dcache_flush != 2'b0 | pipeline_flush[2]),
-    //     .cpu_store_commit(dcache_store_commit[0]),  // If excp occurs, flush DCache
-    //     .cpu_cacop(dcacop_op_en[0]),
-    //     .cpu_cacop_mode(dcacop_op_mode[0]),
-    //     .cpu_cacop_addr({tlb_data_result.tag, tlb_data_result.index, tlb_data_result.offset}),
-
-    //     .dcache_valid(control_dcache_valid),
-    //     .dcache_addr (control_dcache_addr),
-    //     .dcache_wdata(control_dcache_wdata),
-    //     .dcache_wstrb(control_dcache_wstrb),
-    //     .dcache_rdata(control_dcache_rdata),
-    //     .dcache_ready(control_dcache_ready),
-
-    //     .dcache_cacop(control_dcache_cacop),
-    //     .dcache_cacop_mode(control_dcache_cacop_mode),
-    //     .dcache_cacop_addr(control_dcache_cacop_addr),
-
-    //     .uncache_axi(uncache_axi)
-    // );
-
     dcache u_dcache (
         .clk (clk),
         .rst (rst),
@@ -329,8 +294,11 @@ module cpu_top
         .cacop_i     (dcacop_op_en[0]),
         .cacop_mode_i(dcacop_op_mode[0]),
 
+        .cpu_flush(wb_dcache_flush[0]),
+
+        .dcache_ready(dcache_ready),
         .data_ok(mem_data_ok),
-        .rdata  (cache_mem_data),
+        .rdata(cache_mem_data),
 
         .m_axi(dcache_axi)
     );
@@ -872,6 +840,7 @@ module cpu_top
                 .ex_o_buffer(ex_mem_signal[i]),
 
                 // <-> CSR
+                .LLbit_i(LLbit_o),
                 .timer_64(csr_timer_64),
                 .tid(csr_tid),
                 .csr_ex_signal(csr_mem_signal),
@@ -881,7 +850,7 @@ module cpu_top
                 .ftq_query_pc_i  (ex_ftq_query_pc[i]),
 
                 .dcache_rreq_o (mem_cache_signal[i]),
-                .dcache_ready_i(),
+                .dcache_ready_i(dcache_ready),
 
                 .icacop_en_o  (icacop_op_en[i]),
                 .icacop_mode_o(icacop_op_mode[i]),

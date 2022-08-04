@@ -29,7 +29,9 @@ module dcache
     input logic cacop_i,
     input logic [1:0] cacop_mode_i,
 
-    output logic fifo_full,
+    input logic cpu_flush,
+
+    output logic dcache_ready,
     output logic data_ok,
     output logic [31:0] rdata,
 
@@ -111,22 +113,18 @@ module dcache
     logic [`RegBus] fifo_wreq_sel_data;
 
     logic [DCACHELINE_WIDTH-1:0] hit_data;
-    logic refill_stall;
+    logic fifo_full, dcache_stall;
 
     // reg for p2 and p3 state
-    logic p2_valid, p3_valid, p3_fifo_hit, p3_uncache_en;
+    logic p2_valid, p3_valid, p3_fifo_hit, p3_uncache_en, p2_cacop, p3_cacop;
     logic [1:0] p3_tag_hit;
     logic [2:0] p2_req_type, p3_req_type;
     logic [3:0] p2_wstrb, p3_wstrb;
     logic [`RegBus] p2_wdata, p3_wdata, p3_paddr;
 
-    assign refill_stall = state != IDLE;
+    assign dcache_ready = ~dcache_stall;
+    assign dcache_stall = next_state != IDLE | fifo_full;
     assign fifo_full = fifo_state[1];
-
-    assign cacop_op_mode0 = cacop_i && cacop_mode_i == 2'b00;
-    assign cacop_op_mode1 = cacop_i && (cacop_mode_i == 2'b01 || cacop_mode_i == 2'b11);
-    assign cacop_op_mode2 = cacop_i && cacop_mode_i == 2'b10;
-    assign cacop_way = paddr[$clog2(NWAY)-1:0];
 
     //judge if the cacop mode2 hit
     always_comb begin
@@ -142,16 +140,21 @@ module dcache
     //  the wstrb is not 0 means it is a write request;
     assign cpu_wreq = p3_wstrb != 4'b0;
 
+    always_ff @(posedge clk) begin
+        if (rst) state <= IDLE;
+        else state <= next_state;
+    end
+
     always_comb begin : transition_comb
         next_state = IDLE;
         case (state)
             IDLE: begin
                 if (cacop_i) next_state = CACOP_INVALID;
                 // if the dcache is idle,then accept the new request
-                else if (p3_valid & p3_uncache_en) begin
+                else if (p3_valid & p3_uncache_en & !cpu_flush) begin
                     if (cpu_wreq) next_state = UNCACHE_WRITE_REQ;
                     else next_state = UNCACHE_READ_REQ;
-                end else if (p3_valid & !hit) begin
+                end else if (p3_valid & !hit & !cpu_flush) begin
                     if (cpu_wreq) next_state = WRITE_REQ;
                     else next_state = READ_REQ;
                 end else next_state = IDLE;
@@ -228,7 +231,7 @@ module dcache
     // Stage 2
     //   - Use the tag rdata and paddr get tag hit
     //   - Use the paddr search the fifo and get fifo hit
-    //   - Dual with the read after write
+    //   - Check the cacop mode and if mode2 hit
 
 
     // Hit signal
@@ -251,6 +254,19 @@ module dcache
         end
     end
 
+    always_comb begin
+        cacop_op_mode0 = 0;
+        cacop_op_mode1 = 0;
+        cacop_op_mode2 = 0;
+        cacop_way = 0;
+        if (p2_cacop) begin
+            cacop_op_mode0 = cacop_mode_i == 2'b00;
+            cacop_op_mode1 = cacop_mode_i == 2'b01 || cacop_mode_i == 2'b11;
+            cacop_op_mode2 = cacop_mode_i == 2'b10;
+            cacop_way = paddr[$clog2(NWAY)-1:0];
+        end
+    end
+
     // Stage 3
     //   - If requset hit ,we prepare the read/write data
     //   - If not ,turn to the refill state and stall the
@@ -270,7 +286,7 @@ module dcache
                 // if write hit,then replace the cacheline
                 for (integer i = 0; i < NWAY; i++) begin
                     // if write hit ,then write the hit line, if miss then don't write
-                    if (p3_tag_hit[i] && cpu_wreq) begin
+                    if (p3_tag_hit[i] && cpu_wreq && !cpu_flush) begin
                         tag_bram_we[i] = 1;
                         // make the dirty bit 1'b1
                         tag_bram_waddr[i] = paddr[11:4];
@@ -378,22 +394,25 @@ module dcache
 
     // keep the data from last state
     always_ff @(posedge clk) begin : p2_reg
-        if (rst) begin
+        if (rst | cpu_flush) begin
             p2_valid <= 0;
             p2_req_type <= 0;
             p2_wstrb <= 0;
             p2_wdata <= 0;
+            p2_cacop <= 0;
             p3_valid <= 0;
             p3_paddr <= 0;
             p3_req_type <= 0;
             p3_wstrb <= 0;
             p3_wdata <= 0;
+            p3_cacop <= 0;
             p3_tag_hit <= 0;
             p3_fifo_hit <= 0;
             p3_uncache_en <= 0;
-        end else if (refill_stall) begin
+        end else if (dcache_stall) begin  // if the dcache is stall,keep the pipeline data
             p2_valid <= p2_valid;
             p2_req_type <= p2_req_type;
+            p2_cacop <= p2_cacop;
             p2_wstrb <= p2_wstrb;
             p2_wdata <= p2_wdata;
             p3_valid <= p3_valid;
@@ -401,19 +420,24 @@ module dcache
             p3_paddr <= p3_paddr;
             p3_wstrb <= p3_wstrb;
             p3_wdata <= p3_wdata;
+            p3_cacop <= p3_cacop;
             p3_tag_hit <= p3_tag_hit;
             p3_fifo_hit <= p3_fifo_hit;
             p3_uncache_en <= p3_uncache_en;
         end else begin
+            // p1 -> p2
             p2_valid <= valid;
             p2_req_type <= req_type;
             p2_wstrb <= wstrb;
             p2_wdata <= wdata;
+            p2_cacop <= cacop_i;
+            // p2 -> p3
             p3_valid <= p2_valid;
             p3_req_type <= p2_req_type;
             p3_paddr <= paddr;
             p3_wstrb <= p2_wstrb;
-            p3_wdata <= p3_wdata;
+            p3_wdata <= p2_wdata;
+            p3_cacop <= p2_cacop;
             p3_tag_hit <= tag_hit;
             p3_fifo_hit <= fifo_r_hit;
             p3_uncache_en <= uncache_en;
@@ -430,7 +454,7 @@ module dcache
             IDLE: begin
                 // if write hit the cacheline in the fifo 
                 // then rewrite the cacheline in the fifo 
-                if (p3_fifo_hit & cpu_wreq) begin
+                if (p3_fifo_hit & cpu_wreq & !cpu_flush) begin
                     fifo_wreq = 1;
                     fifo_waddr = fifo_raddr;
                     fifo_wdata = fifo_rdata;
@@ -670,7 +694,7 @@ module dcache
 
 
     axi_dcache_master #(
-        .ID(2)
+        .ID(0)
     ) u_axi_master (
         .clk        (clk),
         .rst        (rst),

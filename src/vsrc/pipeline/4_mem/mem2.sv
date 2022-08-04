@@ -34,7 +34,7 @@ module mem2
     special_info_t special_info;
 
     logic [`AluOpBus] aluop_i;
-    logic mem_load_op;
+    logic mem_store_op, mem_load_op;
     logic [ADDR_WIDTH-1:0] mem_addr;
 
     logic data_already_ok;
@@ -46,6 +46,7 @@ module mem2
 
 
     assign aluop_i = mem1_i.aluop;
+    assign mem_store_op = special_info.mem_store;
     assign mem_load_op = special_info.mem_load;
     assign mem_addr = mem1_i.mem_addr;
 
@@ -65,7 +66,7 @@ module mem2
         else if (data_ok) cache_data_delay <= cache_data_i;
     end
 
-    assign advance_ready = (mem_load_op & mem1_i.mem_access_valid & (data_ok | data_already_ok)) | ~(mem_load_op  & mem1_i.mem_access_valid);
+    assign advance_ready = ((mem_load_op | mem_store_op) & mem1_i.mem_access_valid & (data_ok | data_already_ok)) | ~(mem_load_op  & mem1_i.mem_access_valid);
 
     assign excp_o = !mem1_i.mem_access_valid;
 
