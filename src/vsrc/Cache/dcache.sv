@@ -79,13 +79,13 @@ module dcache
     logic [(AXI_DATA_WIDTH/8)-1:0] axi_wstrb_o;
 
     // BRAM signals
-    logic [NWAY-1:0][DCACHELINE_WIDTH-1:0] data_bram_rdata, data_bram_wdata;
+    logic [NWAY-1:0][DCACHELINE_WIDTH-1:0] data_bram_rdata, data_bram_wdata, p3_data_bram_rdata;
     logic [NWAY-1:0][$clog2(NSET)-1:0] data_bram_raddr, data_bram_waddr;
     logic [NWAY-1:0][(DCACHELINE_WIDTH/8)-1:0] data_bram_we;
 
     // Tag bram 
     // {1bit dirty,1bit valid, 20bits tag}
-    logic [NWAY-1:0][TAG_BRAM_WIDTH-1:0] tag_bram_rdata;
+    logic [NWAY-1:0][TAG_BRAM_WIDTH-1:0] tag_bram_rdata, p3_tag_bram_rdata;
     logic [NWAY-1:0][TAG_BRAM_WIDTH-1:0] tag_bram_wdata;
     logic [NWAY-1:0][$clog2(NSET)-1:0] tag_bram_raddr, tag_bram_waddr;
     logic [NWAY-1:0] tag_bram_we;
@@ -105,8 +105,9 @@ module dcache
 
     // CACOP
     logic cacop_op_mode0, cacop_op_mode1, cacop_op_mode2;
-    logic [1:0] cacop_op_mode2_hit;
-    logic [$clog2(NWAY)-1:0] cacop_way;
+    logic p3_cacop_op_mode0, p3_cacop_op_mode1, p3_cacop_op_mode2;
+    logic [1:0] cacop_op_mode2_hit, p3_cacop_op_mode2_hit;
+    logic [$clog2(NWAY)-1:0] cacop_way, p3_cacop_way;
 
     logic [1:0] dirty;
 
@@ -151,10 +152,10 @@ module dcache
             IDLE: begin
                 if (cacop_i) next_state = CACOP_INVALID;
                 // if the dcache is idle,then accept the new request
-                else if (p2_valid & p2_uncache_en & !cpu_flush) begin
+                else if (p3_valid & p3_uncache_en & !cpu_flush & !excp) begin
                     if (cpu_wreq) next_state = UNCACHE_WRITE_REQ;
                     else next_state = UNCACHE_READ_REQ;
-                end else if (p2_valid & !hit & !cpu_flush) begin
+                end else if (p3_valid & !p3_hit & !cpu_flush & !excp) begin
                     if (cpu_wreq) next_state = WRITE_REQ;
                     else next_state = READ_REQ;
                 end else next_state = IDLE;
@@ -255,20 +256,6 @@ module dcache
         end
     end
 
-    always_comb begin
-        hit = 0;
-        hit_data = 0;
-        for (integer i = 0; i < NWAY; i++) begin
-            if (p3_tag_hit[i]) begin
-                hit = 1;
-                hit_data = data_bram_rdata[i];
-            end
-        end
-        if (p3_fifo_hit) begin
-            hit = 1;
-            hit_data = fifo_rdata;
-        end
-    end
 
     always_comb begin
         cacop_op_mode0 = 0;
@@ -287,6 +274,21 @@ module dcache
     //   - If requset hit ,we prepare the read/write data
     //   - If not ,turn to the refill state and stall the
     //   dcache pipeline until the refill finish
+
+    always_comb begin
+        hit = 0;
+        hit_data = 0;
+        for (integer i = 0; i < NWAY; i++) begin
+            if (p3_tag_hit[i]) begin
+                hit = 1;
+                hit_data = data_bram_rdata[i];
+            end
+        end
+        if (p3_fifo_hit) begin
+            hit = 1;
+            hit_data = fifo_rdata;
+        end
+    end
 
     always_comb begin : bram_data_gen
         for (integer i = 0; i < NWAY; i++) begin
@@ -523,8 +525,8 @@ module dcache
                     if (axi_rvalid_i) begin
                         if (i[0] == random_r[0] & tag_bram_rdata[i][21] == 1'b1 & !fifo_state[1]) begin
                             fifo_wreq  = 1;
-                            fifo_waddr = {tag_bram_rdata[i][19:0], p3_paddr[11:4], 4'b0};
-                            fifo_wdata = data_bram_rdata[i];
+                            fifo_waddr = {p3_tag_bram_rdata[i][19:0], p3_paddr[11:4], 4'b0};
+                            fifo_wdata = p3_data_bram_rdata[i];
                         end
                     end
                 end
@@ -537,15 +539,15 @@ module dcache
                     if (!fifo_state[1]) begin
                         if (cacop_way == i[$clog2(
                                 NWAY
-                            )-1:0] && cacop_op_mode1 && tag_bram_rdata[i][20]) begin
+                            )-1:0] && cacop_op_mode1 && p3_tag_bram_rdata[i][20]) begin
                             fifo_wreq  = 1;
-                            fifo_waddr = {tag_bram_rdata[i][19:0], paddr[11:0]};
-                            fifo_wdata = data_bram_rdata[i];
+                            fifo_waddr = {p3_tag_bram_rdata[i][19:0], paddr[11:0]};
+                            fifo_wdata = p3_data_bram_rdata[i];
                         end
                         if (cacop_op_mode2_hit[i]) begin
                             fifo_wreq  = 1;
-                            fifo_waddr = {tag_bram_rdata[i][19:0], paddr[11:0]};
-                            fifo_wdata = data_bram_rdata[i];
+                            fifo_waddr = {p3_tag_bram_rdata[i][19:0], paddr[11:0]};
+                            fifo_wdata = p3_data_bram_rdata[i];
                         end
                     end
                 end
