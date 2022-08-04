@@ -91,7 +91,6 @@ module dcache
     logic [NWAY-1:0] tag_bram_we;
 
     logic hit;
-    logic miss;
     logic [NWAY-1:0] tag_hit;
 
     logic [`RegBus] wreq_sel_data;
@@ -113,6 +112,8 @@ module dcache
 
     logic [`RegBus] fifo_wreq_sel_data;
 
+    logic miss_pulse, miss_r, miss;
+
     logic [DCACHELINE_WIDTH-1:0] hit_data;
     logic fifo_full, dcache_stall;
 
@@ -125,7 +126,7 @@ module dcache
 
     // P3
     logic p3_valid, p3_fifo_hit, p3_uncache_en, p2_cacop, p3_cacop, p3_hit;
-    logic [`RegBus] p3_wdata, p2_vaddr, p3_paddr, p3_hit_data;
+    logic [`RegBus] p3_wdata, p2_vaddr, p3_paddr;
 
     assign dcache_ready = ~dcache_stall;
     assign dcache_stall = (state != IDLE) || (next_state != IDLE) || fifo_full;
@@ -156,10 +157,10 @@ module dcache
             IDLE: begin
                 if (cacop_i) next_state = CACOP_INVALID;
                 // if the dcache is idle,then accept the new request
-                else if (p3_valid & p3_uncache_en & !cpu_flush & mem_valid) begin
+                else if (p3_valid & p3_uncache_en & !cpu_flush & mem_valid & miss) begin
                     if (cpu_wreq) next_state = UNCACHE_WRITE_REQ;
                     else next_state = UNCACHE_READ_REQ;
-                end else if (p3_valid & !p3_hit & !cpu_flush & mem_valid) begin
+                end else if (p3_valid & miss & !cpu_flush & mem_valid) begin
                     if (cpu_wreq) next_state = WRITE_REQ;
                     else next_state = READ_REQ;
                 end else next_state = IDLE;
@@ -285,12 +286,29 @@ module dcache
         for (integer i = 0; i < NWAY; i++) begin
             if (p3_tag_hit[i]) begin
                 hit = 1;
-                hit_data = data_bram_rdata[i];
+                hit_data = p3_data_bram_rdata[i];
             end
         end
         if (p3_fifo_hit) begin
             hit = 1;
-            hit_data = fifo_rdata;
+            hit_data = p3_fifo_rdata;
+        end
+    end
+
+    assign miss_pulse = p3_valid & !hit & state == IDLE;
+    assign miss = miss_pulse | miss_r;
+    always_ff @(posedge clk) begin
+        if (rst) miss_r <= 0;
+        else begin
+            case (state)
+                IDLE: miss_r <= miss_pulse;
+                READ_WAIT, WRITE_WAIT, UNCACHE_READ_WAIT, UNCACHE_WRITE_WAIT: begin
+                    if (axi_rvalid_i | axi_bvalid_i) miss_r <= 0;
+                end
+                default: begin
+
+                end
+            endcase
         end
     end
 
@@ -311,9 +329,9 @@ module dcache
                     if (p3_tag_hit[i] && cpu_wreq && !cpu_flush) begin
                         tag_bram_we[i] = 1;
                         // make the dirty bit 1'b1
-                        tag_bram_waddr[i] = paddr[11:4];
-                        tag_bram_wdata[i] = {1'b1, 1'b1, paddr[31:12]};
-                        data_bram_waddr[i] = paddr[11:4];
+                        tag_bram_waddr[i] = p3_paddr[11:4];
+                        tag_bram_wdata[i] = {1'b1, 1'b1, p3_paddr[31:12]};
+                        data_bram_waddr[i] = p3_paddr[11:4];
                         //select the write bit
                         case (p3_wstrb)
                             //st.b 
@@ -348,11 +366,11 @@ module dcache
                     if (i[0] == random_r[0]) begin
                         if (axi_rvalid_i) begin
                             tag_bram_we[i] = 1;
-                            tag_bram_waddr[i] = paddr[11:4];
+                            tag_bram_waddr[i] = p3_paddr[11:4];
                             //make the dirty bit 1'b1
-                            tag_bram_wdata[i] = {1'b1, 1'b1, paddr[31:12]};
+                            tag_bram_wdata[i] = {1'b1, 1'b1, p3_paddr[31:12]};
                             data_bram_we[i] = 16'b1111_1111_1111_1111;
-                            data_bram_waddr[i] = paddr[11:4];
+                            data_bram_waddr[i] = p3_paddr[11:4];
                             data_bram_wdata[i] = bram_write_data;
                         end
                     end
@@ -363,13 +381,13 @@ module dcache
                     if ((cacop_way == i[$clog2(NWAY)-1:0])) begin
                         if (cacop_op_mode0 | cacop_op_mode1) begin
                             tag_bram_we[i] = 1;
-                            tag_bram_waddr[i] = paddr[11:4];
+                            tag_bram_waddr[i] = p3_paddr[11:4];
                             tag_bram_wdata[i] = 0;
                         end
                     end
                     if (cacop_op_mode2_hit[i]) begin
                         tag_bram_we[i] = 1;
-                        tag_bram_waddr[i] = paddr[11:4];
+                        tag_bram_waddr[i] = p3_paddr[11:4];
                         tag_bram_wdata[i] = 0;
                     end
                 end
@@ -382,7 +400,7 @@ module dcache
     always_comb begin
         wreq_sel_data   = 0;
         bram_write_data = 0;
-        case (paddr[3:2])
+        case (p3_paddr[3:2])
             2'b00: wreq_sel_data = axi_data_i[31:0];
             2'b01: wreq_sel_data = axi_data_i[63:32];
             2'b10: wreq_sel_data = axi_data_i[95:64];
@@ -404,7 +422,7 @@ module dcache
             default: begin
             end
         endcase
-        case (paddr[3:2])
+        case (p3_paddr[3:2])
             2'b00: bram_write_data = {axi_data_i[127:32], wreq_sel_data};
             2'b01: bram_write_data = {axi_data_i[127:64], wreq_sel_data, axi_data_i[31:0]};
             2'b10: bram_write_data = {axi_data_i[127:96], wreq_sel_data, axi_data_i[63:0]};
@@ -423,8 +441,6 @@ module dcache
             p2_wdata <= 0;
             p2_cacop <= 0;
             p2_vaddr <= 0;
-            p3_hit <= 0;
-            p3_hit_data <= 0;
             p3_valid <= 0;
             p3_paddr <= 0;
             p3_req_type <= 0;
@@ -435,6 +451,8 @@ module dcache
             p3_fifo_hit <= 0;
             p3_fifo_rdata <= 0;
             p3_uncache_en <= 0;
+            p3_tag_bram_rdata <= 0;
+            p3_data_bram_rdata <= 0;
         end else if (dcache_stall) begin  // if the dcache is stall,keep the pipeline data
             p2_valid <= p2_valid;
             p2_req_type <= p2_req_type;
@@ -442,8 +460,6 @@ module dcache
             p2_wstrb <= p2_wstrb;
             p2_wdata <= p2_wdata;
             p2_vaddr <= p2_vaddr;
-            p3_hit <= p3_hit;
-            p3_hit_data <= p3_hit_data;
             p3_valid <= p3_valid;
             p3_req_type <= p3_req_type;
             p3_paddr <= p3_paddr;
@@ -454,6 +470,8 @@ module dcache
             p3_fifo_hit <= p3_fifo_hit;
             p3_fifo_rdata <= p3_fifo_rdata;
             p3_uncache_en <= p3_uncache_en;
+            p3_tag_bram_rdata <= p3_tag_bram_rdata;
+            p3_data_bram_rdata <= p3_data_bram_rdata;
         end else begin
             // p1 -> p2
             p2_valid <= valid;
@@ -463,8 +481,6 @@ module dcache
             p2_cacop <= cacop_i;
             p2_vaddr <= vaddr;
             // p2 -> p3
-            p3_hit <= hit;
-            p3_hit_data <= hit_data;
             p3_valid <= p2_valid;
             p3_req_type <= p2_req_type;
             p3_paddr <= paddr;
@@ -475,6 +491,8 @@ module dcache
             p3_fifo_hit <= fifo_r_hit;
             p3_fifo_rdata <= fifo_rdata;
             p3_uncache_en <= uncache_en;
+            p3_tag_bram_rdata <= tag_bram_rdata;
+            p3_data_bram_rdata <= data_bram_rdata;
         end
     end
 
@@ -527,7 +545,7 @@ module dcache
                 for (integer i = 0; i < NWAY; i++) begin
                     // select a line to write back 
                     if (axi_rvalid_i) begin
-                        if (i[0] == random_r[0] & tag_bram_rdata[i][21] == 1'b1 & !fifo_state[1]) begin
+                        if (i[0] == random_r[0] & p3_tag_bram_rdata[i][21] == 1'b1 & !fifo_state[1]) begin
                             fifo_wreq  = 1;
                             fifo_waddr = {p3_tag_bram_rdata[i][19:0], p3_paddr[11:4], 4'b0};
                             fifo_wdata = p3_data_bram_rdata[i];
@@ -570,9 +588,9 @@ module dcache
         rdata   = 0;
         case (state)
             IDLE: begin
-                if (p3_hit) begin
+                if (hit) begin
                     data_ok = 1;
-                    rdata   = p3_hit_data[p3_paddr[3:2]*32+:32];
+                    rdata   = hit_data[p3_paddr[3:2]*32+:32];
                 end else if (axi_rvalid_i) begin
                     data_ok = 1;
                     rdata   = axi_data_i[p3_paddr[3:2]*32+:32];
@@ -742,7 +760,7 @@ module dcache
                 .clka (clk),
                 .clkb (clk),
                 .ena  (1'b1),
-                .enb  (1'b1),
+                .enb  (~dcache_stall),
                 .wea  (tag_bram_we[i]),
                 .web  (0),
                 .dina (tag_bram_wdata[i]),
@@ -756,7 +774,7 @@ module dcache
                 .clka (clk),
                 .clkb (clk),
                 .ena  (1'b1),
-                .enb  (1'b1),
+                .enb  (~dcache_stall),
                 .wea  (data_bram_we[i]),
                 .web  (0),
                 .dina (data_bram_wdata[i]),
@@ -774,7 +792,7 @@ module dcache
             ) u_tag_bram (
                 .clk  (clk),
                 .ena  (1'b1),
-                .enb  (1'b1),
+                .enb  (~dcache_stall),
                 .wea  (tag_bram_we[i]),
                 .dina (tag_bram_wdata[i]),
                 .addra(tag_bram_waddr[i]),
@@ -787,7 +805,7 @@ module dcache
             ) u_data_bram (
                 .clk  (clk),
                 .ena  (1'b1),
-                .enb  (1'b1),
+                .enb  (~dcache_stall),
                 .wea  (data_bram_we[i]),
                 .dina (data_bram_wdata[i]),
                 .addra(data_bram_waddr[i]),

@@ -28,7 +28,7 @@ module byte_bram #(
 
     always_ff @(posedge clk) begin
         if (enb) doutb <= data[addrb];
-        else doutb <= 0;
+        else doutb <= doutb;
     end
 
     // Write logic

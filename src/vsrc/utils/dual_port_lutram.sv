@@ -2,9 +2,9 @@ module dual_port_lutram #(
     parameter DATA_WIDTH = 128,
     parameter ADDR_WIDTH = 8,
     parameter DATA_DEPTH_EXP2 = 8
-)(
+) (
     input logic clk,
-    
+
     input logic ena,
     input logic wea,
     input logic [ADDR_WIDTH-1:0] addra,
@@ -16,7 +16,7 @@ module dual_port_lutram #(
 );
 
 
- bit [DATA_WIDTH-1:0] data[2**DATA_DEPTH_EXP2];
+    bit [DATA_WIDTH-1:0] data[2**DATA_DEPTH_EXP2];
 
 
     initial begin
@@ -26,9 +26,8 @@ module dual_port_lutram #(
     end
 
     always_ff @(posedge clk) begin
-        if (enb & wea & addra == addrb) doutb <= dina;
-        else if (enb) doutb <= data[addrb];
-        else doutb <= 0;
+        if (enb) doutb <= data[addrb];
+        else doutb <= doutb;
     end
 
     // Write logic
@@ -38,5 +37,5 @@ module dual_port_lutram #(
         end
     end
 
-    
+
 endmodule

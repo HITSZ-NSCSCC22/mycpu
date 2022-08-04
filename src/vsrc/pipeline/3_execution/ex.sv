@@ -151,9 +151,9 @@ module ex
 
     logic muldiv_stall;
 
-    logic last_is_store;
-    logic [7:0] last_store_index;
-    logic access_mem_after_store;
+    logic last_is_store, last_is_store_delay;
+    logic [7:0] last_store_index, last_store_index_delay;
+    logic access_mem_after_store, access_mem_after_store_delay;
 
     always_ff @(posedge clk) begin
         pc_delay <= inst_pc_i;
@@ -237,7 +237,7 @@ module ex
     assign mem_h_op = special_info.mem_h_op;
 
     // notify ctrl is ready to advance
-    assign advance_ready = access_mem | dcacop_op_en ? (dcache_ready_i & ~access_mem_after_store) :
+    assign advance_ready = access_mem | dcacop_op_en ? (dcache_ready_i & ~access_mem_after_store & ~access_mem_after_store_delay) :
                             icacop_op_en ? icacop_ack_i : ~muldiv_stall;
 
     always_ff @(posedge clk) begin
@@ -253,7 +253,18 @@ module ex
         end
     end
 
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            last_is_store_delay <= 0;
+            last_store_index_delay <= 0;
+        end else begin
+            last_is_store_delay <= last_is_store;
+            last_store_index_delay <= last_store_index;
+        end
+    end
+
     assign access_mem_after_store = last_is_store & access_mem & (last_store_index == ex_o.mem_addr[11:4]);
+    assign access_mem_after_store_delay = last_is_store_delay & access_mem & (last_store_index_delay == ex_o.mem_addr[11:4]);
 
     //////////////////////////////////////////////////////////////////////////////////////
     // TLB request
