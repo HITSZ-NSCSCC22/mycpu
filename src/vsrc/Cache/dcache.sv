@@ -115,12 +115,17 @@ module dcache
     logic [DCACHELINE_WIDTH-1:0] hit_data;
     logic fifo_full, dcache_stall;
 
-    // reg for p2 and p3 state
-    logic p2_valid, p3_valid, p3_fifo_hit, p3_uncache_en, p2_cacop, p3_cacop, p3_hit;
+    // P2
+    logic p2_valid;
+    logic p2_uncache_en;
     logic [1:0] p3_tag_hit;
     logic [2:0] p2_req_type, p3_req_type;
     logic [3:0] p2_wstrb, p3_wstrb;
-    logic [`RegBus] p2_wdata, p3_wdata, p2_vaddr, p3_paddr, p3_hit_data;
+    logic [`RegBus] p2_wdata;
+
+    // P3
+    logic p3_valid, p3_fifo_hit, p3_uncache_en, p2_cacop, p3_cacop, p3_hit;
+    logic [`RegBus] p3_wdata, p2_vaddr, p3_paddr, p3_hit_data;
 
     assign dcache_ready = ~dcache_stall;
     assign dcache_stall = (state != IDLE) || fifo_full;
@@ -539,12 +544,12 @@ module dcache
                                 NWAY
                             )-1:0] && cacop_op_mode1 && tag_bram_rdata[i][20]) begin
                             fifo_wreq  = 1;
-                            fifo_waddr = {tag_bram_rdata[i][19:0], paddr[11:0]};
+                            // fifo_waddr = {tag_bram_rdata[i][19:0], paddr[11:0]};
                             fifo_wdata = data_bram_rdata[i];
                         end
                         if (cacop_op_mode2_hit[i]) begin
                             fifo_wreq  = 1;
-                            fifo_waddr = {tag_bram_rdata[i][19:0], paddr[11:0]};
+                            // fifo_waddr = {tag_bram_rdata[i][19:0], paddr[11:0]};
                             fifo_wdata = data_bram_rdata[i];
                         end
                     end
