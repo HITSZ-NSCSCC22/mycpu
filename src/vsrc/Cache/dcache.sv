@@ -189,12 +189,12 @@ module dcache
                 else next_state = UNCACHE_READ_WAIT;
             end
             UNCACHE_WRITE_REQ: begin
-                if (axi_rdy_i) next_state = UNCACHE_READ_WAIT;  // If AXI ready, send request 
+                if (axi_rdy_i) next_state = UNCACHE_WRITE_WAIT;  // If AXI ready, send request 
                 else next_state = UNCACHE_READ_REQ;
             end
             UNCACHE_WRITE_WAIT: begin
-                if (axi_rvalid_i) next_state = IDLE;
-                else next_state = UNCACHE_READ_WAIT;
+                if (axi_bvalid_i) next_state = IDLE;
+                else next_state = UNCACHE_WRITE_WAIT;
             end
             CACOP_INVALID: begin
                 if (fifo_state[1]) next_state = CACOP_INVALID;
