@@ -9,14 +9,13 @@
 
 #include "struct.hpp"
 
-#define BRANCH_LATENCY (0)
+#define BRANCH_LATENCY (2)
+#define MAX_TRACE_LENGTH (10000000)
 
 // Work around
 double sc_time_stamp() { return 0; }
 
-static int TRACE_NUM = 20;
-
-static std::string traces_dir = "data/cbp3/";
+static std::string test_filename = "data/gcc-10K.txt";
 
 struct instruction_entry
 {
@@ -32,40 +31,40 @@ struct trace
 };
 
 // Parse test file
-trace parse_test_file(int trace_id)
+trace parse_test_file(std::string filename)
 {
-    std::ifstream addresses_file(traces_dir + "addresses" + std::to_string(trace_id));
-    std::ifstream conditional_file(traces_dir + "conditionals" + std::to_string(trace_id));
-    std::ifstream result_file(traces_dir + "branchresults" + std::to_string(trace_id));
+    std::ifstream test_file(filename);
+    std::ifstream test_instr_cnt_file(filename + ".cnt");
 
-    if (!addresses_file.is_open() || !conditional_file.is_open() || !result_file.is_open())
+    if (!test_file.is_open())
     {
-        std::cerr << "Open Input File Failed." << std::endl;
+        std::cerr << "Open Input File: " << filename << " Failed." << std::endl;
         std::exit(EXIT_FAILURE);
     }
 
-    std::string total_instr_num_s;
-    getline(addresses_file, total_instr_num_s);
-    uint64_t total_instr_num = std::stoi(total_instr_num_s);
-
     std::vector<instruction_entry> entries;
 
+    uint64_t trace_num_cnt = 0;
+
     // Read loop
-    while (!addresses_file.eof())
+    while (!test_file.eof() && trace_num_cnt < MAX_TRACE_LENGTH)
     {
         uint64_t pc;
         char taken_char;
         char conditional;
-        addresses_file >> std::hex >> pc;
-        result_file >> taken_char;
-        conditional_file >> conditional;
+        test_file >> pc;
+        test_file >> taken_char;
+        test_file >> conditional;
 
         entries.push_back({pc, taken_char == 'T' || taken_char == '1', conditional == '1'});
+        trace_num_cnt++;
     }
 
-    addresses_file.close();
-    result_file.close();
-    conditional_file.close();
+    uint64_t total_instr_num;
+    test_instr_cnt_file >> total_instr_num;
+
+    test_file.close();
+    test_instr_cnt_file.close();
     return {entries, total_instr_num};
 }
 
@@ -83,16 +82,21 @@ int main(int argc, char const *argv[])
     sopc->clk = 1;
     sopc->rst = 1;
 
-    std::string trace_id = "0";
+    // Parse input test file
+    std::string input_filename;
     if (argc > 1)
     {
-        trace_id = std::string(argv[1]);
+        input_filename = std::string(argv[1]);
     }
-
-    auto trace = parse_test_file(std::stoi(trace_id));
+    else
+    {
+        input_filename = test_filename;
+    }
+    auto trace = parse_test_file(input_filename);
     auto entries = trace.entries;
     std::cout << "Procceeding with test instructions: " << entries.size() << std::endl;
     std::cout << "First instruction: 0x" << std::hex << entries[0].pc << " " << entries[0].taken << std::dec << std::endl;
+    std::cout << "Size of output meta: " << sizeof(bpu_ftq_meta_t) << std::endl;
 
     // Reset
     sopc->clk = 0;
@@ -103,7 +107,9 @@ int main(int argc, char const *argv[])
     sopc->eval();
     context->timeInc(1);
 
+    // Store output meta
     std::deque<bpu_ftq_meta_t> output_meta_queue;
+
     std::deque<bool> prediction_taken;
 
     // Simulation loop
@@ -148,7 +154,7 @@ int main(int argc, char const *argv[])
         context->timeInc(1);
 
         // Provider update info
-        size_t update_id = i > BRANCH_LATENCY ? i - BRANCH_LATENCY : 0;
+        size_t update_id = i > 5 ? i - 5 : 0;
         sopc->update_pc_i = entries[update_id].pc;
         tage_predictor_update_info_t update_info_i;
         std::memcpy(&update_info_i, &output_meta_queue[update_id], (166 / 8) + 1);
