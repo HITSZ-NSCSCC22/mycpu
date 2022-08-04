@@ -181,6 +181,8 @@ module mem1
     end
 `ifdef SIMU
     // DEBUG
+    logic debug_mem_valid;
+    assign degbug_mem_valid = mem2_o.mem_access_valid;
     logic [`InstAddrBus] debug_pc_i;
     assign debug_pc_i = ex_i.instr_info.pc;
     logic [`RegBus] debug_wdata_o;

@@ -194,7 +194,8 @@ module cpu_top
     logic [`RegBus] mem_cache_pc;
     logic [1:0] wb_dcache_flush;  // flush dcache if excp
     logic [1:0][`RegBus] wb_dcache_flush_pc;
-    logic dcache_ack, dcache_ready, mem_valid;
+    logic dcache_ack, dcache_ready;
+    logic [1:0] mem_valid;
 
     assign mem_cache_ce = mem_cache_signal[0].ce | mem_cache_signal[1].ce;
     assign mem_cache_we = mem_cache_signal[0].we | mem_cache_signal[1].we;
@@ -281,7 +282,7 @@ module cpu_top
     dcache u_dcache (
         .clk(clk),
         .rst(rst),
-        .mem_valid(mem_valid),
+        .mem_valid(mem_valid[0]),
 
         .valid   (mem_cache_ce),
         .vaddr   (mem_cache_addr),
@@ -957,7 +958,7 @@ module cpu_top
                 .data_forward_o(mem2_data_forward[i]),
 
                 // <- DCache
-                .mem_valid(mem_valid),
+                .mem_valid(mem_valid[i]),
                 .data_ok(mem_data_ok),
                 .cache_data_i(cache_mem_data)
             );

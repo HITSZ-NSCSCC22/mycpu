@@ -128,7 +128,7 @@ module dcache
     logic [`RegBus] p3_wdata, p2_vaddr, p3_paddr, p3_hit_data;
 
     assign dcache_ready = ~dcache_stall;
-    assign dcache_stall = (state != IDLE) || fifo_full;
+    assign dcache_stall = (state != IDLE) || (next_state != IDLE) || fifo_full;
     assign fifo_full = fifo_state[1];
 
     //judge if the cacop mode2 hit
