@@ -71,8 +71,7 @@ module dcache
     logic axi_req_o;
     logic axi_we_o;
     logic axi_rdy_i;
-    logic axi_rvalid_i;
-    logic axi_bvalid_i;
+    logic axi_rvalid_i, axi_bvalid_i, axi_valid_i_delay;
     logic [2:0] axi_size_o;
     logic [AXI_DATA_WIDTH-1:0] axi_data_i;
     logic [AXI_DATA_WIDTH-1:0] axi_wdata_o;
@@ -112,7 +111,6 @@ module dcache
 
     logic [`RegBus] fifo_wreq_sel_data;
 
-    logic miss_pulse, miss_r, miss;
 
     logic [DCACHELINE_WIDTH-1:0] hit_data;
     logic fifo_full, dcache_stall;
@@ -157,10 +155,10 @@ module dcache
             IDLE: begin
                 if (cacop_i) next_state = CACOP_INVALID;
                 // if the dcache is idle,then accept the new request
-                else if (p3_valid & p3_uncache_en & !cpu_flush & mem_valid & miss) begin
+                else if (p3_valid & p3_uncache_en & !cpu_flush & mem_valid) begin
                     if (cpu_wreq) next_state = UNCACHE_WRITE_REQ;
                     else next_state = UNCACHE_READ_REQ;
-                end else if (p3_valid & miss & !cpu_flush & mem_valid) begin
+                end else if (p3_valid & !hit & !cpu_flush & mem_valid & !axi_valid_i_delay) begin
                     if (cpu_wreq) next_state = WRITE_REQ;
                     else next_state = READ_REQ;
                 end else next_state = IDLE;
@@ -292,23 +290,6 @@ module dcache
         if (p3_fifo_hit) begin
             hit = 1;
             hit_data = p3_fifo_rdata;
-        end
-    end
-
-    assign miss_pulse = p3_valid & !hit & state == IDLE;
-    assign miss = miss_pulse | miss_r;
-    always_ff @(posedge clk) begin
-        if (rst) miss_r <= 0;
-        else begin
-            case (state)
-                IDLE: miss_r <= miss_pulse;
-                READ_WAIT, WRITE_WAIT, UNCACHE_READ_WAIT, UNCACHE_WRITE_WAIT: begin
-                    if (axi_rvalid_i | axi_bvalid_i) miss_r <= 0;
-                end
-                default: begin
-
-                end
-            endcase
         end
     end
 
@@ -496,6 +477,16 @@ module dcache
         end
     end
 
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            axi_valid_i_delay <= 0;
+        end else if (state != IDLE & (axi_rvalid_i | axi_bvalid_i)) begin // if the state is idle,the valid is for fifo,we don't care 
+            axi_valid_i_delay <= 1;
+        end else begin
+            axi_valid_i_delay <= 0;
+        end
+    end
+
     // write to fifo
     always_comb begin
         fifo_wreq = 0;
@@ -596,14 +587,14 @@ module dcache
                     rdata   = axi_data_i[p3_paddr[3:2]*32+:32];
                 end
             end
-            READ_REQ, READ_WAIT, UNCACHE_READ_REQ, UNCACHE_READ_WAIT: begin
+            READ_REQ, READ_WAIT, WRITE_REQ, WRITE_WAIT, UNCACHE_READ_REQ, UNCACHE_READ_WAIT: begin
                 if (axi_rvalid_i) begin
                     data_ok = 1;
                     rdata   = axi_data_i[p3_paddr[3:2]*32+:32];
                 end
             end
-            WRITE_REQ, WRITE_WAIT, UNCACHE_WRITE_REQ, UNCACHE_WRITE_WAIT: begin
-                if (axi_rvalid_i) begin
+            UNCACHE_WRITE_REQ, UNCACHE_WRITE_WAIT: begin
+                if (axi_bvalid_i) begin
                     data_ok = 1;
                 end
             end

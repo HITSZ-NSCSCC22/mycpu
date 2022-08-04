@@ -66,7 +66,7 @@ module mem2
         else if (data_ok) cache_data_delay <= cache_data_i;
     end
 
-    assign advance_ready = ((mem_load_op | mem_store_op) & mem1_i.mem_access_valid & (data_ok | data_already_ok)) | ~(mem_load_op  & mem1_i.mem_access_valid);
+    assign advance_ready = ((mem_load_op | mem_store_op) & mem1_i.mem_access_valid & (data_ok | data_already_ok)) | ~((mem_load_op| mem_store_op)  & mem1_i.mem_access_valid);
 
     assign mem_valid = mem1_i.mem_access_valid;
 

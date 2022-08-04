@@ -54,5 +54,9 @@ module byte_bram #(
         end
     end
 
+`ifdef SIMU
+    logic [127:0] debug_data;
+    assign debug_data = data[173];
+`endif
 
 endmodule
