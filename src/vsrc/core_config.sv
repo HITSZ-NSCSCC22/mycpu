@@ -17,23 +17,80 @@ package core_config;
 
     // BPU Parameters
     // BPU
-    parameter BPU_GHR_LENGTH = 150;
-    parameter BPU_TAG_COMPONENT_NUM = 4;
+    parameter BPU_GHR_LENGTH = 1400;
+    parameter BPU_TAG_COMPONENT_NUM = 15;
+    parameter BPU_TAG_COMPONENT_TAG_WIDTH = 12;
     parameter integer BPU_COMPONENT_TABLE_DEPTH[BPU_TAG_COMPONENT_NUM+1] = '{
         16384,
-        2048,
-        2048,
-        2048,
-        2048
+        1024,
+        1024,
+        1024,
+        1024,
+        1024,
+        1024,
+        1024,
+        1024,
+        1024,
+        1024,
+        1024,
+        1024,
+        1024,
+        1024,
+        1024
     };
-    parameter integer BPU_COMPONENT_CTR_WIDTH[BPU_TAG_COMPONENT_NUM+1] = '{2, 3, 3, 3, 3};
-    parameter integer BPU_COMPONENT_USEFUL_WIDTH[BPU_TAG_COMPONENT_NUM+1] = '{0, 2, 2, 2, 2};
+    parameter integer BPU_COMPONENT_CTR_WIDTH[BPU_TAG_COMPONENT_NUM+1] = '{
+        2,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+    };
+    parameter integer BPU_COMPONENT_USEFUL_WIDTH[BPU_TAG_COMPONENT_NUM+1] = '{
+        0,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+    };
     parameter integer BPU_COMPONENT_HISTORY_LENGTH[BPU_TAG_COMPONENT_NUM+1] = '{
         0,
-        5,
-        15,
-        44,
-        130
+        6,
+        10,
+        18,
+        25,
+        35,
+        55,
+        69,
+        105,
+        155,
+        230,
+        354,
+        479,
+        642,
+        1012,
+        1347
     };
     // FTB
     parameter integer FTB_NSET = 1024;

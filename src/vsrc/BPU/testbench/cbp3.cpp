@@ -151,7 +151,7 @@ int main(int argc, char const *argv[])
         size_t update_id = i > BRANCH_LATENCY ? i - BRANCH_LATENCY : 0;
         sopc->update_pc_i = entries[update_id].pc;
         tage_predictor_update_info_t update_info_i;
-        std::memcpy(&update_info_i, &output_meta_queue[update_id], (166 / 8) + 1);
+        std::memcpy(&update_info_i, &output_meta_queue[update_id], (TAGE_META_BITS_SIZE / 8) + 1);
         update_info_i.valid = 1;
         update_info_i.predict_correct = prediction_taken[update_id] == entries[update_id].taken;
         update_info_i.branch_taken = entries[update_id].taken;

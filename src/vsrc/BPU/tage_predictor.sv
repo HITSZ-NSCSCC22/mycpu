@@ -78,9 +78,9 @@ module tage_predictor
     // Meta
     logic [TAG_COMPONENT_AMOUNT-1:0][2:0] tag_ctr;
     logic [TAG_COMPONENT_AMOUNT-1:0][2:0] tag_useful;
-    logic [TAG_COMPONENT_AMOUNT-1:0][10:0] tag_query_tag;
-    logic [TAG_COMPONENT_AMOUNT-1:0][10:0] tag_origin_tag;
-    logic [TAG_COMPONENT_AMOUNT-1:0][10:0] tag_hit_index;
+    logic [TAG_COMPONENT_AMOUNT-1:0][BPU_TAG_COMPONENT_TAG_WIDTH-1:0] tag_query_tag;
+    logic [TAG_COMPONENT_AMOUNT-1:0][BPU_TAG_COMPONENT_TAG_WIDTH-1:0] tag_origin_tag;
+    logic [TAG_COMPONENT_AMOUNT-1:0][9:0] tag_hit_index;
 
     // Update
     logic [ADDR_WIDTH-1:0] update_pc;
@@ -97,7 +97,7 @@ module tage_predictor
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_inc_useful;
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_realloc_entry;
     logic [TAG_COMPONENT_AMOUNT-1:0][2:0] tag_update_query_useful;
-    logic [TAG_COMPONENT_AMOUNT-1:0][10:0] tag_update_new_tag;
+    logic [TAG_COMPONENT_AMOUNT-1:0][BPU_TAG_COMPONENT_TAG_WIDTH-1:0] tag_update_new_tag;
     // Indicates the longest history component which useful is 0
     logic [$clog2(TAG_COMPONENT_AMOUNT+1)-1:0] tag_update_useful_zero_id;
 
@@ -194,12 +194,18 @@ module tage_predictor
     assign query_is_useful = (taken[pred_prediction_id] != taken[altpred_prediction_id]);
 
     // Select the longest match provider
-    reverse_priority_encoder #(
-        .WIDTH(5)
-    ) pred_select (
-        .priority_vector({tag_hit, 1'b1}),
-        .encoded_result (pred_prediction_id)
-    );
+    always_comb begin
+        pred_prediction_id = 0;
+        for (integer i = 0; i < TAG_COMPONENT_AMOUNT; i++) begin
+            if (tag_hit[i]) pred_prediction_id = i + 1;
+        end
+    end
+    // reverse_priority_encoder #(
+    //     .WIDTH(5)
+    // ) pred_select (
+    //     .priority_vector({tag_hit, 1'b1}),
+    //     .encoded_result (pred_prediction_id)
+    // );
     // Select altpred
     logic [TAG_COMPONENT_AMOUNT:0] altpred_pool;
     always_comb begin
@@ -208,12 +214,18 @@ module tage_predictor
             altpred_pool[pred_prediction_id] = 1'b0;
         end
     end
-    reverse_priority_encoder #(
-        .WIDTH(5)
-    ) altpred_select (
-        .priority_vector(altpred_pool),
-        .encoded_result (altpred_prediction_id)
-    );
+    always_comb begin
+        altpred_prediction_id = 0;
+        for (integer i = 0; i < TAG_COMPONENT_AMOUNT + 1; i++) begin
+            if (altpred_pool[i]) altpred_prediction_id = i;
+        end
+    end
+    // reverse_priority_encoder #(
+    //     .WIDTH(5)
+    // ) altpred_select (
+    //     .priority_vector(altpred_pool),
+    //     .encoded_result (altpred_prediction_id)
+    // );
 
     // Output logic
     assign predict_valid_o = 1;
@@ -382,7 +394,8 @@ module tage_predictor
 
     // DEBUG
 `ifdef SIMULATION
-    logic [TAG_COMPONENT_AMOUNT-1:0][10:0] tag_update_query_tag, tag_update_origin_tag;
+    logic [TAG_COMPONENT_AMOUNT-1:0][BPU_TAG_COMPONENT_TAG_WIDTH-1:0]
+        tag_update_query_tag, tag_update_origin_tag;
     assign tag_update_query_tag  = update_meta.tag_predictor_query_tag;
     assign tag_update_origin_tag = update_meta.tag_predictor_origin_tag;
     integer realloc_entry_cnt;
