@@ -14,7 +14,7 @@
 // Work around
 double sc_time_stamp() { return 0; }
 
-static std::string test_filename = "data/gcc-10K.txt";
+static std::string test_filename = "data/gcc-8M.txt";
 
 struct instruction_entry
 {
@@ -135,10 +135,10 @@ int main(int argc, char const *argv[])
         context->timeInc(1);
 
         // Provider update info
-        size_t update_id = i > 5 ? i - 5 : 0;
+        size_t update_id = i > BRANCH_LATENCY ? i - BRANCH_LATENCY : 0;
         sopc->update_pc_i = entries[update_id].pc;
         tage_predictor_update_info_t update_info_i;
-        std::memcpy(&update_info_i, &output_meta_queue[update_id], (166 / 8) + 1);
+        std::memcpy(&update_info_i, &output_meta_queue[update_id], (TAGE_META_BITS_SIZE / 8) + 1);
         update_info_i.valid = 1;
         update_info_i.predict_correct = prediction_taken[update_id] == entries[update_id].taken;
         update_info_i.branch_taken = entries[update_id].taken;
@@ -157,13 +157,13 @@ int main(int argc, char const *argv[])
         sopc->eval();
         context->timeInc(1);
     }
-    uint32_t perf_tag_hit_counter[5];
-    std::memcpy(perf_tag_hit_counter, sopc->perf_tag_hit_counter, sizeof(uint32_t) * 5);
-    std::cout << perf_tag_hit_counter[4] << std::endl;
-    std::cout << perf_tag_hit_counter[3] << std::endl;
-    std::cout << perf_tag_hit_counter[2] << std::endl;
-    std::cout << perf_tag_hit_counter[1] << std::endl;
-    std::cout << perf_tag_hit_counter[0] << std::endl;
+    uint32_t perf_tag_hit_counter[16];
+    std::memcpy(perf_tag_hit_counter, sopc->perf_tag_hit_counter, sizeof(uint32_t) * 16);
+    for (size_t i = 0; i < 16; i++)
+    {
+        std::cout << perf_tag_hit_counter[i] << std::endl;
+    }
+
     sopc->final();
 
     // First predicto is invalid

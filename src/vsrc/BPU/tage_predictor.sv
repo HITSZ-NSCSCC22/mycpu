@@ -108,6 +108,7 @@ module tage_predictor
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_useful_pingpong_counter;
 
     // USE_ALT_ON_NA counter
+    logic [3:0] use_alt_on_na_counter_table[8];
     logic [3:0] use_alt_on_na_counter;
     logic use_alt;
     integer use_alt_cnt;
@@ -231,6 +232,7 @@ module tage_predictor
     assign taken = {tag_taken, base_taken};
     assign query_new_entry_flag = (tag_ctr[pred_prediction_id-1] == 3'b011 || tag_ctr[pred_prediction_id-1] == 3'b100) && 
                                     pred_prediction_id != 0;
+    assign use_alt_on_na_counter = use_alt_on_na_counter_table[pc_i[2+:3]];
     assign use_alt = (use_alt_on_na_counter[3] == 1) && query_new_entry_flag;
     // assign use_alt = 0;
     assign predict_branch_taken_o = use_alt ? taken[altpred_prediction_id] : taken[pred_prediction_id];
@@ -265,11 +267,10 @@ module tage_predictor
     assign update_new_entry_flag = (update_meta.provider_ctr_bits[update_provider_id-1] == 3'b011 || update_meta.provider_ctr_bits[update_provider_id-1] == 3'b100) && update_provider_id != 0;
     // assign update_new_entry_flag = update_meta.tag_predictor_useful_bits[update_provider_id-1] == 0 && (update_meta.provider_ctr_bits[update_provider_id-1] == 3'b010 || update_meta.provider_ctr_bits[update_provider_id-1] == 3'b001) && update_provider_id != 0;
     always_ff @(posedge clk) begin
-        if (rst) use_alt_on_na_counter <= 0;
-        else if (update_valid & update_new_entry_flag & update_meta.useful & ~update_info_i.predict_correct)
-            use_alt_on_na_counter <= use_alt_on_na_counter == 4'b1111 ? 4'b1111 : use_alt_on_na_counter +1;
+        if (update_valid & update_new_entry_flag & update_meta.useful & ~update_info_i.predict_correct)
+            use_alt_on_na_counter_table[update_pc[2+:3]] <= use_alt_on_na_counter == 4'b1111 ? 4'b1111 : use_alt_on_na_counter +1;
         else if (update_valid & update_new_entry_flag & update_meta.useful & update_info_i.predict_correct)
-            use_alt_on_na_counter <= use_alt_on_na_counter == 0 ? 0 : use_alt_on_na_counter - 1;
+            use_alt_on_na_counter_table[update_pc[2+:3]] <= use_alt_on_na_counter == 0 ? 0 : use_alt_on_na_counter - 1;
     end
     always_ff @(posedge clk) begin
         if (use_alt) use_alt_cnt <= use_alt_cnt + 1;
@@ -371,6 +372,7 @@ module tage_predictor
                 // Allocate entry in longer history component
                 if (tag_update_useful_zero_id > update_provider_id) begin  // Have found a slot to allocate
                     tag_update_realloc_entry[tag_update_useful_zero_id-1] = 1'b1;
+                    if (update_new_entry_flag) tag_update_useful[update_provider_id-1] = 1;
                 end else begin  // No slot to allocate, decrease all useful bits of longer history components
                     for (integer i = 0; i < TAG_COMPONENT_AMOUNT; i++) begin
                         if (i >= update_provider_id - 1) begin
