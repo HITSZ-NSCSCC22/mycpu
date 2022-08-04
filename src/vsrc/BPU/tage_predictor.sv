@@ -91,6 +91,7 @@ module tage_predictor
     logic update_is_conditional;
     logic update_new_entry_flag;  // Indicates the provider is new
     logic [$clog2(TAG_COMPONENT_AMOUNT+1)-1:0] update_provider_id;
+    logic [$clog2(TAG_COMPONENT_AMOUNT+1)-1:0] update_alt_provider_id;
     logic [TAG_COMPONENT_AMOUNT:0] update_ctr;  // Whether a component should updated its ctr
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_ctr;
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_useful;
@@ -120,9 +121,7 @@ module tage_predictor
     // Global History Register
     logic [GHR_DEPTH-1:0] GHR;
     always_ff @(posedge clk) begin
-        if (!rst_n) begin
-            GHR <= 0;
-        end else if (update_valid) begin
+        if (update_valid) begin
             // Shift left for every valid branch
             GHR <= {GHR[GHR_DEPTH-2:0], update_branch_taken};
         end
@@ -230,11 +229,10 @@ module tage_predictor
     // Output logic
     assign predict_valid_o = 1;
     assign taken = {tag_taken, base_taken};
-    assign query_new_entry_flag = tag_useful[pred_prediction_id-1][2] == 0 && 
-                                    (tag_ctr[pred_prediction_id-1] == 3'b010 || tag_ctr[pred_prediction_id-1] == 3'b001) && 
+    assign query_new_entry_flag = (tag_ctr[pred_prediction_id-1] == 3'b011 || tag_ctr[pred_prediction_id-1] == 3'b100) && 
                                     pred_prediction_id != 0;
-    // assign use_alt = (use_alt_on_na_counter[3] == 1) && query_new_entry_flag;
-    assign use_alt = 0;
+    assign use_alt = (use_alt_on_na_counter[3] == 1) && query_new_entry_flag;
+    // assign use_alt = 0;
     assign predict_branch_taken_o = use_alt ? taken[altpred_prediction_id] : taken[pred_prediction_id];
     // Meta
     tage_meta_t query_meta;
@@ -264,7 +262,8 @@ module tage_predictor
     ////////////////////////////////////////////////////////////////////////////////////////////
 
     // USE_ALT_ON_NA
-    assign update_new_entry_flag = update_meta.tag_predictor_useful_bits[update_provider_id-1] == 0 && (update_meta.provider_ctr_bits[update_provider_id-1] == 3'b010 || update_meta.provider_ctr_bits[update_provider_id-1] == 3'b001) && update_provider_id != 0;
+    assign update_new_entry_flag = (update_meta.provider_ctr_bits[update_provider_id-1] == 3'b011 || update_meta.provider_ctr_bits[update_provider_id-1] == 3'b100) && update_provider_id != 0;
+    // assign update_new_entry_flag = update_meta.tag_predictor_useful_bits[update_provider_id-1] == 0 && (update_meta.provider_ctr_bits[update_provider_id-1] == 3'b010 || update_meta.provider_ctr_bits[update_provider_id-1] == 3'b001) && update_provider_id != 0;
     always_ff @(posedge clk) begin
         if (rst) use_alt_on_na_counter <= 0;
         else if (update_valid & update_new_entry_flag & update_meta.useful & ~update_info_i.predict_correct)
@@ -293,6 +292,7 @@ module tage_predictor
     assign update_branch_taken = update_info_i.branch_taken;
     assign update_is_conditional = update_info_i.is_conditional;
     assign update_provider_id = update_meta.provider_id;
+    assign update_alt_provider_id = update_meta.alt_provider_id;
     assign update_pc = update_pc_i;
 
     assign tag_update_query_useful = update_meta.tag_predictor_useful_bits;
@@ -342,8 +342,13 @@ module tage_predictor
         for (integer i = 0; i < TAG_COMPONENT_AMOUNT + 1; i++) begin
             update_ctr[i] = 1'b0;
         end
-        if (update_is_conditional & update_valid) begin  // Only update on conditional branches
-            update_ctr[update_provider_id] = 1'b1;  // One hot
+        // Update provider
+        if (update_is_conditional & update_valid) begin
+            update_ctr[update_provider_id] = 1;
+        end
+        // Update alt_provider if new entry
+        if (update_new_entry_flag & update_is_conditional & ~update_info_i.predict_correct & update_valid) begin
+            update_ctr[update_alt_provider_id] = 1;
         end
     end
 

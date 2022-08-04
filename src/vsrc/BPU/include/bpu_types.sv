@@ -68,13 +68,16 @@ package bpu_types;
         logic valid;
         logic ftb_hit;
         logic [$clog2(FTB_NWAY)-1:0] ftb_hit_index;
-        logic ftb_dirty;
 
         tage_meta_t bpu_meta;
 
+    } ftq_bpu_meta_entry_t;
+
+    typedef struct packed {
+        logic ftb_dirty;
         logic [ADDR_WIDTH-1:0] jump_target_address;
         logic [ADDR_WIDTH-1:0] fall_through_address;
-    } ftq_bpu_meta_entry_t;
+    } ftq_branch_meta_entry_t;
 
 
 

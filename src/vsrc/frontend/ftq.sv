@@ -65,7 +65,11 @@ module ftq
     // QUEUE data structure
     ftq_block_t [QUEUE_SIZE-1:0] FTQ, next_FTQ;
     // FTQ meta
-    ftq_bpu_meta_entry_t FTQ_meta[QUEUE_SIZE-1:0];
+    logic bpu_meta_write_valid;
+    logic [PTR_WIDTH-1:0] bpu_meta_write_ptr;
+    ftq_bpu_meta_entry_t bpu_meta_write_entry;
+    (* ram_style = "distributed" *) ftq_bpu_meta_entry_t FTQ_bpu_meta[QUEUE_SIZE-1:0];
+    (* ram_style = "distributed" *) ftq_branch_meta_entry_t FTQ_branch_meta[QUEUE_SIZE-1:0];
 
 
 
@@ -203,9 +207,9 @@ module ftq
                 // 1. Must be last in block, which means either a known branch or a mispredicted branch.
                 // 2. Exception introduced block commit is not considered a branch update.
                 bpu_meta_o.valid <= 1;
-                bpu_meta_o.ftb_hit <= FTQ_meta[backend_commit_ftq_id_i].ftb_hit;
-                bpu_meta_o.ftb_hit_index <= FTQ_meta[backend_commit_ftq_id_i].ftb_hit_index;
-                bpu_meta_o.ftb_dirty <= FTQ_meta[backend_commit_ftq_id_i].ftb_dirty;
+                bpu_meta_o.ftb_hit <= FTQ_bpu_meta[backend_commit_ftq_id_i].ftb_hit;
+                bpu_meta_o.ftb_hit_index <= FTQ_bpu_meta[backend_commit_ftq_id_i].ftb_hit_index;
+                bpu_meta_o.ftb_dirty <= FTQ_branch_meta[backend_commit_ftq_id_i].ftb_dirty;
                 // Must use accurate decoded info passed from backend
                 bpu_meta_o.is_branch <= backend_commit_meta_i.is_branch;
                 bpu_meta_o.branch_type <= backend_commit_meta_i.branch_type;
@@ -214,38 +218,48 @@ module ftq
 
                 bpu_meta_o.start_pc <= FTQ[backend_commit_ftq_id_i].start_pc;
                 bpu_meta_o.is_cross_cacheline <= FTQ[backend_commit_ftq_id_i].is_cross_cacheline;
-                bpu_meta_o.bpu_meta <= FTQ_meta[backend_commit_ftq_id_i].bpu_meta;
-                bpu_meta_o.jump_target_address <= FTQ_meta[backend_commit_ftq_id_i].jump_target_address;
-                bpu_meta_o.fall_through_address <= FTQ_meta[backend_commit_ftq_id_i].fall_through_address;
+                bpu_meta_o.bpu_meta <= FTQ_bpu_meta[backend_commit_ftq_id_i].bpu_meta;
+                bpu_meta_o.jump_target_address <= FTQ_branch_meta[backend_commit_ftq_id_i].jump_target_address;
+                bpu_meta_o.fall_through_address <= FTQ_branch_meta[backend_commit_ftq_id_i].fall_through_address;
             end
         end
     end
 
 
     // BPU meta ram
+    always_comb begin
+        if (bpu_p1_i.valid & ~main_bpu_redirect_delay) begin  // If last cycle accepted P0 input
+            bpu_meta_write_valid = 1;
+            bpu_meta_write_ptr = PTR_WIDTH'(bpu_ptr - 1);
+            bpu_meta_write_entry.ftb_hit = bpu_meta_i.ftb_hit;
+            bpu_meta_write_entry.ftb_hit_index = bpu_meta_i.ftb_hit_index;
+            bpu_meta_write_entry.bpu_meta = bpu_meta_i.bpu_meta;
+        end else if (bpu_p1_i.valid) begin
+            bpu_meta_write_valid = 1;
+            bpu_meta_write_ptr = PTR_WIDTH'(bpu_ptr);
+            bpu_meta_write_entry.ftb_hit = bpu_meta_i.ftb_hit;
+            bpu_meta_write_entry.ftb_hit_index = bpu_meta_i.ftb_hit_index;
+            bpu_meta_write_entry.bpu_meta = bpu_meta_i.bpu_meta;
+        end else if (bpu_p0_i.valid) begin  // If not provided by BPU, clear meta
+            bpu_meta_write_valid = 1;
+            bpu_meta_write_ptr   = PTR_WIDTH'(bpu_ptr);
+            bpu_meta_write_entry = 0;
+        end else begin
+            bpu_meta_write_valid = 0;
+            bpu_meta_write_ptr   = 0;
+            bpu_meta_write_entry = 0;
+        end
+    end
     always_ff @(posedge clk) begin
         // P1
         // Maintain BPU meta info
-        if (bpu_p0_i.valid) begin  // If not provided by BPU, clear meta
-            FTQ_meta[bpu_ptr] <= 0;
-        end
-        if (bpu_p1_i.valid & ~main_bpu_redirect_delay) begin  // If last cycle accepted P0 input
-            FTQ_meta[PTR_WIDTH'(bpu_ptr-1)] <= 0;
-            FTQ_meta[PTR_WIDTH'(bpu_ptr-1)].ftb_hit <= bpu_meta_i.ftb_hit;
-            FTQ_meta[PTR_WIDTH'(bpu_ptr-1)].ftb_hit_index <= bpu_meta_i.ftb_hit_index;
-            FTQ_meta[PTR_WIDTH'(bpu_ptr-1)].bpu_meta <= bpu_meta_i.bpu_meta;
-        end else if (bpu_p1_i.valid) begin
-            FTQ_meta[bpu_ptr] <= 0;
-            FTQ_meta[bpu_ptr].ftb_hit <= bpu_meta_i.ftb_hit;
-            FTQ_meta[bpu_ptr].ftb_hit_index <= bpu_meta_i.ftb_hit_index;
-            FTQ_meta[bpu_ptr].bpu_meta <= bpu_meta_i.bpu_meta;
-        end
+        if (bpu_meta_write_valid) FTQ_bpu_meta[bpu_meta_write_ptr] <= bpu_meta_write_entry;
 
         // Update pc from backend
         if (backend_ftq_meta_update_valid_i) begin
-            FTQ_meta[backend_ftq_update_meta_id_i].jump_target_address <= backend_ftq_meta_update_jump_target_i;
-            FTQ_meta[backend_ftq_update_meta_id_i].fall_through_address <= backend_ftq_meta_update_fall_through_i;
-            FTQ_meta[backend_ftq_update_meta_id_i].ftb_dirty <= backend_ftq_meta_update_ftb_dirty_i;
+            FTQ_branch_meta[backend_ftq_update_meta_id_i].jump_target_address <= backend_ftq_meta_update_jump_target_i;
+            FTQ_branch_meta[backend_ftq_update_meta_id_i].fall_through_address <= backend_ftq_meta_update_fall_through_i;
+            FTQ_branch_meta[backend_ftq_update_meta_id_i].ftb_dirty <= backend_ftq_meta_update_ftb_dirty_i;
         end
     end
 

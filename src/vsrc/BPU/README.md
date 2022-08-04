@@ -39,7 +39,7 @@ Avg: 2.70
 ## MPKI with on-board config
 
 With new entry opt:
-Average MPKI: 2.79402
+Average MPKI: 2.64501
 
 No new entry opt:
-Average MPKI: 2.78838
+Average MPKI: 2.62932
