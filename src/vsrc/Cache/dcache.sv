@@ -101,7 +101,7 @@ module dcache
     logic [1:0] fifo_state;
     logic fifo_rreq, fifo_wreq, fifo_r_hit, fifo_w_hit, fifo_axi_wr_req, fifo_w_accept;
     logic [`DataAddrBus] fifo_raddr, fifo_waddr, fifo_axi_wr_addr;
-    logic [DCACHELINE_WIDTH-1:0] fifo_rdata, fifo_wdata, fifo_axi_wr_data;
+    logic [DCACHELINE_WIDTH-1:0] fifo_rdata, p3_fifo_rdata, fifo_wdata, fifo_axi_wr_data;
 
     // CACOP
     logic cacop_op_mode0, cacop_op_mode1, cacop_op_mode2;
@@ -116,14 +116,14 @@ module dcache
     logic fifo_full, dcache_stall;
 
     // reg for p2 and p3 state
-    logic p2_valid, p3_valid, p3_fifo_hit, p3_uncache_en, p2_cacop, p3_cacop;
+    logic p2_valid, p3_valid, p3_fifo_hit, p3_uncache_en, p2_cacop, p3_cacop, p3_hit;
     logic [1:0] p3_tag_hit;
     logic [2:0] p2_req_type, p3_req_type;
     logic [3:0] p2_wstrb, p3_wstrb;
-    logic [`RegBus] p2_wdata, p3_wdata, p3_paddr;
+    logic [`RegBus] p2_wdata, p3_wdata, p2_vaddr, p3_paddr, p3_hit_data;
 
     assign dcache_ready = ~dcache_stall;
-    assign dcache_stall = next_state != IDLE | fifo_full;
+    assign dcache_stall = (state != IDLE) || fifo_full;
     assign fifo_full = fifo_state[1];
 
     //judge if the cacop mode2 hit
@@ -151,10 +151,10 @@ module dcache
             IDLE: begin
                 if (cacop_i) next_state = CACOP_INVALID;
                 // if the dcache is idle,then accept the new request
-                else if (p3_valid & p3_uncache_en & !cpu_flush) begin
+                else if (p2_valid & p2_uncache_en & !cpu_flush) begin
                     if (cpu_wreq) next_state = UNCACHE_WRITE_REQ;
                     else next_state = UNCACHE_READ_REQ;
-                end else if (p3_valid & !hit & !cpu_flush) begin
+                end else if (p2_valid & !hit & !cpu_flush) begin
                     if (cpu_wreq) next_state = WRITE_REQ;
                     else next_state = READ_REQ;
                 end else next_state = IDLE;
@@ -231,6 +231,7 @@ module dcache
     // Stage 2
     //   - Use the tag rdata and paddr get tag hit
     //   - Use the paddr search the fifo and get fifo hit
+    //   - Merge the hit message and get hit data
     //   - Check the cacop mode and if mode2 hit
 
 
@@ -251,6 +252,21 @@ module dcache
         if (state == IDLE & p2_valid & !uncache_en) begin
             fifo_rreq  = 1;
             fifo_raddr = paddr;
+        end
+    end
+
+    always_comb begin
+        hit = 0;
+        hit_data = 0;
+        for (integer i = 0; i < NWAY; i++) begin
+            if (p3_tag_hit[i]) begin
+                hit = 1;
+                hit_data = data_bram_rdata[i];
+            end
+        end
+        if (p3_fifo_hit) begin
+            hit = 1;
+            hit_data = fifo_rdata;
         end
     end
 
@@ -400,6 +416,9 @@ module dcache
             p2_wstrb <= 0;
             p2_wdata <= 0;
             p2_cacop <= 0;
+            p2_vaddr <= 0;
+            p3_hit <= 0;
+            p3_hit_data <= 0;
             p3_valid <= 0;
             p3_paddr <= 0;
             p3_req_type <= 0;
@@ -408,6 +427,7 @@ module dcache
             p3_cacop <= 0;
             p3_tag_hit <= 0;
             p3_fifo_hit <= 0;
+            p3_fifo_rdata <= 0;
             p3_uncache_en <= 0;
         end else if (dcache_stall) begin  // if the dcache is stall,keep the pipeline data
             p2_valid <= p2_valid;
@@ -415,6 +435,9 @@ module dcache
             p2_cacop <= p2_cacop;
             p2_wstrb <= p2_wstrb;
             p2_wdata <= p2_wdata;
+            p2_vaddr <= p2_vaddr;
+            p3_hit <= p3_hit;
+            p3_hit_data <= p3_hit_data;
             p3_valid <= p3_valid;
             p3_req_type <= p3_req_type;
             p3_paddr <= p3_paddr;
@@ -423,6 +446,7 @@ module dcache
             p3_cacop <= p3_cacop;
             p3_tag_hit <= p3_tag_hit;
             p3_fifo_hit <= p3_fifo_hit;
+            p3_fifo_rdata <= p3_fifo_rdata;
             p3_uncache_en <= p3_uncache_en;
         end else begin
             // p1 -> p2
@@ -431,7 +455,10 @@ module dcache
             p2_wstrb <= wstrb;
             p2_wdata <= wdata;
             p2_cacop <= cacop_i;
+            p2_vaddr <= vaddr;
             // p2 -> p3
+            p3_hit <= hit;
+            p3_hit_data <= hit_data;
             p3_valid <= p2_valid;
             p3_req_type <= p2_req_type;
             p3_paddr <= paddr;
@@ -440,6 +467,7 @@ module dcache
             p3_cacop <= p2_cacop;
             p3_tag_hit <= tag_hit;
             p3_fifo_hit <= fifo_r_hit;
+            p3_fifo_rdata <= fifo_rdata;
             p3_uncache_en <= uncache_en;
         end
     end
@@ -456,8 +484,8 @@ module dcache
                 // then rewrite the cacheline in the fifo 
                 if (p3_fifo_hit & cpu_wreq & !cpu_flush) begin
                     fifo_wreq = 1;
-                    fifo_waddr = fifo_raddr;
-                    fifo_wdata = fifo_rdata;
+                    fifo_waddr = p3_paddr;
+                    fifo_wdata = p3_fifo_rdata;
                     fifo_wreq_sel_data = 0;
                     case (p3_paddr[3:2])
                         2'b00: fifo_wreq_sel_data = fifo_wdata[31:0];
@@ -536,9 +564,9 @@ module dcache
         rdata   = 0;
         case (state)
             IDLE: begin
-                if (hit) begin
+                if (p3_hit) begin
                     data_ok = 1;
-                    rdata   = hit_data[p3_paddr[3:2]*32+:32];
+                    rdata   = p3_hit_data[p3_paddr[3:2]*32+:32];
                 end else if (axi_rvalid_i) begin
                     data_ok = 1;
                     rdata   = axi_data_i[p3_paddr[3:2]*32+:32];
@@ -561,20 +589,7 @@ module dcache
         endcase
     end
 
-    always_comb begin
-        hit = 0;
-        hit_data = 0;
-        for (integer i = 0; i < NWAY; i++) begin
-            if (p3_tag_hit[i]) begin
-                hit = 1;
-                hit_data = data_bram_rdata[i];
-            end
-        end
-        if (p3_fifo_hit) begin
-            hit = 1;
-            hit_data = fifo_rdata;
-        end
-    end
+
 
     //handshake with axi
     always_comb begin

@@ -244,7 +244,7 @@ module ex
         if (rst) begin
             last_is_store <= 0;
             last_store_index <= 0;
-        end else if (mem_store_op) begin
+        end else if (mem_store_op & advance) begin
             last_is_store <= 1;
             last_store_index <= ex_o.mem_addr[11:4];
         end else begin
