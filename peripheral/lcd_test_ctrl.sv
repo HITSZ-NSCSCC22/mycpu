@@ -17,9 +17,18 @@ module lcd_test_ctrl (
         output logic [31:0]buffer_addr,//speeder
         output logic data_valid,//tell lcd_id
         output logic [31:0]graph_size,
-
+        output logic refresh,
+        output logic refresh_rs_o,
         //from lcd_interface
         input logic [31:0] lcd_input_data,  //data form lcd input
+
+        //from/to lcd_refresh
+        output logic enable,
+        output logic [6:0]refresh_req,//用于决定刷新的种类，
+        input logic [15:0]refresh_data,
+        input logic data_ok,
+        input logic refresh_ok_i,
+        input logic refresh_rs_i,
 
         //from lcd_id
         input logic write_ok  //数�?�和指令写出去�?��?能继续写
@@ -38,7 +47,8 @@ module lcd_test_ctrl (
              IDLE,
              GRAPH,
              DISPATCH_GRAPH,//send graph inst to lcd_id
-             WAIT
+             WAIT,
+             REFRESH
          } buffer_state;
     logic [31:0] addr_buffer;
 
@@ -54,7 +64,7 @@ module lcd_test_ctrl (
     logic [31:0]graph_buffer[0:6];
     logic [31:0]graph_addr[0:6];
     logic buffer_ok;//when buffer is full,drawing lcd
-
+    logic refresh_ok;
     /**画一次图需�?6�?�连续的sw指令，所以绘图时�?�需�?存储连续的6�?�sw指令�?��?�**/
     always_ff @( posedge pclk ) begin : lcd_buffer
         if(~rst_n) begin
@@ -71,18 +81,33 @@ module lcd_test_ctrl (
             data_valid<=0;
             delay_time<=2;
             graph_size<=0;
+            enable<=0;
+            refresh_req<=0;
+            refresh_ok<=0;
+            refresh<=0;
+            refresh_rs_o<=0;
         end
         else begin
             case(buffer_state)
                 IDLE: begin
-                    buffer_ok<=0;
+
                     count<=0;
                     buffer_addr<=0;
                     buffer_data<=0;
                     inst_num<=0;
                     data_valid<=0;
                     delay_time<=2;
-                    buffer_state<=GRAPH;
+                    // buffer_state<=GRAPH;
+                    // enable<=0;
+                    // buffer_ok<=0;
+                    buffer_state<=REFRESH;
+                    enable<=1;
+                    buffer_ok<=1;
+                    graph_size<=0;
+                    refresh_req<=0;
+                    refresh_ok<=0;
+                    refresh<=0;
+                    refresh_rs_o<=0;
                 end
                 GRAPH: begin
                     //连续缓存6条sw
@@ -124,12 +149,53 @@ module lcd_test_ctrl (
                         data_valid<=0;
                         delay_time<=2;
                         graph_size<=0;
+                        enable<=0;
+                        refresh_req<=0;
+                        refresh_ok<=0;
+                        refresh<=0;
+                        refresh_rs_o<=0;
                     end
                 end
                 // WAIT: begin
                 //     buffer_state<=buffer_state;
                 // end
-
+                REFRESH: begin
+                    if(data_ok) begin
+                        enable<=0;
+                        buffer_data<={{16{1'b0}},refresh_data};
+                        buffer_addr<=0;
+                        graph_size<=0;
+                        data_valid<=1;
+                        delay_time<=0;
+                        refresh_ok<=refresh_ok_i;
+                        refresh<=1;
+                        refresh_rs_o<=refresh_rs_i;
+                    end
+                    else if(~dispatch_ok) begin//delay to wait lcd_id work
+                        delay_time<=delay_time+1;
+                        data_valid<=0;
+                        refresh<=0;
+                        refresh_rs_o<=0;
+                    end
+                    else if(write_ok) begin
+                        if(refresh_ok) begin
+                            buffer_state<=GRAPH;
+                            buffer_ok<=0;
+                            buffer_data<=0;
+                            inst_num<=0;
+                            data_valid<=0;
+                            delay_time<=2;
+                            enable<=0;
+                            refresh_req<=0;
+                            refresh_ok<=0;
+                            refresh<=0;
+                            refresh_rs_o<=0;
+                        end
+                        else begin
+                            enable<=1;
+                        end
+                    end
+                end
                 default: begin
                     for(integer i=0;i<7;i++) begin
                         graph_buffer[i]<=32'b0;
@@ -144,6 +210,11 @@ module lcd_test_ctrl (
                     data_valid<=0;
                     delay_time<=2;
                     graph_size<=0;
+                    enable<=0;
+                    refresh_req<=0;
+                    refresh_ok<=0;
+                    refresh<=0;
+                    refresh_rs_o<=0;
                 end
             endcase
         end

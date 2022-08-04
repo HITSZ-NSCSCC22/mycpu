@@ -1,5 +1,6 @@
 `define COLOR_ADDR 17'd803
 `define INIT_END   17'd117232
+`define DATA32
 module lcd_init (
         input  logic        pclk,
         input  logic        rst_n,
@@ -230,8 +231,16 @@ module lcd_init (
         end
     end
     assign init_addra=addra;
+`ifdef  DATA32
+
+    logic [31:0]data_o;
+    assign init_data=refresh_flag?(is_color?16'hffff:refresh_data):data_o[15:0];
+`else
     logic [15:0]data_o;
     assign init_data=refresh_flag?(is_color?16'hffff:refresh_data):data_o;
+`endif
+
+
     //initial code
     lcd_init_bram u_lcd_init_bram (
                       .clka (pclk),      // input wire clka

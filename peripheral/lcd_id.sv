@@ -9,70 +9,78 @@
 `define W_COLOR 8'h2C
 `define R_COLOR 8'h2E
 module lcd_id (
-    input logic pclk,
-    input logic rst_n,
-    //from lcd ctrl
-    input logic write_lcd_i,
-    input logic [31:0] lcd_addr_i,
-    input logic [31:0] lcd_data_i,
+        input logic pclk,
+        input logic rst_n,
+        //from lcd ctrl
+        input logic write_lcd_i,
+        input logic [31:0] lcd_addr_i,
+        input logic [31:0] lcd_data_i,
+        input logic refresh_i,
+        input logic refresh_rs_i,
 
-    //speeder
-    input logic [31:0] buffer_data_i,
-    input logic [31:0] buffer_addr_i,
-    input logic data_valid,
-    input logic [31:0] graph_size_i,
+        //speeder
+        input logic [31:0] buffer_data_i,
+        input logic [31:0] buffer_addr_i,
+        input logic data_valid,
+        input logic [31:0] graph_size_i,
 
-    //to lcd ctrl
-    output logic write_ok,
+        //to lcd ctrl
+        output logic write_ok,
 
-    //to lcd interface
-    output logic we,  //write enable
-    output logic wr,  //0:read lcd 1:write lcd,distinguish inst kind
-    output logic lcd_rs,
-    output logic [15:0] data_o,
-    output logic id_fm,
-    output logic read_color_o,
+        //to lcd interface
+        output logic we,  //write enable
+        output logic wr,  //0:read lcd 1:write lcd,distinguish inst kind
+        output logic lcd_rs,
+        output logic [15:0] data_o,
+        output logic id_fm,
+        output logic read_color_o,
 
-    //from lcd inteface
-    input logic busy,
-    input logic write_color_ok
-);
+        //from lcd inteface
+        input logic busy,
+        input logic write_color_ok
+    );
     enum int {
-        IDLE,
-        READ_ID,
-        SCAN_INST,
-        SCAN_DATA,
-        SC_INST1,    //写sc高16bit
-        SC_DATA1,
-        SC_INST2,    //写sc低16bit
-        SC_DATA2,
-        EC_INST1,
-        EC_DATA1,
-        EC_INST2,
-        EC_DATA2,
-        SP_INST1,
-        SP_DATA1,
-        SP_INST2,
-        SP_DATA2,
-        EP_INST1,
-        EP_DATA1,
-        EP_INST2,
-        EP_DATA2,
-        COLOR_INST,
-        COLOR_DATA,
-        READ_COLOR
-    }
-        current_state, next_state;
+             IDLE,
+             READ_ID,
+             SCAN_INST,
+             SCAN_DATA,
+             SC_INST1,    //写sc高16bit
+             SC_DATA1,
+             SC_INST2,    //写sc低16bit
+             SC_DATA2,
+             EC_INST1,
+             EC_DATA1,
+             EC_INST2,
+             EC_DATA2,
+             SP_INST1,
+             SP_DATA1,
+             SP_INST2,
+             SP_DATA2,
+             EP_INST1,
+             EP_DATA1,
+             EP_INST2,
+             EP_DATA2,
+             COLOR_INST,
+             COLOR_DATA,
+             READ_COLOR,
+             REFRESH
+         }
+         current_state, next_state;
 
     logic [31:0] graph_size;
     logic [31:0] lcd_data;
     logic [31:0] lcd_addr;
     logic write_lcd;
     logic delay;  //delay one cycle when come to a new state
-    always_ff @(posedge pclk)begin//进入新状态后必须要暂停一拍，因为第一拍的busy被优化掉了，不在敏感信号里面
-        if (~rst_n) delay <= 0;
-        else if (current_state != next_state) delay <= 1;
-        else delay <= 0;
+    logic refresh;
+    logic refresh_rs;
+    always_ff @(posedge pclk) begin//进入新状态后必须要暂停一拍
+        if (~rst_n)
+            delay <= 0;
+        else if (current_state != next_state)
+            delay <= 1;
+        else
+            delay <= 0;
     end
     //buffer
     always_ff @(posedge pclk) begin
@@ -80,28 +88,39 @@ module lcd_id (
             lcd_data   <= 0;
             lcd_addr   <= 0;
             graph_size <= 0;
-        end else if (write_lcd_i) begin
+            refresh_rs<=0;
+        end
+        else if (write_lcd_i) begin
             lcd_data   <= lcd_data_i;
             lcd_addr   <= lcd_addr_i;
             graph_size <= graph_size_i;
-        end else begin
+            refresh_rs<=refresh_i;
+        end
+        else begin
             lcd_data   <= lcd_data;
             lcd_addr   <= lcd_addr;
             graph_size <= graph_size;
+            refresh_rs<=refresh_rs;
         end
     end
 
     //delay one cycle for write_lcd_i
     always_ff @(posedge pclk) begin
-        if (~rst_n) write_lcd <= 0;
-        else write_lcd <= write_lcd_i;
+        if (~rst_n) begin
+            write_lcd <= 0;
+            refresh<=0;
+        end
+        else begin
+            write_lcd <= write_lcd_i;
+            refresh<=refresh_i;
+        end
     end
 
     /*****
- 一般的指令格式:wdata=8bit opcode+ 8bit func + 16bit 参数
- 
- 写入颜色的指令:wdata=8bit opcode+ 8bit func + 5 bit red + 6bit green +5 bit blue
-  *****/
+    般的指令格式:wdata=8bit opcode+ 8bit func + 16bit 参数
+
+    入颜色的指令:wdata=8bit opcode+ 8bit func + 5 bit red + 6bit green +5 bit blue
+    *****/
     logic [7:0] opcode;
     assign opcode = lcd_data[31:24];
     logic [7:0] op1;
@@ -116,16 +135,22 @@ module lcd_id (
     logic [31:0] draw_counter;
     //draw counter
     always_ff @(posedge pclk) begin
-        if (~rst_n) draw_counter <= 0;
-        else if (next_state == IDLE) draw_counter <= 0;
-        else if (next_state == COLOR_DATA && write_color_ok) draw_counter <= draw_counter + 1;
-        else draw_counter <= draw_counter;
+        if (~rst_n)
+            draw_counter <= 0;
+        else if (next_state == IDLE)
+            draw_counter <= 0;
+        else if (next_state == COLOR_DATA && write_color_ok)
+            draw_counter <= draw_counter + 1;
+        else
+            draw_counter <= draw_counter;
     end
 
     /*****DFA*****/
     always_ff @(posedge pclk) begin
-        if (~rst_n) current_state <= IDLE;
-        else current_state <= next_state;
+        if (~rst_n)
+            current_state <= IDLE;
+        else
+            current_state <= next_state;
     end
 
     always_comb begin
@@ -133,146 +158,214 @@ module lcd_id (
         case (current_state)
 
             IDLE: begin
-                if (write_lcd) begin
+                if (write_lcd&&(~refresh)) begin
                     case (opcode)
-                        `ID1, `ID2, `ID3: next_state = READ_ID;
-                        `SCAN: next_state = SCAN_INST;
+                        `ID1, `ID2, `ID3:
+                            next_state = READ_ID;
+                        `SCAN:
+                            next_state = SCAN_INST;
                         `SC_EC: begin
-                            if (op1 == 8'h00) next_state = SC_INST1;
-                            else if (op1 == 8'h02) next_state = EC_INST1;
-                            else next_state = IDLE;
+                            if (op1 == 8'h00)
+                                next_state = SC_INST1;
+                            else if (op1 == 8'h02)
+                                next_state = EC_INST1;
+                            else
+                                next_state = IDLE;
                         end
                         `SP_EP: begin
-                            if (op1 == 8'h00) next_state = SP_INST1;
-                            else if (op1 == 8'h02) next_state = EP_INST1;
-                            else next_state = IDLE;
+                            if (op1 == 8'h00)
+                                next_state = SP_INST1;
+                            else if (op1 == 8'h02)
+                                next_state = EP_INST1;
+                            else
+                                next_state = IDLE;
                         end
-                        `W_COLOR: next_state = COLOR_INST;
-                        `R_COLOR: next_state = READ_COLOR;
-                        default: next_state = IDLE;
+                        `W_COLOR:
+                            next_state = COLOR_INST;
+                        `R_COLOR:
+                            next_state = READ_COLOR;
+                        default:
+                            next_state = IDLE;
                     endcase
-                end else next_state = IDLE;
+                end
+                else if(write_lcd&&refresh) begin
+                    next_state=REFRESH;
+                end
+                else
+                    next_state = IDLE;
             end
 
             //read ID
             READ_ID: begin
-                if (busy || delay) next_state = READ_ID;
-                else next_state = IDLE;
+                if (busy || delay)
+                    next_state = READ_ID;
+                else
+                    next_state = IDLE;
             end
 
             //set scan direction
             SCAN_INST: begin
-                if (busy || delay) next_state = SCAN_INST;
-                else next_state = SCAN_DATA;
+                if (busy || delay)
+                    next_state = SCAN_INST;
+                else
+                    next_state = SCAN_DATA;
             end
 
             SCAN_DATA: begin
-                if (busy || delay) next_state = SCAN_DATA;
-                else next_state = IDLE;
+                if (busy || delay)
+                    next_state = SCAN_DATA;
+                else
+                    next_state = IDLE;
             end
 
             //set SC
             SC_INST1: begin
-                if (busy || delay) next_state = SC_INST1;
-                else next_state = SC_DATA1;
+                if (busy || delay)
+                    next_state = SC_INST1;
+                else
+                    next_state = SC_DATA1;
             end
 
             SC_DATA1: begin
-                if (busy || delay) next_state = SC_DATA1;
-                else next_state = SC_INST2;
+                if (busy || delay)
+                    next_state = SC_DATA1;
+                else
+                    next_state = SC_INST2;
             end
 
             SC_INST2: begin
-                if (busy || delay) next_state = SC_INST2;
-                else next_state = SC_DATA2;
+                if (busy || delay)
+                    next_state = SC_INST2;
+                else
+                    next_state = SC_DATA2;
             end
 
             SC_DATA2: begin
-                if (busy || delay) next_state = SC_DATA2;
-                else next_state = IDLE;
+                if (busy || delay)
+                    next_state = SC_DATA2;
+                else
+                    next_state = IDLE;
             end
 
             //set EC
             EC_INST1: begin
-                if (busy || delay) next_state = EC_INST1;
-                else next_state = EC_DATA1;
+                if (busy || delay)
+                    next_state = EC_INST1;
+                else
+                    next_state = EC_DATA1;
             end
 
             EC_DATA1: begin
-                if (busy || delay) next_state = EC_DATA1;
-                else next_state = EC_INST2;
+                if (busy || delay)
+                    next_state = EC_DATA1;
+                else
+                    next_state = EC_INST2;
             end
 
             EC_INST2: begin
-                if (busy || delay) next_state = EC_INST2;
-                else next_state = EC_DATA2;
+                if (busy || delay)
+                    next_state = EC_INST2;
+                else
+                    next_state = EC_DATA2;
             end
 
             EC_DATA2: begin
-                if (busy || delay) next_state = EC_DATA2;
-                else next_state = IDLE;
+                if (busy || delay)
+                    next_state = EC_DATA2;
+                else
+                    next_state = IDLE;
             end
 
             //set SP
             SP_INST1: begin
-                if (busy || delay) next_state = SP_INST1;
-                else next_state = SP_DATA1;
+                if (busy || delay)
+                    next_state = SP_INST1;
+                else
+                    next_state = SP_DATA1;
             end
 
             SP_DATA1: begin
-                if (busy || delay) next_state = SP_DATA1;
-                else next_state = SP_INST2;
+                if (busy || delay)
+                    next_state = SP_DATA1;
+                else
+                    next_state = SP_INST2;
             end
 
             SP_INST2: begin
-                if (busy || delay) next_state = SP_INST2;
-                else next_state = SP_DATA2;
+                if (busy || delay)
+                    next_state = SP_INST2;
+                else
+                    next_state = SP_DATA2;
             end
 
             SP_DATA2: begin
-                if (busy || delay) next_state = SP_DATA2;
-                else next_state = IDLE;
+                if (busy || delay)
+                    next_state = SP_DATA2;
+                else
+                    next_state = IDLE;
             end
 
             //set EP
             EP_INST1: begin
-                if (busy || delay) next_state = EP_INST1;
-                else next_state = EP_DATA1;
+                if (busy || delay)
+                    next_state = EP_INST1;
+                else
+                    next_state = EP_DATA1;
             end
 
             EP_DATA1: begin
-                if (busy || delay) next_state = EP_DATA1;
-                else next_state = EP_INST2;
+                if (busy || delay)
+                    next_state = EP_DATA1;
+                else
+                    next_state = EP_INST2;
             end
 
             EP_INST2: begin
-                if (busy || delay) next_state = EP_INST2;
-                else next_state = EP_DATA2;
+                if (busy || delay)
+                    next_state = EP_INST2;
+                else
+                    next_state = EP_DATA2;
             end
 
             EP_DATA2: begin
-                if (busy || delay) next_state = EP_DATA2;
-                else next_state = IDLE;
+                if (busy || delay)
+                    next_state = EP_DATA2;
+                else
+                    next_state = IDLE;
             end
 
             //set color
             COLOR_INST: begin
-                if (busy || delay) next_state = COLOR_INST;
-                else next_state = COLOR_DATA;
+                if (busy || delay)
+                    next_state = COLOR_INST;
+                else
+                    next_state = COLOR_DATA;
             end
 
             COLOR_DATA: begin
-                if (busy || delay) next_state = COLOR_DATA;
-                else if (draw_counter < graph_size) next_state = COLOR_DATA;
-                else next_state = IDLE;
+                if (busy || delay)
+                    next_state = COLOR_DATA;
+                else if (draw_counter < graph_size)
+                    next_state = COLOR_DATA;
+                else
+                    next_state = IDLE;
             end
 
             //read color
             READ_COLOR: begin
-                if (busy || delay) next_state = READ_COLOR;
-                else next_state = IDLE;
+                if (busy || delay)
+                    next_state = READ_COLOR;
+                else
+                    next_state = IDLE;
             end
 
+            //refresh
+            REFRESH: begin
+                if (busy || delay)
+                    next_state = REFRESH;
+                else
+                    next_state = IDLE;
+            end
             default: begin
                 next_state = IDLE;
             end
@@ -288,7 +381,8 @@ module lcd_id (
             data_o <= 0;
             id_fm <= 0;
             read_color_o <= 0;
-        end else begin
+        end
+        else begin
             case (next_state)
                 IDLE: begin
                     write_ok <= 1;
@@ -485,6 +579,14 @@ module lcd_id (
                     id_fm <= 1;
                     read_color_o <= 1;
                 end
+                REFRESH: begin
+                    write_ok <= 0;
+                    we <= 1;
+                    wr <= 1;
+                    lcd_rs <= refresh_rs;
+                    data_o <= lcd_data[15:0];
+                end
+
                 default: begin
                     write_ok <= 1;
                     we <= 0;

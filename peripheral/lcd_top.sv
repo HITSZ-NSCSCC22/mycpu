@@ -66,13 +66,13 @@ import lcd_types:
         output logic lcd_wr,
         output logic lcd_rd,
         inout wire [15:0] lcd_data_io,  //from/to lcd data
-        output lcd_bl_ctr,
+        output lcd_bl_ctr
 
-        /**touch LCD**/
-        inout  wire  lcd_ct_int,  //触摸屏中断信号
-        inout  wire  lcd_ct_sda,
-        output logic lcd_ct_scl,
-        output logic lcd_ct_rstn //lcd触摸屏幕复位信号
+        // /**touch LCD**/
+        // inout  wire  lcd_ct_int,  //触摸屏中断信号
+        // inout  wire  lcd_ct_sda,
+        // output logic lcd_ct_scl,
+        // output logic lcd_ct_rstn //lcd触摸屏幕复位信号
 
         // /**VGA**/
         // output logic vga_wen,
@@ -82,10 +82,11 @@ import lcd_types:
 
     );
     //default signal
-    assign lcd_ct_int  = 1'bz;
-    assign lcd_ct_sda  = 1'bz;
-    assign lcd_ct_scl  = 1;
-    assign lcd_ct_rstn = rst_n;
+    // assign lcd_ct_int  = 1'bz;
+    // assign lcd_ct_sda  = 1'bz;
+    // assign lcd_ct_scl  = 1;
+    // assign lcd_ct_rstn = rst_n;
+
 
     //top <-> lcd_ctrl
     logic [31:0] lcd_input_data;
@@ -189,7 +190,8 @@ import lcd_types:
     logic [31:0] ctrl_buffer_addr_id;
     logic data_valid;
     logic [31:0] graph_size;
-
+    logic ctrl_refresh_id;
+    logic ctrl_refresh_rs_id;
     lcd_id u_lcd_id (
                .pclk(pclk),
                .rst_n(rst_n),
@@ -197,6 +199,8 @@ import lcd_types:
                .write_lcd_i(data_valid),
                .lcd_addr_i(ctrl_buffer_addr_id),
                .lcd_data_i(ctrl_buffer_data_id),
+               .refresh_i(ctrl_refresh_id),
+               .refresh_rs_i(ctrl_refresh_rs_id),
 
                //speeder
                .buffer_addr_i(ctrl_buffer_addr_id),
@@ -220,6 +224,14 @@ import lcd_types:
                .busy(id_mux_signal.busy),
                .write_color_ok(id_mux_signal.write_color_ok)
            );
+
+    //lcd_ctrl <-> lcd_refresh
+    logic enable;
+    logic [6:0]refresh_req;//用于决定刷新的种类，
+    logic [15:0]refresh_data;
+    logic data_ok;
+    logic refresh_ok;//refresh is over
+    logic refresh_rs;
 `ifdef AXI
 
     lcd_ctrl u_lcd_ctrl (
@@ -302,16 +314,36 @@ import lcd_types:
                       .buffer_addr(ctrl_buffer_addr_id),  //speeder
                       .data_valid(data_valid),  //tell lcd_id
                       .graph_size(graph_size),
-
+                      .refresh(ctrl_refresh_id),
+                      .refresh_rs_o(ctrl_refresh_rs_id),
                       //from lcd_interface
                       //TODO
                       .lcd_input_data(0),  //data form lcd input
+
+                      //from/to lcd_refresh
+                      .enable(enable),
+                      .refresh_req(refresh_req),//用于决定刷新的种类，
+                      .refresh_data(refresh_data),
+                      .data_ok(data_ok),
+                      .refresh_ok_i(refresh_ok),
+                      .refresh_rs_i(refresh_rs),
 
                       //from lcd_id
                       .write_ok(write_ok)  //æ•°ï¿½?ï¿½å’ŒæŒ‡ä»¤å†™å‡ºåŽ»ï¿½?ï¿½ï¿½?èƒ½ç»§ç»­å†™
                   );
 `endif
 
+    lcd_refresh u_lcd_refresh(
+                    .pclk(pclk),
+                    .rst_n(rst_n),
+                    //from lcd_ctrl
+                    .enable(enable),
+                    .refresh_req(refresh_req),//to choose the background
+                    .refresh_data(refresh_data),
+                    .refresh_rs(refresh_rs),
+                    .data_ok(data_ok),
+                    .refresh_ok(refresh_ok)//refresh is over
+                );
     logic [16:0]addra;
     lcd_init u_lcd_init (
                  .pclk(pclk),
