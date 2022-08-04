@@ -102,33 +102,23 @@ module bpu
     end
     // P1 FTQ output
     always_comb begin
-        ftq_p1_o = 0;
-        case (ftb_entry.branch_type)
-            BRANCH_TYPE_COND: begin
-                if (main_redirect) begin  // TAGE generate a redirect in P1
-                    ftq_p1_o.valid = 1;
-                    ftq_p1_o.is_cross_cacheline = ftb_entry.is_cross_cacheline;
-                    ftq_p1_o.start_pc = p1_pc;
-                    ftq_p1_o.length = ftb_entry.fall_through_address[2+$clog2(FETCH_WIDTH):2] -
-                        p1_pc[2+$clog2(FETCH_WIDTH):2];  // Use 3bit minus to ensure no overflow
+        if (main_redirect) begin  // Main BPU generate a redirect in P1
+            ftq_p1_o.valid = 1;
+            ftq_p1_o.is_cross_cacheline = ftb_entry.is_cross_cacheline;
+            ftq_p1_o.start_pc = p1_pc;
+            ftq_p1_o.length = ftb_entry.fall_through_address[2+$clog2(FETCH_WIDTH):2] -
+                p1_pc[2+$clog2(FETCH_WIDTH):2];  // Use 3bit minus to ensure no overflow
+            ftq_p1_o.predict_valid = 1;
+            case (ftb_entry.branch_type)
+                BRANCH_TYPE_COND: begin
                     ftq_p1_o.predicted_taken = predict_taken;
-                    ftq_p1_o.predict_valid = 1;
                 end
-            end
-            BRANCH_TYPE_CALL, BRANCH_TYPE_RET: begin
-                if (main_redirect) begin  // FTB consider there is a function call or return
-                    ftq_p1_o.valid = 1;
-                    ftq_p1_o.is_cross_cacheline = ftb_entry.is_cross_cacheline;
-                    ftq_p1_o.start_pc = p1_pc;
-                    ftq_p1_o.length = ftb_entry.fall_through_address[2+$clog2(FETCH_WIDTH):2] -
-                        p1_pc[2+$clog2(FETCH_WIDTH):2];  // Use 3bit minus to ensure no overflow
-                    ftq_p1_o.predicted_taken = 1;  // is a unconditional branch
-                    ftq_p1_o.predict_valid = 1;
+                BRANCH_TYPE_CALL, BRANCH_TYPE_RET, BRANCH_TYPE_UNCOND: begin
+                    ftq_p1_o.predicted_taken = 1;
                 end
-            end
-            BRANCH_TYPE_UNCOND: begin
-            end
-        endcase
+            endcase
+        end else ftq_p1_o = 0;
+
     end
 
 
@@ -177,7 +167,7 @@ module bpu
     // 1. This is a conditional branch
     // 2. First time a branch jumped
     // 3. A FTB pollution is detected
-    assign ftb_update_valid = ftq_meta_i.valid & ((mispredict & ~ftq_meta_i.ftb_hit)| (ftq_meta_i.ftb_dirty & ftq_meta_i.ftb_hit)) & (ftq_meta_i.branch_type != BRANCH_TYPE_UNCOND);
+    assign ftb_update_valid = ftq_meta_i.valid & ((mispredict & ~ftq_meta_i.ftb_hit)| (ftq_meta_i.ftb_dirty & ftq_meta_i.ftb_hit));
     always_comb begin
         // Direction preditor update policy:
         tage_update_info.valid = ftq_meta_i.valid;

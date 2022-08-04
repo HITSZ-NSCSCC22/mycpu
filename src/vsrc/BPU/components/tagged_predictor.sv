@@ -12,8 +12,8 @@ module tagged_predictor
     parameter INPUT_GHR_LENGTH = 4,
     parameter PHT_DEPTH = 2048,
     parameter PHT_TAG_WIDTH = 11,
-    parameter PHT_CTR_WIDTH = 2,
-    parameter PHT_USEFUL_WIDTH = 3
+    parameter PHT_CTR_WIDTH = 3,
+    parameter PHT_USEFUL_WIDTH = 2
 ) (
     input logic clk,
     input logic rst,

@@ -20,14 +20,14 @@ package core_config;
     parameter BPU_GHR_LENGTH = 150;
     parameter BPU_TAG_COMPONENT_NUM = 4;
     parameter integer BPU_COMPONENT_TABLE_DEPTH[BPU_TAG_COMPONENT_NUM+1] = '{
-        8192,
+        16384,
         2048,
         2048,
         2048,
         2048
     };
-    parameter integer BPU_COMPONENT_CTR_WIDTH[BPU_TAG_COMPONENT_NUM+1] = '{3, 2, 2, 2, 2};
-    parameter integer BPU_COMPONENT_USEFUL_WIDTH[BPU_TAG_COMPONENT_NUM+1] = '{0, 3, 3, 3, 3};
+    parameter integer BPU_COMPONENT_CTR_WIDTH[BPU_TAG_COMPONENT_NUM+1] = '{2, 3, 3, 3, 3};
+    parameter integer BPU_COMPONENT_USEFUL_WIDTH[BPU_TAG_COMPONENT_NUM+1] = '{0, 2, 2, 2, 2};
     parameter integer BPU_COMPONENT_HISTORY_LENGTH[BPU_TAG_COMPONENT_NUM+1] = '{
         0,
         5,
