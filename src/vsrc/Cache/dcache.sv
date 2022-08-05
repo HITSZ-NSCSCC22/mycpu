@@ -114,7 +114,7 @@ module dcache
     logic fifo_full, dcache_stall;
 
     // P2
-    logic p2_valid;
+    logic p2_valid, p2_uncache_delay;
     logic [1:0] p3_tag_hit;
     logic [2:0] p2_req_type, p3_req_type;
     logic [3:0] p2_wstrb, p3_wstrb;
@@ -266,6 +266,13 @@ module dcache
                     cacop_op_mode2_hit[i] = 1;
             end
         end
+    end
+
+    // keep the uncache_en for stage 3 when stall
+    always_ff @(posedge clk) begin
+        if (rst) p2_uncache_delay <= 0;
+        else if (dcache_stall) p2_uncache_delay <= uncache_en;
+        else p2_uncache_delay <= 0;
     end
 
     // Stage 3
@@ -469,7 +476,7 @@ module dcache
             p3_wdata <= p2_wdata;
             p3_cacop <= p2_cacop;
             p3_tag_hit <= tag_hit;
-            p3_uncache_en <= uncache_en;
+            p3_uncache_en <= uncache_en | p2_uncache_delay;
             p3_tag_bram_rdata <= tag_bram_rdata;
             p3_data_bram_rdata <= data_bram_rdata;
             p3_cacop_way <= cacop_way;
