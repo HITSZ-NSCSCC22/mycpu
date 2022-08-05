@@ -6,11 +6,11 @@ Using
 
 - 16K-Entry Base Predictor
 
-- 2K-Entry Tagged Predictor
+- 1K-Entry Tagged Predictor
 
-- 3-bits CTR, 3bits Useful, 13-bits Tag
+- 3-bits CTR, 3bits Useful, 12-bits Tag
 
-each of the table is less then 36K, in order to fit in a BRAM of xc7a FPGA
+each of the table is exactly 18K, in order to fit in a BRAM of xc7a FPGA
 
 ```
 MPKI: 1.65644
@@ -39,7 +39,29 @@ Avg: 2.70
 ## MPKI with on-board config
 
 With new entry opt:
-Average MPKI: 2.79402
+```
+MPKI: 1.34492
+MPKI: 0.73458
+MPKI: 0.0365424
+MPKI: 0.0305085
+MPKI: 0.0344407
+MPKI: 0.391627
+MPKI: 6.17831
+MPKI: 7.8797
+MPKI: 0.838882
+MPKI: 0.140237
+MPKI: 7.57702
+MPKI: 9.68547
+MPKI: 0.118542
+MPKI: 1.34502
+MPKI: 4.00884
+MPKI: 1.39549
+MPKI: 1.41502
+MPKI: 3.57172
+MPKI: 2.62688
+MPKI: 2.17728
+Average MPKI: 2.57655
+```
 
 No new entry opt:
-Average MPKI: 2.78838
+Average MPKI: 2.62932
