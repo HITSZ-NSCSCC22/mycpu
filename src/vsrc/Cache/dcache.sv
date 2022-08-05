@@ -183,7 +183,7 @@ module dcache
             end
             UNCACHE_WRITE_REQ: begin
                 if (axi_rdy_i) next_state = UNCACHE_WRITE_WAIT;  // If AXI ready, send request 
-                else next_state = UNCACHE_READ_REQ;
+                else next_state = UNCACHE_WRITE_REQ;
             end
             UNCACHE_WRITE_WAIT: begin
                 if (axi_bvalid_i) next_state = IDLE;
