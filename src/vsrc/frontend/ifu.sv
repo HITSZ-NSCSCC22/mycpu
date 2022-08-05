@@ -82,6 +82,7 @@ module ifu
     logic [FETCH_WIDTH-1:0] predecoder_is_register_jump;
     logic [FETCH_WIDTH-1:0][ADDR_WIDTH-1:0] predecoder_jump_target;
     logic [$clog2(FETCH_WIDTH)-1:0] predecoder_unconditional_index;
+    logic predecoder_redirect;
 
 
     /////////////////////////////////////////////////////////////////////////////////
@@ -325,8 +326,8 @@ module ifu
                         // Mark the last instruction if:
                         // 1. prediction valid
                         // 2. no TLBR or other exception detected
-                        instr_buffer_o[i].special_info.predicted_taken <= p2_ftq_block.predicted_taken | predecoder_redirect_o;
-                        instr_buffer_o[i].special_info.predict_valid <= p2_ftq_block.predict_valid | predecoder_redirect_o;
+                        instr_buffer_o[i].special_info.predicted_taken <= p2_ftq_block.predicted_taken | predecoder_redirect;
+                        instr_buffer_o[i].special_info.predict_valid <= p2_ftq_block.predict_valid | predecoder_redirect;
                     end
                     instr_buffer_o[i].valid <= 1;
                     instr_buffer_o[i].pc <= p2_ftq_block.start_pc + i * 4;  // Instr is 4 bytes long
@@ -366,9 +367,12 @@ module ifu
         .encoded_result (predecoder_unconditional_index)
     );
     // Predecoder output
-    assign predecoder_redirect_o = |(predecoder_is_unconditional & ~predecoder_is_register_jump) & ~is_flushing_r & (predecoder_unconditional_index +1 < p2_ftq_block.length) & p2_advance;
-    assign predecoder_redirect_target_o = predecoder_jump_target[predecoder_unconditional_index];
-    assign predecoder_redirect_ftq_id_o = predecoder_redirect_o ? p2_read_transaction.ftq_id : 0;
+    assign predecoder_redirect = |(predecoder_is_unconditional & ~predecoder_is_register_jump) & ~is_flushing_r & (predecoder_unconditional_index +1 < p2_ftq_block.length) & p2_advance & ~backend_flush_i;
+    always_ff @(posedge clk) begin
+        predecoder_redirect_o <= predecoder_redirect;
+        predecoder_redirect_target_o <= predecoder_jump_target[predecoder_unconditional_index];
+        predecoder_redirect_ftq_id_o <= predecoder_redirect ? p2_read_transaction.ftq_id : 0;
+    end
 
 
 
