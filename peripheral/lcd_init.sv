@@ -1,5 +1,6 @@
 `define COLOR_ADDR 17'd803
-`define INIT_END   17'd117232
+`define INIT_END   17'd44027
+`define KEEP_TIME  32'd1_5000_0000
 `define DATA32
 module lcd_init (
         input  logic        pclk,
@@ -24,7 +25,8 @@ module lcd_init (
              CLEAR,//to refresh the lcd
              DRAW_BG,//to draw the background
              DRAW_LOGO,
-             INIT_FINISH
+             INIT_FINISH,
+             LOGO_KEEPING//to keep the logo for a while
          } init_state;
     enum int {
              WAIT_INIT,
@@ -33,6 +35,7 @@ module lcd_init (
     logic [16:0] addra;
     logic [31:0] delay_counter;
 
+    //初始化序列需要延迟一段时间
     always_ff @(posedge pclk) begin
         if (~rst_n) begin
             delay_state   <= WAIT_INIT;
@@ -56,6 +59,17 @@ module lcd_init (
                 end
             endcase
         end
+    end
+
+    //logo需要保持一段时间
+    logic [31:0]delay_time;
+    always_ff @( posedge pclk ) begin
+        if(~rst_n)
+            delay_time<=0;
+        else if(init_state==LOGO_KEEPING)
+            delay_time<=delay_time+1;
+        else
+            delay_time<=0;
     end
 
     always_ff @(posedge pclk) begin
@@ -183,7 +197,7 @@ module lcd_init (
                     if (init_write_ok) begin
                         //draw logo
                         if (addra == `INIT_END) begin
-                            init_state <= INIT_FINISH;
+                            init_state <= LOGO_KEEPING;
                             addra <= 0;
                             we <= 0;
                             wr <= 1;
@@ -208,6 +222,15 @@ module lcd_init (
                         else
                             rs <= 0;
                     end
+                end
+                LOGO_KEEPING: begin
+                    we<=0;
+                    init_work<=1;
+                    init_finish<=0;
+                    if(delay_time<=`KEEP_TIME)
+                        init_state<=LOGO_KEEPING;
+                    else
+                        init_state<=INIT_FINISH;
                 end
                 INIT_FINISH: begin
                     init_state <= INIT_FINISH;
@@ -250,7 +273,7 @@ module lcd_init (
                       .dina (0),         // input wire [15 : 0] dina
                       .douta(data_o)  // output wire [15 : 0] douta
                   );
-    lcd_clear_bram your_instance_name (
+    lcd_clear_bram u_lcd_clear_bram (
                        .clka(pclk),    // input wire clka
                        .ena(1),      // input wire ena
                        .wea(0),      // input wire [0 : 0] wea

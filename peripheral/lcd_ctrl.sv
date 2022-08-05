@@ -168,7 +168,7 @@ module lcd_ctrl (
 
     assign s_bid   = 0;
     assign s_bresp = 0;
-
+    logic buffer_ok;//when buffer is full,drawing lcd
     //Write to lcd
     always_ff @(posedge pclk) begin
         if (~rst_n) begin
@@ -278,7 +278,6 @@ module lcd_ctrl (
     logic [31:0]count;
     logic [31:0]graph_buffer[0:6];
     logic [31:0]graph_addr[0:6];
-    logic buffer_ok;//when buffer is full,drawing lcd
     /**画一次图需要6条连续的sw指令，所以绘图时只需要存储连续的6条sw指令即可**/
     always_ff @( posedge pclk ) begin : lcd_buffer
         if(~rst_n) begin
@@ -363,7 +362,7 @@ module lcd_ctrl (
                         data_valid<=1;
                         delay_time<=0;
                     end
-                    else if(~dispatch_ok&&inst_num<=5) begin
+                    else if(~dispatch_ok&&inst_num<=6) begin
                         delay_time<=delay_time+1;
                         data_valid<=0;
                     end

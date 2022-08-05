@@ -47,7 +47,7 @@ module lcd_test_ctrl (
              IDLE,
              GRAPH,
              DISPATCH_GRAPH,//send graph inst to lcd_id
-             WAIT,
+             WAITING,
              REFRESH
          } buffer_state;
     logic [31:0] addr_buffer;
@@ -130,7 +130,8 @@ module lcd_test_ctrl (
                         data_valid<=1;
                         delay_time<=0;
                     end
-                    else if(~dispatch_ok&&inst_num<=5) begin
+                    //发射完后必须要延迟两秒等待id工作，不然会捕获到上一次的write_ok
+                    else if(~dispatch_ok&&inst_num<=6) begin
                         delay_time<=delay_time+1;
                         data_valid<=0;
                     end
@@ -140,7 +141,7 @@ module lcd_test_ctrl (
                             graph_buffer[i]<=32'b0;
                             graph_addr[i]<=32'b0;
                         end
-                        buffer_state<=IDLE;
+                        buffer_state<=WAITING;
                         buffer_ok<=0;
                         count<=0;
                         buffer_data<=0;
@@ -156,9 +157,9 @@ module lcd_test_ctrl (
                         refresh_rs_o<=0;
                     end
                 end
-                // WAIT: begin
-                //     buffer_state<=buffer_state;
-                // end
+                WAITING: begin
+                    buffer_state<=buffer_state;
+                end
                 REFRESH: begin
                     if(data_ok) begin
                         enable<=0;
@@ -181,7 +182,9 @@ module lcd_test_ctrl (
                         if(refresh_ok) begin
                             buffer_state<=GRAPH;
                             buffer_ok<=0;
+                            count<=0;
                             buffer_data<=0;
+                            buffer_addr<=0;
                             inst_num<=0;
                             data_valid<=0;
                             delay_time<=2;

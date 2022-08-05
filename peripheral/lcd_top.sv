@@ -233,7 +233,7 @@ import lcd_types:
     logic refresh_ok;//refresh is over
     logic refresh_rs;
 `ifdef AXI
-
+    //TODO
     lcd_ctrl u_lcd_ctrl (
                  //rst and clk,clk is lower than cpu
                  .pclk (pclk),
