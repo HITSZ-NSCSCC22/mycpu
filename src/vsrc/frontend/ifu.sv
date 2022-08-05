@@ -124,7 +124,7 @@ module ifu
                         p1_data.tlb_rreq.dmw1_en ? p1_data.csr.dmw1[`DMW_MAT] == 0 : 
                         tlb_i.tlb_mat == 0;
     always_ff @(posedge clk) begin
-        if (backend_flush_i | predecoder_redirect_o) begin
+        if (backend_flush_i | predecoder_redirect | predecoder_redirect_o) begin
             p1_data <= 0;
         end else if (p0_advance & frontend_redirect_i) begin
             p1_data <= 0;
@@ -189,7 +189,7 @@ module ifu
     always_ff @(posedge clk) begin : is_flushing_ff
         if (rst) begin
             is_flushing_r <= 0;
-        end else if ((backend_flush_i | predecoder_redirect_o) & (p2_in_transaction | p1_send_rreq)) begin
+        end else if ((backend_flush_i | predecoder_redirect) & (p2_in_transaction | p1_send_rreq)) begin
             // Enter a flusing state if flush_i and read transaction on-the-fly
             is_flushing_r <= 1;
         end else if (stallreq_i) begin
@@ -235,7 +235,7 @@ module ifu
     always_ff @(posedge clk) begin : p2_ff
         if (rst) begin
             p2_read_transaction <= 0;
-        end else if (((~p1_send_rreq & p1_advance) | ~(p2_in_transaction | p1_send_rreq)) & (backend_flush_i| predecoder_redirect_o)) begin
+        end else if (((~p1_send_rreq & p1_advance) | ~(p2_in_transaction | p1_send_rreq)) & (backend_flush_i| predecoder_redirect)) begin
             p2_read_transaction <= 0;
         end else if (p1_advance) begin
             p2_read_transaction.sent_req <= p1_send_rreq;
@@ -299,7 +299,7 @@ module ifu
         end
     end
     logic [$clog2(FETCH_WIDTH+1)-1:0] p2_block_length;
-    assign p2_block_length = predecoder_redirect_o ? (predecoder_unconditional_index+1 < p2_ftq_block.length ? predecoder_unconditional_index +1 : p2_ftq_block.length) : p2_ftq_block.length;
+    assign p2_block_length = predecoder_redirect ? (predecoder_unconditional_index+1 < p2_ftq_block.length ? predecoder_unconditional_index +1 : p2_ftq_block.length) : p2_ftq_block.length;
     always_ff @(posedge clk) begin : p3_ff
         if (rst) begin
             for (integer i = 0; i < FETCH_WIDTH; i++) begin
@@ -368,6 +368,7 @@ module ifu
     );
     // Predecoder output
     assign predecoder_redirect = |(predecoder_is_unconditional & ~predecoder_is_register_jump) & ~is_flushing_r & (predecoder_unconditional_index +1 < p2_ftq_block.length) & p2_advance & ~backend_flush_i;
+    // assign predecoder_redirect = 0;
     always_ff @(posedge clk) begin
         predecoder_redirect_o <= predecoder_redirect;
         predecoder_redirect_target_o <= predecoder_jump_target[predecoder_unconditional_index];
