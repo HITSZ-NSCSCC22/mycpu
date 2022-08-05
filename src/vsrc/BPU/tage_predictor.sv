@@ -235,7 +235,7 @@ module tage_predictor
     assign use_alt_on_na_counter = use_alt_on_na_counter_table[pc_i[2+:3]];
     assign use_alt = (use_alt_on_na_counter[3] == 1) && query_new_entry_flag;
     // assign use_alt = 0;
-    assign predict_branch_taken_o = use_alt ? taken[altpred_prediction_id] : taken[pred_prediction_id];
+    assign predict_branch_taken_o = taken[pred_prediction_id];
     // Meta
     tage_meta_t query_meta;
     assign query_meta.tag_predictor_useful_bits = tag_useful;
