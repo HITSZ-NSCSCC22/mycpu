@@ -411,7 +411,7 @@ module ex
 
         .op(div_op[1:0]),
         .dividend(oprand1),
-        .divisor((oprand2 == 0 ? 1 : oprand2)),
+        .divisor(oprand2),
         .divisor_is_zero(0),
         .start(div_start),
 
