@@ -31,15 +31,17 @@ module base_predictor
     assign rst_n = ~rst;
 
     // Query logic
-    logic [TABLE_DEPTH_EXP2-1:0] query_index = pc_i[2+TABLE_DEPTH_EXP2-1:2];
-    logic [       CTR_WIDTH-1:0] query_entry;
+    logic [TABLE_DEPTH_EXP2-1:0] query_index;
+    logic [CTR_WIDTH-1:0] query_entry;
 
+    assign query_index = pc_i[2+TABLE_DEPTH_EXP2-1:2];
     assign taken = (query_entry[CTR_WIDTH-1] == 1'b0);
-    assign ctr   = (query_entry);
+    assign ctr = (query_entry);
 
     // Update logic
-    logic [TABLE_DEPTH_EXP2-1:0] update_index = update_pc_i[TABLE_DEPTH_EXP2+1:2];
-    logic [       CTR_WIDTH-1:0] update_content;
+    logic [TABLE_DEPTH_EXP2-1:0] update_index;
+    logic [CTR_WIDTH-1:0] update_content;
+    assign update_index = update_pc_i[TABLE_DEPTH_EXP2+1:2];
     always_comb begin
         if (update_valid) begin
             if (update_ctr_i == {1'b0, {CTR_WIDTH - 1{1'b1}}}) begin
