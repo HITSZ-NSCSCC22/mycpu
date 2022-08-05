@@ -143,8 +143,10 @@ module dcache
         next_state = IDLE;
         case (state)
             IDLE: begin
+                // if the fifo is full ,we keep the state 
+                if (fifo_state[1]) next_state = IDLE;
                 // if the dcache is idle,then accept the new request
-                if (p3_valid & p3_uncache_en & !cpu_flush & mem_valid & !axi_valid_i_delay) begin
+                else if (p3_valid & p3_uncache_en & !cpu_flush & mem_valid & !axi_valid_i_delay) begin
                     if (cpu_wreq) next_state = UNCACHE_WRITE_REQ;
                     else next_state = UNCACHE_READ_REQ;
                 end else if (p3_valid & !hit & !cpu_flush & mem_valid & !axi_valid_i_delay) begin
