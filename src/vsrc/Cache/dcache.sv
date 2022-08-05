@@ -87,7 +87,7 @@ module dcache
     logic [NWAY-1:0][TAG_BRAM_WIDTH-1:0] tag_bram_rdata, p3_tag_bram_rdata;
     logic [NWAY-1:0][TAG_BRAM_WIDTH-1:0] tag_bram_wdata;
     logic [NWAY-1:0][$clog2(NSET)-1:0] tag_bram_raddr, tag_bram_waddr;
-    logic [NWAY-1:0] tag_bram_we;
+    logic [NWAY-1:0] tag_bram_we, tag_bram_ren;
 
     logic hit;
     logic [NWAY-1:0] tag_hit;
@@ -99,7 +99,7 @@ module dcache
     logic [1:0] fifo_state;
     logic fifo_rreq, fifo_wreq, fifo_r_hit, fifo_w_hit, fifo_axi_wr_req, fifo_w_accept;
     logic [`DataAddrBus] fifo_raddr, fifo_waddr, fifo_axi_wr_addr;
-    logic [DCACHELINE_WIDTH-1:0] fifo_rdata, p3_fifo_rdata, fifo_wdata, fifo_axi_wr_data;
+    logic [DCACHELINE_WIDTH-1:0] fifo_rdata, fifo_wdata, fifo_axi_wr_data;
 
     // CACOP
     logic cacop_op_mode0, cacop_op_mode1, cacop_op_mode2;
@@ -123,7 +123,7 @@ module dcache
     logic [`RegBus] p2_wdata;
 
     // P3
-    logic p3_valid, p3_fifo_hit, p3_uncache_en, p2_cacop, p3_cacop, p3_hit;
+    logic p3_valid, p3_uncache_en, p2_cacop, p3_cacop, p3_hit;
     logic [`RegBus] p3_wdata, p2_vaddr, p3_paddr;
 
     assign dcache_ready = ~dcache_stall;
@@ -219,13 +219,15 @@ module dcache
     always_comb begin
         // Default all 0
         for (integer i = 0; i < NWAY; i++) begin
-            tag_bram_raddr[i]  = 0;
+            tag_bram_ren[i] = 0;
+            tag_bram_raddr[i] = 0;
             data_bram_raddr[i] = 0;
         end
         if (state == IDLE) begin
             for (integer i = 0; i < NWAY; i++) begin
                 if (valid | cacop_i) begin
-                    tag_bram_raddr[i]  = vaddr[11:4];
+                    tag_bram_ren[i] = 1;
+                    tag_bram_raddr[i] = vaddr[11:4];
                     data_bram_raddr[i] = vaddr[11:4];
                 end
             end
@@ -234,8 +236,7 @@ module dcache
 
     // Stage 2
     //   - Use the tag rdata and paddr get tag hit
-    //   - Use the paddr search the fifo and get fifo hit
-    //   - Merge the hit message and get hit data
+    //   - Use the paddr search the fifo 
     //   - Check the cacop mode and if mode2 hit
 
 
@@ -274,6 +275,7 @@ module dcache
     end
 
     // Stage 3
+    //   - We get the fifo hit result and merge the hit
     //   - If requset hit ,we prepare the read/write data
     //   - If not ,turn to the refill state and stall the
     //   dcache pipeline until the refill finish
@@ -287,9 +289,9 @@ module dcache
                 hit_data = p3_data_bram_rdata[i];
             end
         end
-        if (p3_fifo_hit) begin
+        if (fifo_r_hit) begin
             hit = 1;
-            hit_data = p3_fifo_rdata;
+            hit_data = fifo_rdata;
         end
     end
 
@@ -429,8 +431,6 @@ module dcache
             p3_wdata <= 0;
             p3_cacop <= 0;
             p3_tag_hit <= 0;
-            p3_fifo_hit <= 0;
-            p3_fifo_rdata <= 0;
             p3_uncache_en <= 0;
             p3_tag_bram_rdata <= 0;
             p3_data_bram_rdata <= 0;
@@ -448,8 +448,6 @@ module dcache
             p3_wdata <= p3_wdata;
             p3_cacop <= p3_cacop;
             p3_tag_hit <= p3_tag_hit;
-            p3_fifo_hit <= p3_fifo_hit;
-            p3_fifo_rdata <= p3_fifo_rdata;
             p3_uncache_en <= p3_uncache_en;
             p3_tag_bram_rdata <= p3_tag_bram_rdata;
             p3_data_bram_rdata <= p3_data_bram_rdata;
@@ -469,8 +467,6 @@ module dcache
             p3_wdata <= p2_wdata;
             p3_cacop <= p2_cacop;
             p3_tag_hit <= tag_hit;
-            p3_fifo_hit <= fifo_r_hit;
-            p3_fifo_rdata <= fifo_rdata;
             p3_uncache_en <= uncache_en;
             p3_tag_bram_rdata <= tag_bram_rdata;
             p3_data_bram_rdata <= data_bram_rdata;
@@ -497,10 +493,10 @@ module dcache
             IDLE: begin
                 // if write hit the cacheline in the fifo 
                 // then rewrite the cacheline in the fifo 
-                if (p3_fifo_hit & cpu_wreq & !cpu_flush) begin
+                if (fifo_r_hit & cpu_wreq & !cpu_flush) begin
                     fifo_wreq = 1;
                     fifo_waddr = p3_paddr;
-                    fifo_wdata = p3_fifo_rdata;
+                    fifo_wdata = fifo_rdata;
                     fifo_wreq_sel_data = 0;
                     case (p3_paddr[3:2])
                         2'b00: fifo_wreq_sel_data = fifo_wdata[31:0];

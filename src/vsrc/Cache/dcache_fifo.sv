@@ -101,6 +101,7 @@ module dcache_fifo
         for (integer i = 0; i < DEPTH; i = i + 1) begin
             if (cpu_rreq_i)
                 read_hit[i] <= ((cpu_araddr == addr_queue[i]) && queue_valid[i]) ? 1'b1 : 1'b0;
+            else read_hit[i] <= 0;
         end
     end
 
