@@ -821,7 +821,7 @@ module cpu_top
                 .ftq_query_pc_i  (ex_ftq_query_pc[i]),
 
                 .dcache_rreq_o (mem_cache_signal[i]),
-                .dcache_ready_i(dcache_ready),
+                .dcache_ready_i(i == 0 ? dcache_ready : 1),
 
                 .icacop_en_o  (icacop_op_en[i]),
                 .icacop_mode_o(icacop_op_mode[i]),

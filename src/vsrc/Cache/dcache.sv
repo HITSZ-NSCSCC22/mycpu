@@ -31,6 +31,8 @@ module dcache
 
     input logic cpu_flush,
 
+    output logic [1:0] tag_hit_o,
+
     output logic dcache_ready,
     output logic data_ok,
     output logic [31:0] rdata,
@@ -231,6 +233,9 @@ module dcache
             tag_hit[1] = tag_bram_rdata[1][19:0] == paddr[31:12] && tag_bram_rdata[1][20];
         end
     end
+
+    // send to dispatch to deal with load to use
+    assign tag_hit_o = tag_hit;
 
     assign dirty = {tag_bram_rdata[1][21], tag_bram_rdata[0][21]};
 

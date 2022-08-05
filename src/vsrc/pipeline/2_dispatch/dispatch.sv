@@ -32,6 +32,9 @@ module dispatch
     output [1:0][13:0] csr_read_addr,
     input [1:0][`RegBus] csr_data,
 
+    // <- Dcache
+    input logic [1:0] tag_hit,
+
     // -> Instruction Buffer, wire
     output logic [DECODE_WIDTH-1:0] ib_accept_o,
 

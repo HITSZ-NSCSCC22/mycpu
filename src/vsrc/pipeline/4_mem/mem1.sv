@@ -29,6 +29,7 @@ module mem1
     // Data forward
     // -> Dispatch
     // -> EX
+    output logic [4:0] load_reg,
     output data_forward_t data_forward_o,
 
     output logic uncache_en,
@@ -70,7 +71,8 @@ module mem1
     assign mem_paddr = {tlb_result_i.tag, tlb_result_i.index, tlb_result_i.offset};
     assign mem_vaddr = ex_i.mem_addr;
 
-    assign uncache_en = ex_i.data_uncache_en || (ex_i.data_addr_trans_en && (tlb_result_i.tlb_mat == 2'b0));
+    // if it is not a mem instr,we don't send the uncache en 
+    assign uncache_en = access_mem ?  (ex_i.data_uncache_en || (ex_i.data_addr_trans_en && (tlb_result_i.tlb_mat == 2'b0))) : 0;
 
     assign access_mem = mem_load_op | mem_store_op;
 
@@ -118,6 +120,7 @@ module mem1
         mem2_o.wreg, !mem_load_op, mem2_o.waddr, mem2_o.wdata, mem2_o.csr_signal
     };
 
+    assign load_reg = {5{mem_load_op}} & mem2_o.waddr;
 
     //if mem1 has a mem request and cache is working 
     //then wait until cache finish its work
