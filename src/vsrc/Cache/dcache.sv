@@ -645,13 +645,14 @@ module dcache
             READ_REQ, WRITE_REQ: begin
                 if (axi_rdy_i) begin
                     axi_req_o  = 1;
+                    axi_size_o = 3'b100;
                     axi_addr_o = {p3_paddr[31:4], 4'b0};
                 end
             end
             UNCACHE_READ_REQ: begin
                 if (axi_rdy_i) begin
-                    axi_size_o = p3_req_type;
                     axi_req_o  = 1;
+                    axi_size_o = p3_req_type;
                     axi_addr_o = p3_paddr;
                 end
             end
