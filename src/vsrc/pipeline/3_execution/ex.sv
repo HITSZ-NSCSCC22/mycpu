@@ -370,18 +370,15 @@ module ex
         endcase
     end
 
-
+    assign mul_start = mul_op != 3'b0 & !mul_already_start & !muldiv_already_finish & !flush;
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            mul_start <= 0;
             mul_already_start <= 0;
         end else if (mul_op != 3'b0 & !mul_already_start & !muldiv_already_finish & !flush) begin
-            mul_start <= 1;
             mul_already_start <= 1;
-        end else if (pc_delay != inst_pc_i) mul_already_start <= 0;
+        end else if (advance) mul_already_start <= 0;
         else begin
-            mul_start <= 0;
             mul_already_start = mul_already_start;
         end
     end
@@ -400,17 +397,12 @@ module ex
         .mul_result(mul_result)
     );
 
+    assign div_start = div_op != 3'b0 & !div_already_start & !muldiv_already_finish & ~flush& !is_running;
+
     always_ff @(posedge clk) begin
         if (rst) div_already_start <= 0;
         else if (advance) div_already_start <= 0;
         else if (div_start) div_already_start <= 1;
-    end
-
-    always_ff @(posedge clk) begin
-        if (rst) div_start <= 0;
-        else if (div_start | div_already_start) div_start <= 0;
-        else if (div_op != 3'b0 & !div_already_start & !muldiv_already_finish & ~flush& !is_running)
-            div_start <= 1;
     end
 
     div_unit u_div_unit (

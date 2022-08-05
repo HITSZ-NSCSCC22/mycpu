@@ -155,7 +155,7 @@ module dcache
             IDLE: begin
                 if (cacop_i) next_state = CACOP_INVALID;
                 // if the dcache is idle,then accept the new request
-                else if (p3_valid & p3_uncache_en & !cpu_flush & mem_valid) begin
+                else if (p3_valid & p3_uncache_en & !cpu_flush & mem_valid & !axi_valid_i_delay) begin
                     if (cpu_wreq) next_state = UNCACHE_WRITE_REQ;
                     else next_state = UNCACHE_READ_REQ;
                 end else if (p3_valid & !hit & !cpu_flush & mem_valid & !axi_valid_i_delay) begin
