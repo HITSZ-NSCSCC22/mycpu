@@ -9,23 +9,32 @@
 
 #include "struct.hpp"
 
-#define BRANCH_LATENCY (3)
+#define BRANCH_LATENCY (2)
+#define MAX_TRACE_LENGTH (10000000)
 
 // Work around
 double sc_time_stamp() { return 0; }
 
-static std::string test_filename = "data/gcc-8M.txt";
+static std::string test_filename = "data/gcc-10K.txt";
 
 struct instruction_entry
 {
     uint64_t pc;
     bool taken;
+    bool conditional;
+};
+
+struct trace
+{
+    std::vector<instruction_entry> entries;
+    uint64_t total_instr_num;
 };
 
 // Parse test file
-std::vector<instruction_entry> parse_test_file(std::string filename)
+trace parse_test_file(std::string filename)
 {
     std::ifstream test_file(filename);
+    std::ifstream test_instr_cnt_file(filename + ".cnt");
 
     if (!test_file.is_open())
     {
@@ -35,19 +44,28 @@ std::vector<instruction_entry> parse_test_file(std::string filename)
 
     std::vector<instruction_entry> entries;
 
+    uint64_t trace_num_cnt = 0;
+
     // Read loop
-    while (!test_file.eof())
+    while (!test_file.eof() && trace_num_cnt < MAX_TRACE_LENGTH)
     {
         uint64_t pc;
         char taken_char;
-        test_file >> std::hex >> pc;
+        char conditional;
+        test_file >> pc;
         test_file >> taken_char;
+        test_file >> conditional;
 
-        entries.push_back({pc, taken_char == 'T' || taken_char == '1'});
+        entries.push_back({pc, taken_char == 'T' || taken_char == '1', conditional == '1'});
+        trace_num_cnt++;
     }
 
+    uint64_t total_instr_num;
+    test_instr_cnt_file >> total_instr_num;
+
     test_file.close();
-    return entries;
+    test_instr_cnt_file.close();
+    return {entries, total_instr_num};
 }
 
 int main(int argc, char const *argv[])
@@ -74,7 +92,8 @@ int main(int argc, char const *argv[])
     {
         input_filename = test_filename;
     }
-    auto entries = parse_test_file(input_filename);
+    auto trace = parse_test_file(input_filename);
+    auto entries = trace.entries;
     std::cout << "Procceeding with test instructions: " << entries.size() << std::endl;
     std::cout << "First instruction: 0x" << std::hex << entries[0].pc << " " << entries[0].taken << std::dec << std::endl;
     std::cout << "Size of output meta: " << sizeof(bpu_ftq_meta_t) << std::endl;
@@ -135,14 +154,14 @@ int main(int argc, char const *argv[])
         context->timeInc(1);
 
         // Provider update info
-        size_t update_id = i > BRANCH_LATENCY ? i - BRANCH_LATENCY : 0;
+        size_t update_id = i > 5 ? i - 5 : 0;
         sopc->update_pc_i = entries[update_id].pc;
         tage_predictor_update_info_t update_info_i;
-        std::memcpy(&update_info_i, &output_meta_queue[update_id], (TAGE_META_BITS_SIZE / 8) + 1);
+        std::memcpy(&update_info_i, &output_meta_queue[update_id], (166 / 8) + 1);
         update_info_i.valid = 1;
         update_info_i.predict_correct = prediction_taken[update_id] == entries[update_id].taken;
         update_info_i.branch_taken = entries[update_id].taken;
-        update_info_i.is_conditional = 1;
+        update_info_i.is_conditional = entries[update_id].conditional;
         std::memcpy(sopc->update_info_i, &update_info_i, sizeof(update_info_i));
 
         sopc->clk = 1;
@@ -157,19 +176,20 @@ int main(int argc, char const *argv[])
         sopc->eval();
         context->timeInc(1);
     }
-    uint32_t perf_tag_hit_counter[16];
-    std::memcpy(perf_tag_hit_counter, sopc->perf_tag_hit_counter, sizeof(uint32_t) * 16);
-    for (size_t i = 0; i < 16; i++)
-    {
-        std::cout << perf_tag_hit_counter[i] << std::endl;
-    }
-
+    uint32_t perf_tag_hit_counter[5];
+    std::memcpy(perf_tag_hit_counter, sopc->perf_tag_hit_counter, sizeof(uint32_t) * 5);
+    std::cout << perf_tag_hit_counter[4] << std::endl;
+    std::cout << perf_tag_hit_counter[3] << std::endl;
+    std::cout << perf_tag_hit_counter[2] << std::endl;
+    std::cout << perf_tag_hit_counter[1] << std::endl;
+    std::cout << perf_tag_hit_counter[0] << std::endl;
     sopc->final();
 
     // First predicto is invalid
     // prediction_taken.pop_front();
 
     // Statistics
+    uint64_t misprediction = 0;
     uint64_t correct = 0;
     uint64_t target_taken = 0;
     uint64_t predicted_taken = 0;
@@ -178,6 +198,10 @@ int main(int argc, char const *argv[])
         if (entries[i].taken == prediction_taken[i])
         {
             correct++;
+        }
+        if ((entries[i].taken != prediction_taken[i]) && entries[i].conditional)
+        {
+            misprediction++;
         }
         if (entries[i].taken)
         {
@@ -191,8 +215,9 @@ int main(int argc, char const *argv[])
     std::cout << "Correct Taken: " << target_taken << '\n';
     std::cout << "Predicted Taken: " << predicted_taken << '\n';
     std::cout << "Correct: " << correct << '\n';
-    std::cout << "Wrong: " << prediction_taken.size() - correct << '\n';
+    std::cout << "Wrong: " << misprediction << '\n';
     std::cout << "Correct Rate: " << (double)correct / prediction_taken.size() << std::endl;
+    std::cout << "MPKI: " << (double)misprediction * 1000 / trace.total_instr_num << std::endl;
 
     return 0;
 }

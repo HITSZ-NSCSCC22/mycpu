@@ -57,11 +57,23 @@ module ifu
     // P1 signal
     logic p1_send_rreq, p1_send_rreq_delay1;
     ftq_block_t p1_ftq_block;
+    logic [ADDR_WIDTH-1:0] p1_pc;
     // P2 signal
     logic p2_read_done, p2_read_already_done;  // Read done is same cycle as ICache return valid
     logic p2_rreq_ack;  // Read request is accepted by ICache
     logic p2_in_transaction;  // Currently in transaction and not done yet
     ftq_block_t p2_ftq_block;
+    logic [ADDR_WIDTH-1:0] p2_pc;
+    // P3 signal
+    ftq_block_t p3_ftq_block;
+    logic [ADDR_WIDTH-1:0] p3_pc;
+    // Predecoder
+    logic [FETCH_WIDTH-1:0] predecoder_is_unconditional;
+    logic [FETCH_WIDTH-1:0] predecoder_is_register_jump;
+    logic [FETCH_WIDTH-1:0][ADDR_WIDTH-1:0] predecoder_jump_target;
+    logic [$clog2(FETCH_WIDTH)-1:0] predecoder_unconditional_index;
+    logic predecoder_redirect;
+    logic predecoder_redirect_delay;
     // Flush state
     logic is_flushing_r;
 
@@ -75,13 +87,8 @@ module ifu
     // FTQ block
     assign p1_ftq_block = p1_data.ftq_block;
     assign p2_ftq_block = p2_read_transaction.ftq_block;
+    assign p3_ftq_block = p3_read_transaction.ftq_block;
 
-    // P3
-    // Predecoder
-    logic [FETCH_WIDTH-1:0] predecoder_is_unconditional;
-    logic [FETCH_WIDTH-1:0] predecoder_is_register_jump;
-    logic [FETCH_WIDTH-1:0][ADDR_WIDTH-1:0] predecoder_jump_target;
-    logic [$clog2(FETCH_WIDTH)-1:0] predecoder_unconditional_index;
 
 
     /////////////////////////////////////////////////////////////////////////////////
@@ -113,8 +120,7 @@ module ifu
         inst_tlb_t tlb_rreq;
         ifu_csr_t csr;
     } p1_t;
-    p1_t p1_data;
-    logic [ADDR_WIDTH-1:0] p1_pc;
+    p1_t  p1_data;
     logic p1_uncache;  // Fetch request is uncached, generated using csr & tlb
 
     assign p1_pc = p1_data.ftq_block.start_pc;
@@ -123,7 +129,7 @@ module ifu
                         p1_data.tlb_rreq.dmw1_en ? p1_data.csr.dmw1[`DMW_MAT] == 0 : 
                         tlb_i.tlb_mat == 0;
     always_ff @(posedge clk) begin
-        if (backend_flush_i | predecoder_redirect_o) begin
+        if (backend_flush_i | predecoder_redirect | predecoder_redirect_delay) begin
             p1_data <= 0;
         end else if (p0_advance & frontend_redirect_i) begin
             p1_data <= 0;
@@ -188,7 +194,7 @@ module ifu
     always_ff @(posedge clk) begin : is_flushing_ff
         if (rst) begin
             is_flushing_r <= 0;
-        end else if ((backend_flush_i | predecoder_redirect_o) & (p2_in_transaction | p1_send_rreq)) begin
+        end else if ((backend_flush_i | predecoder_redirect) & (p2_in_transaction | p1_send_rreq)) begin
             // Enter a flusing state if flush_i and read transaction on-the-fly
             is_flushing_r <= 1;
         end else if (stallreq_i) begin
@@ -215,7 +221,6 @@ module ifu
         ifu_csr_t csr;
     } read_transaction_t;
     read_transaction_t p2_read_transaction;
-    logic [ADDR_WIDTH-1:0] p2_pc;
     assign p2_pc = p2_read_transaction.ftq_block.start_pc;
 
 
@@ -234,7 +239,7 @@ module ifu
     always_ff @(posedge clk) begin : p2_ff
         if (rst) begin
             p2_read_transaction <= 0;
-        end else if (((~p1_send_rreq & p1_advance) | ~(p2_in_transaction | p1_send_rreq)) & (backend_flush_i| predecoder_redirect_o)) begin
+        end else if (((~p1_send_rreq & p1_advance) | ~(p2_in_transaction | p1_send_rreq)) & (backend_flush_i| predecoder_redirect)) begin
             p2_read_transaction <= 0;
         end else if (p1_advance) begin
             p2_read_transaction.sent_req <= p1_send_rreq;
@@ -269,80 +274,71 @@ module ifu
         end
     end
 
-    logic [FETCH_WIDTH*2-1:0][DATA_WIDTH-1:0] cacheline_combined; // Same cycle as ICache return, used in P2
-    assign cacheline_combined = {
-        icache_rvalid_i[1] ? icache_rdata_i[1] : p2_read_transaction.icache_rdata_r[1],
-        icache_rvalid_i[0] ? icache_rdata_i[0] : p2_read_transaction.icache_rdata_r[0]
-    };
-    logic [FETCH_WIDTH-1:0][DATA_WIDTH-1:0] p2_instructions;
-    logic [FETCH_WIDTH-1:0][ADDR_WIDTH-1:0] p2_pcs;
-    always_comb begin
-        for (integer i = 0; i < FETCH_WIDTH; i++) begin
-            p2_instructions[i] = cacheline_combined[p2_ftq_block.start_pc[3:2]+i];
-            p2_pcs[i] = p2_ftq_block.start_pc + i * 4;
-        end
-    end
-
-    // P1 debug, for observability
-    logic [1:0] debug_p2_rvalid_r = p2_read_transaction.icache_rvalid_r;
 
 
 
     /////////////////////////////////////////////////////////////////////////////////
     // P3, send instr info to IB & Predecoder
     /////////////////////////////////////////////////////////////////////////////////
-    logic [FETCH_WIDTH-1:0] debug_predicted_taken;
+    logic [FETCH_WIDTH*2-1:0][DATA_WIDTH-1:0] cacheline_combined;
+    assign cacheline_combined = {
+        p3_read_transaction.icache_rdata_r[1], p3_read_transaction.icache_rdata_r[0]
+    };
+    logic [FETCH_WIDTH-1:0][DATA_WIDTH-1:0] p3_instructions;
+    logic [FETCH_WIDTH-1:0][ADDR_WIDTH-1:0] p3_pcs;
     always_comb begin
-        for (integer i = 0; i < FETCH_WIDTH; ++i) begin
-            debug_predicted_taken[i] = instr_buffer_o[i].special_info.predicted_taken;
+        for (integer i = 0; i < FETCH_WIDTH; i++) begin
+            p3_instructions[i] = cacheline_combined[p3_ftq_block.start_pc[3:2]+i];
+            p3_pcs[i] = p3_ftq_block.start_pc + i * 4;
         end
     end
-    logic [$clog2(FETCH_WIDTH+1)-1:0] p2_block_length;
-    assign p2_block_length = predecoder_redirect_o ? (predecoder_unconditional_index+1 < p2_ftq_block.length ? predecoder_unconditional_index +1 : p2_ftq_block.length) : p2_ftq_block.length;
+    assign p3_pc = p3_ftq_block.start_pc;
+    read_transaction_t p3_read_transaction;
+    logic [$clog2(FETCH_WIDTH+1)-1:0] p3_block_length;
+    assign p3_block_length = predecoder_redirect ? (predecoder_unconditional_index+1 < p3_ftq_block.length ? predecoder_unconditional_index +1 : p3_ftq_block.length) : p3_ftq_block.length;
     always_ff @(posedge clk) begin : p3_ff
         if (rst) begin
-            for (integer i = 0; i < FETCH_WIDTH; i++) begin
-                instr_buffer_o[i] <= 0;
-            end
+            p3_read_transaction <= 0;
         end else if (backend_flush_i) begin
-            for (integer i = 0; i < FETCH_WIDTH; i++) begin
-                instr_buffer_o[i] <= 0;
-            end
+            p3_read_transaction <= 0;
         end else if (stallreq_i) begin
             // Hold output
-        end else if (p2_advance & ~is_flushing_r) begin
-            // Default 0
-            for (integer i = 0; i < FETCH_WIDTH; i++) begin
-                instr_buffer_o[i] <= 0;
-            end
-            // If p1 read done, pass data to IB
-            // However, if p1 read done comes from flushing, do not pass down to IB
-            for (integer i = 0; i < FETCH_WIDTH; i++) begin
-                if (i < p2_block_length) begin
-                    if (i == p2_block_length - 1) begin
-                        // Mark the instruction as last in block, used when commit
-                        instr_buffer_o[i].is_last_in_block <= 1;
-                        // Mark the last instruction if:
-                        // 1. prediction valid
-                        // 2. no TLBR or other exception detected
-                        instr_buffer_o[i].special_info.predicted_taken <= p2_ftq_block.predicted_taken | predecoder_redirect_o;
-                        instr_buffer_o[i].special_info.predict_valid <= p2_ftq_block.predict_valid | predecoder_redirect_o;
-                    end
-                    instr_buffer_o[i].valid <= 1;
-                    instr_buffer_o[i].pc <= p2_ftq_block.start_pc + i * 4;  // Instr is 4 bytes long
-                    // Set to 0 is exception occurs
-                    instr_buffer_o[i].instr <= p2_read_transaction.excp ? 0 : p2_instructions[i];
-                    // Exception info
-                    instr_buffer_o[i].excp <= p2_read_transaction.excp;
-                    instr_buffer_o[i].excp_num <= p2_read_transaction.excp_num;
-                    instr_buffer_o[i].ftq_id <= p2_read_transaction.ftq_id;
-                    instr_buffer_o[i].ftq_block_idx <= i[1:0];
-                end
-            end
+        end else if (p2_advance & ~is_flushing_r & ~predecoder_redirect) begin
+            p3_read_transaction <= p2_read_transaction;
+            if (icache_rvalid_i[0]) p3_read_transaction.icache_rdata_r[0] <= icache_rdata_i[0];
+            if (icache_rvalid_i[1]) p3_read_transaction.icache_rdata_r[1] <= icache_rdata_i[1];
         end else begin
-            // Otherwise keep 0
-            for (integer i = 0; i < FETCH_WIDTH; i++) begin
-                instr_buffer_o[i] <= 0;
+            p3_read_transaction <= 0;
+        end
+    end
+    always_comb begin : p3_comb
+
+        // Default 0
+        for (integer i = 0; i < FETCH_WIDTH; i++) begin
+            instr_buffer_o[i] = 0;
+        end
+        // If p1 read done, pass data to IB
+        // However, if p1 read done comes from flushing, do not pass down to IB
+        for (integer i = 0; i < FETCH_WIDTH; i++) begin
+            if (i < p3_block_length) begin
+                if (i == p3_block_length - 1) begin
+                    // Mark the instruction as last in block, used when commit
+                    instr_buffer_o[i].is_last_in_block = 1;
+                    // Mark the last instruction if:
+                    // 1. prediction valid
+                    // 2. no TLBR or other exception detected
+                    instr_buffer_o[i].special_info.predicted_taken = p3_ftq_block.predicted_taken | predecoder_redirect;
+                    instr_buffer_o[i].special_info.predict_valid = p3_ftq_block.predict_valid | predecoder_redirect;
+                end
+                instr_buffer_o[i].valid = 1;
+                instr_buffer_o[i].pc = p3_ftq_block.start_pc + i * 4;  // Instr is 4 bytes long
+                // Set to 0 is exception occurs
+                instr_buffer_o[i].instr = p3_read_transaction.excp ? 0 : p3_instructions[i];
+                // Exception info
+                instr_buffer_o[i].excp = p3_read_transaction.excp;
+                instr_buffer_o[i].excp_num = p3_read_transaction.excp_num;
+                instr_buffer_o[i].ftq_id = p3_read_transaction.ftq_id;
+                instr_buffer_o[i].ftq_block_idx = i[1:0];
             end
         end
     end
@@ -350,8 +346,8 @@ module ifu
     generate
         for (genvar i = 0; i < FETCH_WIDTH; i++) begin
             predecoder u_predecoder (
-                .instr_i              (p2_instructions[i]),
-                .pc_i                 (p2_pcs[i]),
+                .instr_i              (p3_instructions[i]),
+                .pc_i                 (p3_pcs[i]),
                 .is_unconditional_o   (predecoder_is_unconditional[i]),
                 .is_register_jump_o   (predecoder_is_register_jump[i]),
                 .jump_target_address_o(predecoder_jump_target[i])
@@ -366,9 +362,15 @@ module ifu
         .encoded_result (predecoder_unconditional_index)
     );
     // Predecoder output
-    assign predecoder_redirect_o = |(predecoder_is_unconditional & ~predecoder_is_register_jump) & ~is_flushing_r & (predecoder_unconditional_index +1 < p2_ftq_block.length) & p2_advance;
-    assign predecoder_redirect_target_o = predecoder_jump_target[predecoder_unconditional_index];
-    assign predecoder_redirect_ftq_id_o = predecoder_redirect_o ? p2_read_transaction.ftq_id : 0;
+    assign predecoder_redirect = |(predecoder_is_unconditional & ~predecoder_is_register_jump) & ~is_flushing_r & (predecoder_unconditional_index +1 < p3_ftq_block.length);
+    always_comb begin
+        predecoder_redirect_o = predecoder_redirect;
+        predecoder_redirect_target_o = predecoder_jump_target[predecoder_unconditional_index];
+        predecoder_redirect_ftq_id_o = predecoder_redirect ? p3_read_transaction.ftq_id : 0;
+    end
+    always_ff @(posedge clk) begin
+        predecoder_redirect_delay <= predecoder_redirect;
+    end
 
 
 

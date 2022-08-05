@@ -78,9 +78,9 @@ module tage_predictor
     // Meta
     logic [TAG_COMPONENT_AMOUNT-1:0][2:0] tag_ctr;
     logic [TAG_COMPONENT_AMOUNT-1:0][2:0] tag_useful;
-    logic [TAG_COMPONENT_AMOUNT-1:0][10:0] tag_query_tag;
-    logic [TAG_COMPONENT_AMOUNT-1:0][10:0] tag_origin_tag;
-    logic [TAG_COMPONENT_AMOUNT-1:0][10:0] tag_hit_index;
+    logic [TAG_COMPONENT_AMOUNT-1:0][BPU_TAG_COMPONENT_TAG_WIDTH-1:0] tag_query_tag;
+    logic [TAG_COMPONENT_AMOUNT-1:0][BPU_TAG_COMPONENT_TAG_WIDTH-1:0] tag_origin_tag;
+    logic [TAG_COMPONENT_AMOUNT-1:0][9:0] tag_hit_index;
 
     // Update
     logic [ADDR_WIDTH-1:0] update_pc;
@@ -91,13 +91,14 @@ module tage_predictor
     logic update_is_conditional;
     logic update_new_entry_flag;  // Indicates the provider is new
     logic [$clog2(TAG_COMPONENT_AMOUNT+1)-1:0] update_provider_id;
+    logic [$clog2(TAG_COMPONENT_AMOUNT+1)-1:0] update_alt_provider_id;
     logic [TAG_COMPONENT_AMOUNT:0] update_ctr;  // Whether a component should updated its ctr
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_ctr;
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_useful;
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_inc_useful;
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_realloc_entry;
     logic [TAG_COMPONENT_AMOUNT-1:0][2:0] tag_update_query_useful;
-    logic [TAG_COMPONENT_AMOUNT-1:0][10:0] tag_update_new_tag;
+    logic [TAG_COMPONENT_AMOUNT-1:0][BPU_TAG_COMPONENT_TAG_WIDTH-1:0] tag_update_new_tag;
     // Indicates the longest history component which useful is 0
     logic [$clog2(TAG_COMPONENT_AMOUNT+1)-1:0] tag_update_useful_zero_id;
 
@@ -107,6 +108,7 @@ module tage_predictor
     logic [TAG_COMPONENT_AMOUNT-1:0] tag_update_useful_pingpong_counter;
 
     // USE_ALT_ON_NA counter
+    logic [3:0] use_alt_on_na_counter_table[8];
     logic [3:0] use_alt_on_na_counter;
     logic use_alt;
     integer use_alt_cnt;
@@ -120,9 +122,7 @@ module tage_predictor
     // Global History Register
     logic [GHR_DEPTH-1:0] GHR;
     always_ff @(posedge clk) begin
-        if (!rst_n) begin
-            GHR <= 0;
-        end else if (update_valid) begin
+        if (update_valid) begin
             // Shift left for every valid branch
             GHR <= {GHR[GHR_DEPTH-2:0], update_branch_taken};
         end
@@ -194,12 +194,18 @@ module tage_predictor
     assign query_is_useful = (taken[pred_prediction_id] != taken[altpred_prediction_id]);
 
     // Select the longest match provider
-    reverse_priority_encoder #(
-        .WIDTH(5)
-    ) pred_select (
-        .priority_vector({tag_hit, 1'b1}),
-        .encoded_result (pred_prediction_id)
-    );
+    always_comb begin
+        pred_prediction_id = 0;
+        for (integer i = 0; i < TAG_COMPONENT_AMOUNT; i++) begin
+            if (tag_hit[i]) pred_prediction_id = i + 1;
+        end
+    end
+    // reverse_priority_encoder #(
+    //     .WIDTH(5)
+    // ) pred_select (
+    //     .priority_vector({tag_hit, 1'b1}),
+    //     .encoded_result (pred_prediction_id)
+    // );
     // Select altpred
     logic [TAG_COMPONENT_AMOUNT:0] altpred_pool;
     always_comb begin
@@ -208,22 +214,28 @@ module tage_predictor
             altpred_pool[pred_prediction_id] = 1'b0;
         end
     end
-    reverse_priority_encoder #(
-        .WIDTH(5)
-    ) altpred_select (
-        .priority_vector(altpred_pool),
-        .encoded_result (altpred_prediction_id)
-    );
+    always_comb begin
+        altpred_prediction_id = 0;
+        for (integer i = 0; i < TAG_COMPONENT_AMOUNT + 1; i++) begin
+            if (altpred_pool[i]) altpred_prediction_id = i;
+        end
+    end
+    // reverse_priority_encoder #(
+    //     .WIDTH(5)
+    // ) altpred_select (
+    //     .priority_vector(altpred_pool),
+    //     .encoded_result (altpred_prediction_id)
+    // );
 
     // Output logic
     assign predict_valid_o = 1;
     assign taken = {tag_taken, base_taken};
-    assign query_new_entry_flag = tag_useful[pred_prediction_id-1][2] == 0 && 
-                                    (tag_ctr[pred_prediction_id-1] == 3'b010 || tag_ctr[pred_prediction_id-1] == 3'b001) && 
+    assign query_new_entry_flag = (tag_ctr[pred_prediction_id-1] == 3'b011 || tag_ctr[pred_prediction_id-1] == 3'b100) && 
                                     pred_prediction_id != 0;
-    // assign use_alt = (use_alt_on_na_counter[3] == 1) && query_new_entry_flag;
-    assign use_alt = 0;
-    assign predict_branch_taken_o = use_alt ? taken[altpred_prediction_id] : taken[pred_prediction_id];
+    assign use_alt_on_na_counter = use_alt_on_na_counter_table[pc_i[2+:3]];
+    assign use_alt = (use_alt_on_na_counter[3] == 1) && query_new_entry_flag;
+    // assign use_alt = 0;
+    assign predict_branch_taken_o = taken[pred_prediction_id];
     // Meta
     tage_meta_t query_meta;
     assign query_meta.tag_predictor_useful_bits = tag_useful;
@@ -252,13 +264,13 @@ module tage_predictor
     ////////////////////////////////////////////////////////////////////////////////////////////
 
     // USE_ALT_ON_NA
-    assign update_new_entry_flag = update_meta.tag_predictor_useful_bits[update_provider_id-1] == 0 && (update_meta.provider_ctr_bits[update_provider_id-1] == 3'b010 || update_meta.provider_ctr_bits[update_provider_id-1] == 3'b001) && update_provider_id != 0;
+    assign update_new_entry_flag = (update_meta.provider_ctr_bits[update_provider_id-1] == 3'b011 || update_meta.provider_ctr_bits[update_provider_id-1] == 3'b100) && update_provider_id != 0;
+    // assign update_new_entry_flag = update_meta.tag_predictor_useful_bits[update_provider_id-1] == 0 && (update_meta.provider_ctr_bits[update_provider_id-1] == 3'b010 || update_meta.provider_ctr_bits[update_provider_id-1] == 3'b001) && update_provider_id != 0;
     always_ff @(posedge clk) begin
-        if (rst) use_alt_on_na_counter <= 0;
-        else if (update_valid & update_new_entry_flag & update_meta.useful & ~update_info_i.predict_correct)
-            use_alt_on_na_counter <= use_alt_on_na_counter == 4'b1111 ? 4'b1111 : use_alt_on_na_counter +1;
+        if (update_valid & update_new_entry_flag & update_meta.useful & ~update_info_i.predict_correct)
+            use_alt_on_na_counter_table[update_pc[2+:3]] <= use_alt_on_na_counter == 4'b1111 ? 4'b1111 : use_alt_on_na_counter +1;
         else if (update_valid & update_new_entry_flag & update_meta.useful & update_info_i.predict_correct)
-            use_alt_on_na_counter <= use_alt_on_na_counter == 0 ? 0 : use_alt_on_na_counter - 1;
+            use_alt_on_na_counter_table[update_pc[2+:3]] <= use_alt_on_na_counter == 0 ? 0 : use_alt_on_na_counter - 1;
     end
     always_ff @(posedge clk) begin
         if (use_alt) use_alt_cnt <= use_alt_cnt + 1;
@@ -281,6 +293,7 @@ module tage_predictor
     assign update_branch_taken = update_info_i.branch_taken;
     assign update_is_conditional = update_info_i.is_conditional;
     assign update_provider_id = update_meta.provider_id;
+    assign update_alt_provider_id = update_meta.alt_provider_id;
     assign update_pc = update_pc_i;
 
     assign tag_update_query_useful = update_meta.tag_predictor_useful_bits;
@@ -330,8 +343,13 @@ module tage_predictor
         for (integer i = 0; i < TAG_COMPONENT_AMOUNT + 1; i++) begin
             update_ctr[i] = 1'b0;
         end
-        if (update_is_conditional & update_valid) begin  // Only update on conditional branches
-            update_ctr[update_provider_id] = 1'b1;  // One hot
+        // Update provider
+        if (update_is_conditional & update_valid) begin
+            update_ctr[update_provider_id] = 1;
+        end
+        // Update alt_provider if new entry
+        if (update_new_entry_flag & update_is_conditional & ~update_info_i.predict_correct & update_valid) begin
+            update_ctr[update_alt_provider_id] = 1;
         end
     end
 
@@ -354,6 +372,7 @@ module tage_predictor
                 // Allocate entry in longer history component
                 if (tag_update_useful_zero_id > update_provider_id) begin  // Have found a slot to allocate
                     tag_update_realloc_entry[tag_update_useful_zero_id-1] = 1'b1;
+                    if (update_new_entry_flag) tag_update_useful[update_provider_id-1] = 1;
                 end else begin  // No slot to allocate, decrease all useful bits of longer history components
                     for (integer i = 0; i < TAG_COMPONENT_AMOUNT; i++) begin
                         if (i >= update_provider_id - 1) begin
@@ -382,7 +401,8 @@ module tage_predictor
 
     // DEBUG
 `ifdef SIMULATION
-    logic [TAG_COMPONENT_AMOUNT-1:0][10:0] tag_update_query_tag, tag_update_origin_tag;
+    logic [TAG_COMPONENT_AMOUNT-1:0][BPU_TAG_COMPONENT_TAG_WIDTH-1:0]
+        tag_update_query_tag, tag_update_origin_tag;
     assign tag_update_query_tag  = update_meta.tag_predictor_query_tag;
     assign tag_update_origin_tag = update_meta.tag_predictor_origin_tag;
     integer realloc_entry_cnt;
