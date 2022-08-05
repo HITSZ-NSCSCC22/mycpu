@@ -714,7 +714,7 @@ module dcache
         //FIFO state
         .state(fifo_state),
         //write to memory 
-        .axi_bvalid_i(axi_rdy_i & (state == IDLE)),
+        .axi_bvalid_i(axi_rdy_i & (state == IDLE) & (next_state == IDLE)),
         .axi_wen_o(fifo_axi_wr_req),
         .axi_wdata_o(fifo_axi_wr_data),
         .axi_awaddr_o(fifo_axi_wr_addr)
