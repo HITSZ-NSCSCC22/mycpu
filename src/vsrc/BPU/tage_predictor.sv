@@ -194,18 +194,32 @@ module tage_predictor
     assign query_is_useful = (taken[pred_prediction_id] != taken[altpred_prediction_id]);
 
     // Select the longest match provider
-    always_comb begin
-        pred_prediction_id = 0;
-        for (integer i = 0; i < TAG_COMPONENT_AMOUNT; i++) begin
-            if (tag_hit[i]) pred_prediction_id = i + 1;
-        end
-    end
-    // reverse_priority_encoder #(
-    //     .WIDTH(5)
-    // ) pred_select (
-    //     .priority_vector({tag_hit, 1'b1}),
-    //     .encoded_result (pred_prediction_id)
-    // );
+    // always_comb begin
+    //     pred_prediction_id = 0;
+    //     for (integer i = 0; i < TAG_COMPONENT_AMOUNT; i++) begin
+    //         if (tag_hit[i]) pred_prediction_id = i + 1;
+    //     end
+    // end
+    logic [$clog2(TAG_COMPONENT_AMOUNT)-2:0]
+        pred_prediction_id_zone_0, altpred_prediction_id_zone_0;
+    logic [$clog2(TAG_COMPONENT_AMOUNT)-2:0]
+        pred_prediction_id_zone_1, altpred_prediction_id_zone_1;
+    logic [(TAG_COMPONENT_AMOUNT+1) / 2 - 1:0] tag_hit_zone_0, alt_tag_hit_zone_0;
+    logic [(TAG_COMPONENT_AMOUNT+1) / 2 - 1:0] tag_hit_zone_1, alt_tag_hit_zone_1;
+    assign {tag_hit_zone_1, tag_hit_zone_0} = {tag_hit, 1'b1};
+    reverse_priority_encoder #(
+        .WIDTH((TAG_COMPONENT_AMOUNT + 1) / 2)
+    ) pred_select_zone_0 (
+        .priority_vector(tag_hit_zone_0),
+        .encoded_result (pred_prediction_id_zone_0)
+    );
+    reverse_priority_encoder #(
+        .WIDTH((TAG_COMPONENT_AMOUNT + 1) / 2)
+    ) pred_select_zone_1 (
+        .priority_vector(tag_hit_zone_1),
+        .encoded_result (pred_prediction_id_zone_1)
+    );
+    assign pred_prediction_id = |tag_hit_zone_1 ? {1'b1, pred_prediction_id_zone_1} : {1'b0, pred_prediction_id_zone_0};
     // Select altpred
     logic [TAG_COMPONENT_AMOUNT:0] altpred_pool;
     always_comb begin
@@ -214,18 +228,26 @@ module tage_predictor
             altpred_pool[pred_prediction_id] = 1'b0;
         end
     end
-    always_comb begin
-        altpred_prediction_id = 0;
-        for (integer i = 0; i < TAG_COMPONENT_AMOUNT + 1; i++) begin
-            if (altpred_pool[i]) altpred_prediction_id = i;
-        end
-    end
-    // reverse_priority_encoder #(
-    //     .WIDTH(5)
-    // ) altpred_select (
-    //     .priority_vector(altpred_pool),
-    //     .encoded_result (altpred_prediction_id)
-    // );
+    // always_comb begin
+    //     altpred_prediction_id = 0;
+    //     for (integer i = 0; i < TAG_COMPONENT_AMOUNT + 1; i++) begin
+    //         if (altpred_pool[i]) altpred_prediction_id = i;
+    //     end
+    // end
+    assign {alt_tag_hit_zone_1, alt_tag_hit_zone_0} = altpred_pool;
+    reverse_priority_encoder #(
+        .WIDTH((TAG_COMPONENT_AMOUNT + 1) / 2)
+    ) altpred_select_zone_0 (
+        .priority_vector(alt_tag_hit_zone_0),
+        .encoded_result (altpred_prediction_id_zone_0)
+    );
+    reverse_priority_encoder #(
+        .WIDTH((TAG_COMPONENT_AMOUNT + 1) / 2)
+    ) altpred_select_zone_1 (
+        .priority_vector(alt_tag_hit_zone_1),
+        .encoded_result (altpred_prediction_id_zone_1)
+    );
+    assign altpred_prediction_id = |alt_tag_hit_zone_1 ? {1'b1, altpred_prediction_id_zone_1} : {1'b0, altpred_prediction_id_zone_0};
 
     // Output logic
     assign predict_valid_o = 1;
