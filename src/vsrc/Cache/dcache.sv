@@ -628,10 +628,17 @@ module dcache
                 end
             end
             //if the axi is free then send the read request
-            READ_REQ, WRITE_REQ, UNCACHE_READ_REQ: begin
+            READ_REQ, WRITE_REQ: begin
                 if (axi_rdy_i) begin
                     axi_req_o  = 1;
                     axi_addr_o = {p3_paddr[31:4], 4'b0};
+                end
+            end
+            UNCACHE_READ_REQ: begin
+                if (axi_rdy_i) begin
+                    axi_size_o = p3_req_type;
+                    axi_req_o  = 1;
+                    axi_addr_o = p3_paddr;
                 end
             end
             UNCACHE_WRITE_REQ: begin
@@ -639,7 +646,7 @@ module dcache
                     axi_req_o  = 1;
                     axi_we_o   = 1;
                     axi_size_o = p3_req_type;
-                    axi_addr_o = {p3_paddr[31:4], 4'b0};
+                    axi_addr_o = p3_paddr;
                     case (p3_paddr[3:2])
                         2'b00: begin
                             axi_wdata_o = {{96{1'b0}}, p3_wdata};
