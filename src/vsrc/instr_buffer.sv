@@ -1,117 +1,98 @@
-`include "core_types.sv"
-
-module instr_buffer
-    import core_types::*;
-#(
-    parameter IF_WIDTH = 2,
-    parameter ID_WIDTH = 2,
-    parameter BUFFER_SIZE = 16
+module instr_buffer #(
+    parameter int unsigned DATA_WIDTH = 32,  // default data width if the fifo is of type logic
+    parameter int unsigned DEPTH = 8,  // depth per channel, must be the power of 2
+    parameter int unsigned CHANNEL = 4,  // channel number, must be the power of 2
+    parameter int unsigned PUSH_CHANNEL = 3,
+    parameter int unsigned POP_CHANNEL = 3,
+    parameter type dtype = logic [DATA_WIDTH-1:0]
 ) (
     input logic clk,
     input logic rst,
+    input logic flush,
+    input logic stall_push,
+    input logic stall_pop,
+    output logic full,  // 1 if any channel is full
+    output logic empty,  // 1 if all channels are empty
 
-    // <-> Frontend
-    input instr_info_t frontend_instr_i[IF_WIDTH],
-    output logic frontend_stallreq_o,  // Require frontend to stop
+    input dtype [PUSH_CHANNEL-1:0] data_push,
+    input logic [$clog2(PUSH_CHANNEL+1)-1:0] push_num,
 
-    // <-> Backend
-    input logic [ID_WIDTH-1:0] backend_accept_i,  // Backend can accept 0 or more instructions, must return in the next cycle!
-    input logic backend_flush_i,  // Backend require flush, maybe branch miss
-    output instr_info_t backend_instr_o[ID_WIDTH]
-
+    output dtype [POP_CHANNEL-1:0] data_pop,
+    output logic [POP_CHANNEL-1:0] pop_valid,
+    input logic [$clog2(POP_CHANNEL+1)-1:0] pop_num
 );
 
-    localparam PTR_WIDTH = $clog2(BUFFER_SIZE);
+    typedef logic [$clog2(CHANNEL)-1:0] index_t;
 
-    // Reset signal
-    logic rst_n;
+    // queues info
+    logic [CHANNEL-1:0] queue_push, queue_pop;
+    logic [CHANNEL-1:0] queue_full, queue_empty;
+    dtype [CHANNEL-1:0] data_in, data_out;
+    logic [$clog2(CHANNEL+1)-1:0] full_cnt;
 
-    instr_info_t buffer_queue[BUFFER_SIZE], next_buffer_queue[BUFFER_SIZE];
+    assign full  = full_cnt > CHANNEL - PUSH_CHANNEL;
+    assign empty = &queue_empty;
 
-    logic [$clog2(BUFFER_SIZE)-1:0] read_ptr, write_ptr;
-
-    // Workaround, verilator seems to extend {write_ptr + 2} to more bits
-    // we want a loopback counter, so declare a fixed width to get around
-    logic [$clog2(BUFFER_SIZE)-1:0] buffer_clearance;
-
-    // Popcnt of backend_accept_i
-    logic [$clog2(ID_WIDTH):0] backend_accept_num;
-
-    // Popcnt of frontend_instr_i.[i].valid
-    logic [$clog2(IF_WIDTH):0] frontend_accept_num;
-
-    assign rst_n = ~rst;
-
-    assign buffer_clearance = read_ptr - write_ptr;
-    assign frontend_stallreq_o = (buffer_clearance <= 4 && buffer_clearance != 0);
-
-    // State transition
-    always_ff @(posedge clk or negedge rst_n) begin : buffer_queue_ff
-        if ((!rst_n) || backend_flush_i) begin
-            for (integer i = 0; i < BUFFER_SIZE; i++) begin
-                buffer_queue[i] <= 0;
-            end
-        end else begin
-            for (integer i = 0; i < BUFFER_SIZE; i++) begin
-                buffer_queue[i] <= next_buffer_queue[i];
-            end
-        end
-    end
+    // index
+    index_t [CHANNEL-1:0] shifted_read_idx, shifted_write_idx;
+    index_t [CHANNEL-1:0] rshifted_read_idx, rshifted_write_idx;
+    index_t read_ptr_now, write_ptr_now;
 
     always_comb begin
-        backend_accept_num = 0;
-        for (integer i = 0; i < ID_WIDTH; i++) begin
-            backend_accept_num += backend_accept_i[i];
-        end
+        full_cnt = '0;
+        for (int i = 0; i < CHANNEL; ++i) full_cnt += queue_full[i];
     end
 
-    always_comb begin
-        frontend_accept_num = 0;
-        for (integer i = 0; i < IF_WIDTH; i++) begin
-            frontend_accept_num += frontend_instr_i[i].valid;
-        end
+    for (genvar i = 0; i < CHANNEL; ++i) begin : gen_shifted_rw_index
+        assign shifted_read_idx[i]   = read_ptr_now + i;
+        assign shifted_write_idx[i]  = write_ptr_now + i;
+        assign rshifted_read_idx[i]  = i - read_ptr_now;
+        assign rshifted_write_idx[i] = i - write_ptr_now;
     end
 
-    // Update ptrs
-    always_ff @(posedge clk or negedge rst_n) begin : ptr_ff
-        if (!rst_n || backend_flush_i) begin
-            read_ptr  <= 0;
-            write_ptr <= 0;
+    // queue logic
+    for (genvar i = 0; i < POP_CHANNEL; ++i) begin : gen_read_queue
+        assign data_pop[i]  = data_out[shifted_read_idx[i]];
+        assign pop_valid[i] = ~queue_empty[shifted_read_idx[i]];
+    end
+
+    // write queue logic
+    for (genvar i = 0; i < CHANNEL; ++i) begin : gen_rw_req
+        assign data_in[i]    = data_push[rshifted_write_idx[i]];
+        assign queue_pop[i]  = (rshifted_read_idx[i] < pop_num);
+        assign queue_push[i] = (rshifted_write_idx[i] < push_num);
+    end
+
+    // update index
+    always_ff @(posedge clk) begin
+        if (rst || flush) begin
+            read_ptr_now  <= '0;
+            write_ptr_now <= '0;
         end else begin
-            read_ptr  <= read_ptr + {2'b0, backend_accept_num};
-            write_ptr <= write_ptr + {2'b0, frontend_accept_num};
+            if (~stall_pop) read_ptr_now <= read_ptr_now + pop_num;
+            if (~stall_push) write_ptr_now <= write_ptr_now + push_num;
         end
     end
 
-    always_comb begin : next_buffer_queue_comb  // Main shift logic
-        // Default keep all entry
-        for (integer i = 0; i < BUFFER_SIZE; i++) begin
-            next_buffer_queue[i] = buffer_queue[i];
-        end
-
-        // Backend overide
-        for (integer i = 0; i < ID_WIDTH; i++) begin
-            // Reset entry
-            if (i < backend_accept_num) begin
-                next_buffer_queue[PTR_WIDTH'(read_ptr+i[3:0])] = 0;
-            end
-        end
-
-        // Frontend overide
-        for (integer i = 0; i < IF_WIDTH; i++) begin
-            // Accept entry from frontend
-            if (i < frontend_accept_num) begin
-                next_buffer_queue[PTR_WIDTH'(write_ptr+i[3:0])] = frontend_instr_i[i];
-            end
-        end
+    // FIFOs
+    for (genvar i = 0; i < CHANNEL; ++i) begin : gen_instr_fifo
+        fifo_v3 #(
+            .DEPTH     (DEPTH),
+            .DATA_WIDTH(DATA_WIDTH),
+            .dtype     (dtype)
+        ) instr_fifo (
+            .clk_i     (clk),
+            .rst_i     (rst),
+            .flush_i   (flush),
+            .testmode_i(1'b0),
+            .full_o    (queue_full[i]),
+            .empty_o   (queue_empty[i]),
+            .usage_o   (  /* empty */),
+            .data_i    (data_in[i]),
+            .data_o    (data_out[i]),
+            .push_i    (~stall_push & queue_push[i]),
+            .pop_i     (~stall_pop & queue_pop[i])
+        );
     end
-
-    // Connect backend_instr_o directly to buffer_queue
-    always_comb begin : backend_instr_o_comb
-        for (integer i = 0; i < ID_WIDTH; i++) begin
-            backend_instr_o[i] = buffer_queue[PTR_WIDTH'(read_ptr+i[3:0])];
-        end
-    end
-
 
 endmodule
