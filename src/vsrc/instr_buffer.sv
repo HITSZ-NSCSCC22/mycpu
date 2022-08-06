@@ -5,7 +5,7 @@
 module instr_buffer
     import core_config::*;
     import core_types::*;
- (
+(
     input logic clk,
     input logic rst,
 
@@ -16,7 +16,7 @@ module instr_buffer
 
 
     // <-> Backend
-    input logic [ID_WIDTH-1:0] backend_accept_i,  // Backend can accept 0 or more instructions, must return in the next cycle!
+    input logic [DECODE_WIDTH-1:0] backend_accept_i,  // Backend can accept 0 or more instructions, must return in the next cycle!
     input logic backend_flush_i,  // Backend require flush, maybe branch miss
     output instr_info_t backend_instr_o[DECODE_WIDTH]
 );
@@ -27,18 +27,21 @@ module instr_buffer
     localparam BANK_DEPTH = INSTR_BUFFER_SIZE / CHANNEL;
     localparam PUSH_CHANNEL = FETCH_WIDTH;
     localparam POP_CHANNEL = DECODE_WIDTH;
-    localparam DATA_WIDTH = $bits(instr_info_t);
+    localparam FIFO_DATA_WIDTH = $bits(instr_info_t);
 
-    parameter type dtype = logic [DATA_WIDTH-1:0]
+    parameter type dtype = logic [FIFO_DATA_WIDTH-1:0];
 
     // queues info
     logic [CHANNEL-1:0] queue_push, queue_pop;
     logic [CHANNEL-1:0] queue_full, queue_empty;
     dtype [CHANNEL-1:0] data_in, data_out;
     logic [$clog2(CHANNEL+1)-1:0] full_cnt;
+    logic [$clog2(PUSH_CHANNEL+1)-1:0] push_num;
+    logic [$clog2(POP_CHANNEL+1)-1:0] pop_num;
+    logic empty;
 
-    assign frontend_stallreq_o  = full_cnt > CHANNEL - PUSH_CHANNEL;
-    // assign empty = &queue_empty;
+    assign frontend_stallreq_o = full_cnt > CHANNEL - PUSH_CHANNEL;
+    assign empty = &queue_empty;
 
     // index
     index_t [CHANNEL-1:0] shifted_read_idx, shifted_write_idx;
@@ -58,39 +61,41 @@ module instr_buffer
     end
 
     // queue logic
-    for (genvar i = 0; i < POP_CHANNEL; ++i) begin : gen_read_queue
-        assign data_pop[i]  = data_out[shifted_read_idx[i]];
-        assign pop_valid[i] = ~queue_empty[shifted_read_idx[i]];
+    always_comb begin
+        for (integer i = 0; i < POP_CHANNEL; ++i) begin : gen_read_queue
+            backend_instr_o[i] = data_out[shifted_read_idx[i]];
+            backend_instr_o[i].valid = ~queue_empty[shifted_read_idx[i]];
+        end
     end
 
     // write queue logic
     for (genvar i = 0; i < CHANNEL; ++i) begin : gen_rw_req
-        assign data_in[i]    = data_push[rshifted_write_idx[i]];
+        assign data_in[i]    = frontend_instr_i[rshifted_write_idx[i]];
         assign queue_pop[i]  = (rshifted_read_idx[i] < pop_num);
         assign queue_push[i] = (rshifted_write_idx[i] < push_num);
     end
 
     // update index
     always_ff @(posedge clk) begin
-        if (rst || flush) begin
+        if (rst || backend_flush_i) begin
             read_ptr_now  <= '0;
             write_ptr_now <= '0;
         end else begin
-            read_ptr_now <= read_ptr_now + pop_num;
+            read_ptr_now  <= read_ptr_now + pop_num;
             write_ptr_now <= write_ptr_now + push_num;
         end
     end
 
     always_comb begin
         pop_num = 0;
-        for (integer i = 0; i < ID_WIDTH; i++) begin
+        for (integer i = 0; i < DECODE_WIDTH; i++) begin
             pop_num += backend_accept_i[i];
         end
     end
 
     always_comb begin
         push_num = 0;
-        for (integer i = 0; i < IF_WIDTH; i++) begin
+        for (integer i = 0; i < FETCH_WIDTH; i++) begin
             push_num += frontend_instr_i[i].valid;
         end
     end
@@ -99,20 +104,20 @@ module instr_buffer
     for (genvar i = 0; i < CHANNEL; ++i) begin : gen_instr_fifo_bank
         fifo #(
             .DEPTH     (BANK_DEPTH),
-            .DATA_WIDTH(DATA_WIDTH)
+            .DATA_WIDTH(FIFO_DATA_WIDTH)
         ) instr_fifo_bank (
-            .clk     (clk),
-            .rst     (rst),
+            .clk      (clk),
+            .rst      (rst),
             // Push
-            .push    (~stall_push & queue_push[i]),
-            .push_data    (data_in[i]),
+            .push     (queue_push[i]),
+            .push_data(data_in[i]),
             // Pop
-            .pop     (~stall_pop & queue_pop[i])
-            .pop_data    (data_out[i]),
+            .pop      (queue_pop[i]),
+            .pop_data (data_out[i]),
             // Control
-            .reset   (flush),
-            .full    (queue_full[i]),
-            .empty   (queue_empty[i]),
+            .reset    (backend_flush_i),
+            .full     (queue_full[i]),
+            .empty    (queue_empty[i])
         );
     end
 

@@ -1,6 +1,6 @@
 `include "defines.sv"
 
-module reg_lutram(
+module reg_lutram (
     input logic clk,
 
     input wen,
@@ -11,13 +11,12 @@ module reg_lutram(
     output [`RegBus] rdata
 );
 
-reg [`RegBus] ram[0:`RegNum-1];
+    (* ram_style = "distributed" *) reg [`RegBus] ram[0:`RegNum-1];
 
-always_ff @( posedge clk ) begin 
-    if(wen)
-        ram[waddr] <= wdata;
-end
+    always_ff @(posedge clk) begin
+        if (wen) ram[waddr] <= wdata;
+    end
 
-assign rdata = ram[raddr];
+    assign rdata = ram[raddr];
 
 endmodule
