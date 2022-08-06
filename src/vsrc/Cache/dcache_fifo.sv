@@ -1,5 +1,6 @@
 `include "core_config.sv"
 `include "defines.sv"
+`include "utils/lutram_1w_mr.sv"
 
 module dcache_fifo
     import core_config::*;
@@ -29,9 +30,7 @@ module dcache_fifo
 
 );
 
-
-    //store the data and addr
-    logic [DEPTH-1:0][DCACHE_WIDTH-1:0] data_queue;
+    //store  addr
     logic [DEPTH-1:0][`RegBus] addr_queue;
 
 
@@ -48,6 +47,8 @@ module dcache_fifo
     logic [DEPTH-1:0] read_hit, write_hit;
 
     logic write_hit_head;
+
+    logic [$clog2(DEPTH)-1:0] queue_waddr, queue_raddr;
 
     assign state = {full, empty};
 
@@ -108,13 +109,13 @@ module dcache_fifo
 
     //Read hit
     always_comb begin
-        if (rst) cpu_rdata_o = 0;
+        if (rst) queue_raddr = 0;
         else if (read_hit_o) begin
-            cpu_rdata_o = 0;
+            queue_raddr = 0;
             for (integer i = 0; i < DEPTH; i = i + 1) begin
-                if (read_hit[i]) cpu_rdata_o = data_queue[i];
+                if (read_hit[i]) queue_raddr = i[$clog2(DEPTH)-1:0];
             end
-        end else cpu_rdata_o = 0;
+        end else queue_raddr = 0;
     end
 
 
@@ -131,15 +132,20 @@ module dcache_fifo
     always_ff @(posedge clk) begin
         if (rst) begin
             addr_queue <= 0;
-            data_queue <= 0;
-        end else if (cpu_wreq_i) begin
+        end else if (cpu_wreq_i & !write_hit_o) begin
+            addr_queue[tail] <= cpu_awaddr;
+        end
+    end
+
+    always_comb begin
+        queue_waddr = 0;
+        if (cpu_wreq_i) begin
             if (write_hit_o) begin
                 for (integer i = 0; i < DEPTH; i = i + 1) begin
-                    if (write_hit[i] == 1'b1) data_queue[i] <= cpu_wdata_i;
+                    if (write_hit[i] == 1'b1) queue_waddr = i[$clog2(DEPTH)-1:0];
                 end
             end else begin
-                data_queue[tail] <= cpu_wdata_i;
-                addr_queue[tail] <= cpu_awaddr;
+                queue_waddr = tail;
             end
         end
     end
@@ -147,6 +153,21 @@ module dcache_fifo
 
     assign axi_wen_o = !empty & axi_bvalid_i;
     assign axi_awaddr_o = addr_queue[head];
-    assign axi_wdata_o = data_queue[head];
+
+    lutram_1w_mr #(
+        .WIDTH(128),
+        .DEPTH(8),
+        .NUM_READ_PORTS(2)
+    ) mem_queue (
+        .clk(clk),
+
+        .waddr(queue_waddr),
+        .raddr({queue_raddr, head}),
+
+        .ram_write(cpu_wreq_i),
+        .new_ram_data(cpu_wdata_i),
+        .ram_data_out({cpu_rdata_o, axi_wdata_o})
+    );
+
 
 endmodule
