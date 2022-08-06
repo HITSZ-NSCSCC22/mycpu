@@ -78,7 +78,8 @@ module dcache
     logic [(AXI_DATA_WIDTH/8)-1:0] axi_wstrb_o;
 
     // BRAM signals
-    logic [NWAY-1:0][DCACHELINE_WIDTH-1:0] data_bram_rdata, data_bram_wdata, p3_data_bram_rdata;
+    logic [NWAY-1:0][DCACHELINE_WIDTH-1:0]
+        data_bram_rdata, data_bram_wdata, p2_data_bram_rdata, p3_data_bram_rdata;
     logic [NWAY-1:0][$clog2(NSET)-1:0] data_bram_raddr, data_bram_waddr;
     logic [NWAY-1:0][(DCACHELINE_WIDTH/8)-1:0] data_bram_we;
 
@@ -89,11 +90,12 @@ module dcache
     logic [NWAY-1:0][$clog2(NSET)-1:0] tag_bram_raddr, tag_bram_waddr;
     logic [NWAY-1:0] tag_bram_we, tag_bram_ren;
 
-    logic hit;
-    logic [NWAY-1:0] tag_hit;
+    logic hit, hit_way0, hit_way_1;
+    logic collision_way0, collision_way1;
+    logic [NWAY-1:0 ] tag_hit;
 
-    logic [`RegBus] wreq_sel_data;
-    logic [DCACHELINE_WIDTH-1:0] bram_write_data;
+    logic [ `RegBus]  wreq_sel_data;
+    logic [DCACHELINE_WIDTH-1:0] bram_write_data, bram_write_old_data;
 
 
     logic [1:0] fifo_state;
@@ -123,11 +125,11 @@ module dcache
     logic [`RegBus] p2_wdata;
 
     // P3
-    logic p3_valid, p3_uncache_en, p2_cacop, p3_cacop, p3_hit;
-    logic [`RegBus] p3_wdata, p2_vaddr, p3_paddr;
+    logic p3_valid, p3_uncache_en, p2_cacop, p3_cacop, p3_hit, p3_hit_way0, p3_hit_way1;
+    logic [`RegBus] p3_wdata, p2_vaddr, p3_vaddr, p3_paddr;
 
     assign dcache_ready = ~dcache_stall;
-    assign dcache_stall = (state != IDLE) || (next_state != IDLE) || fifo_full;
+    assign dcache_stall = (state != IDLE) || (p3_valid & (p3_uncache_en | hit) & !cpu_flush & mem_valid & !axi_valid_i_delay) || fifo_full;
     assign fifo_full = fifo_state[1];
 
 
@@ -239,7 +241,14 @@ module dcache
     // send to dispatch to deal with load to use
     assign tag_hit_o = tag_hit;
 
-    assign dirty = {tag_bram_rdata[1][21], tag_bram_rdata[0][21]};
+    assign hit_way0 = tag_hit[0];
+    assign hit_way1 = tag_hit[1];
+
+    assign collision_way0 = !dcache_stall && p3_paddr[11:4] == vaddr[11:4] && data_bram_we[0];
+    assign collision_way1 = !dcache_stall && p3_paddr[11:4] == vaddr[11:4] && data_bram_we[1];
+
+    assign p2_data_bram_rdata[0] = collision_way0 ? bram_write_data : data_bram_rdata[0];
+    assign p2_data_bram_rdata[1] = collision_way0 ? bram_write_data : data_bram_rdata[1];
 
     always_comb begin : fifo_read_req
         fifo_rreq  = 0;
@@ -323,31 +332,8 @@ module dcache
                         tag_bram_waddr[i] = p3_paddr[11:4];
                         tag_bram_wdata[i] = {1'b1, 1'b1, p3_paddr[31:12]};
                         data_bram_waddr[i] = p3_paddr[11:4];
-                        //select the write bit
-                        case (p3_wstrb)
-                            //st.b 
-                            4'b0001, 4'b0010, 4'b0100, 4'b1000: begin
-                                data_bram_we[i][p3_paddr[3:0]] = 1'b1;
-                                data_bram_wdata[i] = {4{p3_wdata}};
-                            end
-                            //st.h
-                            4'b0011, 4'b1100: begin
-                                data_bram_we[i][p3_paddr[3:0]+1] = 1'b1;
-                                data_bram_we[i][p3_paddr[3:0]] = 1'b1;
-                                data_bram_wdata[i] = {4{p3_wdata}};
-                            end
-                            //st.w
-                            4'b1111: begin
-                                data_bram_we[i][p3_paddr[3:0]+3] = 1'b1;
-                                data_bram_we[i][p3_paddr[3:0]+2] = 1'b1;
-                                data_bram_we[i][p3_paddr[3:0]+1] = 1'b1;
-                                data_bram_we[i][p3_paddr[3:0]] = 1'b1;
-                                data_bram_wdata[i] = {4{p3_wdata}};
-                            end
-                            default: begin
-
-                            end
-                        endcase
+                        data_bram_we[i] = 16'b1111_1111_1111_1111;
+                        data_bram_wdata[i] = bram_write_data;
                     end
                     if (p3_cacop && !cpu_flush && mem_valid) begin
                         if ((p3_cacop_way == i[$clog2(NWAY)-1:0])) begin
@@ -389,11 +375,14 @@ module dcache
     always_comb begin
         wreq_sel_data   = 0;
         bram_write_data = 0;
+        if (state == IDLE)
+            bram_write_old_data = p3_hit_way0 ? p3_data_bram_rdata[0] : p3_data_bram_rdata[1];
+        else bram_write_old_data = axi_data_i;
         case (p3_paddr[3:2])
-            2'b00: wreq_sel_data = axi_data_i[31:0];
-            2'b01: wreq_sel_data = axi_data_i[63:32];
-            2'b10: wreq_sel_data = axi_data_i[95:64];
-            2'b11: wreq_sel_data = axi_data_i[127:96];
+            2'b00: wreq_sel_data = bram_write_old_data[31:0];
+            2'b01: wreq_sel_data = bram_write_old_data[63:32];
+            2'b10: wreq_sel_data = bram_write_old_data[95:64];
+            2'b11: wreq_sel_data = bram_write_old_data[127:96];
             default: begin
             end
         endcase
@@ -412,10 +401,16 @@ module dcache
             end
         endcase
         case (p3_paddr[3:2])
-            2'b00: bram_write_data = {axi_data_i[127:32], wreq_sel_data};
-            2'b01: bram_write_data = {axi_data_i[127:64], wreq_sel_data, axi_data_i[31:0]};
-            2'b10: bram_write_data = {axi_data_i[127:96], wreq_sel_data, axi_data_i[63:0]};
-            2'b11: bram_write_data = {wreq_sel_data, axi_data_i[95:0]};
+            2'b00: bram_write_data = {bram_write_old_data[127:32], wreq_sel_data};
+            2'b01:
+            bram_write_data = {
+                bram_write_old_data[127:64], wreq_sel_data, bram_write_old_data[31:0]
+            };
+            2'b10:
+            bram_write_data = {
+                bram_write_old_data[127:96], wreq_sel_data, bram_write_old_data[63:0]
+            };
+            2'b11: bram_write_data = {wreq_sel_data, bram_write_old_data[95:0]};
             default: begin
             end
         endcase
@@ -436,6 +431,8 @@ module dcache
             p3_wstrb <= 0;
             p3_wdata <= 0;
             p3_cacop <= 0;
+            p3_hit_way0 <= 0;
+            p3_hit_way1 <= 0;
             p3_tag_hit <= 0;
             p3_uncache_en <= 0;
             p3_tag_bram_rdata <= 0;
@@ -458,6 +455,8 @@ module dcache
             p3_wstrb <= p3_wstrb;
             p3_wdata <= p3_wdata;
             p3_cacop <= p3_cacop;
+            p3_hit_way0 <= p3_hit_way0;
+            p3_hit_way1 <= p3_hit_way1;
             p3_tag_hit <= p3_tag_hit;
             p3_uncache_en <= p3_uncache_en;
             p3_tag_bram_rdata <= p3_tag_bram_rdata;
@@ -482,10 +481,12 @@ module dcache
             p3_wstrb <= p2_wstrb;
             p3_wdata <= p2_wdata;
             p3_cacop <= p2_cacop;
+            p3_hit_way0 <= hit_way0;
+            p3_hit_way1 <= hit_way1;
             p3_tag_hit <= tag_hit;
             p3_uncache_en <= uncache_en | p2_uncache_delay;
             p3_tag_bram_rdata <= tag_bram_rdata;
-            p3_data_bram_rdata <= data_bram_rdata;
+            p3_data_bram_rdata <= p2_data_bram_rdata;
             p3_cacop_way <= cacop_way;
             p3_cacop_op_mode0 <= cacop_op_mode0;
             p3_cacop_op_mode1 <= cacop_op_mode1;
