@@ -151,6 +151,10 @@ module ex
 
     logic muldiv_stall;
 
+    logic last_is_mem, last_is_mem_delay;
+    logic [7:0] last_mem_index, last_mem_index_delay;
+    logic access_mem_after_mem, access_mem_after_mem_delay;
+
     always_ff @(posedge clk) begin
         pc_delay <= inst_pc_i;
     end
@@ -233,8 +237,37 @@ module ex
     assign mem_h_op = special_info.mem_h_op;
 
     // notify ctrl is ready to advance
-    assign advance_ready = access_mem | dcacop_op_en ? (dcache_ready_i ) :
+    assign advance_ready = access_mem | dcacop_op_en ? (dcache_ready_i & ~access_mem_after_mem & ~access_mem_after_mem_delay) :
                             icacop_op_en ? icacop_ack_i : ~muldiv_stall;
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            last_is_mem <= 0;
+            last_mem_index <= 0;
+        end else if (access_mem & advance) begin
+            last_is_mem <= 1;
+            last_mem_index <= ex_o.mem_addr[11:4];
+        end else if (!dcache_ready_i) begin
+            last_is_mem <= last_is_mem;
+            last_mem_index <= last_mem_index;
+        end else begin
+            last_is_mem <= 0;
+            last_mem_index <= 0;
+        end
+    end
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            last_is_mem_delay <= 0;
+            last_mem_index_delay <= 0;
+        end else begin
+            last_is_mem_delay <= last_is_mem;
+            last_mem_index_delay <= last_mem_index;
+        end
+    end
+
+    assign access_mem_after_mem = last_is_mem & access_mem & (last_mem_index == ex_o.mem_addr[11:4]);
+    assign access_mem_after_mem_delay = last_is_mem_delay & access_mem & (last_mem_index_delay == ex_o.mem_addr[11:4]);
 
     //////////////////////////////////////////////////////////////////////////////////////
     // TLB request
@@ -381,7 +414,7 @@ module ex
 
         .op(div_op[1:0]),
         .dividend(oprand1),
-        .divisor(oprand2),
+        .divisor((oprand2 == 0 ? 1 : oprand2)),
         .divisor_is_zero(0),
         .start(div_start),
 
