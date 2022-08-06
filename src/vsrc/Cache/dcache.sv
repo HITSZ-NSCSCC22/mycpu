@@ -127,7 +127,7 @@ module dcache
     logic [`RegBus] p3_wdata, p2_vaddr, p3_paddr;
 
     assign dcache_ready = ~dcache_stall;
-    assign dcache_stall = (state != IDLE) || (next_state != IDLE) || fifo_full;
+    assign dcache_stall = (state != IDLE) || (p3_valid & (p3_uncache_en | !hit) & !cpu_flush & mem_valid & !axi_valid_i_delay) || fifo_full;
     assign fifo_full = fifo_state[1];
 
 

@@ -247,6 +247,9 @@ module ex
         end else if (access_mem & advance) begin
             last_is_mem <= 1;
             last_mem_index <= ex_o.mem_addr[11:4];
+        end else if (!dcache_ready_i) begin
+            last_is_mem <= last_is_mem;
+            last_mem_index <= last_mem_index;
         end else begin
             last_is_mem <= 0;
             last_mem_index <= 0;
@@ -411,7 +414,7 @@ module ex
 
         .op(div_op[1:0]),
         .dividend(oprand1),
-        .divisor(oprand2),
+        .divisor((oprand2 == 0 ? 1 : oprand2)),
         .divisor_is_zero(0),
         .start(div_start),
 
