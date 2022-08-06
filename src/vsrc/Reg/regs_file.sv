@@ -27,8 +27,9 @@ module regs_file
     logic [READ_PORTS-1:0] read_valid_bit;  // Indicates where the "live" value is in
     logic [WRITE_PORTS-1:0][READ_PORTS-1:0][`RegBus] rdata_buffer;
 
-`ifdef SIMU
+
     // Difftest
+`ifdef SIMULATION
     logic [WRITE_PORTS-1:0][GPR_NUM-1:0][DATA_WIDTH-1:0] write_bank_regs;
     logic [DATA_WIDTH-1:0] regs[GPR_NUM-1:0];
     always_comb begin
@@ -40,6 +41,7 @@ module regs_file
         end
     end
 `endif
+
 
     last_valid_table u_lvt (
         .clk(clk),
