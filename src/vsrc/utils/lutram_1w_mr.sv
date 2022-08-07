@@ -6,11 +6,11 @@ module lutram_1w_mr #(
     input logic clk,
 
     input logic [$clog2(DEPTH)-1:0] waddr,
-    input logic [$clog2(DEPTH)-1:0] raddr[NUM_READ_PORTS],
+    input logic [NUM_READ_PORTS-1:0][$clog2(DEPTH)-1:0] raddr,
 
     input logic ram_write,
     input logic [WIDTH-1:0] new_ram_data,
-    output logic [WIDTH-1:0] ram_data_out[NUM_READ_PORTS]
+    output logic [NUM_READ_PORTS-1:0][WIDTH-1:0] ram_data_out
 );
 
 

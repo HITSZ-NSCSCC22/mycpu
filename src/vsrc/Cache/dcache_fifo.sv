@@ -101,7 +101,7 @@ module dcache_fifo
     always_ff @(posedge clk) begin
         for (integer i = 0; i < DEPTH; i = i + 1) begin
             if (cpu_rreq_i)
-                read_hit[i] <= ((cpu_araddr == addr_queue[i]) && queue_valid[i]) ? 1'b1 : 1'b0;
+                read_hit[i] <= ((cpu_araddr[31:4] == addr_queue[i][31:4]) && queue_valid[i]) ? 1'b1 : 1'b0;
             else read_hit[i] <= 0;
         end
     end
@@ -124,7 +124,7 @@ module dcache_fifo
     assign write_hit_o = |write_hit;
     always_comb begin
         for (integer i = 0; i < DEPTH; i = i + 1) begin
-            write_hit[i] = ((cpu_awaddr == addr_queue[i]) && queue_valid[i]) ? 1'b1 : 1'b0;
+            write_hit[i] = ((cpu_awaddr[31:4] == addr_queue[i][31:4]) && queue_valid[i]) ? 1'b1 : 1'b0;
         end
     end
 
