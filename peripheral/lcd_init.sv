@@ -1,6 +1,6 @@
 `define COLOR_ADDR 17'd803
-`define INIT_END   17'd44027
-`define KEEP_TIME  32'd1_5000_0000
+`define INIT_END   17'd96802//重要一定要配置好
+`define KEEP_TIME  32'd3_0000_0000//keep 5s
 `define DATA32
 module lcd_init (
         input  logic        pclk,
@@ -97,6 +97,7 @@ module lcd_init (
                     init_work <= 1;
                     init_finish <= 0;
                 end
+                //hardware initial
                 INIT: begin
                     if (init_write_ok) begin
                         //init finish
@@ -193,6 +194,7 @@ module lcd_init (
                         wr <= 1;
                     end
                 end
+                //draw logo
                 DRAW_LOGO: begin
                     if (init_write_ok) begin
                         //draw logo
@@ -223,6 +225,7 @@ module lcd_init (
                             rs <= 0;
                     end
                 end
+                //logo should keep for a while，then turn to the game table
                 LOGO_KEEPING: begin
                     we<=0;
                     init_work<=1;
@@ -232,6 +235,7 @@ module lcd_init (
                     else
                         init_state<=INIT_FINISH;
                 end
+                //initial finish，the cpu can control the LCD by AXI
                 INIT_FINISH: begin
                     init_state <= INIT_FINISH;
                     addra <= 0;
@@ -263,7 +267,7 @@ module lcd_init (
     assign init_data=refresh_flag?(is_color?16'hffff:refresh_data):data_o;
 `endif
 
-
+    //注意bram的时序，选择单口bram，无流水线
     //initial code
     lcd_init_bram u_lcd_init_bram (
                       .clka (pclk),      // input wire clka
