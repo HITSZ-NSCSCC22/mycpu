@@ -260,7 +260,7 @@ module dcache
             cacop_op_mode0 = cacop_mode_i == 2'b00;
             cacop_op_mode1 = cacop_mode_i == 2'b01 || cacop_mode_i == 2'b11;
             cacop_op_mode2 = cacop_mode_i == 2'b10;
-            cacop_way = paddr[$clog2(NWAY)-1:0];
+            cacop_way = vaddr[$clog2(NWAY)-1:0];
         end
     end
 
@@ -514,7 +514,7 @@ module dcache
             IDLE: begin
                 // if write hit the cacheline in the fifo 
                 // then rewrite the cacheline in the fifo 
-                if (fifo_r_hit & cpu_wreq & !cpu_flush & mem_valid & !fifo_state[1]) begin
+                if (fifo_r_hit & cpu_wreq & !cpu_flush & mem_valid) begin
                     fifo_wreq = 1;
                     fifo_waddr = p3_paddr;
                     fifo_wdata = fifo_rdata;
@@ -602,13 +602,13 @@ module dcache
                     rdata   = axi_data_i[p3_paddr[3:2]*32+:32];
                 end
             end
-            READ_REQ, READ_WAIT, WRITE_REQ, WRITE_WAIT, UNCACHE_READ_REQ, UNCACHE_READ_WAIT: begin
+            READ_WAIT, WRITE_WAIT, UNCACHE_READ_WAIT: begin
                 if (axi_rvalid_i) begin
                     data_ok = 1;
                     rdata   = axi_data_i[p3_paddr[3:2]*32+:32];
                 end
             end
-            UNCACHE_WRITE_REQ, UNCACHE_WRITE_WAIT: begin
+            UNCACHE_WRITE_WAIT: begin
                 if (axi_bvalid_i) begin
                     data_ok = 1;
                 end
