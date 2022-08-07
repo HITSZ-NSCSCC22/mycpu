@@ -59,7 +59,9 @@ module dcache
         UNCACHE_READ_REQ,
         UNCACHE_READ_WAIT,
         UNCACHE_WRITE_REQ,
-        UNCACHE_WRITE_WAIT
+        UNCACHE_WRITE_WAIT,
+
+        FIFO_CLEAR
     }
         state, next_state;
 
@@ -144,7 +146,7 @@ module dcache
         case (state)
             IDLE: begin
                 // if the fifo is full ,we keep the state 
-                if (fifo_state[1]) next_state = IDLE;
+                if (fifo_state[1]) next_state = FIFO_CLEAR;
                 // if the dcache is idle,then accept the new request
                 else if (p3_valid & p3_uncache_en & !cpu_flush & mem_valid & !axi_valid_i_delay) begin
                     if (cpu_wreq) next_state = UNCACHE_WRITE_REQ;
@@ -190,6 +192,10 @@ module dcache
             UNCACHE_WRITE_WAIT: begin
                 if (axi_bvalid_i) next_state = IDLE;
                 else next_state = UNCACHE_WRITE_WAIT;
+            end
+            FIFO_CLEAR: begin
+                if (fifo_state[0]) next_state = IDLE;
+                else next_state = FIFO_CLEAR;
             end
             default: begin
                 next_state = IDLE;
@@ -685,6 +691,17 @@ module dcache
             // wait for the data back
             READ_WAIT, WRITE_WAIT: begin
                 axi_addr_o = {p3_paddr[31:4], 4'b0};
+            end
+            FIFO_CLEAR: begin
+                if (axi_rdy_i & !fifo_state[0]) begin
+                    axi_req_o = 1;
+                    fifo_w_accept = 1;
+                    axi_we_o = fifo_axi_wr_req;
+                    axi_size_o = 3'b100;
+                    axi_addr_o = fifo_axi_wr_addr;
+                    axi_wdata_o = fifo_axi_wr_data;
+                    axi_wstrb_o = 16'b1111_1111_1111_1111;
+                end
             end
             default: begin
                 fifo_w_accept = 0;
