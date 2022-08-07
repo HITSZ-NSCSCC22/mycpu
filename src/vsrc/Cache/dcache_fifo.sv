@@ -155,8 +155,8 @@ module dcache_fifo
     assign axi_awaddr_o = addr_queue[head];
 
     lutram_1w_mr #(
-        .WIDTH(128),
-        .DEPTH(8),
+        .WIDTH(DCACHE_WIDTH),
+        .DEPTH(DEPTH),
         .NUM_READ_PORTS(2)
     ) mem_queue (
         .clk(clk),

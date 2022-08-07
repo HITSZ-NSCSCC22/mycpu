@@ -421,7 +421,9 @@ module dcache
         endcase
     end
 
-    // keep the data from last state
+    // three stages pipeline regs
+    // - get the data from last state
+    // - keep the data when dcache stall
     always_ff @(posedge clk) begin : p2_reg
         if (rst | cpu_flush) begin
             p2_valid <= 0;
@@ -615,8 +617,6 @@ module dcache
             end
         endcase
     end
-
-
 
     //handshake with axi
     always_comb begin
