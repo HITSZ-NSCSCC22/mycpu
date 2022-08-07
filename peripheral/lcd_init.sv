@@ -1,5 +1,5 @@
 `define COLOR_ADDR 17'd803
-`define INIT_END   17'd96802//重要一定要配置好
+`define INIT_END   17'd123302//重要一定要配置好
 `define KEEP_TIME  32'd3_0000_0000//keep 5s
 `define DATA32
 module lcd_init (
@@ -138,36 +138,16 @@ module lcd_init (
                 end
                 //refresh LCD,draw white
                 CLEAR: begin
-                    if (init_write_ok) begin
-                        //write clear data
-                        if (refresh_addra == 18) begin
-                            init_state <= DRAW_BG;
-                            we <= 0;
-                            wr <= 1;
-                            rs <= 0;
-                            init_work <= 1;
-                            init_finish <= 0;
-                            refresh_flag<=1;
-                            refresh_addra<=0;
-                            is_color<=1;
-                            refresh_counter<=1;
-                        end
-                        else begin
-                            refresh_addra <= refresh_addra + 1;
-                            we <= 0;
-                        end
-                    end
-                    else begin
-                        refresh_addra<=refresh_addra;
-                        we <= 1;
-                        wr <= 1;
-                        if (addra[0] == 1)
-                            rs <= 1;
-                        else
-                            rs <= 0;
-                        init_work   <= 1;
-                        init_finish <= 0;
-                    end
+                    init_state<=DRAW_BG;
+                    we <= 0;
+                    wr <= 1;
+                    rs <= 0;
+                    init_work <= 1;
+                    init_finish <= 0;
+                    refresh_flag<=1;
+                    refresh_addra<=0;
+                    is_color<=1;
+                    refresh_counter<=1;
                 end
                 //draw white,give the params to lcd
                 DRAW_BG: begin
@@ -261,10 +241,10 @@ module lcd_init (
 `ifdef  DATA32
 
     logic [31:0]data_o;
-    assign init_data=refresh_flag?(is_color?16'hffff:refresh_data):data_o[15:0];
+    assign init_data=refresh_flag?(is_color?16'hffff:0):data_o[15:0];
 `else
     logic [15:0]data_o;
-    assign init_data=refresh_flag?(is_color?16'hffff:refresh_data):data_o;
+    assign init_data=refresh_flag?(is_color?16'hffff:0):data_o;
 `endif
 
     //注意bram的时序，选择单口bram，无流水线
@@ -277,15 +257,6 @@ module lcd_init (
                       .dina (0),         // input wire [15 : 0] dina
                       .douta(data_o)  // output wire [15 : 0] douta
                   );
-    lcd_clear_bram u_lcd_clear_bram (
-                       .clka(pclk),    // input wire clka
-                       .ena(1),      // input wire ena
-                       .wea(0),      // input wire [0 : 0] wea
-                       .addra(refresh_addra),  // input wire [4 : 0] addra
-                       .dina(0),    // input wire [15 : 0] dina
-                       .douta(refresh_data)  // output wire [15 : 0] douta
-                   );
-
     ila_2 lcd_init_debug (
               .clk(pclk), // input wire clk
 
