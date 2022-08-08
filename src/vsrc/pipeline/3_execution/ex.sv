@@ -293,7 +293,7 @@ module ex
 
     always_comb begin
         if (flush) tlb_rreq_o = 0;
-        else if (advance) begin
+        else if (advance | icacop_op_en) begin
             tlb_rreq_o.fetch = data_fetch;
             tlb_rreq_o.trans_en = trans_en;
             tlb_rreq_o.dmw0_en = dmw0_en;
@@ -508,7 +508,7 @@ module ex
                         dcache_rreq_o = 0;
                     end
                 end
-                `EXE_CACOP: begin
+                `EXE_CACOP_OP: begin
                     dcache_rreq_o.addr = ex_o.mem_addr;
                 end
                 default: begin
