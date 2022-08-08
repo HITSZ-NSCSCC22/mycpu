@@ -1327,9 +1327,9 @@ module cpu_top
         .clk(clk),  // input wire clk
 
 
-        .probe0(0),  // input wire [3:0]  probe0  
+        .probe0(u_dcache.u_dcache_fifo.empty),  // input wire [3:0]  probe0  
         .probe1(u_dcache.cacop_mode_i),  // input wire [3:0]  probe1 
-        .probe2(0),  // input wire [3:0]  probe2 
+        .probe2(u_dcache.u_dcache_fifo.queue_valid),  // input wire [3:0]  probe2 
         .probe3(u_dcache.fifo_axi_wr_data),  // input wire [31:0]  probe3 
         .probe4(u_dcache.fifo_full),  // input wire [0:0]  probe4 
         .probe5(u_dcache.dcache_stall),  // input wire [0:0]  probe5 
@@ -1337,7 +1337,7 @@ module cpu_top
         .probe7(u_dcache.cacop_op_mode0),  // input wire [0:0]  probe7 
         .probe8(u_dcache.cacop_i),  // input wire [0:0]  probe8 
         .probe9(u_dcache.vaddr),  // input wire [31:0]  probe9 
-        .probe10(u_dcache.axi_addr_o),  // input wire [31:0]  probe10 
+        .probe10(0),  // input wire [31:0]  probe10 
         .probe11(u_dcache.axi_addr_o),  // input wire [0:0]  probe11 
         .probe12(u_dcache.fifo_axi_wr_req),  // input wire [31:0]  probe12 
         .probe13(u_dcache.axi_wdata_o),  // input wire [31:0]  probe13 
@@ -1346,14 +1346,14 @@ module cpu_top
         .probe16(0),  // input wire [0:0]  probe16 
         .probe17(0),  // input wire [0:0]  probe17 
         .probe18(0),  // input wire [0:0]  probe18 
-        .probe19(0),  // input wire [0:0]  probe19
+        .probe19(u_dcache.axi_bvalid_i),  // input wire [0:0]  probe19
         .probe20(u_cs_reg.timer_64),  // input wire [63:0]  probe20 
         .probe21(u_dcache.cacop_op_mode1),  // input wire [31:0]  probe21 
-        .probe22(0),  // input wire [31:0]  probe22 
-        .probe23(0),  // input wire [31:0]  probe23 
+        .probe22(u_dcache.p3_cacop_op_mode0),  // input wire [31:0]  probe22 
+        .probe23(u_dcache.p3_cacop_op_mode1),  // input wire [31:0]  probe23 
         .probe24(mem1[0].u_mem1.ex_i.instr_info.pc),  // input wire [31:0]  probe24 
         .probe25(mem1[0].u_mem1.ex_i.instr_info.instr),  // input wire [31:0]  probe25 
-        .probe26(0),  // input wire [31:0]  probe26 
+        .probe26(u_dcache.p3_cacop_op_mode2_hit),  // input wire [31:0]  probe26 
         .probe27(u_dcache.cacop_op_mode2_hit),  // input wire [0:0]  probe27
         .probe28(u_dcache.cacop_op_mode2),  // input wire [31:0]  probe28 
         .probe29(u_dcache.cacop_way),  // input wire [31:0]  probe29 

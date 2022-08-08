@@ -216,7 +216,7 @@ module ex
     assign icacop_op_en = icacop_inst && !excp && !(flush);
     assign dcacop_inst = cacop_instr && (cacop_op[2:0] == 3'b1);
     assign dcacop_op_en = dcacop_inst && !excp && !(flush);
-    assign cacop_op_mode = {2{dcacop_op_en}} & cacop_op[4:3];
+    assign cacop_op_mode = {2{dcacop_op_en | icacop_op_en}} & cacop_op[4:3];
     assign icacop_en_o = icacop_op_en;
     assign dcacop_en_o = dcacop_op_en;
     assign icacop_mode_o = cacop_op_mode;
@@ -293,7 +293,7 @@ module ex
 
     always_comb begin
         if (flush) tlb_rreq_o = 0;
-        else if (advance) begin
+        else if (advance | icacop_op_en) begin
             tlb_rreq_o.fetch = data_fetch;
             tlb_rreq_o.trans_en = trans_en;
             tlb_rreq_o.dmw0_en = dmw0_en;
@@ -507,6 +507,9 @@ module ex
                     end else begin
                         dcache_rreq_o = 0;
                     end
+                end
+                `EXE_CACOP_OP: begin
+                    dcache_rreq_o.addr = ex_o.mem_addr;
                 end
                 default: begin
                     // Reset AXI signals, IMPORTANT!

@@ -267,7 +267,7 @@ module icache
                     tag_bram_en[i][1]  = 0;
                     data_bram_en[i][0] = 0;
                     data_bram_en[i][1] = 0;
-                    if (cacop_way == i[$clog2(NWAY)-1:0] | cacop_op_mode2) begin
+                    if (cacop_way == i[$clog2(NWAY)-1:0] || cacop_op_mode2) begin
                         tag_bram_addr[i][1] = cacop_index;
                         tag_bram_en[i][1]   = 1;
                     end
@@ -326,7 +326,7 @@ module icache
             end
             CACOP_INVALID_1: begin
                 for (integer i = 0; i < NWAY; i++) begin
-                    if (cacop_way == i[NWAY_WIDTH-1:0] | cacop_op_mode2) begin
+                    if (cacop_way == i[NWAY_WIDTH-1:0] || cacop_op_mode2) begin
                         tag_bram_we[i][1] = 1;
                         tag_bram_wdata[i][1] = 0;
                     end

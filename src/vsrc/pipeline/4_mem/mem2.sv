@@ -164,6 +164,7 @@ module mem2
 
 `ifdef SIMU
     logic [ADDR_WIDTH-1:0] debug_pc = instr_info.pc;
+    logic [`RegBus] debug_wdata = mem2_o.wdata;
 `endif
 
 
