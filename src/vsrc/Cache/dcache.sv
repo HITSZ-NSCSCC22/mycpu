@@ -119,7 +119,7 @@ module dcache
 
     // P2
     logic p2_valid, p2_uncache_delay;
-    logic [1:0] p3_tag_hit;
+    logic [1:0] p3_tag_hit, p2_cacop_mode;
     logic [2:0] p2_req_type, p3_req_type;
     logic [3:0] p2_wstrb, p3_wstrb;
     logic [`RegBus] p2_wdata;
@@ -263,9 +263,9 @@ module dcache
         cacop_op_mode2 = 0;
         cacop_way = 0;
         if (p2_cacop) begin
-            cacop_op_mode0 = cacop_mode_i == 2'b00;
-            cacop_op_mode1 = cacop_mode_i == 2'b01 || cacop_mode_i == 2'b11;
-            cacop_op_mode2 = cacop_mode_i == 2'b10;
+            cacop_op_mode0 = p2_cacop_mode == 2'b00;
+            cacop_op_mode1 = p2_cacop_mode == 2'b01 || p2_cacop_mode == 2'b11;
+            cacop_op_mode2 = p2_cacop_mode == 2'b10;
             cacop_way = vaddr[$clog2(NWAY)-1:0];
         end
     end
@@ -436,6 +436,7 @@ module dcache
             p2_req_type <= 0;
             p2_wstrb <= 0;
             p2_wdata <= 0;
+            p2_cacop_mode <= 0;
             p2_cacop <= 0;
             p2_vaddr <= 0;
             p3_valid <= 0;
@@ -457,6 +458,7 @@ module dcache
             p2_valid <= p2_valid;
             p2_req_type <= p2_req_type;
             p2_cacop <= p2_cacop;
+            p2_cacop_mode <= p2_cacop_mode;
             p2_wstrb <= p2_wstrb;
             p2_wdata <= p2_wdata;
             p2_vaddr <= p2_vaddr;
@@ -483,6 +485,7 @@ module dcache
             p2_wdata <= wdata;
             p2_cacop <= cacop_i;
             p2_vaddr <= vaddr;
+            p2_cacop_mode <= cacop_mode_i;
             // p2 -> p3
             p3_valid <= p2_valid;
             p3_req_type <= p2_req_type;
