@@ -508,6 +508,9 @@ module ex
                         dcache_rreq_o = 0;
                     end
                 end
+                `EXE_CACOP: begin
+                    dcache_rreq_o.addr = ex_o.mem_addr;
+                end
                 default: begin
                     // Reset AXI signals, IMPORTANT!
                     dcache_rreq_o = 0;
