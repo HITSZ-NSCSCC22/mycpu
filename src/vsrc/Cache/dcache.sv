@@ -266,7 +266,7 @@ module dcache
             cacop_op_mode0 = p2_cacop_mode == 2'b00;
             cacop_op_mode1 = p2_cacop_mode == 2'b01 || p2_cacop_mode == 2'b11;
             cacop_op_mode2 = p2_cacop_mode == 2'b10;
-            cacop_way = vaddr[$clog2(NWAY)-1:0];
+            cacop_way = p2_vaddr[$clog2(NWAY)-1:0];
         end
     end
 
