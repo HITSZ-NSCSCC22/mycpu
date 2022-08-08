@@ -1,13 +1,16 @@
-`define COLOR_ADDR 17'd803
-`define INIT_END   17'd123302//重要一定要配置好
+`define COLOR_ADDR 18'd803
+//以下参数都需要随着bram内容的改变而重新定义
+`define LOGO_END   18'd123302//重要一定要配置好
+`define NAME_ADDR  18'd123322
+`define INIT_END   18'd164837//一定要配置好
 `define KEEP_TIME  32'd3_0000_0000//keep 5s
-`define DATA32
+//`define DATA32
 module lcd_init (
         input  logic        pclk,
         input  logic        rst_n,
         input  logic        init_write_ok,
         output logic [15:0] init_data,
-        output logic [16:0] init_addra,
+        output logic [17:0] init_addra,
         output logic        we,
         output logic        wr,
         output logic        rs,
@@ -26,13 +29,14 @@ module lcd_init (
              DRAW_BG,//to draw the background
              DRAW_LOGO,
              INIT_FINISH,
-             LOGO_KEEPING//to keep the logo for a while
+             LOGO_KEEPING,//to keep the logo for a while
+             DRAW_NAME
          } init_state;
     enum int {
              WAIT_INIT,
              DELAY
          } delay_state;
-    logic [16:0] addra;
+    logic [17:0] addra;
     logic [31:0] delay_counter;
 
     //初始化序列需要延迟一段时间
@@ -101,7 +105,7 @@ module lcd_init (
                 INIT: begin
                     if (init_write_ok) begin
                         //init finish
-                        if (addra == 17'd783) begin
+                        if (addra == 18'd783) begin
                             init_state <= CLEAR;
                             addra <= addra+1;
                             we <= 0;
@@ -178,9 +182,9 @@ module lcd_init (
                 DRAW_LOGO: begin
                     if (init_write_ok) begin
                         //draw logo
-                        if (addra == `INIT_END) begin
-                            init_state <= LOGO_KEEPING;
-                            addra <= 0;
+                        if (addra == `LOGO_END) begin
+                            init_state <= DRAW_NAME;
+                            addra <= addra+1;
                             we <= 0;
                             wr <= 1;
                             rs <= 0;
@@ -200,6 +204,38 @@ module lcd_init (
                         if (addra >=`COLOR_ADDR)
                             rs <= 1;
                         else if (addra[0] == 1)
+                            rs <= 1;
+                        else
+                            rs <= 0;
+                    end
+                end
+                //draw name
+                //此处的参数需要随着bram的内容而改变
+                DRAW_NAME: begin
+                    if (init_write_ok) begin
+                        //draw logo
+                        if (addra == `INIT_END) begin
+                            init_state <= LOGO_KEEPING;
+                            addra <= 0;
+                            we <= 0;
+                            wr <= 1;
+                            rs <= 0;
+                            init_work <= 1;
+                            init_finish <= 0;
+                        end
+                        else begin
+                            addra <= addra + 1;
+                            we <= 0;
+                        end
+                    end
+                    else begin
+                        init_state <= DRAW_NAME;
+                        addra <= addra;
+                        we <= 1;
+                        wr <= 1;
+                        if (addra >=`NAME_ADDR)
+                            rs <= 1;
+                        else if (addra[0] == 0)//随bram的内容而改变
                             rs <= 1;
                         else
                             rs <= 0;
@@ -253,7 +289,7 @@ module lcd_init (
                       .clka (pclk),      // input wire clka
                       .ena  (1),         // input wire ena
                       .wea  (0),         // input wire [0 : 0] wea
-                      .addra(addra),     // input wire [16 : 0] addra
+                      .addra(addra),     // input wire [17 : 0] addra
                       .dina (0),         // input wire [15 : 0] dina
                       .douta(data_o)  // output wire [15 : 0] douta
                   );
@@ -262,7 +298,7 @@ module lcd_init (
 
 
               .probe0(init_data), // input wire [15:0]  probe0
-              .probe1(addra) // input wire [16:0]  probe1
+              .probe1(addra) // input wire [17:0]  probe1
           );
 
 endmodule

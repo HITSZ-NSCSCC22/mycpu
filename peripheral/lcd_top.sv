@@ -81,11 +81,19 @@ import lcd_types:
         // output logic [11:0] vga_wcolor
 
     );
-    //default signal
-    // assign lcd_ct_int  = 1'bz;
-    // assign lcd_ct_sda  = 1'bz;
-    // assign lcd_ct_scl  = 1;
-    // assign lcd_ct_rstn = rst_n;
+    // lcd_touch_scanner u_lcd_touch_scanner(
+    //                       ts_clk(),
+    //                       resetn(),
+
+    //                       touch_flag(),//1表示触碰点有效
+    //                       release_flag(), //it would be set as 1 when the coordinate is ready
+    //                       coordinate(),  //{x_low,x_high,y_low,y_high}
+    //                       wire enable(),//触摸屏开始工作
+    //                       lcd_int(),
+    //                       lcd_sda(),
+    //                       lcd_ct_scl(),
+    //                       lcd_ct_rstn
+    //                   );
 
 
     //top <-> lcd_ctrl
@@ -105,6 +113,7 @@ import lcd_types:
         else
             data_i<=lcd_data_i;
     end
+    // lcd_id ,lcd_init <-> mux <-> lcd_interface
     id_mux_struct id_mux_signal;
     init_mux_struct init_mux_signal;
     interface_mux_struct inter_mux_signal;
@@ -344,7 +353,7 @@ import lcd_types:
                     .data_ok(data_ok),
                     .refresh_ok(refresh_ok)//refresh is over
                 );
-    logic [16:0]addra;
+    logic [17:0]addra;
     lcd_init u_lcd_init (
                  .pclk(pclk),
                  .rst_n(rst_n),
