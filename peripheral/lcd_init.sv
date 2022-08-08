@@ -1,9 +1,17 @@
 `define COLOR_ADDR 18'd803
 //以下参数都需要随着bram内容的改变而重新定义
+//init bram
 `define LOGO_END   18'd123302//重要一定要配置好
 `define NAME_ADDR  18'd123322
 `define INIT_END   18'd164837//一定要配置好
 `define KEEP_TIME  32'd3_0000_0000//keep 5s
+//clear bram
+`define WHITE_COLOR 10'd19
+`define GAME1      10'd37
+`define GAME2      10'd56
+`define GAME3      10'd73
+`define GAME4      10'd91
+`define MAIN_END   10'd92
 //`define DATA32
 module lcd_init (
         input  logic        pclk,
@@ -20,10 +28,12 @@ module lcd_init (
         input logic init_main
     );
     logic refresh_flag;
-    logic [4:0]refresh_addra;
+    logic [9:0]refresh_addra;
     logic [15:0]refresh_data;
     logic [31:0]refresh_counter;
     logic is_color;
+    logic is_main;
+    logic is_main_color;
     enum int {
              IDLE,
              INIT,
@@ -32,7 +42,10 @@ module lcd_init (
              DRAW_LOGO,
              INIT_FINISH,
              LOGO_KEEPING,//to keep the logo for a while
-             DRAW_NAME
+             DRAW_NAME,
+             DRAW_MAIN,//to draw the main table
+             DRAW_TITLE
+
          } init_state;
     enum int {
              WAIT_INIT,
@@ -78,6 +91,24 @@ module lcd_init (
             delay_time<=0;
     end
 
+    logic [31:0]size;
+    logic [15:0]main_color;
+    always_comb begin
+        if(init_state==DRAW_TITLE) begin
+            case(refresh_addra)
+                `WHITE_COLOR: begin
+                    size=32'd384000;
+                    main_color=16'hffff;
+                end
+                `GAME1,`GAME2,`GAME3,`GAME4: begin
+                    size=32'd45000;
+                    main_color=16'he56c;
+                end
+            endcase
+        end
+        else
+            size=0;
+    end
     always_ff @(posedge pclk) begin
         if (~rst_n) begin
             init_state <= IDLE;
@@ -91,6 +122,8 @@ module lcd_init (
             refresh_flag<=0;
             refresh_counter<=0;
             is_color<=0;
+            is_main<=0;
+            is_main_color<=0;
         end
         else begin
             case (init_state)
@@ -106,6 +139,8 @@ module lcd_init (
                     refresh_flag<=0;
                     refresh_counter<=0;
                     is_color<=0;
+                    is_main<=0;
+                    is_main_color
                 end
                 //hardware initial
                 INIT: begin
@@ -128,7 +163,7 @@ module lcd_init (
                             we <= 0;
                         end
                     end
-                    else if (delay_state == DELAY) begin
+                    else if (delay_state == DELAY) begin//2900前面的那条指令需要延迟一段时间
                         we <= 0;
                     end
                     else begin
@@ -136,14 +171,14 @@ module lcd_init (
                         addra <= addra;
                         we <= 1;
                         wr <= 1;
+                        init_work   <= 1;
+                        init_finish <= 0;
                         if (addra == 17'd763)
                             rs <= 0;
                         else if (addra[0] == 1)
                             rs <= 1;
                         else
                             rs <= 0;
-                        init_work   <= 1;
-                        init_finish <= 0;
                     end
                 end
                 //refresh LCD,draw white
@@ -252,26 +287,116 @@ module lcd_init (
                     we<=0;
                     init_work<=1;
                     init_finish<=0;
+                    wr <= 1;
+                    rs <= 0;
+                    refresh_addra<=0;
+                    refresh_flag<=1;
+                    refresh_counter<=0;
+                    is_main<=1;
                     if(delay_time<=`KEEP_TIME)
                         init_state<=LOGO_KEEPING;
-                    else
-                        init_state<=INIT_FINISH;
+                    else begin
+                        init_state<=DRAW_MAIN;
+                    end
+                end
+                DRAW_MAIN: begin
+                    if (init_write_ok) begin
+                        //write main table data
+                        if (refresh_addra == `MAIN_END) begin//MAIN_END需要比实际的值大1
+                            init_state <= INIT_FINISH;
+                            addra <= 0;
+                            we <= 0;
+                            wr <= 1;
+                            rs <= 0;
+                            init_work <= 1;
+                            init_finish <= 0;
+                            refresh_flag<=0;
+                            refresh_addra<=0;
+                            is_color<=0;
+                            refresh_counter<=0;
+                            is_main<=0;
+                            is_main_color<=0;
+                        end
+                        else if(refresh_addra==`WHITE_COLOR||refresh_addra==`GAME1||refresh_addra==`GAME2||refresh_addra==`GAME3||refresh_addra==`GAME4) begin
+                            init_state<=DRAW_TITLE;
+                            we <= 0;
+                            init_work <= 1;
+                            init_finish <= 0;
+                            refresh_counter<=1;
+                            is_main_color<=1;
+                            refresh_addra<=refresh_addra;
+                        end
+                        else begin
+                            is_main_color<=0;
+                            refresh_counter<=0;
+                            refresh_addra <= refresh_addra + 1;
+                            we <= 0;
+                        end
+                    end
+                    else begin
+                        refresh_addra<=refresh_addra;
+                        we <= 1;
+                        wr <= 1;
+                        if (addra[0] == 1)
+                            rs <= 1;
+                        else
+                            rs <= 0;
+                        init_work   <= 1;
+                        init_finish <= 0;
+                    end
+                end
+                DRAW_TITLE: begin
+                    if(init_write_ok) begin
+                        if(refresh_counter==size) begin
+                            init_state <= DRAW_MAIN;
+                            addra <= addra;
+                            we <= 0;
+                            wr <= 1;
+                            rs <= 0;
+                            init_work <= 1;
+                            init_finish <= 0;
+                            refresh_flag<=1;
+                            is_color<=0;
+                            is_main_color<=0;
+                            is_main<=1;
+                            refresh_addra=refresh_addra+1;
+                        end
+                        else begin
+                            we<=0;
+                            refresh_counter<=refresh_counter+1;
+                        end
+                    end
+                    else begin
+                        rs<=1;
+                        we <= 1;
+                        wr <= 1;
+                    end
                 end
                 //initial finish，the cpu can control the LCD by AXI
                 INIT_FINISH: begin
                     // init_state <= INIT_FINISH;
                     if(init_main) begin
-                        init_state<=IDLE;
+                        init_state<=DRAW_MAIN;
+                        init_work<=1;
+                        init_finish<=0;
+                        wr <= 1;
+                        rs <= 0;
+                        we<=0;
+                        refresh_addra<=0;
+                        refresh_flag<=1;
+                        refresh_counter<=0;
+                        is_main_color<=0;
+                        is_main<=1;
                     end
                     else begin
                         init_state<=INIT_FINISH;
+                        addra <= 0;
+                        we <= 0;
+                        wr <= 1;
+                        rs <= 0;
+                        init_work <= 0;
+                        init_finish <= 1;
                     end
-                    addra <= 0;
-                    we <= 0;
-                    wr <= 1;
-                    rs <= 0;
-                    init_work <= 0;
-                    init_finish <= 1;
                 end
                 default: begin
                     init_state <= IDLE;
@@ -289,10 +414,10 @@ module lcd_init (
 `ifdef  DATA32
 
     logic [31:0]data_o;
-    assign init_data=refresh_flag?(is_color?16'hffff:0):data_o[15:0];
+    assign init_data=refresh_flag?(is_main?(is_main_color?main_color:refresh_data):(is_color?16'hffff:0)):data_o[15:0];
 `else
     logic [15:0]data_o;
-    assign init_data=refresh_flag?(is_color?16'hffff:0):data_o;
+    assign init_data=refresh_flag?(is_main?(is_main_color?main_color:refresh_data):(is_color?16'hffff:0)):data_o;
 `endif
 
     //注意bram的时序，选择单口bram，无流水线
@@ -305,6 +430,14 @@ module lcd_init (
                       .dina (0),         // input wire [15 : 0] dina
                       .douta(data_o)  // output wire [15 : 0] douta
                   );
+    lcd_clear_bram u_lcd_clear_bram (
+                       .clka(pclk),    // input wire clka
+                       .ena(1),      // input wire ena
+                       .wea(0),      // input wire [0 : 0] wea
+                       .addra(refresh_addra),  // input wire [9 : 0] addra
+                       .dina(0),    // input wire [15 : 0] dina
+                       .douta(refresh_data)  // output wire [15 : 0] douta
+                   );
     ila_2 lcd_init_debug (
               .clk(pclk), // input wire clk
 
