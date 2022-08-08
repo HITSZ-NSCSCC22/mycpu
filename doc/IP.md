@@ -36,6 +36,6 @@ TAGE base predictor BRAM:
 
 TAGE tagged predictor BRAM:
 - module name: bram_bpu_tagged_predictor
-- width: 16
-- depth: 2048
+- width: 18
+- depth: 1024
 - operating mode: Write First
