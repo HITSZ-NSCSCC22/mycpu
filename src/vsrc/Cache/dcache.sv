@@ -194,7 +194,7 @@ module dcache
                 else next_state = UNCACHE_WRITE_WAIT;
             end
             FIFO_CLEAR: begin
-                if (fifo_state[0]) next_state = IDLE;
+                if (fifo_state[0] && axi_bvalid_i) next_state = IDLE;
                 else next_state = FIFO_CLEAR;
             end
             default: begin
@@ -732,7 +732,7 @@ module dcache
         //FIFO state
         .state(fifo_state),
         //write to memory 
-        .axi_bvalid_i(axi_rdy_i & (state == IDLE) & (next_state == IDLE)),
+        .axi_bvalid_i(axi_rdy_i & (state == IDLE| state == FIFO_CLEAR) & (next_state == IDLE| next_state == FIFO_CLEAR)),
         .axi_wen_o(fifo_axi_wr_req),
         .axi_wdata_o(fifo_axi_wr_data),
         .axi_awaddr_o(fifo_axi_wr_addr)
