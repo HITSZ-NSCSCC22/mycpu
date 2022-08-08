@@ -31,7 +31,10 @@ module lcd_test_ctrl (
         input logic refresh_rs_i,
 
         //from lcd_id
-        input logic write_ok  //数�?�和指令写出去�?��?能继续写
+        input logic write_ok,  //数�?�和指令写出去�?��?能继续写
+
+        //from lcd_core
+        input logic [31:0]touch_reg
     );
     enum logic [2:0] {
              R_ADDR = 3'b001,

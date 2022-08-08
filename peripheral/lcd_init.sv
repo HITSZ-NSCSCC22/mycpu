@@ -15,7 +15,9 @@ module lcd_init (
         output logic        wr,
         output logic        rs,
         output logic        init_work,
-        output logic        init_finish
+        output logic        init_finish,
+        //from lcd_core
+        input logic init_main
     );
     logic refresh_flag;
     logic [4:0]refresh_addra;
@@ -100,6 +102,10 @@ module lcd_init (
                     rs <= 0;
                     init_work <= 1;
                     init_finish <= 0;
+                    refresh_addra<=0;
+                    refresh_flag<=0;
+                    refresh_counter<=0;
+                    is_color<=0;
                 end
                 //hardware initial
                 INIT: begin
@@ -253,7 +259,13 @@ module lcd_init (
                 end
                 //initial finish，the cpu can control the LCD by AXI
                 INIT_FINISH: begin
-                    init_state <= INIT_FINISH;
+                    // init_state <= INIT_FINISH;
+                    if(init_main) begin
+                        init_state<=IDLE;
+                    end
+                    else begin
+                        init_state<=INIT_FINISH;
+                    end
                     addra <= 0;
                     we <= 0;
                     wr <= 1;

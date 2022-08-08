@@ -7,7 +7,7 @@ import lcd_types:
            *;
     (
         //rst and clk,clk is lower than cpu
-        input logic pclk,
+        input logic clk,//100Mhz
         input logic rst_n,
 
         /** from AXI **/
@@ -66,13 +66,13 @@ import lcd_types:
         output logic lcd_wr,
         output logic lcd_rd,
         inout wire [15:0] lcd_data_io,  //from/to lcd data
-        output lcd_bl_ctr
+        output lcd_bl_ctr,
 
-        // /**touch LCD**/
-        // inout  wire  lcd_ct_int,  //触摸屏中断信号
-        // inout  wire  lcd_ct_sda,
-        // output logic lcd_ct_scl,
-        // output logic lcd_ct_rstn //lcd触摸屏幕复位信号
+        /**touch LCD**/
+        inout  wire  lcd_ct_int,  //触摸屏中断信号
+        inout  wire  lcd_ct_sda,
+        output logic lcd_ct_scl,
+        output logic lcd_ct_rstn //lcd触摸屏幕复位信号
 
         // /**VGA**/
         // output logic vga_wen,
@@ -81,19 +81,62 @@ import lcd_types:
         // output logic [11:0] vga_wcolor
 
     );
-    // lcd_touch_scanner u_lcd_touch_scanner(
-    //                       ts_clk(),
-    //                       resetn(),
+    logic pclk;
+    logic ts_clk;
+    clk_wiz_0 clk_pll
+              (
+                  // Clock out ports
+                  .clk_out1(ts_clk),     // 10Mhz
+                  .clk_out2(pclk),     // 50Mhz
+                  // Clock in ports
+                  .clk_in1(clk));      // input clk_in1
 
-    //                       touch_flag(),//1表示触碰点有效
-    //                       release_flag(), //it would be set as 1 when the coordinate is ready
-    //                       coordinate(),  //{x_low,x_high,y_low,y_high}
-    //                       wire enable(),//触摸屏开始工作
-    //                       lcd_int(),
-    //                       lcd_sda(),
-    //                       lcd_ct_scl(),
-    //                       lcd_ct_rstn
-    //                   );
+    //core <-> *
+    logic touch_flag;
+    logic release_flag;
+    logic [31:0]coordinate;
+    logic core_enable;
+    logic cpu_draw;
+    logic [31:0]touch_reg;
+    logic init_main_core;
+    logic init_finish_core;
+    lcd_core u_lcd_core(
+                 .pclk(pclk),
+                 .rst_n(rst_n),
+
+                 //from lcd_init
+                 .init_finish(init_finish_core),
+                 //to lcd_init
+                 .init_main(init_main_core),
+
+                 //to lcd_ctrl
+                 .touch_reg(touch_reg),
+
+                 //to lcd_mux
+                 .cpu_draw(cpu_draw),
+
+                 //from lcd_touch_scanner
+                 .touch_flag(touch_flag),//1表示碰到触碰点
+                 .release_flag(release_flag), //it would be set as 1 when the coordinate is ready，1表示手松开
+                 .coordinate(coordinate),  //{x_low,x_high,y_low,y_high}
+                 //to lcd_touch_scanner
+                 .enable(core_enable)//触摸屏开始工作
+
+             );
+
+
+    lcd_touch_scanner u_lcd_touch_scanner(
+                          .ts_clk(ts_clk),//10Mhz
+                          .resetn(rst_n),
+                          .touch_flag(touch_flag),//1表示触碰点有效
+                          .release_flag(release_flag), //it would be set as 1 when the coordinate is ready
+                          .coordinate(coordinate),  //{x_low,x_high,y_low,y_high}
+                          .enable(core_enable),//触摸屏开始工作
+                          .lcd_int(lcd_ct_int),
+                          .lcd_sda(lcd_ct_sda),
+                          .lcd_ct_scl(lcd_ct_scl),
+                          .lcd_ct_rstn(lcd_ct_rstn)
+                      );
 
 
     //top <-> lcd_ctrl
@@ -337,6 +380,9 @@ import lcd_types:
                       .refresh_ok_i(refresh_ok),
                       .refresh_rs_i(refresh_rs),
 
+                      //from lcd_core
+                      .touch_reg(touch_reg),
+
                       //from lcd_id
                       .write_ok(write_ok)  //æ•°ï¿½?ï¿½å’ŒæŒ‡ä»¤å†™å‡ºåŽ»ï¿½?ï¿½ï¿½?èƒ½ç»§ç»­å†™
                   );
@@ -364,8 +410,10 @@ import lcd_types:
                  .wr(init_mux_signal.init_wr),
                  .rs(init_mux_signal.init_rs),
                  .init_work(init_mux_signal.init_work),
-                 .init_finish(init_mux_signal.init_finish)
+                 .init_finish(init_mux_signal.init_finish),
+                 .init_main(init_main_core)
              );
+    assign init_finish_core=init_mux_signal.init_finish;
 
     ila_0 lcd_top_debug (
               .clk(pclk),  // input wire clk

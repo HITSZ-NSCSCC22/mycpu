@@ -1,6 +1,8 @@
 module lcd_mux (
         input  logic        pclk,
         input  logic        rst_n,
+        //from lcd_core
+        input logic cpu_draw,
         //from lcd_id
         input  logic        id_we,             //write enable
         input  logic        id_wr,             //0:read lcd 1:write lcd,distinguish inst kind
