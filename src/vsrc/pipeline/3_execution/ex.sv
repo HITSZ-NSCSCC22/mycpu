@@ -216,7 +216,7 @@ module ex
     assign icacop_op_en = icacop_inst && !excp && !(flush);
     assign dcacop_inst = cacop_instr && (cacop_op[2:0] == 3'b1);
     assign dcacop_op_en = dcacop_inst && !excp && !(flush);
-    assign cacop_op_mode = {2{dcacop_op_en}} & cacop_op[4:3];
+    assign cacop_op_mode = {2{dcacop_op_en | icacop_op_en}} & cacop_op[4:3];
     assign icacop_en_o = icacop_op_en;
     assign dcacop_en_o = dcacop_op_en;
     assign icacop_mode_o = cacop_op_mode;
