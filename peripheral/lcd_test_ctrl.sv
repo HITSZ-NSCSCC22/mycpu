@@ -34,7 +34,12 @@ module lcd_test_ctrl (
         input logic write_ok,  //数�?�和指令写出去�?��?能继续写
 
         //from lcd_core
-        input logic [31:0]touch_reg
+        input logic [31:0]touch_reg,
+        input logic cpu_work,
+
+        //debug
+        output [31:0] debug_buffer_state,
+        output [31:0] debug_inst_num
     );
     enum logic [2:0] {
              R_ADDR = 3'b001,
@@ -70,7 +75,7 @@ module lcd_test_ctrl (
     logic refresh_ok;
     /**画一次图需�?6�?�连续的sw指令，所以绘图时�?�需�?存储连续的6�?�sw指令�?��?�**/
     always_ff @( posedge pclk ) begin : lcd_buffer
-        if(~rst_n) begin
+        if(~rst_n||~cpu_work) begin
             for(integer i=0;i<7;i++) begin
                 graph_buffer[i]<=32'b0;
                 graph_addr[i]<=32'b0;
@@ -225,4 +230,7 @@ module lcd_test_ctrl (
             endcase
         end
     end
+    //debug
+    assign debug_buffer_state=buffer_state;
+    assign debug_inst_num=inst_num;
 endmodule

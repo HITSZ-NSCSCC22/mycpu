@@ -81,6 +81,17 @@ import lcd_types:
         // output logic [11:0] vga_wcolor
 
     );
+    //debug signal
+    logic [31:0]debug_buffer_state;
+    logic [31:0]debug_inst_num;
+    logic [31:0]debug_current_state;
+    logic [31:0]debug_next_state;
+    logic [9:0]debug_refresh_addra;
+    logic [15:0]debug_refresh_data;
+    logic debug_refresh_flag;
+    logic debug_is_main;
+
+
     logic pclk;
     logic ts_clk;
     clk_wiz_0 clk_pll
@@ -100,6 +111,7 @@ import lcd_types:
     logic [31:0]touch_reg;
     logic init_main_core;
     logic init_finish_core;
+    logic cpu_work;
     lcd_core u_lcd_core(
                  .pclk(pclk),
                  .rst_n(rst_n),
@@ -111,7 +123,7 @@ import lcd_types:
 
                  //to lcd_ctrl
                  .touch_reg(touch_reg),
-
+                 .cpu_work(cpu_work),
                  //to lcd_mux
                  .cpu_draw(cpu_draw),
 
@@ -164,6 +176,8 @@ import lcd_types:
     lcd_mux u_lcd_mux (
                 .pclk(pclk),
                 .rst_n(rst_n),
+                //from cpu draw
+                .cpu_draw(cpu_draw),
                 //from lcd_id
                 .id_we(id_mux_signal.id_we),  //write enable
                 .id_wr(id_mux_signal.id_wr),  //0:read lcd 1:write lcd,distinguish inst kind
@@ -274,7 +288,11 @@ import lcd_types:
 
                //from lcd inteface
                .busy(id_mux_signal.busy),
-               .write_color_ok(id_mux_signal.write_color_ok)
+               .write_color_ok(id_mux_signal.write_color_ok),
+
+               //debug
+               .debug_current_state(debug_current_state),
+               .debug_next_state(debug_next_state)
            );
 
     //lcd_ctrl <-> lcd_refresh
@@ -382,9 +400,11 @@ import lcd_types:
 
                       //from lcd_core
                       .touch_reg(touch_reg),
-
+                      .cpu_work(cpu_work),
                       //from lcd_id
-                      .write_ok(write_ok)  //æ•°ï¿½?ï¿½å’ŒæŒ‡ä»¤å†™å‡ºåŽ»ï¿½?ï¿½ï¿½?èƒ½ç»§ç»­å†™
+                      .write_ok(write_ok),  //æ•°ï¿½?ï¿½å’ŒæŒ‡ä»¤å†™å‡ºåŽ»ï¿½?ï¿½ï¿½?èƒ½ç»§ç»­å†™
+                      .debug_buffer_state(debug_buffer_state),
+                      .debug_inst_num(debug_inst_num)
                   );
 `endif
 
@@ -411,7 +431,14 @@ import lcd_types:
                  .rs(init_mux_signal.init_rs),
                  .init_work(init_mux_signal.init_work),
                  .init_finish(init_mux_signal.init_finish),
-                 .init_main(init_main_core)
+                 .init_main(init_main_core),
+
+                 //debug
+                 .debug_refresh_addra(debug_refresh_addra),
+                 .debug_refresh_data(debug_refresh_data),
+                 .debug_refresh_flag(debug_refresh_flag),
+                 .debug_is_main(debug_is_main)
+
              );
     assign init_finish_core=init_mux_signal.init_finish;
 
@@ -425,27 +452,28 @@ import lcd_types:
               .probe5(lcd_data_io),  // input wire [15:0]  probe5
               .probe6(lcd_rst),  // input wire [0:0]  probe6
               .probe7(lcd_write_data_ctrl),  // input wire [0:0]  probe7
-              .probe8(count),  // input wire [31:0]  probe8
+              .probe8(init_mux_signal.init_data),  // input wire [31:0]  probe8
               .probe9(0),  // input wire [31:0]  probe9
               .probe10(lcd_data_o),  // input wire [15:0]  probe10
               .probe11(0),  // input wire [31:0]  probe11
               .probe12(graph_size),  // input wire [31:0]  probe12
               .probe13(lcd_data_i),  // input wire [15:0]  probe13
               .probe14(data_i),  // input wire [15:0]  probe14
-              .probe15(0),  // input wire [0:0]  probe15
-              .probe16(0),  // input wire [0:0]  probe16
-              .probe17(0),  // input wire [0:0]  probe17
-              .probe18(0),  // input wire [0:0]  probe18
-              .probe19(0),  // input wire [0:0]  probe19
-              .probe20(0),  // input wire [0:0]  probe20
-              .probe21(0),  // input wire [0:0]  probe21
-              .probe22(0),  // input wire [0:0]  probe22
-              .probe23(0),  // input wire [0:0]  probe23
-              .probe24(0),  // input wire [0:0]  probe24
-              .probe25(0),  // input wire [0:0]  probe25
-              .probe26(0),  // input wire [0:0]  probe26
-              .probe27(0),  // input wire [0:0]  probe27
-              .probe28(0),  // input wire [0:0]  probe28
+              .probe15(ctrl_refresh_id),  // input wire [0:0]  probe15
+              .probe16(debug_is_main),  // input wire [0:0]  probe16
+              .probe17(enable),  // input wire [0:0]  probe17
+              .probe18(data_ok),  // input wire [0:0]  probe18
+              .probe19(refresh_ok),  // input wire [0:0]  probe19
+              .probe20(init_mux_signal.init_write_ok),  // input wire [0:0]  probe20
+              .probe21(init_mux_signal.init_finish),  // input wire [0:0]  probe21
+              .probe22(debug_refresh_flag),  // input wire [0:0]  probe22
+              .probe23(debug_refresh_data),  // input wire [15:0]  probe23
+              .probe24(debug_refresh_addra),  // input wire [9:0]  probe24
+              .probe25(debug_next_state),  // input wire [31:0]  probe25
+              .probe26(debug_current_state),  // input wire [31:0]  probe26
+              .probe27(debug_inst_num),  // input wire [31:0]  probe27
+              .probe28(debug_buffer_state),  // input wire [31:0]  probe28
               .probe29(addra)  // input wire [16:0]  probe29
           );
+
 endmodule

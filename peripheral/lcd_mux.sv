@@ -37,12 +37,12 @@ module lcd_mux (
         output logic read_color_o  //if read color ,reading time is at least 2
     );
     //to lcd_interface
-    assign data_o = init_finish ? id_data_o : init_data;
-    assign we_o = init_finish ? id_we : init_we;
-    assign wr_o = init_finish ? id_wr : init_wr;
-    assign lcd_rs_o = init_finish ? id_lcd_rs : init_rs;
-    assign id_fm_o = init_finish ? id_fm_i : 0;
-    assign read_color_o = init_finish ? id_read_color_o : 0;
+    assign data_o = (init_finish&&cpu_draw) ? id_data_o : init_data;
+    assign we_o = (init_finish&&cpu_draw) ? id_we : init_we;
+    assign wr_o = (init_finish&&cpu_draw) ? id_wr : init_wr;
+    assign lcd_rs_o = (init_finish&&cpu_draw) ? id_lcd_rs : init_rs;
+    assign id_fm_o = (init_finish&&cpu_draw) ? id_fm_i : 0;
+    assign read_color_o = (init_finish&&cpu_draw) ? id_read_color_o : 0;
 
     //to lcd_init
     assign init_write_ok_o = init_finish ? 0 : init_write_ok_i;
@@ -51,13 +51,13 @@ module lcd_mux (
     always_ff @(posedge pclk) begin
         if (~rst_n)
             delay <= 1;
-        else if (init_finish)
+        else if (init_finish&&cpu_draw)
             delay <= 0;
         else
             delay <= delay;
     end
 
     //to lcd_id
-    assign busy_o = init_finish ? (delay ? 1 : busy_i) : 1;
-    assign write_color_ok_o = init_finish ? write_color_ok_i : 0;
+    assign busy_o = (init_finish&&cpu_draw) ? (delay ? 1 : busy_i) : 1;//delay one cycle to make sure lcd_interface work
+    assign write_color_ok_o = (init_finish&&cpu_draw) ? write_color_ok_i : 0;
 endmodule

@@ -37,7 +37,11 @@ module lcd_id (
 
         //from lcd inteface
         input logic busy,
-        input logic write_color_ok
+        input logic write_color_ok,
+
+        //debug
+        output [31:0]debug_current_state,
+        output [31:0]debug_next_state
     );
     enum int {
              IDLE,
@@ -600,4 +604,7 @@ module lcd_id (
         end
     end
 
+    //debug
+    assign debug_current_state=current_state;
+    assign debug_next_state=next_state;
 endmodule

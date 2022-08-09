@@ -1,3 +1,4 @@
+//初始化代码LOGO的颜色参数地址
 `define COLOR_ADDR 18'd803
 //以下参数都需要随着bram内容的改变而重新定义
 //init bram
@@ -8,7 +9,7 @@
 //clear bram
 `define WHITE_COLOR 10'd19
 `define GAME1      10'd37
-`define GAME2      10'd56
+`define GAME2      10'd55
 `define GAME3      10'd73
 `define GAME4      10'd91
 `define MAIN_END   10'd92
@@ -25,7 +26,13 @@ module lcd_init (
         output logic        init_work,
         output logic        init_finish,
         //from lcd_core
-        input logic init_main
+        input logic init_main,
+
+        //debug
+        output logic [9:0]debug_refresh_addra,
+        output logic debug_refresh_flag,
+        output logic [15:0]debug_refresh_data,
+        output logic debug_is_main
     );
     logic refresh_flag;
     logic [9:0]refresh_addra;
@@ -104,6 +111,10 @@ module lcd_init (
                     size=32'd45000;
                     main_color=16'he56c;
                 end
+                default: begin
+                    size=0;
+                    main_color=0;
+                end
             endcase
         end
         else
@@ -140,7 +151,7 @@ module lcd_init (
                     refresh_counter<=0;
                     is_color<=0;
                     is_main<=0;
-                    is_main_color
+                    is_main_color<=0;
                 end
                 //hardware initial
                 INIT: begin
@@ -337,7 +348,7 @@ module lcd_init (
                         refresh_addra<=refresh_addra;
                         we <= 1;
                         wr <= 1;
-                        if (addra[0] == 1)
+                        if (refresh_addra[0] == 1)
                             rs <= 1;
                         else
                             rs <= 0;
@@ -406,6 +417,12 @@ module lcd_init (
                     rs <= 0;
                     init_work <= 1;
                     init_finish <= 0;
+                    refresh_addra<=0;
+                    refresh_flag<=0;
+                    refresh_counter<=0;
+                    is_color<=0;
+                    is_main<=0;
+                    is_main_color<=0;
                 end
             endcase
         end
@@ -430,6 +447,7 @@ module lcd_init (
                       .dina (0),         // input wire [15 : 0] dina
                       .douta(data_o)  // output wire [15 : 0] douta
                   );
+    //draw MAIN
     lcd_clear_bram u_lcd_clear_bram (
                        .clka(pclk),    // input wire clka
                        .ena(1),      // input wire ena
@@ -445,5 +463,9 @@ module lcd_init (
               .probe0(init_data), // input wire [15:0]  probe0
               .probe1(addra) // input wire [17:0]  probe1
           );
-
+    //debug
+    assign debug_refresh_addra=refresh_addra;
+    assign debug_refresh_data=refresh_data;
+    assign debug_refresh_flag=refresh_flag;
+    assign debug_is_main=is_main;
 endmodule
