@@ -46,7 +46,7 @@ module dcache
     localparam NSET_WIDTH = $clog2(NSET);
     localparam NWAY_WIDTH = $clog2(NWAY);
     localparam TAG_WIDTH = ADDR_WIDTH - NSET_WIDTH - OFFSET_WIDTH;
-    localparam TAG_BRAM_WIDTH = 22;
+    localparam TAG_BRAM_WIDTH = TAG_WIDTH + 2;
 
     enum int {
         IDLE,
@@ -59,7 +59,9 @@ module dcache
         UNCACHE_READ_REQ,
         UNCACHE_READ_WAIT,
         UNCACHE_WRITE_REQ,
-        UNCACHE_WRITE_WAIT
+        UNCACHE_WRITE_WAIT,
+
+        FIFO_CLEAR
     }
         state, next_state;
 
@@ -79,14 +81,14 @@ module dcache
 
     // BRAM signals
     logic [NWAY-1:0][DCACHELINE_WIDTH-1:0] data_bram_rdata, data_bram_wdata, p3_data_bram_rdata;
-    logic [NWAY-1:0][$clog2(NSET)-1:0] data_bram_raddr, data_bram_waddr;
+    logic [NWAY-1:0][NSET_WIDTH-1:0] data_bram_raddr, data_bram_waddr;
     logic [NWAY-1:0][(DCACHELINE_WIDTH/8)-1:0] data_bram_we;
 
     // Tag bram 
     // {1bit dirty,1bit valid, 20bits tag}
     logic [NWAY-1:0][TAG_BRAM_WIDTH-1:0] tag_bram_rdata, p3_tag_bram_rdata;
     logic [NWAY-1:0][TAG_BRAM_WIDTH-1:0] tag_bram_wdata;
-    logic [NWAY-1:0][$clog2(NSET)-1:0] tag_bram_raddr, tag_bram_waddr;
+    logic [NWAY-1:0][NSET_WIDTH-1:0] tag_bram_raddr, tag_bram_waddr;
     logic [NWAY-1:0] tag_bram_we, tag_bram_ren;
 
     logic hit;
@@ -105,7 +107,7 @@ module dcache
     logic cacop_op_mode0, cacop_op_mode1, cacop_op_mode2;
     logic p3_cacop_op_mode0, p3_cacop_op_mode1, p3_cacop_op_mode2;
     logic [1:0] cacop_op_mode2_hit, p3_cacop_op_mode2_hit;
-    logic [$clog2(NWAY)-1:0] cacop_way, p3_cacop_way;
+    logic [NWAY_WIDTH-1:0] cacop_way, p3_cacop_way;
 
     logic [1:0] dirty;
 
@@ -117,7 +119,7 @@ module dcache
 
     // P2
     logic p2_valid, p2_uncache_delay;
-    logic [1:0] p3_tag_hit;
+    logic [1:0] p3_tag_hit, p2_cacop_mode;
     logic [2:0] p2_req_type, p3_req_type;
     logic [3:0] p2_wstrb, p3_wstrb;
     logic [`RegBus] p2_wdata;
@@ -144,7 +146,7 @@ module dcache
         case (state)
             IDLE: begin
                 // if the fifo is full ,we keep the state 
-                if (fifo_state[1]) next_state = IDLE;
+                if (fifo_state[1]) next_state = FIFO_CLEAR;
                 // if the dcache is idle,then accept the new request
                 else if (p3_valid & p3_uncache_en & !cpu_flush & mem_valid & !axi_valid_i_delay) begin
                     if (cpu_wreq) next_state = UNCACHE_WRITE_REQ;
@@ -191,6 +193,10 @@ module dcache
                 if (axi_bvalid_i) next_state = IDLE;
                 else next_state = UNCACHE_WRITE_WAIT;
             end
+            FIFO_CLEAR: begin
+                if (fifo_state[0] && axi_bvalid_i) next_state = IDLE;
+                else next_state = FIFO_CLEAR;
+            end
             default: begin
                 next_state = IDLE;
             end
@@ -214,8 +220,8 @@ module dcache
             for (integer i = 0; i < NWAY; i++) begin
                 if (valid | cacop_i) begin
                     tag_bram_ren[i] = 1;
-                    tag_bram_raddr[i] = vaddr[11:4];
-                    data_bram_raddr[i] = vaddr[11:4];
+                    tag_bram_raddr[i] = vaddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
+                    data_bram_raddr[i] = vaddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
                 end
             end
         end
@@ -231,15 +237,14 @@ module dcache
     always_comb begin
         if (uncache_en) tag_hit = 0;
         else begin
-            tag_hit[0] = tag_bram_rdata[0][19:0] == paddr[31:12] && tag_bram_rdata[0][20];
-            tag_hit[1] = tag_bram_rdata[1][19:0] == paddr[31:12] && tag_bram_rdata[1][20];
+            tag_hit[0] = tag_bram_rdata[0][TAG_WIDTH-1:0] == paddr[ADDR_WIDTH-1:ADDR_WIDTH-TAG_WIDTH] && tag_bram_rdata[0][TAG_WIDTH];
+            tag_hit[1] = tag_bram_rdata[1][TAG_WIDTH-1:0] == paddr[ADDR_WIDTH-1:ADDR_WIDTH-TAG_WIDTH] && tag_bram_rdata[1][TAG_WIDTH];
         end
     end
 
     // send to dispatch to deal with load to use
     assign tag_hit_o = tag_hit;
 
-    assign dirty = {tag_bram_rdata[1][21], tag_bram_rdata[0][21]};
 
     always_comb begin : fifo_read_req
         fifo_rreq  = 0;
@@ -257,10 +262,10 @@ module dcache
         cacop_op_mode2 = 0;
         cacop_way = 0;
         if (p2_cacop) begin
-            cacop_op_mode0 = cacop_mode_i == 2'b00;
-            cacop_op_mode1 = cacop_mode_i == 2'b01 || cacop_mode_i == 2'b11;
-            cacop_op_mode2 = cacop_mode_i == 2'b10;
-            cacop_way = paddr[$clog2(NWAY)-1:0];
+            cacop_op_mode0 = p2_cacop_mode == 2'b00;
+            cacop_op_mode1 = p2_cacop_mode == 2'b01 || p2_cacop_mode == 2'b11;
+            cacop_op_mode2 = p2_cacop_mode == 2'b10;
+            cacop_way = p2_vaddr[NWAY_WIDTH-1:0];
         end
     end
 
@@ -269,7 +274,7 @@ module dcache
         cacop_op_mode2_hit = 0;
         if (cacop_op_mode2) begin
             for (integer i = 0; i < NWAY; i++) begin
-                if (tag_bram_rdata[i][19:0] == paddr[31:12] && tag_bram_rdata[i][20])
+                if (tag_bram_rdata[i][TAG_WIDTH-1:0] == paddr[ADDR_WIDTH-1:ADDR_WIDTH-TAG_WIDTH] && tag_bram_rdata[i][TAG_WIDTH])
                     cacop_op_mode2_hit[i] = 1;
             end
         end
@@ -320,9 +325,11 @@ module dcache
                     if (p3_tag_hit[i] && cpu_wreq && !cpu_flush && mem_valid) begin
                         tag_bram_we[i] = 1;
                         // make the dirty bit 1'b1
-                        tag_bram_waddr[i] = p3_paddr[11:4];
-                        tag_bram_wdata[i] = {1'b1, 1'b1, p3_paddr[31:12]};
-                        data_bram_waddr[i] = p3_paddr[11:4];
+                        tag_bram_waddr[i] = p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
+                        tag_bram_wdata[i] = {
+                            1'b1, 1'b1, p3_paddr[ADDR_WIDTH-1:ADDR_WIDTH-TAG_WIDTH]
+                        };
+                        data_bram_waddr[i] = p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
                         //select the write bit
                         case (p3_wstrb)
                             //st.b 
@@ -350,16 +357,16 @@ module dcache
                         endcase
                     end
                     if (p3_cacop && !cpu_flush && mem_valid) begin
-                        if ((p3_cacop_way == i[$clog2(NWAY)-1:0])) begin
+                        if ((p3_cacop_way == i[NWAY_WIDTH-1:0])) begin
                             if (p3_cacop_op_mode0 | p3_cacop_op_mode1) begin
                                 tag_bram_we[i] = 1;
-                                tag_bram_waddr[i] = p3_paddr[11:4];
+                                tag_bram_waddr[i] = p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
                                 tag_bram_wdata[i] = 0;
                             end
                         end
                         if (p3_cacop_op_mode2_hit[i]) begin
                             tag_bram_we[i] = 1;
-                            tag_bram_waddr[i] = p3_paddr[11:4];
+                            tag_bram_waddr[i] = p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
                             tag_bram_wdata[i] = 0;
                         end
                     end
@@ -371,11 +378,13 @@ module dcache
                     if (i[0] == random_r[0]) begin
                         if (axi_rvalid_i) begin
                             tag_bram_we[i] = 1;
-                            tag_bram_waddr[i] = p3_paddr[11:4];
+                            tag_bram_waddr[i] = p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
                             //make the dirty bit 1'b1
-                            tag_bram_wdata[i] = {1'b1, 1'b1, p3_paddr[31:12]};
+                            tag_bram_wdata[i] = {
+                                1'b1, 1'b1, p3_paddr[ADDR_WIDTH-1:ADDR_WIDTH-TAG_WIDTH]
+                            };
                             data_bram_we[i] = 16'b1111_1111_1111_1111;
-                            data_bram_waddr[i] = p3_paddr[11:4];
+                            data_bram_waddr[i] = p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
                             data_bram_wdata[i] = bram_write_data;
                         end
                     end
@@ -421,13 +430,16 @@ module dcache
         endcase
     end
 
-    // keep the data from last state
+    // three stages pipeline regs
+    // - get the data from last state
+    // - keep the data when dcache stall
     always_ff @(posedge clk) begin : p2_reg
         if (rst | cpu_flush) begin
             p2_valid <= 0;
             p2_req_type <= 0;
             p2_wstrb <= 0;
             p2_wdata <= 0;
+            p2_cacop_mode <= 0;
             p2_cacop <= 0;
             p2_vaddr <= 0;
             p3_valid <= 0;
@@ -449,6 +461,7 @@ module dcache
             p2_valid <= p2_valid;
             p2_req_type <= p2_req_type;
             p2_cacop <= p2_cacop;
+            p2_cacop_mode <= p2_cacop_mode;
             p2_wstrb <= p2_wstrb;
             p2_wdata <= p2_wdata;
             p2_vaddr <= p2_vaddr;
@@ -475,6 +488,7 @@ module dcache
             p2_wdata <= wdata;
             p2_cacop <= cacop_i;
             p2_vaddr <= vaddr;
+            p2_cacop_mode <= cacop_mode_i;
             // p2 -> p3
             p3_valid <= p2_valid;
             p3_req_type <= p2_req_type;
@@ -514,7 +528,7 @@ module dcache
             IDLE: begin
                 // if write hit the cacheline in the fifo 
                 // then rewrite the cacheline in the fifo 
-                if (fifo_r_hit & cpu_wreq & !cpu_flush & mem_valid & !fifo_state[1]) begin
+                if (fifo_r_hit & cpu_wreq & !cpu_flush & mem_valid) begin
                     fifo_wreq = 1;
                     fifo_waddr = p3_paddr;
                     fifo_wdata = fifo_rdata;
@@ -547,21 +561,27 @@ module dcache
                         2'b11: fifo_wdata[127:96] = fifo_wreq_sel_data;
                     endcase
                 end
-                if (p3_cacop & !cpu_flush & mem_valid & !fifo_state[1]) begin
+                if (p3_cacop & !cpu_flush & mem_valid & !dcache_stall) begin
                     for (integer i = 0; i < NWAY; i++) begin
                         // write the invalidate cacheline back to mem
                         // cacop mode == 1 always write back
                         // cacop mode == 2 write back when hit
                         if (p3_cacop_way == i[$clog2(
                                 NWAY
-                            )-1:0] && p3_cacop_op_mode1 && p3_tag_bram_rdata[i][20]) begin
-                            fifo_wreq  = 1;
-                            fifo_waddr = {p3_tag_bram_rdata[i][19:0], paddr[11:0]};
+                            )-1:0] && p3_cacop_op_mode1 && p3_tag_bram_rdata[i][TAG_WIDTH]) begin
+                            fifo_wreq = 1;
+                            fifo_waddr = {
+                                p3_tag_bram_rdata[i][TAG_WIDTH-1:0],
+                                paddr[OFFSET_WIDTH+NSET_WIDTH-1:0]
+                            };
                             fifo_wdata = p3_data_bram_rdata[i];
                         end
                         if (p3_cacop_op_mode2_hit[i]) begin
-                            fifo_wreq  = 1;
-                            fifo_waddr = {p3_tag_bram_rdata[i][19:0], paddr[11:0]};
+                            fifo_wreq = 1;
+                            fifo_waddr = {
+                                p3_tag_bram_rdata[i][TAG_WIDTH-1:0],
+                                paddr[OFFSET_WIDTH+NSET_WIDTH-1:0]
+                            };
                             fifo_wdata = p3_data_bram_rdata[i];
                         end
                     end
@@ -572,9 +592,13 @@ module dcache
                 for (integer i = 0; i < NWAY; i++) begin
                     // select a line to write back 
                     if (axi_rvalid_i) begin
-                        if (i[0] == random_r[0] & p3_tag_bram_rdata[i][21] == 1'b1 & !fifo_state[1]) begin
-                            fifo_wreq  = 1;
-                            fifo_waddr = {p3_tag_bram_rdata[i][19:0], p3_paddr[11:4], 4'b0};
+                        if (i[0] == random_r[0] && p3_tag_bram_rdata[i][TAG_WIDTH + 1] && !fifo_state[1]) begin
+                            fifo_wreq = 1;
+                            fifo_waddr = {
+                                p3_tag_bram_rdata[i][TAG_WIDTH-1:0],
+                                p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH],
+                                4'b0
+                            };
                             fifo_wdata = p3_data_bram_rdata[i];
                         end
                     end
@@ -602,21 +626,19 @@ module dcache
                     rdata   = axi_data_i[p3_paddr[3:2]*32+:32];
                 end
             end
-            READ_REQ, READ_WAIT, WRITE_REQ, WRITE_WAIT, UNCACHE_READ_REQ, UNCACHE_READ_WAIT: begin
+            READ_WAIT, WRITE_WAIT, UNCACHE_READ_WAIT: begin
                 if (axi_rvalid_i) begin
                     data_ok = 1;
                     rdata   = axi_data_i[p3_paddr[3:2]*32+:32];
                 end
             end
-            UNCACHE_WRITE_REQ, UNCACHE_WRITE_WAIT: begin
+            UNCACHE_WRITE_WAIT: begin
                 if (axi_bvalid_i) begin
                     data_ok = 1;
                 end
             end
         endcase
     end
-
-
 
     //handshake with axi
     always_comb begin
@@ -686,6 +708,17 @@ module dcache
             READ_WAIT, WRITE_WAIT: begin
                 axi_addr_o = {p3_paddr[31:4], 4'b0};
             end
+            FIFO_CLEAR: begin
+                if (axi_rdy_i & !fifo_state[0]) begin
+                    axi_req_o = 1;
+                    fifo_w_accept = 1;
+                    axi_we_o = fifo_axi_wr_req;
+                    axi_size_o = 3'b100;
+                    axi_addr_o = fifo_axi_wr_addr;
+                    axi_wdata_o = fifo_axi_wr_data;
+                    axi_wstrb_o = 16'b1111_1111_1111_1111;
+                end
+            end
             default: begin
                 fifo_w_accept = 0;
                 axi_req_o = 0;
@@ -715,7 +748,7 @@ module dcache
         //FIFO state
         .state(fifo_state),
         //write to memory 
-        .axi_bvalid_i(axi_rdy_i & (state == IDLE) & (next_state == IDLE)),
+        .axi_bvalid_i(axi_rdy_i & (state == IDLE| state == FIFO_CLEAR) & (next_state == IDLE| next_state == FIFO_CLEAR)),
         .axi_wen_o(fifo_axi_wr_req),
         .axi_wdata_o(fifo_axi_wr_data),
         .axi_awaddr_o(fifo_axi_wr_addr)
@@ -788,7 +821,7 @@ module dcache
 
             dual_port_lutram #(
                 .DATA_WIDTH     (TAG_BRAM_WIDTH),
-                .DATA_DEPTH_EXP2($clog2(NSET))
+                .DATA_DEPTH_EXP2(NSET_WIDTH)
             ) u_tag_bram (
                 .clk  (clk),
                 .ena  (1'b1),
@@ -801,7 +834,7 @@ module dcache
             );
             byte_bram #(
                 .DATA_WIDTH     (DCACHELINE_WIDTH),
-                .DATA_DEPTH_EXP2($clog2(NSET))
+                .DATA_DEPTH_EXP2(NSET_WIDTH)
             ) u_data_bram (
                 .clk  (clk),
                 .ena  (1'b1),

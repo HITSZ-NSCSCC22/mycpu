@@ -21,7 +21,6 @@ module instr_buffer
     output instr_info_t backend_instr_o[DECODE_WIDTH]
 );
 
-    typedef logic [$clog2(CHANNEL)-1:0] index_t;
 
     localparam CHANNEL = INSTR_BUFFER_CHANNEL;
     localparam BANK_DEPTH = INSTR_BUFFER_SIZE / CHANNEL;
@@ -29,6 +28,7 @@ module instr_buffer
     localparam POP_CHANNEL = DECODE_WIDTH;
     localparam FIFO_DATA_WIDTH = $bits(instr_info_t);
 
+    typedef logic [$clog2(CHANNEL)-1:0] index_t;
     parameter type dtype = logic [FIFO_DATA_WIDTH-1:0];
 
     // queues info
