@@ -452,7 +452,7 @@ module ex
     // DCache memory access request
     always_comb begin
         dcache_rreq_o = 0;
-        if (advance & access_mem & dcache_ready_i) begin
+        if (advance & (access_mem | dcacop_op_en) & dcache_ready_i) begin
             dcache_rreq_o.ce = 1;
             dcache_rreq_o.uncache = uncache_en;
             case (aluop_i)
