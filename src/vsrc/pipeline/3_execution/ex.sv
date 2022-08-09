@@ -452,6 +452,7 @@ module ex
     // DCache memory access request
     always_comb begin
         dcache_rreq_o = 0;
+        dcache_rreq_o.addr = ex_o.mem_addr;
         if (advance & access_mem & dcache_ready_i) begin
             dcache_rreq_o.ce = 1;
             dcache_rreq_o.uncache = uncache_en;

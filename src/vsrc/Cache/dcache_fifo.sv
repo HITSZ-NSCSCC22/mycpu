@@ -5,7 +5,7 @@
 module dcache_fifo
     import core_config::*;
 #(
-    parameter int unsigned DEPTH = 8,
+    parameter int unsigned DEPTH = 2,
     parameter int unsigned DCACHE_WIDTH = 128
 ) (
     input clk,
