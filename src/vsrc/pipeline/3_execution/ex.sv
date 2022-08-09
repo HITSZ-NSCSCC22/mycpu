@@ -121,8 +121,6 @@ module ex
     logic [`RegBus] oprand2_mux;
     logic [`RegBus] result_compare;
     logic last_instr_branch;
-    logic [ADDR_WIDTH-1:0] real_next_pc;
-    logic [`RegBus] pc_delay;
 
     // Branch Unit
     logic branch_flag;
@@ -161,10 +159,6 @@ module ex
             )]
         last_mem_index, last_mem_index_delay;
     logic access_mem_after_mem, access_mem_after_mem_delay;
-
-    always_ff @(posedge clk) begin
-        pc_delay <= inst_pc_i;
-    end
 
     // Branch
     logic [ADDR_WIDTH-1:0] jump_target_address;

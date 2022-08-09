@@ -561,7 +561,7 @@ module dcache
                         2'b11: fifo_wdata[127:96] = fifo_wreq_sel_data;
                     endcase
                 end
-                if (p3_cacop & !cpu_flush & mem_valid & !fifo_state[1]) begin
+                if (p3_cacop & !cpu_flush & mem_valid & !dcache_stall) begin
                     for (integer i = 0; i < NWAY; i++) begin
                         // write the invalidate cacheline back to mem
                         // cacop mode == 1 always write back
