@@ -592,7 +592,7 @@ module dcache
                 for (integer i = 0; i < NWAY; i++) begin
                     // select a line to write back 
                     if (axi_rvalid_i) begin
-                        if (i[0] == random_r[0] & p3_tag_bram_rdata[i][TAG_WIDTH + 1] == 1'b1 & !fifo_state[1]) begin
+                        if (i[0] == random_r[0] && p3_tag_bram_rdata[i][TAG_WIDTH + 1] && !fifo_state[1]) begin
                             fifo_wreq = 1;
                             fifo_waddr = {
                                 p3_tag_bram_rdata[i][TAG_WIDTH-1:0],
