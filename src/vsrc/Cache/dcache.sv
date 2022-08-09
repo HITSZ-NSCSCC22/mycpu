@@ -194,7 +194,7 @@ module dcache
                 else next_state = UNCACHE_WRITE_WAIT;
             end
             FIFO_CLEAR: begin
-                if (!fifo_state[0] && axi_bvalid_i) next_state = IDLE;
+                if (fifo_state[0] && axi_bvalid_i) next_state = IDLE;
                 else next_state = FIFO_CLEAR;
             end
             default: begin
