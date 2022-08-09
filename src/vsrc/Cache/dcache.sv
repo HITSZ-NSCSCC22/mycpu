@@ -569,13 +569,19 @@ module dcache
                         if (p3_cacop_way == i[$clog2(
                                 NWAY
                             )-1:0] && p3_cacop_op_mode1 && p3_tag_bram_rdata[i][TAG_WIDTH]) begin
-                            fifo_wreq  = 1;
-                            fifo_waddr = {p3_tag_bram_rdata[i][TAG_WIDTH-1:0], paddr[11:0]};
+                            fifo_wreq = 1;
+                            fifo_waddr = {
+                                p3_tag_bram_rdata[i][TAG_WIDTH-1:0],
+                                paddr[OFFSET_WIDTH+NSET_WIDTH-1:0]
+                            };
                             fifo_wdata = p3_data_bram_rdata[i];
                         end
                         if (p3_cacop_op_mode2_hit[i]) begin
-                            fifo_wreq  = 1;
-                            fifo_waddr = {p3_tag_bram_rdata[i][TAG_WIDTH-1:0], paddr[11:0]};
+                            fifo_wreq = 1;
+                            fifo_waddr = {
+                                p3_tag_bram_rdata[i][TAG_WIDTH-1:0],
+                                paddr[OFFSET_WIDTH+NSET_WIDTH-1:0]
+                            };
                             fifo_wdata = p3_data_bram_rdata[i];
                         end
                     end
