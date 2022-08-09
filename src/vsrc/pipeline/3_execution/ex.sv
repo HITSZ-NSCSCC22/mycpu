@@ -67,10 +67,10 @@ module ex
 );
     ex_mem_struct ex_o;
 
-    reg [`RegBus] logicout;
-    reg [`RegBus] shiftout;
-    reg [`RegBus] moveout;
-    reg [`RegBus] arithout;
+    logic [`RegBus] logicout;
+    logic [`RegBus] shiftout;
+    logic [`RegBus] moveout;
+    logic [`RegBus] arithout;
 
     // Assign input /////////////////////////////
     instr_info_t instr_info;
@@ -121,8 +121,6 @@ module ex
     logic [`RegBus] oprand2_mux;
     logic [`RegBus] result_compare;
     logic last_instr_branch;
-    logic [ADDR_WIDTH-1:0] real_next_pc;
-    logic [`RegBus] pc_delay;
 
     // Branch Unit
     logic branch_flag;
@@ -152,12 +150,15 @@ module ex
     logic muldiv_stall;
 
     logic last_is_mem, last_is_mem_delay;
-    logic [7:0] last_mem_index, last_mem_index_delay;
+    logic [$clog2(
+                DCACHELINE_WIDTH/8
+            )+$clog2(
+                DCACHE_NSET
+            )-1:$clog2(
+                DCACHELINE_WIDTH/8
+            )]
+        last_mem_index, last_mem_index_delay;
     logic access_mem_after_mem, access_mem_after_mem_delay;
-
-    always_ff @(posedge clk) begin
-        pc_delay <= inst_pc_i;
-    end
 
     // Branch
     logic [ADDR_WIDTH-1:0] jump_target_address;
@@ -246,7 +247,13 @@ module ex
             last_mem_index <= 0;
         end else if (access_mem & advance) begin
             last_is_mem <= 1;
-            last_mem_index <= ex_o.mem_addr[11:4];
+            last_mem_index <= ex_o.mem_addr[$clog2(
+                DCACHELINE_WIDTH/8
+            )+$clog2(
+                DCACHE_NSET
+            )-1:$clog2(
+                DCACHELINE_WIDTH/8
+            )];
         end else if (!dcache_ready_i) begin
             last_is_mem <= last_is_mem;
             last_mem_index <= last_mem_index;
@@ -266,8 +273,20 @@ module ex
         end
     end
 
-    assign access_mem_after_mem = last_is_mem & access_mem & (last_mem_index == ex_o.mem_addr[11:4]);
-    assign access_mem_after_mem_delay = last_is_mem_delay & access_mem & (last_mem_index_delay == ex_o.mem_addr[11:4]);
+    assign access_mem_after_mem = last_is_mem & (access_mem | dcacop_op_en) & (last_mem_index == ex_o.mem_addr[$clog2(
+        DCACHELINE_WIDTH/8
+    )+$clog2(
+        DCACHE_NSET
+    )-1:$clog2(
+        DCACHELINE_WIDTH/8
+    )]);
+    assign access_mem_after_mem_delay = last_is_mem_delay & (access_mem | dcacop_op_en) & (last_mem_index_delay == ex_o.mem_addr[$clog2(
+        DCACHELINE_WIDTH/8
+    )+$clog2(
+        DCACHE_NSET
+    )-1:$clog2(
+        DCACHELINE_WIDTH/8
+    )]);
 
     //////////////////////////////////////////////////////////////////////////////////////
     // TLB request
@@ -452,8 +471,8 @@ module ex
     // DCache memory access request
     always_comb begin
         dcache_rreq_o = 0;
-        if (advance & access_mem & dcache_ready_i) begin
-            dcache_rreq_o.ce = 1;
+        if (advance & (access_mem | dcacop_op_en) & dcache_ready_i) begin
+            dcache_rreq_o.ce = ~dcacop_op_en;
             dcache_rreq_o.uncache = uncache_en;
             case (aluop_i)
                 `EXE_LD_B_OP, `EXE_LD_BU_OP: begin

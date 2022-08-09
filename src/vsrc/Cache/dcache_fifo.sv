@@ -4,31 +4,31 @@
 
 module dcache_fifo
     import core_config::*;
-#(
-    parameter int unsigned DEPTH = 8,
-    parameter int unsigned DCACHE_WIDTH = 128
-) (
+(
     input clk,
     input rst,
     //CPU write request
     input logic cpu_wreq_i,
     input logic [`DataAddrBus] cpu_awaddr_i,
-    input logic [DCACHE_WIDTH-1:0] cpu_wdata_i,
+    input logic [DCACHELINE_WIDTH-1:0] cpu_wdata_i,
     output logic write_hit_o,
     //CPU read request and response
     input logic cpu_rreq_i,
     input logic [`DataAddrBus] cpu_araddr_i,
     output logic read_hit_o,
-    output logic [DCACHE_WIDTH-1:0] cpu_rdata_o,
+    output logic [DCACHELINE_WIDTH-1:0] cpu_rdata_o,
     //FIFO state
     output logic [1:0] state,
     //write to memory 
     input logic axi_bvalid_i,
     output logic axi_wen_o,
-    output logic [DCACHE_WIDTH-1:0] axi_wdata_o,
+    output logic [DCACHELINE_WIDTH-1:0] axi_wdata_o,
     output logic [`DataAddrBus] axi_awaddr_o
 
 );
+
+    // Parameters 
+    localparam DEPTH = DCACHE_FIFO_DEPTH;
 
     //store  addr
     logic [DEPTH-1:0][`RegBus] addr_queue;
@@ -155,7 +155,7 @@ module dcache_fifo
     assign axi_awaddr_o = addr_queue[head];
 
     lutram_1w_mr #(
-        .WIDTH(DCACHE_WIDTH),
+        .WIDTH(DCACHELINE_WIDTH),
         .DEPTH(DEPTH),
         .NUM_READ_PORTS(2)
     ) mem_queue (
