@@ -109,6 +109,7 @@ package core_config;
     parameter DCACHE_NWAY = 2;
     parameter DCACHE_NSET = 256;
     parameter DCACHELINE_WIDTH = 128;
+    parameter DCACHE_FIFO_DEPTH = 8;
 
     // LSU parameters
     parameter LSU_STORE_QUEU_SIZE = 4;

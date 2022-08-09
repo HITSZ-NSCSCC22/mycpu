@@ -472,7 +472,7 @@ module ex
     always_comb begin
         dcache_rreq_o = 0;
         if (advance & (access_mem | dcacop_op_en) & dcache_ready_i) begin
-            dcache_rreq_o.ce = 1;
+            dcache_rreq_o.ce = ~dcacop_op_en;
             dcache_rreq_o.uncache = uncache_en;
             case (aluop_i)
                 `EXE_LD_B_OP, `EXE_LD_BU_OP: begin
