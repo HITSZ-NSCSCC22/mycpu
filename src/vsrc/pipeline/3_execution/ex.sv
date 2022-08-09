@@ -67,10 +67,10 @@ module ex
 );
     ex_mem_struct ex_o;
 
-    reg [`RegBus] logicout;
-    reg [`RegBus] shiftout;
-    reg [`RegBus] moveout;
-    reg [`RegBus] arithout;
+    logic [`RegBus] logicout;
+    logic [`RegBus] shiftout;
+    logic [`RegBus] moveout;
+    logic [`RegBus] arithout;
 
     // Assign input /////////////////////////////
     instr_info_t instr_info;
@@ -273,14 +273,14 @@ module ex
         end
     end
 
-    assign access_mem_after_mem = last_is_mem & access_mem & (last_mem_index == ex_o.mem_addr[$clog2(
+    assign access_mem_after_mem = last_is_mem & (access_mem | dcacop_op_en) & (last_mem_index == ex_o.mem_addr[$clog2(
         DCACHELINE_WIDTH/8
     )+$clog2(
         DCACHE_NSET
     )-1:$clog2(
         DCACHELINE_WIDTH/8
     )]);
-    assign access_mem_after_mem_delay = last_is_mem_delay & access_mem & (last_mem_index_delay == ex_o.mem_addr[$clog2(
+    assign access_mem_after_mem_delay = last_is_mem_delay & (access_mem | dcacop_op_en) & (last_mem_index_delay == ex_o.mem_addr[$clog2(
         DCACHELINE_WIDTH/8
     )+$clog2(
         DCACHE_NSET
