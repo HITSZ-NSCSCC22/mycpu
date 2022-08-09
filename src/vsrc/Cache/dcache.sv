@@ -246,7 +246,7 @@ module dcache
         fifo_raddr = 0;
         if (state == IDLE & p2_valid & !uncache_en) begin
             fifo_rreq  = 1;
-            fifo_raddr = paddr;
+            fifo_raddr = {paddr[31:12], p2_vaddr[11:4], 4'b0};
         end
     end
 
