@@ -75,13 +75,14 @@ module lcd_test_ctrl (
     logic refresh_ok;
     /**画一次图需�?6�?�连续的sw指令，所以绘图时�?�需�?存储连续的6�?�sw指令�?��?�**/
     always_ff @( posedge pclk ) begin : lcd_buffer
+        // if(~rst_n||~cpu_work) begin
         if(~rst_n||~cpu_work) begin
             for(integer i=0;i<7;i++) begin
                 graph_buffer[i]<=32'b0;
                 graph_addr[i]<=32'b0;
             end
             buffer_state<=IDLE;
-            buffer_ok<=0;
+            buffer_ok<=1;//复位状态下不能接受CPU的任何写请求
             count<=0;
             buffer_data<=0;
             buffer_addr<=0;

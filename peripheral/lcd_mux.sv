@@ -1,6 +1,9 @@
 module lcd_mux (
         input  logic        pclk,
         input  logic        rst_n,
+
+        //from lcd_core
+        input cpu_work,
         //from lcd_core
         input logic cpu_draw,
         //from lcd_id
@@ -49,7 +52,7 @@ module lcd_mux (
 
     logic delay;
     always_ff @(posedge pclk) begin
-        if (~rst_n)
+        if (~rst_n||~cpu_work)
             delay <= 1;
         else if (init_finish&&cpu_draw)
             delay <= 0;

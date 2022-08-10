@@ -39,6 +39,8 @@ module lcd_id (
         input logic busy,
         input logic write_color_ok,
 
+        //from lcd_core
+        input logic cpu_work,
         //debug
         output [31:0]debug_current_state,
         output [31:0]debug_next_state
@@ -79,7 +81,7 @@ module lcd_id (
     logic refresh;
     logic refresh_rs;
     always_ff @(posedge pclk) begin//进入新状态后必须要暂停一拍
-        if (~rst_n)
+        if (~rst_n||~cpu_work)
             delay <= 0;
         else if (current_state != next_state)
             delay <= 1;
@@ -88,7 +90,7 @@ module lcd_id (
     end
     //buffer
     always_ff @(posedge pclk) begin
-        if (~rst_n) begin
+        if (~rst_n||~cpu_work) begin
             lcd_data   <= 0;
             lcd_addr   <= 0;
             graph_size <= 0;
@@ -110,7 +112,7 @@ module lcd_id (
 
     //delay one cycle for write_lcd_i
     always_ff @(posedge pclk) begin
-        if (~rst_n) begin
+        if (~rst_n||~cpu_work) begin
             write_lcd <= 0;
             refresh<=0;
         end
@@ -139,7 +141,7 @@ module lcd_id (
     logic [31:0] draw_counter;
     //draw counter
     always_ff @(posedge pclk) begin
-        if (~rst_n)
+        if (~rst_n||~cpu_work)
             draw_counter <= 0;
         else if (next_state == IDLE)
             draw_counter <= 0;
@@ -151,7 +153,7 @@ module lcd_id (
 
     /*****DFA*****/
     always_ff @(posedge pclk) begin
-        if (~rst_n)
+        if (~rst_n||~cpu_work)
             current_state <= IDLE;
         else
             current_state <= next_state;
@@ -377,7 +379,7 @@ module lcd_id (
     end
 
     always_ff @(posedge pclk) begin
-        if (~rst_n) begin
+        if (~rst_n||~cpu_work) begin
             write_ok <= 1;
             we <= 0;
             wr <= 0;

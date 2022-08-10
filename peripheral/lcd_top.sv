@@ -199,6 +199,8 @@ import lcd_types:
                 //to lcd_init
                 .init_write_ok_o(init_mux_signal.init_write_ok),
 
+                //from lcd_core
+                .cpu_work(cpu_work),
                 //from lcd_interface
                 .init_write_ok_i(inter_mux_signal.init_write_ok),
                 .busy_i(inter_mux_signal.busy),
@@ -231,7 +233,6 @@ import lcd_types:
                       //to lcd top
                       .lcd_write_data_ctrl(lcd_write_data_ctrl),  //写控制信号，用于决定顶层的lcd_data_io
                       .data_reg(data_reg),
-
                       //from lcd_id
                       .data_i(inter_mux_signal.data),
                       .we(inter_mux_signal.we),
@@ -274,6 +275,8 @@ import lcd_types:
                .data_valid(data_valid),
                .graph_size_i(graph_size),
 
+               //from lcd_core
+               .cpu_work(cpu_work),
 
                //to lcd ctrl
                .write_ok(write_ok),
@@ -397,7 +400,6 @@ import lcd_types:
                       .data_ok(data_ok),
                       .refresh_ok_i(refresh_ok),
                       .refresh_rs_i(refresh_rs),
-
                       //from lcd_core
                       .touch_reg(touch_reg),
                       .cpu_work(cpu_work),

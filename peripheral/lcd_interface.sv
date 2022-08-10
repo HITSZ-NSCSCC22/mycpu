@@ -30,7 +30,6 @@ module lcd_interface #(
         //to lcd_id
         output logic busy,
         output logic write_color_ok,  //write one color
-
         //to lcd_init
         output logic init_write_ok
 
@@ -42,10 +41,6 @@ module lcd_interface #(
             lcd_bl_ctr <= 1;
     end
 
-    // always @(posedge pclk) begin
-    //   if (~rst_n) lcd_cs <= 1;
-    //   else lcd_cs <= 0;
-    // end
 
     assign lcd_rst = rst_n;
     //DFA
