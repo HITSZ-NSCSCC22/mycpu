@@ -573,7 +573,7 @@ module dcache
                             fifo_wreq = 1;
                             fifo_waddr = {
                                 p3_tag_bram_rdata[i][TAG_WIDTH-1:0],
-                                paddr[OFFSET_WIDTH+NSET_WIDTH-1:0]
+                                p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:0]
                             };
                             fifo_wdata = p3_data_bram_rdata[i];
                         end
@@ -581,7 +581,7 @@ module dcache
                             fifo_wreq = 1;
                             fifo_waddr = {
                                 p3_tag_bram_rdata[i][TAG_WIDTH-1:0],
-                                paddr[OFFSET_WIDTH+NSET_WIDTH-1:0]
+                                p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:0]
                             };
                             fifo_wdata = p3_data_bram_rdata[i];
                         end
