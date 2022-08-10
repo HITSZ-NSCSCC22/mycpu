@@ -275,7 +275,7 @@ module cpu_top
     assign pmu_data.bpu_conditional_miss = (backend_commit_meta.branch_type == BRANCH_TYPE_COND) & (backend_commit_meta.is_taken ^ backend_commit_meta.predicted_taken) & backend_commit_meta.is_branch;
     assign pmu_data.bpu_ftb_dirty = ex_jump_target_mispredict[0];
     assign pmu_data.dcache_req = u_dcache.state == u_dcache.IDLE & mem_cache_ce;
-    assign pmu_data.dcache_miss = u_dcache.state == u_dcache.IDLE & u_dcache.next_state == u_dcache.READ_REQ| u_dcache.next_state == u_dcache.WRITE_REQ;
+    assign pmu_data.dcache_miss = u_dcache.state == u_dcache.IDLE && (u_dcache.next_state == u_dcache.READ_REQ || u_dcache.next_state == u_dcache.WRITE_REQ);
     assign pmu_data.icache_req = (u_icache.rreq_1_i | u_icache.rreq_2_i) & u_icache.state == u_icache.IDLE;
     assign pmu_data.icache_miss = u_icache.miss_1_pulse | u_icache.miss_2_pulse;
 
@@ -424,45 +424,6 @@ module cpu_top
         .S1_AXI_RLAST  (dcache_axi.rlast),     // output wire S1_AXI_RLAST
         .S1_AXI_RVALID (dcache_axi.rvalid),    // output wire S1_AXI_RVALID
         .S1_AXI_RREADY (dcache_axi.rready),    // input wire S1_AXI_RREADY
-        .S2_AXI_AWID   (uncache_axi.awid),     // input wire [0 : 0] S2_AXI_AWID
-        .S2_AXI_AWADDR (uncache_axi.awaddr),   // input wire [31 : 0] S2_AXI_AWADDR
-        .S2_AXI_AWLEN  (uncache_axi.awlen),    // input wire [7 : 0] S2_AXI_AWLEN
-        .S2_AXI_AWSIZE (uncache_axi.awsize),   // input wire [2 : 0] S2_AXI_AWSIZE
-        .S2_AXI_AWBURST(uncache_axi.awburst),  // input wire [1 : 0] S2_AXI_AWBURST
-        .S2_AXI_AWLOCK (1'b0),                 // input wire S2_AXI_AWLOCK
-        .S2_AXI_AWCACHE(uncache_axi.awcache),  // input wire [3 : 0] S2_AXI_AWCACHE
-        .S2_AXI_AWPROT (3'b0),                 // input wire [2 : 0] S2_AXI_AWPROT
-        .S2_AXI_AWQOS  (4'b0),                 // input wire [3 : 0] S2_AXI_AWQOS
-        .S2_AXI_AWVALID(uncache_axi.awvalid),  // input wire S2_AXI_AWVALID
-        .S2_AXI_AWREADY(uncache_axi.awready),  // output wire S2_AXI_AWREADY
-        .S2_AXI_AWUSER (1'b0),                 // input wire [0 : 0] S2_AXI_AWUSER
-        .S2_AXI_WDATA  (uncache_axi.wdata),    // input wire [127 : 0] S2_AXI_WDATA
-        .S2_AXI_WSTRB  (uncache_axi.wstrb),    // input wire [15 : 0] S2_AXI_WSTRB
-        .S2_AXI_WLAST  (uncache_axi.wlast),    // input wire S2_AXI_WLAST
-        .S2_AXI_WVALID (uncache_axi.wvalid),   // input wire S2_AXI_WVALID
-        .S2_AXI_WREADY (uncache_axi.wready),   // output wire S2_AXI_WREADY
-        .S2_AXI_BRESP  (uncache_axi.bresp),    // output wire [1 : 0] S2_AXI_BRESP
-        .S2_AXI_BID    (uncache_axi.bid),      // output wire [0 : 0] S2_AXI_BID
-        .S2_AXI_BVALID (uncache_axi.bvalid),   // output wire S2_AXI_BVALID
-        .S2_AXI_BREADY (uncache_axi.bready),   // input wire S2_AXI_BREADY
-        .S2_AXI_ARID   (uncache_axi.arid),     // input wire [0 : 0] S2_AXI_ARID
-        .S2_AXI_ARADDR (uncache_axi.araddr),   // input wire [31 : 0] S2_AXI_ARADDR
-        .S2_AXI_ARLEN  (uncache_axi.arlen),    // input wire [7 : 0] S2_AXI_ARLEN
-        .S2_AXI_ARSIZE (uncache_axi.arsize),   // input wire [2 : 0] S2_AXI_ARSIZE
-        .S2_AXI_ARBURST(uncache_axi.arburst),  // input wire [1 : 0] S2_AXI_ARBURST
-        .S2_AXI_ARLOCK (1'b0),                 // input wire S2_AXI_ARLOCK
-        .S2_AXI_ARCACHE(uncache_axi.arcache),  // input wire [3 : 0] S2_AXI_ARCACHE
-        .S2_AXI_ARPROT (3'b0),                 // input wire [2 : 0] S2_AXI_ARPROT
-        .S2_AXI_ARQOS  (4'b0),                 // input wire [3 : 0] S2_AXI_ARQOS
-        .S2_AXI_ARVALID(uncache_axi.arvalid),  // input wire S2_AXI_ARVALID
-        .S2_AXI_ARREADY(uncache_axi.arready),  // output wire S2_AXI_ARREADY
-        .S2_AXI_ARUSER (1'b0),                 // input wire [0 : 0] S2_AXI_ARUSER
-        .S2_AXI_RID    (uncache_axi.rid),      // output wire [0 : 0] S2_AXI_RID
-        .S2_AXI_RDATA  (uncache_axi.rdata),    // output wire [127 : 0] S2_AXI_RDATA
-        .S2_AXI_RRESP  (uncache_axi.rresp),    // output wire [1 : 0] S2_AXI_RRESP
-        .S2_AXI_RLAST  (uncache_axi.rlast),    // output wire S2_AXI_RLAST
-        .S2_AXI_RVALID (uncache_axi.rvalid),   // output wire S2_AXI_RVALID
-        .S2_AXI_RREADY (uncache_axi.rready),   // input wire S2_AXI_RREADY
         .M0_AXI_AWID   (awid),                 // output wire [3 : 0] M0_AXI_AWID
         .M0_AXI_AWADDR (awaddr),               // output wire [31 : 0] M0_AXI_AWADDR
         .M0_AXI_AWLEN  (awlen),                // output wire [7 : 0] M0_AXI_AWLEN

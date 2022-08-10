@@ -12,6 +12,7 @@ module axi_dcache_master
     axi_interface.master m_axi,
     input logic new_request,
     input logic we,
+    input logic uncached,
     input logic [ADDR_WIDTH-1:0] addr,
     input logic [2:0] size,
     input logic [AXI_DATA_WIDTH-1:0] data_in,
@@ -35,12 +36,14 @@ module axi_dcache_master
 
     always_ff @(posedge clk) begin
         if (new_request) begin
-            m_axi.araddr <= addr;
-            m_axi.arsize <= size;
-            m_axi.awsize <= size;
-            m_axi.awaddr <= addr;
-            m_axi.wdata  <= data_in;
-            m_axi.wstrb  <= wstrb;
+            m_axi.araddr  <= addr;
+            m_axi.arsize  <= size;
+            m_axi.awsize  <= size;
+            m_axi.awaddr  <= addr;
+            m_axi.wdata   <= data_in;
+            m_axi.wstrb   <= wstrb;
+            m_axi.arcache <= uncached ? 4'b0000 : 4'b1111;
+            m_axi.awcache <= uncached ? 4'b0000 : 4'b0011;
         end
     end
 
