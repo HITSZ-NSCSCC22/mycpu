@@ -48,7 +48,9 @@ module dcache_fifo
 
     logic write_hit_head;
 
+    logic queue_wreq;
     logic [$clog2(DEPTH)-1:0] queue_waddr, queue_raddr;
+    logic [DCACHELINE_WIDTH-1:0] queue_wdata;
 
     assign state = {full, empty};
 
@@ -137,15 +139,24 @@ module dcache_fifo
         end
     end
 
-    always_comb begin
-        queue_waddr = 0;
-        if (cpu_wreq_i) begin
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            queue_wreq  <= 0;
+            queue_waddr <= 0;
+            queue_wdata <= 0;
+        end else if (cpu_wreq_i) begin
             if (write_hit_o) begin
                 for (integer i = 0; i < DEPTH; i = i + 1) begin
-                    if (write_hit[i] == 1'b1) queue_waddr = i[$clog2(DEPTH)-1:0];
+                    if (write_hit[i] == 1'b1) begin
+                        queue_wreq  <= 1;
+                        queue_waddr <= i[$clog2(DEPTH)-1:0];
+                        queue_wdata <= cpu_wdata_i;
+                    end
                 end
             end else begin
-                queue_waddr = tail;
+                queue_wreq  <= 1;
+                queue_waddr <= tail;
+                queue_wdata <= cpu_wdata_i;
             end
         end
     end
@@ -164,8 +175,8 @@ module dcache_fifo
         .waddr(queue_waddr),
         .raddr({queue_raddr, head}),
 
-        .ram_write(cpu_wreq_i),
-        .new_ram_data(cpu_wdata_i),
+        .ram_write(queue_wreq),
+        .new_ram_data(queue_wdata),
         .ram_data_out({cpu_rdata_o, axi_wdata_o})
     );
 

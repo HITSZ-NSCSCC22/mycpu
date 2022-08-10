@@ -23,7 +23,8 @@ module lutram_1w_mr #(
 
     always_comb begin
         for (int i = 0; i < NUM_READ_PORTS; i++) begin
-            ram_data_out[i] = ram[raddr[i]];
+            if (ram_write && (raddr[i] == waddr)) ram_data_out[i] = new_ram_data;
+            else ram_data_out[i] = ram[raddr[i]];
         end
     end
 
