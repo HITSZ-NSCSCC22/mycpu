@@ -50,18 +50,6 @@ module ex
     // -> Dispatch
     output data_forward_t data_forward_o,
 
-    //<-> Dcache
-    output mem_dcache_rreq_t dcache_rreq_o,
-    input logic dcache_ready_i,
-
-    // <-> ICache, CACOP
-    output logic icacop_en_o,
-    output logic [1:0] icacop_mode_o,
-    input logic icacop_ack_i,
-
-    output logic dcacop_en_o,
-    output logic [1:0] dcacop_mode_o,
-
     // -> TLB
     output data_tlb_rreq_t tlb_rreq_o
 );
@@ -148,18 +136,6 @@ module ex
     logic [`RegBus] remainder;
 
     logic muldiv_stall;
-
-    logic last_is_mem, last_is_mem_delay;
-    logic [$clog2(
-                DCACHELINE_WIDTH/8
-            )+$clog2(
-                DCACHE_NSET
-            )-1:$clog2(
-                DCACHELINE_WIDTH/8
-            )]
-        last_mem_index, last_mem_index_delay;
-    logic access_mem_after_mem, access_mem_after_mem_delay;
-
     // Branch
     logic [ADDR_WIDTH-1:0] jump_target_address;
     logic [ADDR_WIDTH-1:0] fall_through_address;
@@ -190,11 +166,11 @@ module ex
 
     // TODO:fix vppn select
     assign ex_o.mem_addr = oprand1 + imm;
-    assign ex_o.store_data = dcache_rreq_o.data;
+    assign ex_o.oprand2 = oprand2;
 
     // Data forwarding 
-    assign data_forward_o = (muldiv_op != 0) ? {ex_o.wreg, muldiv_already_finish, ex_o.waddr, ex_o.wdata,ex_o.csr_signal} : // Mul or Div op
-    {ex_o.wreg, ~mem_load_op, ex_o.waddr, ex_o.wdata,ex_o.csr_signal}; // if is mem_load_op, then data is no valid, else data is valid
+    assign data_forward_o = (muldiv_op != 0) ? {ex_o.wreg, muldiv_already_finish, ex_o.waddr, ex_o.wdata} : // Mul or Div op
+    {ex_o.wreg, ~mem_load_op, ex_o.waddr, ex_o.wdata}; // if is mem_load_op, then data is no valid, else data is valid
 
 
     assign csr_signal_i = dispatch_i.csr_signal;
@@ -218,10 +194,6 @@ module ex
     assign dcacop_inst = cacop_instr && (cacop_op[2:0] == 3'b1);
     assign dcacop_op_en = dcacop_inst && !excp && !(flush);
     assign cacop_op_mode = {2{dcacop_op_en | icacop_op_en}} & cacop_op[4:3];
-    assign icacop_en_o = icacop_op_en;
-    assign dcacop_en_o = dcacop_op_en;
-    assign icacop_mode_o = cacop_op_mode;
-    assign dcacop_mode_o = cacop_op_mode;
 
     assign excp_ale = access_mem && ((mem_b_op & 1'b0)| (mem_h_op & ex_o.mem_addr[0])| 
                     (!(mem_b_op | mem_h_op) & (ex_o.mem_addr[0] | ex_o.mem_addr[1]))) ;
@@ -238,55 +210,7 @@ module ex
     assign mem_h_op = special_info.mem_h_op;
 
     // notify ctrl is ready to advance
-    assign advance_ready = access_mem | dcacop_op_en ? (dcache_ready_i & ~access_mem_after_mem & ~access_mem_after_mem_delay) :
-                            icacop_op_en ? icacop_ack_i : ~muldiv_stall;
-
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            last_is_mem <= 0;
-            last_mem_index <= 0;
-        end else if (access_mem & advance) begin
-            last_is_mem <= 1;
-            last_mem_index <= ex_o.mem_addr[$clog2(
-                DCACHELINE_WIDTH/8
-            )+$clog2(
-                DCACHE_NSET
-            )-1:$clog2(
-                DCACHELINE_WIDTH/8
-            )];
-        end else if (!dcache_ready_i) begin
-            last_is_mem <= last_is_mem;
-            last_mem_index <= last_mem_index;
-        end else begin
-            last_is_mem <= 0;
-            last_mem_index <= 0;
-        end
-    end
-
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            last_is_mem_delay <= 0;
-            last_mem_index_delay <= 0;
-        end else begin
-            last_is_mem_delay <= last_is_mem;
-            last_mem_index_delay <= last_mem_index;
-        end
-    end
-
-    assign access_mem_after_mem = last_is_mem & (access_mem | dcacop_op_en) & (last_mem_index == ex_o.mem_addr[$clog2(
-        DCACHELINE_WIDTH/8
-    )+$clog2(
-        DCACHE_NSET
-    )-1:$clog2(
-        DCACHELINE_WIDTH/8
-    )]);
-    assign access_mem_after_mem_delay = last_is_mem_delay & (access_mem | dcacop_op_en) & (last_mem_index_delay == ex_o.mem_addr[$clog2(
-        DCACHELINE_WIDTH/8
-    )+$clog2(
-        DCACHE_NSET
-    )-1:$clog2(
-        DCACHELINE_WIDTH/8
-    )]);
+    assign advance_ready = ~muldiv_stall;
 
     //////////////////////////////////////////////////////////////////////////////////////
     // TLB request
@@ -468,75 +392,7 @@ module ex
         end
     end
 
-    // DCache memory access request
-    always_comb begin
-        dcache_rreq_o = 0;
-        if (advance & (access_mem | dcacop_op_en) & dcache_ready_i) begin
-            dcache_rreq_o.ce = ~dcacop_op_en;
-            dcache_rreq_o.uncache = uncache_en;
-            case (aluop_i)
-                `EXE_LD_B_OP, `EXE_LD_BU_OP: begin
-                    dcache_rreq_o.addr = ex_o.mem_addr;
-                    dcache_rreq_o.sel = 4'b0001 << ex_o.mem_addr[1:0];
-                    dcache_rreq_o.req_type = 3'b000;
-                end
-                `EXE_LD_H_OP, `EXE_LD_HU_OP: begin
-                    dcache_rreq_o.addr = ex_o.mem_addr;
-                    dcache_rreq_o.sel = 4'b0011 << ex_o.mem_addr[1:0];
-                    dcache_rreq_o.req_type = 3'b001;
-                end
-                `EXE_LD_W_OP: begin
-                    dcache_rreq_o.addr = ex_o.mem_addr;
-                    dcache_rreq_o.sel = 4'b1111;
-                    dcache_rreq_o.req_type = 3'b010;
-                end
-                `EXE_ST_B_OP: begin
-                    dcache_rreq_o.addr = ex_o.mem_addr;
-                    dcache_rreq_o.we = 1;
-                    dcache_rreq_o.req_type = 3'b000;
-                    dcache_rreq_o.sel = 4'b0001 << ex_o.mem_addr[1:0];
-                    dcache_rreq_o.data = {24'b0, oprand2[7:0]} << (8 * ex_o.mem_addr[1:0]);
-                end
-                `EXE_ST_H_OP: begin
-                    dcache_rreq_o.addr = ex_o.mem_addr;
-                    dcache_rreq_o.we = 1;
-                    dcache_rreq_o.req_type = 3'b001;
-                    dcache_rreq_o.sel = 4'b0011 << ex_o.mem_addr[1:0];
-                    dcache_rreq_o.data = {16'b0, oprand2[15:0]} << (8 * ex_o.mem_addr[1:0]);
-                end
-                `EXE_ST_W_OP: begin
-                    dcache_rreq_o.addr = ex_o.mem_addr;
-                    dcache_rreq_o.we = 1;
-                    dcache_rreq_o.req_type = 3'b010;
-                    dcache_rreq_o.sel = 4'b1111;
-                    dcache_rreq_o.data = oprand2;
-                end
-                `EXE_LL_OP: begin
-                    dcache_rreq_o.addr = ex_o.mem_addr;
-                    dcache_rreq_o.sel = 4'b1111;
-                    dcache_rreq_o.req_type = 3'b010;
-                end
-                `EXE_SC_OP: begin
-                    if (LLbit_i == 1'b1) begin
-                        dcache_rreq_o.addr = ex_o.mem_addr;
-                        dcache_rreq_o.we = 1;
-                        dcache_rreq_o.req_type = 3'b010;
-                        dcache_rreq_o.sel = 4'b1111;
-                        dcache_rreq_o.data = oprand2;
-                    end else begin
-                        dcache_rreq_o = 0;
-                    end
-                end
-                `EXE_CACOP_OP: begin
-                    dcache_rreq_o.addr = ex_o.mem_addr;
-                end
-                default: begin
-                    // Reset AXI signals, IMPORTANT!
-                    dcache_rreq_o = 0;
-                end
-            endcase
-        end
-    end
+
 
     ///////////////////////////////////////////////////////////////////////////////////
     // Branch Unit
@@ -607,6 +463,7 @@ module ex
         ex_o.data_uncache_en = uncache_en;
         ex_o.dmw0_en = dmw0_en;
         ex_o.dmw1_en = dmw1_en;
+        ex_o.cacop_mode = cacop_op_mode;
         ex_o.cacop_op_mode_di = cacop_op_mode_di;
         ex_o.inv_i = aluop_i == `EXE_INVTLB_OP ? {1'b1, oprand1[9:0], oprand2[31:13], imm[4:0]} : 0;
         case (alusel_i)

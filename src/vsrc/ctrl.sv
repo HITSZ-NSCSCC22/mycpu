@@ -28,10 +28,10 @@ module ctrl
     input logic [ISSUE_WIDTH-1:0] ex_redirect_i,  //执行阶段重定向信号
     input logic [ISSUE_WIDTH-1:0] ex_advance_ready_i,  //执行阶段完成信号
     input logic [ISSUE_WIDTH-1:0] mem1_advance_ready_i,
-    input logic [ISSUE_WIDTH-1:0] mem2_advance_ready_i,  //访存阶段暂停请求信号
-    output logic [6:0] flush_o,  // flush signal {frontend, id_dispatch, dispatch, ex, mem1, mem2, wb}
-    output logic [6:0] advance_o,  // {frontend, id_dispatch, dispatch, ex, mem1, mem2, wb}
-    output logic [6:0] clear_o,  // {frontend, id_dispatch, dispatch, ex, mem1, mem2, wb}
+    input logic [ISSUE_WIDTH-1:0] mem3_advance_ready_i,  //访存阶段暂停请求信号
+    output logic [7:0] flush_o,  // flush signal {frontend, id_dispatch, dispatch, ex, mem1, mem2, wb}
+    output logic [7:0] advance_o,  // {frontend, id_dispatch, dispatch, ex, mem1, mem2, wb}
+    output logic [7:0] clear_o,  // {frontend, id_dispatch, dispatch, ex, mem1, mem2, wb}
     output logic [ADDR_WIDTH-1:0] backend_redirect_pc_o,
 
     // <-> CSR
@@ -149,8 +149,6 @@ module ctrl
     assign tlbsrch_index = tlbsrch_result_i.data_tlb_index;
     assign inv_o = wb_i[0].inv_i | wb_i[1].inv_i;
 
-    //assign llbit_signal.we = wb_i[0].aluop == `EXE_LL_OP | wb_i[0].aluop == `EXE_SC_OP ;
-    //assign llbit_signal.value = (wb_i[0].aluop == `EXE_LL_OP & 1'b1) | (wb_i[0].aluop == `EXE_SC_OP & 1'b0);
 
     always_comb begin
         if (rst) llbit_signal = 0;
@@ -165,7 +163,7 @@ module ctrl
     always_comb begin
         advance = 1;
         for (integer i = 0; i < COMMIT_WIDTH; i++) begin
-            advance = advance & ex_advance_ready_i[i] & mem1_advance_ready_i[i] & mem2_advance_ready_i[i];
+            advance = advance & ex_advance_ready_i[i] & mem1_advance_ready_i[i] & mem3_advance_ready_i[i];
         end
     end
     always_ff @(posedge clk) begin
@@ -173,27 +171,31 @@ module ctrl
     end
     assign flush_all = excp_flush | ertn_flush | refetch_flush | idle_flush;
     // Frontend
+    assign advance_o[7] = advance;
+    assign flush_o[7] = flush_all;
+    assign clear_o[7] = (advance_o[6] & ~advance_o[7]);
+    // ID -> Dispatch
     assign advance_o[6] = advance;
     assign flush_o[6] = flush_all;
     assign clear_o[6] = (advance_o[5] & ~advance_o[6]);
-    // ID -> Dispatch
+    // Dispatch
     assign advance_o[5] = advance;
     assign flush_o[5] = flush_all;
     assign clear_o[5] = (advance_o[4] & ~advance_o[5]);
-    // Dispatch
+    // EX
     assign advance_o[4] = advance;
     assign flush_o[4] = flush_all;
     assign clear_o[4] = (advance_o[3] & ~advance_o[4]);
-    // EX
-    assign advance_o[3] = advance;
+    // MEM1
+    assign advance_o[3] = mem3_advance_ready_i == 2'b11 & mem1_advance_ready_i == 2'b11;
     assign flush_o[3] = flush_all;
     assign clear_o[3] = (advance_o[2] & ~advance_o[3]);
-    // MEM1
-    assign advance_o[2] = mem2_advance_ready_i == 2'b11 & mem1_advance_ready_i == 2'b11;
+    // MEM2
+    assign advance_o[2] = mem3_advance_ready_i[0] & mem3_advance_ready_i[1];
     assign flush_o[2] = flush_all;
     assign clear_o[2] = (advance_o[1] & ~advance_o[2]);
-    // MEM2
-    assign advance_o[1] = mem2_advance_ready_i[0] & mem2_advance_ready_i[1];
+    // MEM3
+    assign advance_o[1] = mem3_advance_ready_i[0] & mem3_advance_ready_i[1];
     assign flush_o[1] = flush_all;
     assign clear_o[1] = (advance_o[0] & ~advance_o[1]);
     // WB

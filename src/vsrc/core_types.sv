@@ -129,10 +129,6 @@ package core_types;
         logic data_valid;
         logic [`RegAddrBus] wreg_addr;
         logic [`RegBus] wreg_data;
-
-        logic csr_we;
-        logic [13:0] csr_addr;
-        logic [`RegBus] csr_data;
     } data_forward_t;
 
     typedef struct packed {
@@ -141,6 +137,7 @@ package core_types;
         logic [`AluOpBus] aluop;
         logic [`RegBus] mem_addr;
         logic [`RegBus] store_data;
+        logic [`RegBus] oprand2;
         // EX result
         logic wreg;
         logic [`RegAddrBus] waddr;
@@ -155,6 +152,7 @@ package core_types;
         logic icache_op_en;
         logic dcache_op_en;
         logic [4:0] cacop_op;
+        logic [1:0] cacop_mode;
         logic data_addr_trans_en;
         logic dmw0_en;
         logic dmw1_en;
@@ -199,6 +197,24 @@ package core_types;
         logic [`RegBus] wdata;
         logic LLbit_we;
         logic LLbit_value;
+
+        logic [`AluOpBus] aluop;
+        csr_write_signal csr_signal;
+        logic mem_access_valid;
+        logic [ADDR_WIDTH-1:0] mem_addr;
+
+        tlb_inv_t inv_i;
+        difftest_mem_info_t difftest_mem_info;
+    } mem2_mem3_struct;
+
+    typedef struct packed {
+        instr_info_t instr_info;
+
+        logic wreg;
+        logic [`RegAddrBus] waddr;
+        logic [`RegBus] wdata;
+        logic LLbit_we;
+        logic LLbit_value;
         logic [ADDR_WIDTH-1:0] mem_addr;
 
         logic [`AluOpBus] aluop;
@@ -207,7 +223,7 @@ package core_types;
         tlb_inv_t inv_i;
 
         difftest_mem_info_t difftest_mem_info;
-    } mem2_wb_struct;
+    } mem3_wb_struct;
 
     typedef struct packed {
         logic [`RegBus] pc;

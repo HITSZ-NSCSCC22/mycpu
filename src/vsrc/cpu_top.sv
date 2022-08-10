@@ -20,6 +20,7 @@
 `include "pipeline/3_execution/ex.sv"
 `include "pipeline/4_mem/mem1.sv"
 `include "pipeline/4_mem/mem2.sv"
+`include "pipeline/4_mem/mem3.sv"
 `include "pipeline/5_wb/wb.sv"
 
 module cpu_top
@@ -100,8 +101,8 @@ module cpu_top
     assign rst   = ~aresetn | l2_cache_initialing;
 
     // Pipeline control signal
-    logic [6:0] pipeline_advance, pipeline_flush, pipeline_clear;
-    logic [ISSUE_WIDTH-1:0] ex_advance_ready, mem1_advance_ready, mem2_advance_ready;
+    logic [7:0] pipeline_advance, pipeline_flush, pipeline_clear;
+    logic [ISSUE_WIDTH-1:0] ex_advance_ready, mem1_advance_ready, mem3_advance_ready;
 
     // Frontend <-> ICache
     logic [1:0] frontend_icache_rreq;
@@ -285,13 +286,13 @@ module cpu_top
         .mem_valid(mem_valid[0]),
 
         .valid   (mem_cache_ce),
-        .vaddr   (mem_cache_addr),
+        .paddr   ({tlb_data_result.tag, tlb_data_result.index, tlb_data_result.offset}),
         .req_type(mem_cache_req_type),
         .wstrb   (mem_cache_sel),
         .wdata   (mem_cache_data),
 
         .uncache_en(mem_uncache_en[0]),
-        .paddr({tlb_data_result.tag, tlb_data_result.index, tlb_data_result.offset}),
+        .tag_hit_o (),
 
         .cacop_i     (dcacop_op_en[0]),
         .cacop_mode_i(dcacop_op_mode[0]),
@@ -678,7 +679,7 @@ module cpu_top
     id_dispatch u_id_dispatch (
         .clk                 (clk),
         .rst                 (rst),
-        .stall               (~pipeline_advance[5]),
+        .stall               (~pipeline_advance[6]),
         .flush               (backend_redirect),
         .id_i                (id_id_dispatch),
         .id_dispatch_accept_o(id_ib_accept),
@@ -692,7 +693,7 @@ module cpu_top
 
     // Data forwarding
     data_forward_t [ISSUE_WIDTH-1:0]
-        ex_data_forward, mem1_data_forward, mem2_data_forward, wb_data_forward;
+        ex_data_forward, mem1_data_forward, mem2_data_forward, mem3_data_forward, wb_data_forward;
 
     // Dispatch Stage, Sequential logic
     dispatch u_dispatch (
@@ -703,7 +704,7 @@ module cpu_top
         .id_i(id_dispatch_dispatch),
 
         // <-> Ctrl
-        .stall(~pipeline_advance[4]),
+        .stall(~pipeline_advance[5]),
         .flush(backend_redirect),
 
         // Data forwarding    
@@ -725,27 +726,27 @@ module cpu_top
         .ib_accept_o(dispatch_id_accept),
 
         // -> EXE
-        .exe_o(dispatch_exe),
+        .exe_o(dispatch_exe)
 
-        // PMU
-        .pmu_dispatch_backend_nop(pmu_data.dispatch_backend_nop),
-        .pmu_dispatch_frontend_nop(pmu_data.dispatch_frontend_nop),
-        .pmu_dispatch_single_issue(pmu_data.dispatch_single_issue),
-        .pmu_dispatch_datadep_nop(pmu_data.dispatch_datadep_nop),
-        .pmu_dispatch_instr_cnt(pmu_data.dispatch_instr_cnt)
+        // // PMU
+        // .pmu_dispatch_backend_nop(pmu_data.dispatch_backend_nop),
+        // .pmu_dispatch_frontend_nop(pmu_data.dispatch_frontend_nop),
+        // .pmu_dispatch_single_issue(pmu_data.dispatch_single_issue),
+        // .pmu_dispatch_datadep_nop(pmu_data.dispatch_datadep_nop),
+        // .pmu_dispatch_instr_cnt(pmu_data.dispatch_instr_cnt)
     );
 
 
     logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ctrl_frontend_ftq_id;
 
     // Redirect signal for frontend
-    assign backend_redirect = ex_redirect[0] | pipeline_flush[6];
+    assign backend_redirect = ex_redirect[0] | pipeline_flush[7];
 
-    assign backend_redirect_ftq_id = (pipeline_flush[6]) ? ctrl_frontend_ftq_id :
+    assign backend_redirect_ftq_id = (pipeline_flush[7]) ? ctrl_frontend_ftq_id :
                                 (ex_redirect[0]) ? ex_redirect_ftq_id[0] : 
                                 (ex_redirect[1] ) ? ex_redirect_ftq_id[1] : 0;
 
-    assign next_pc = pipeline_flush[6] ? backend_redirect_pc :
+    assign next_pc = pipeline_flush[7] ? backend_redirect_pc :
                      (ex_redirect[0]) ? ex_redirect_target[0] : 
                      (ex_redirect[1]) ? ex_redirect_target[1] : 0;
 
@@ -761,9 +762,9 @@ module cpu_top
                 .rst(rst),
 
                 // Pipeline control signals
-                .flush(pipeline_flush[3]),
-                .clear(pipeline_clear[3]),
-                .advance(pipeline_advance[3]),
+                .flush(pipeline_flush[4]),
+                .clear(pipeline_clear[4]),
+                .advance(pipeline_advance[4]),
                 .advance_ready(ex_advance_ready[i]),
 
                 // Previous stage
@@ -780,16 +781,6 @@ module cpu_top
                 // <-> FTQ, next FTQ pc query
                 .ftq_query_addr_o(ex_ftq_query_addr[i]),
                 .ftq_query_pc_i  (ex_ftq_query_pc[i]),
-
-                .dcache_rreq_o (mem_cache_signal[i]),
-                .dcache_ready_i(i == 0 ? dcache_ready : 1),
-
-                .icacop_en_o  (icacop_op_en[i]),
-                .icacop_mode_o(icacop_op_mode[i]),
-                .icacop_ack_i (icacop_ack),
-
-                .dcacop_en_o  (dcacop_op_en[i]),
-                .dcacop_mode_o(dcacop_op_mode[i]),
 
                 // Redirect signals
                 .ex_redirect_o(ex_redirect[i]),
@@ -812,7 +803,8 @@ module cpu_top
 
 
     mem1_mem2_struct mem1_mem2_signal[2];
-    mem2_wb_struct mem2_wb_signal[2];
+    mem2_mem3_struct mem2_mem3_signal[2];
+    mem3_wb_struct mem3_wb_signal[2];
     tlb_inv_t tlb_inv_signal_i;
 
     assign tlb_mem_signal = {
@@ -837,9 +829,9 @@ module cpu_top
                 .rst(rst),
 
                 // Pipeline control signals
-                .flush(pipeline_flush[2]),
-                .clear(pipeline_clear[2]),
-                .advance(pipeline_advance[2]),
+                .flush(pipeline_flush[3]),
+                .clear(pipeline_clear[3]),
+                .advance(pipeline_advance[3]),
                 .advance_ready(mem1_advance_ready[i]),
 
                 // Previous stage
@@ -856,6 +848,16 @@ module cpu_top
                 .LLbit_i(LLbit_o),
                 .csr_plv(csr_plv),
 
+                .dcache_rreq_o (mem_cache_signal[i]),
+                .dcache_ready_i(i == 0 ? dcache_ready : 1),
+
+                .icacop_en_o  (icacop_op_en[i]),
+                .icacop_mode_o(icacop_op_mode[i]),
+                .icacop_ack_i (icacop_ack),
+
+                .dcacop_en_o  (dcacop_op_en[i]),
+                .dcacop_mode_o(dcacop_op_mode[i]),
+
                 // Data forward
                 // -> Dispatch
                 .data_forward_o(mem1_data_forward[i])
@@ -867,6 +869,7 @@ module cpu_top
     ////////////////////////////////////////////////////////////////
     // MEM2
     ////////////////////////////////////////////////////////////////
+
     generate
         for (genvar i = 0; i < 2; i = i + 1) begin : mem2
             mem2 u_mem2 (
@@ -874,18 +877,43 @@ module cpu_top
                 .rst(rst),
 
                 // Pipeline control signals
-                .flush(pipeline_flush[1]),
-                .clear(pipeline_clear[1]),
-                .advance(pipeline_advance[1]),
-                .advance_ready(mem2_advance_ready[i]),
+                .flush  (pipeline_flush[2]),
+                .clear  (pipeline_clear[2]),
+                .advance(pipeline_advance[2]),
 
                 // Previous stage
                 .mem1_i(mem1_mem2_signal[i]),
                 // Next stage
-                .mem2_o_buffer(mem2_wb_signal[i]),
+                .mem2_o_buffer(mem2_mem3_signal[i]),
 
                 // -> Dispatch, data forward
-                .data_forward_o(mem2_data_forward[i]),
+                .data_forward_o(mem2_data_forward[i])
+            );
+        end
+    endgenerate
+
+    ////////////////////////////////////////////////////////////////
+    // MEM3
+    ////////////////////////////////////////////////////////////////
+    generate
+        for (genvar i = 0; i < 2; i = i + 1) begin : mem3
+            mem3 u_mem3 (
+                .clk(clk),
+                .rst(rst),
+
+                // Pipeline control signals
+                .flush(pipeline_flush[1]),
+                .clear(pipeline_clear[1]),
+                .advance(pipeline_advance[1]),
+                .advance_ready(mem3_advance_ready[i]),
+
+                // Previous stage
+                .mem2_i(mem2_mem3_signal[i]),
+                // Next stage
+                .mem3_o_buffer(mem3_wb_signal[i]),
+
+                // -> Dispatch, data forward
+                .data_forward_o(mem3_data_forward[i]),
 
                 // <- DCache
                 .mem_valid(mem_valid[i]),
@@ -910,7 +938,7 @@ module cpu_top
                 .flush  (pipeline_flush[0]),
                 .advance(pipeline_advance[0]),
 
-                .mem_i(mem2_wb_signal[i]),
+                .mem_i(mem3_wb_signal[i]),
 
                 // -> DCache
                 .dcache_flush_o(wb_dcache_flush[i]),
@@ -965,7 +993,7 @@ module cpu_top
         .ex_redirect_i(ex_redirect),
         .ex_advance_ready_i(ex_advance_ready),
         .mem1_advance_ready_i(mem1_advance_ready),
-        .mem2_advance_ready_i(mem2_advance_ready),
+        .mem3_advance_ready_i(mem3_advance_ready),
         .flush_o(pipeline_flush),
         .advance_o(pipeline_advance),
         .clear_o(pipeline_clear),

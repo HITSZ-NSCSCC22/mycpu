@@ -16,14 +16,13 @@ module dcache
 
     // mem req,come from ex
     input logic valid,
-    input logic [`RegBus] vaddr,
+    input logic [`RegBus] paddr,
     input logic [2:0] req_type,
     input logic [3:0] wstrb,
     input logic [31:0] wdata,
 
     //  from mem1
     input logic uncache_en,
-    input logic [`RegBus] paddr,
 
     //CACOP
     input logic cacop_i,
@@ -127,7 +126,7 @@ module dcache
 
     // P3
     logic p3_valid, p3_uncache_en, p2_cacop, p3_cacop, p3_hit;
-    logic [`RegBus] p3_wdata, p2_vaddr, p3_paddr;
+    logic [`RegBus] p3_wdata, p2_paddr, p3_paddr;
 
     assign dcache_ready = ~dcache_stall;
     assign dcache_stall = (state != IDLE) || (p3_valid & (p3_uncache_en | !hit) & !cpu_flush & mem_valid & !axi_valid_i_delay) || fifo_full;
@@ -221,8 +220,8 @@ module dcache
             for (integer i = 0; i < NWAY; i++) begin
                 if (valid | cacop_i) begin
                     tag_bram_ren[i] = 1;
-                    tag_bram_raddr[i] = vaddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
-                    data_bram_raddr[i] = vaddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
+                    tag_bram_raddr[i] = paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
+                    data_bram_raddr[i] = paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
                 end
             end
         end
@@ -238,8 +237,8 @@ module dcache
     always_comb begin
         if (uncache_en) tag_hit = 0;
         else begin
-            tag_hit[0] = tag_bram_rdata[0][TAG_WIDTH-1:0] == paddr[ADDR_WIDTH-1:ADDR_WIDTH-TAG_WIDTH] && tag_bram_rdata[0][TAG_WIDTH];
-            tag_hit[1] = tag_bram_rdata[1][TAG_WIDTH-1:0] == paddr[ADDR_WIDTH-1:ADDR_WIDTH-TAG_WIDTH] && tag_bram_rdata[1][TAG_WIDTH];
+            tag_hit[0] = tag_bram_rdata[0][TAG_WIDTH-1:0] == p2_paddr[ADDR_WIDTH-1:ADDR_WIDTH-TAG_WIDTH] && tag_bram_rdata[0][TAG_WIDTH];
+            tag_hit[1] = tag_bram_rdata[1][TAG_WIDTH-1:0] == p2_paddr[ADDR_WIDTH-1:ADDR_WIDTH-TAG_WIDTH] && tag_bram_rdata[1][TAG_WIDTH];
         end
     end
 
@@ -252,7 +251,7 @@ module dcache
         fifo_raddr = 0;
         if (state == IDLE & p2_valid & !uncache_en) begin
             fifo_rreq  = 1;
-            fifo_raddr = paddr;
+            fifo_raddr = p2_paddr;
         end
     end
 
@@ -266,7 +265,7 @@ module dcache
             cacop_op_mode0 = p2_cacop_mode == 2'b00;
             cacop_op_mode1 = p2_cacop_mode == 2'b01 || p2_cacop_mode == 2'b11;
             cacop_op_mode2 = p2_cacop_mode == 2'b10;
-            cacop_way = p2_vaddr[NWAY_WIDTH-1:0];
+            cacop_way = p2_paddr[NWAY_WIDTH-1:0];
         end
     end
 
@@ -275,7 +274,7 @@ module dcache
         cacop_op_mode2_hit = 0;
         if (cacop_op_mode2) begin
             for (integer i = 0; i < NWAY; i++) begin
-                if (tag_bram_rdata[i][TAG_WIDTH-1:0] == paddr[ADDR_WIDTH-1:ADDR_WIDTH-TAG_WIDTH] && tag_bram_rdata[i][TAG_WIDTH])
+                if (tag_bram_rdata[i][TAG_WIDTH-1:0] == p2_paddr[ADDR_WIDTH-1:ADDR_WIDTH-TAG_WIDTH] && tag_bram_rdata[i][TAG_WIDTH])
                     cacop_op_mode2_hit[i] = 1;
             end
         end
@@ -442,7 +441,7 @@ module dcache
             p2_wdata <= 0;
             p2_cacop_mode <= 0;
             p2_cacop <= 0;
-            p2_vaddr <= 0;
+            p2_paddr <= 0;
             p3_valid <= 0;
             p3_paddr <= 0;
             p3_req_type <= 0;
@@ -465,7 +464,7 @@ module dcache
             p2_cacop_mode <= p2_cacop_mode;
             p2_wstrb <= p2_wstrb;
             p2_wdata <= p2_wdata;
-            p2_vaddr <= p2_vaddr;
+            p2_paddr <= p2_paddr;
             p3_valid <= p3_valid;
             p3_req_type <= p3_req_type;
             p3_paddr <= p3_paddr;
@@ -488,12 +487,12 @@ module dcache
             p2_wstrb <= wstrb;
             p2_wdata <= wdata;
             p2_cacop <= cacop_i;
-            p2_vaddr <= vaddr;
+            p2_paddr <= paddr;
             p2_cacop_mode <= cacop_mode_i;
             // p2 -> p3
             p3_valid <= p2_valid;
             p3_req_type <= p2_req_type;
-            p3_paddr <= paddr;
+            p3_paddr <= p2_paddr;
             p3_wstrb <= p2_wstrb;
             p3_wdata <= p2_wdata;
             p3_cacop <= p2_cacop;

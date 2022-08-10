@@ -16,7 +16,7 @@ module wb
     input logic advance,
     // input logic advance_ready,
 
-    input mem2_wb_struct mem_i,
+    input mem3_wb_struct mem_i,
 
     // load store relate difftest
     output wb_ctrl_struct wb_ctrl_signal,
