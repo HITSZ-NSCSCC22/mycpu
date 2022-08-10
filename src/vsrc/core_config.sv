@@ -106,7 +106,7 @@ package core_config;
     parameter ICACHE_NSET = 1024;
 
     // DCache parameters
-    parameter DCACHE_NWAY = 2;
+    parameter DCACHE_NWAY = 4;
     parameter DCACHE_NSET = 256;
     parameter DCACHELINE_WIDTH = 128;
     parameter DCACHE_FIFO_DEPTH = 8;

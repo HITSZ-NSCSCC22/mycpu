@@ -31,7 +31,7 @@ module dcache
 
     input logic cpu_flush,
 
-    output logic [1:0] tag_hit_o,
+    output logic [NWAY-1:0] tag_hit_o,
 
     output logic dcache_ready,
     output logic data_ok,
@@ -119,10 +119,11 @@ module dcache
 
     // P2
     logic p2_valid, p2_uncache_delay;
-    logic [1:0] p3_tag_hit, p2_cacop_mode;
+    logic [1:0] p2_cacop_mode;
     logic [2:0] p2_req_type, p3_req_type;
     logic [3:0] p2_wstrb, p3_wstrb;
-    logic [`RegBus] p2_wdata;
+    logic [NWAY-1:0 ] p3_tag_hit;
+    logic [ `RegBus]  p2_wdata;
 
     // P3
     logic p3_valid, p3_uncache_en, p2_cacop, p3_cacop, p3_hit;
@@ -237,8 +238,9 @@ module dcache
     always_comb begin
         if (uncache_en) tag_hit = 0;
         else begin
-            tag_hit[0] = tag_bram_rdata[0][TAG_WIDTH-1:0] == paddr[ADDR_WIDTH-1:ADDR_WIDTH-TAG_WIDTH] && tag_bram_rdata[0][TAG_WIDTH];
-            tag_hit[1] = tag_bram_rdata[1][TAG_WIDTH-1:0] == paddr[ADDR_WIDTH-1:ADDR_WIDTH-TAG_WIDTH] && tag_bram_rdata[1][TAG_WIDTH];
+            for (integer i = 0; i < NWAY; i++) begin
+                tag_hit[i] = tag_bram_rdata[i][TAG_WIDTH-1:0] == paddr[ADDR_WIDTH-1:ADDR_WIDTH-TAG_WIDTH] && tag_bram_rdata[i][TAG_WIDTH];
+            end
         end
     end
 
@@ -375,7 +377,7 @@ module dcache
             WRITE_WAIT, READ_WAIT: begin
                 for (integer i = 0; i < NWAY; i++) begin
                     // select a line to write back 
-                    if (i[0] == random_r[0]) begin
+                    if (i[NWAY_WIDTH-1:0] == random_r[NWAY_WIDTH-1:0]) begin
                         if (axi_rvalid_i) begin
                             tag_bram_we[i] = 1;
                             tag_bram_waddr[i] = p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
@@ -592,7 +594,7 @@ module dcache
                 for (integer i = 0; i < NWAY; i++) begin
                     // select a line to write back 
                     if (axi_rvalid_i) begin
-                        if (i[0] == random_r[0] && p3_tag_bram_rdata[i][TAG_WIDTH + 1] && !fifo_state[1]) begin
+                        if (i[NWAY_WIDTH-1:0] == random_r[NWAY_WIDTH-1:0] && p3_tag_bram_rdata[i][TAG_WIDTH + 1] && !fifo_state[1]) begin
                             fifo_wreq = 1;
                             fifo_waddr = {
                                 p3_tag_bram_rdata[i][TAG_WIDTH-1:0],
