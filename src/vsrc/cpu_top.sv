@@ -195,14 +195,15 @@ module cpu_top
     logic [1:0] wb_dcache_flush;  // flush dcache if excp
     logic [1:0][`RegBus] wb_dcache_flush_pc;
     logic dcache_ack, dcache_ready;
+    (* EQUIVALENT_REGISTER_REMOVAL="NO" *)logic [1:0] ex_dcache_ready;
     logic [1:0] mem_valid;
 
-    assign mem_cache_ce = mem_cache_signal[0].ce | mem_cache_signal[1].ce;
-    assign mem_cache_we = mem_cache_signal[0].we | mem_cache_signal[1].we;
-    assign mem_cache_sel =  mem_cache_signal[0].we ? mem_cache_signal[0].sel : mem_cache_signal[1].we ? mem_cache_signal[1].sel : 0;
-    assign mem_cache_req_type = mem_cache_signal[0].ce ? mem_cache_signal[0].req_type : mem_cache_signal[1].ce ? mem_cache_signal[1].req_type : 0;
-    assign mem_cache_addr = mem_cache_signal[0].addr | mem_cache_signal[1].addr;
-    assign mem_cache_data =  mem_cache_signal[0].we ? mem_cache_signal[0].data : mem_cache_signal[1].we ? mem_cache_signal[1].data : 0;
+    assign mem_cache_ce = mem_cache_signal[0].ce;
+    assign mem_cache_we = mem_cache_signal[0].we;
+    assign mem_cache_sel = mem_cache_signal[0].we ? mem_cache_signal[0].sel : 0;
+    assign mem_cache_req_type = mem_cache_signal[0].ce ? mem_cache_signal[0].req_type : 0;
+    assign mem_cache_addr = mem_cache_signal[0].addr;
+    assign mem_cache_data = mem_cache_signal[0].we ? mem_cache_signal[0].data : 0;
 
     // Ctrl -> Regfile
     wb_reg_t [COMMIT_WIDTH-1:0] regfile_write;
@@ -259,10 +260,6 @@ module cpu_top
     logic [1:0] csr_plv;
 
     logic [$clog2(TLB_NUM)-1:0] rand_index_diff;
-
-    logic control_dcache_valid, control_dcache_ready;
-    logic [`RegBus] control_dcache_addr, control_dcache_wdata, control_dcache_rdata;
-    logic [3:0] control_dcache_wstrb;
 
     // PMU
     pmu_input_t pmu_data;
@@ -746,6 +743,9 @@ module cpu_top
                      (ex_redirect[0]) ? ex_redirect_target[0] : 
                      (ex_redirect[1]) ? ex_redirect_target[1] : 0;
 
+    assign ex_dcache_ready[0] = dcache_ready;
+    assign ex_dcache_ready[1] = 1;
+
 
     ex_mem_struct ex_mem_signal[2];
     logic [1:0] tlb_stallreq;
@@ -779,7 +779,7 @@ module cpu_top
                 .ftq_query_pc_i  (ex_ftq_query_pc[i]),
 
                 .dcache_rreq_o (mem_cache_signal[i]),
-                .dcache_ready_i(i == 0 ? dcache_ready : 1),
+                .dcache_ready_i(ex_dcache_ready[i]),
 
                 .icacop_en_o  (icacop_op_en[i]),
                 .icacop_mode_o(icacop_op_mode[i]),
