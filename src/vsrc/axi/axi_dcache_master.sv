@@ -42,8 +42,8 @@ module axi_dcache_master
             m_axi.awaddr  <= addr;
             m_axi.wdata   <= data_in;
             m_axi.wstrb   <= wstrb;
-            m_axi.arcache <= uncached ? 4'b0000 : 4'b1111;
-            m_axi.awcache <= uncached ? 4'b0000 : 4'b0011;
+            m_axi.arcache <= uncached ? 4'b0000 : 4'b1110;
+            m_axi.awcache <= uncached ? 4'b0000 : 4'b1110;
         end
     end
 
