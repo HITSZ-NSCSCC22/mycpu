@@ -72,6 +72,7 @@ module dcache
     logic [ADDR_WIDTH-1:0] axi_addr_o;
     logic axi_req_o;
     logic axi_we_o;
+    logic axi_uncached_o;
     logic axi_rdy_i;
     logic axi_rvalid_i, axi_bvalid_i, axi_valid_i_delay;
     logic [2:0] axi_size_o;
@@ -650,6 +651,7 @@ module dcache
         axi_size_o = 0;
         axi_wdata_o = 0;
         axi_we_o = 0;
+        axi_uncached_o = 0;
         axi_wstrb_o = 0;
         case (state)
             // if the state is idle,then the dcache is free
@@ -675,15 +677,17 @@ module dcache
             end
             UNCACHE_READ_REQ: begin
                 if (axi_rdy_i) begin
-                    axi_req_o  = 1;
+                    axi_req_o = 1;
+                    axi_uncached_o = 1;
                     axi_size_o = p3_req_type;
                     axi_addr_o = p3_paddr;
                 end
             end
             UNCACHE_WRITE_REQ: begin
                 if (axi_rdy_i) begin
-                    axi_req_o  = 1;
-                    axi_we_o   = 1;
+                    axi_req_o = 1;
+                    axi_we_o = 1;
+                    axi_uncached_o = 1;
                     axi_size_o = p3_req_type;
                     axi_addr_o = p3_paddr;
                     case (p3_paddr[3:2])
@@ -775,6 +779,7 @@ module dcache
         .m_axi      (m_axi),
         .new_request(axi_req_o),
         .we         (axi_we_o),
+        .uncached   (axi_uncached_o),
         .addr       (axi_addr_o),
         .size       (axi_size_o),
         .data_in    (axi_wdata_o),
