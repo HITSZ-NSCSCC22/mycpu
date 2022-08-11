@@ -1,7 +1,6 @@
 // Gshared predictor as base predictor
 `include "defines.sv"
 `include "BPU/utils/csr_hash.sv"
-`include "BPU/utils/fpa.sv"
 `include "utils/bram.sv"
 `include "core_config.sv"
 

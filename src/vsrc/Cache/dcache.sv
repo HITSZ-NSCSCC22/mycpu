@@ -112,8 +112,8 @@ module dcache
     logic p3_cacop_op_mode0, p3_cacop_op_mode1, p3_cacop_op_mode2;
     logic [1:0] cacop_op_mode2_hit, p3_cacop_op_mode2_hit;
     logic [NWAY_WIDTH-1:0] cacop_way, p3_cacop_way;
-    logic [`DataAddrBus] cacop_req_waddr, cacop_req_waddr_delay;
-    logic [DCACHELINE_WIDTH-1:0] cacop_req_wdata, cacop_req_wdata_delay;
+    logic [`DataAddrBus] cacop_req_waddr;
+    logic [DCACHELINE_WIDTH-1:0] cacop_req_wdata;
 
     logic [1:0] dirty;
 
@@ -154,7 +154,8 @@ module dcache
             IDLE: begin
                 // if the fifo is full ,we keep the state 
                 if (fifo_state[1]) next_state = FIFO_CLEAR;
-                else if (cacop_req_valid) next_state = CACOP_REQ;
+                else if (cacop_req_valid & !cpu_flush & mem_valid & !axi_valid_i_delay)
+                    next_state = CACOP_REQ;
                 // if the dcache is idle,then accept the new request
                 else if (p3_valid & p3_uncache_en & !cpu_flush & mem_valid & !axi_valid_i_delay) begin
                     if (cpu_wreq) next_state = UNCACHE_WRITE_REQ;
@@ -326,9 +327,6 @@ module dcache
     end
 
     always_comb begin : bram_data_gen
-        cacop_req_valid = 0;
-        cacop_req_waddr = 0;
-        cacop_req_wdata = 0;
         for (integer i = 0; i < NWAY; i++) begin
             tag_bram_we[i] = 0;
             tag_bram_waddr[i] = 0;
@@ -379,26 +377,12 @@ module dcache
                     if (p3_cacop && !cpu_flush && mem_valid) begin
                         if ((p3_cacop_way == i[NWAY_WIDTH-1:0])) begin
                             if (p3_cacop_op_mode0 | p3_cacop_op_mode1) begin
-                                cacop_req_valid = 1;
-                                cacop_req_waddr = {
-                                    p3_tag_bram_rdata[i][TAG_BRAM_WIDTH-1:0],
-                                    p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH],
-                                    4'b0
-                                };
-                                cacop_req_wdata = p3_data_bram_rdata[i];
                                 tag_bram_we[i] = 1;
                                 tag_bram_waddr[i] = p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
                                 tag_bram_wdata[i] = 0;
                             end
                         end
                         if (p3_cacop_op_mode2_hit[i]) begin
-                            cacop_req_valid = 1;
-                            cacop_req_waddr = {
-                                p3_tag_bram_rdata[i][TAG_BRAM_WIDTH-1:0],
-                                p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH],
-                                4'b0
-                            };
-                            cacop_req_wdata = p3_data_bram_rdata[i];
                             tag_bram_we[i] = 1;
                             tag_bram_waddr[i] = p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
                             tag_bram_wdata[i] = 0;
@@ -427,6 +411,37 @@ module dcache
             default: begin
             end
         endcase
+    end
+
+    always_comb begin
+        cacop_req_valid = 0;
+        cacop_req_waddr = 0;
+        cacop_req_wdata = 0;
+        if (p3_cacop && !cpu_flush && mem_valid) begin
+            for (integer i = 0; i < NWAY; i++) begin
+                // write the invalidate cacheline back to mem
+                // cacop mode == 1 always write back
+                // cacop mode == 2 write back when hit
+                if (p3_cacop_way == i[NWAY_WIDTH-1:0] && p3_cacop_op_mode1 && p3_tag_bram_rdata[i][TAG_WIDTH]) begin
+                    cacop_req_valid = 1;
+                    cacop_req_waddr = {
+                        p3_tag_bram_rdata[i][TAG_WIDTH-1:0],
+                        p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH],
+                        4'b0
+                    };
+                    cacop_req_wdata = p3_data_bram_rdata[i];
+                end
+                if (p3_cacop_op_mode2_hit[i]) begin
+                    cacop_req_valid = 1;
+                    cacop_req_waddr = {
+                        p3_tag_bram_rdata[i][TAG_WIDTH-1:0],
+                        p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH],
+                        4'b0
+                    };
+                    cacop_req_wdata = p3_data_bram_rdata[i];
+                end
+            end
+        end
     end
 
     always_comb begin
@@ -649,18 +664,6 @@ module dcache
         endcase
     end
 
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            cacop_req_waddr_delay <= 0;
-            cacop_req_wdata_delay <= 0;
-        end else if (dcache_stall) begin
-            cacop_req_waddr_delay <= cacop_req_waddr_delay;
-            cacop_req_wdata_delay <= cacop_req_wdata_delay;
-        end else begin
-            cacop_req_waddr_delay <= cacop_req_waddr;
-            cacop_req_wdata_delay <= cacop_req_wdata;
-        end
-    end
 
     //handshake with axi
     always_comb begin
@@ -735,8 +738,8 @@ module dcache
                     axi_we_o = 1;
                     axi_uncached_o = 1;
                     axi_size_o = 3'b100;
-                    axi_addr_o = cacop_req_waddr_delay;
-                    axi_wdata_o = cacop_req_wdata_delay;
+                    axi_addr_o = cacop_req_waddr;
+                    axi_wdata_o = cacop_req_wdata;
                     axi_wstrb_o = 16'b1111_1111_1111_1111;
                 end
             end
