@@ -100,7 +100,7 @@ module dcache
     logic [NWAY-1:0] tag_bram_we, tag_bram_ren;
 
     logic hit;
-    logic [NWAY-1:0] tag_hit;
+    logic [NWAY-1:0] tag_hit, tag_hit_delay;
 
     logic [`RegBus] wreq_sel_data;
     logic [DCACHELINE_WIDTH-1:0] bram_write_data;
@@ -114,7 +114,7 @@ module dcache
     // CACOP
     logic cacop_op_mode0, cacop_op_mode1, cacop_op_mode2, cacop_req_valid;
     logic p3_cacop_op_mode0, p3_cacop_op_mode1, p3_cacop_op_mode2;
-    logic [1:0] cacop_op_mode2_hit, p3_cacop_op_mode2_hit;
+    logic [1:0] cacop_op_mode2_hit, cacop_op_mode2_hit_delay, p3_cacop_op_mode2_hit;
     logic [NWAY_WIDTH-1:0] cacop_way, p3_cacop_way;
     logic [`DataAddrBus] cacop_req_waddr;
     logic [DCACHELINE_WIDTH-1:0] cacop_req_wdata;
@@ -316,20 +316,28 @@ module dcache
     always_ff @(posedge clk) begin
         if (rst) begin
             bram_rdata_delay <= 0;
+            tag_hit_delay <= 0;
             tag_bram_rdata_delay <= 0;
             data_bram_rdata_delay <= 0;
+            cacop_op_mode2_hit_delay <= 0;
         end else if (dcache_stall & !dcache_stall_delay) begin
             bram_rdata_delay <= 1;
+            tag_hit_delay <= tag_hit;
             tag_bram_rdata_delay <= tag_bram_rdata;
             data_bram_rdata_delay <= data_bram_rdata;
+            cacop_op_mode2_hit_delay <= cacop_op_mode2_hit;
         end else if (!dcache_stall & dcache_stall_delay) begin
             bram_rdata_delay <= 0;
+            tag_hit_delay <= 0;
             tag_bram_rdata_delay <= 0;
             data_bram_rdata_delay <= 0;
+            cacop_op_mode2_hit_delay <= 0;
         end else begin
             bram_rdata_delay <= bram_rdata_delay;
+            tag_hit_delay <= tag_hit_delay;
             tag_bram_rdata_delay <= tag_bram_rdata_delay;
             data_bram_rdata_delay <= data_bram_rdata_delay;
+            cacop_op_mode2_hit_delay <= cacop_op_mode2_hit_delay;
         end
     end
 
@@ -573,7 +581,7 @@ module dcache
             p3_wstrb <= p2_wstrb;
             p3_wdata <= p2_wdata;
             p3_cacop <= p2_cacop;
-            p3_tag_hit <= tag_hit;
+            p3_tag_hit <= bram_rdata_delay ? tag_hit_delay : tag_hit;
             p3_uncache_en <= uncache_en | p2_uncache_delay;
             p3_tag_bram_rdata <= bram_rdata_delay ? tag_bram_rdata_delay : tag_bram_rdata;
             p3_data_bram_rdata <= bram_rdata_delay ? data_bram_rdata_delay : data_bram_rdata;
@@ -581,7 +589,7 @@ module dcache
             p3_cacop_op_mode0 <= cacop_op_mode0;
             p3_cacop_op_mode1 <= cacop_op_mode1;
             p3_cacop_op_mode2 <= cacop_op_mode2;
-            p3_cacop_op_mode2_hit <= cacop_op_mode2_hit;
+            p3_cacop_op_mode2_hit <= bram_rdata_delay ? cacop_op_mode2_hit_delay : cacop_op_mode2_hit;
         end
     end
 
