@@ -42,11 +42,7 @@ module dcache_fifo
     logic [`DataAddrBus] cpu_awaddr;
     logic [`DataAddrBus] cpu_araddr;
 
-    logic sign_rewrite;
-
-    logic [DEPTH-1:0] read_hit, write_hit;
-
-    logic write_hit_head;
+    logic [DEPTH-1:0] read_hit, write_hit, write_not_hit_head;
 
     logic queue_wreq;
     logic [$clog2(DEPTH)-1:0] queue_waddr, queue_raddr;
@@ -61,16 +57,6 @@ module dcache_fifo
     assign cpu_awaddr = {cpu_awaddr_i[31:4], 4'h0};
 
     assign cpu_araddr = {cpu_araddr_i[31:4], 4'h0};
-
-
-    // if dcache write the data at the head of the queue
-    // then don't sent the data to the memory 
-    always @(posedge clk) begin
-        if (rst) sign_rewrite <= 1'b0;
-        else if (axi_bvalid_i) sign_rewrite <= 1'b0;
-        else if (write_hit_head) sign_rewrite <= 1'b1;
-        else sign_rewrite <= sign_rewrite;
-    end
 
 
     always_ff @(posedge clk) begin
@@ -88,7 +74,7 @@ module dcache_fifo
             end
             queue_valid[tail] <= 1'b1;
         end  // if axi is free and there is not write collsion then sent the data
-        if (axi_bvalid_i && !sign_rewrite && !write_hit_head && queue_valid[head]) begin
+        if (axi_bvalid_i && queue_valid[head]) begin
             queue_valid[head] <= 1'b0;
             if (head == DEPTH[$clog2(DEPTH)-1:0] - 1) begin
                 head <= 0;
@@ -122,11 +108,12 @@ module dcache_fifo
 
 
     //Write Hit
-    assign write_hit_head = write_hit[head] & cpu_wreq_i;
-    assign write_hit_o = |write_hit;
+    assign write_hit_o = |write_not_hit_head;
     always_comb begin
         for (integer i = 0; i < DEPTH; i = i + 1) begin
             write_hit[i] = ((cpu_awaddr[31:4] == addr_queue[i][31:4]) && queue_valid[i]) ? 1'b1 : 1'b0;
+            write_not_hit_head[i] = (axi_bvalid_i && head == i[$clog2(DEPTH)-1:0]) ? 1'b0 :
+                write_hit[i];
         end
     end
 
@@ -147,7 +134,7 @@ module dcache_fifo
         end else if (cpu_wreq_i) begin
             if (write_hit_o) begin
                 for (integer i = 0; i < DEPTH; i = i + 1) begin
-                    if (write_hit[i] == 1'b1) begin
+                    if (write_not_hit_head[i] == 1'b1) begin
                         queue_wreq  <= 1;
                         queue_waddr <= i[$clog2(DEPTH)-1:0];
                         queue_wdata <= cpu_wdata_i;
