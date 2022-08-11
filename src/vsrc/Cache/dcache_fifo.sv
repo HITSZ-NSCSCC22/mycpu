@@ -78,26 +78,22 @@ module dcache_fifo
             head <= 0;
             tail <= 0;
             queue_valid <= 0;
-        end  //if dcache sent a new data which don't hit 
-             //put it at the tail of the queue
-        if (cpu_wreq_i == `WriteEnable && write_hit_o == 1'b0) begin
-            if (tail == DEPTH[$clog2(DEPTH)-1:0] - 1) begin
-                tail <= 0;
-            end else begin
+            addr_queue <= 0;
+        end else begin
+            //if dcache sent a new data which don't hit 
+            //put it at the tail of the queue
+            if (cpu_wreq_i && !write_hit_o) begin
                 tail <= tail + 1;
-            end
-            queue_valid[tail] <= 1'b1;
-        end  // if axi is free and there is not write collsion then sent the data
-        if (axi_bvalid_i && !sign_rewrite && !write_hit_head && queue_valid[head]) begin
-            queue_valid[head] <= 1'b0;
-            if (head == DEPTH[$clog2(DEPTH)-1:0] - 1) begin
-                head <= 0;
-            end else begin
+                queue_valid[tail] <= 1'b1;
+                addr_queue[tail] <= cpu_awaddr;
+            end  // if axi is free and there is not write collsion then sent the data
+            if (axi_bvalid_i && !sign_rewrite && !write_hit_head && queue_valid[head]) begin
                 head <= head + 1;
+                queue_valid[head] <= 1'b0;
+                addr_queue[head] <= 0;
             end
         end
     end
-
     //Read Hit
     assign read_hit_o = |read_hit;
     always_ff @(posedge clk) begin
@@ -131,13 +127,7 @@ module dcache_fifo
     end
 
 
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            addr_queue <= 0;
-        end else if (cpu_wreq_i & !write_hit_o) begin
-            addr_queue[tail] <= cpu_awaddr;
-        end
-    end
+
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -158,11 +148,15 @@ module dcache_fifo
                 queue_waddr <= tail;
                 queue_wdata <= cpu_wdata_i;
             end
+        end else begin
+            queue_wreq  <= 0;
+            queue_waddr <= 0;
+            queue_wdata <= 0;
         end
     end
 
 
-    assign axi_wen_o = !empty & axi_bvalid_i & queue_valid[head];
+    assign axi_wen_o = !empty & axi_bvalid_i & queue_valid[head] & ~write_hit_head;
     assign axi_awaddr_o = addr_queue[head];
 
     lutram_1w_mr #(
