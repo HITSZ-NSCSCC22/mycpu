@@ -23,7 +23,8 @@ module lcd_id (
         input logic [31:0] buffer_addr_i,
         input logic data_valid,
         input logic [31:0] graph_size_i,
-
+        input logic char_color_i,
+        input logic char_rs_i,
         //to lcd ctrl
         output logic write_ok,
 
@@ -69,7 +70,8 @@ module lcd_id (
              COLOR_INST,
              COLOR_DATA,
              READ_COLOR,
-             REFRESH
+             REFRESH,
+             CHAR
          }
          current_state, next_state;
 
@@ -80,6 +82,8 @@ module lcd_id (
     logic delay;  //delay one cycle when come to a new state
     logic refresh;
     logic refresh_rs;
+    logic char_rs;
+    logic char_color;
     always_ff @(posedge pclk) begin//进入新状态后必须要暂停一拍
         if (~rst_n||~cpu_work)
             delay <= 0;
@@ -95,18 +99,21 @@ module lcd_id (
             lcd_addr   <= 0;
             graph_size <= 0;
             refresh_rs<=0;
+            char_rs<=0;
         end
         else if (write_lcd_i) begin
             lcd_data   <= lcd_data_i;
             lcd_addr   <= lcd_addr_i;
             graph_size <= graph_size_i;
-            refresh_rs<=refresh_i;
+            refresh_rs<=refresh_rs_i;
+            char_rs<=char_rs_i;
         end
         else begin
             lcd_data   <= lcd_data;
             lcd_addr   <= lcd_addr;
             graph_size <= graph_size;
             refresh_rs<=refresh_rs;
+            char_rs<=char_rs;
         end
     end
 
@@ -115,10 +122,12 @@ module lcd_id (
         if (~rst_n||~cpu_work) begin
             write_lcd <= 0;
             refresh<=0;
+            char_color<=0;
         end
         else begin
             write_lcd <= write_lcd_i;
             refresh<=refresh_i;
+            char_color<=char_color_i;
         end
     end
 
@@ -164,7 +173,7 @@ module lcd_id (
         case (current_state)
 
             IDLE: begin
-                if (write_lcd&&(~refresh)) begin
+                if (write_lcd&&(~refresh)&&(~char_color)) begin
                     case (opcode)
                         `ID1, `ID2, `ID3:
                             next_state = READ_ID;
@@ -197,6 +206,8 @@ module lcd_id (
                 else if(write_lcd&&refresh) begin
                     next_state=REFRESH;
                 end
+                else if(write_lcd&&char_color)
+                    next_state=CHAR;
                 else
                     next_state = IDLE;
             end
@@ -369,6 +380,12 @@ module lcd_id (
             REFRESH: begin
                 if (busy || delay)
                     next_state = REFRESH;
+                else
+                    next_state = IDLE;
+            end
+            CHAR: begin
+                if (busy || delay)
+                    next_state = CHAR;
                 else
                     next_state = IDLE;
             end
@@ -585,6 +602,7 @@ module lcd_id (
                     id_fm <= 1;
                     read_color_o <= 1;
                 end
+                //refresh lcd
                 REFRESH: begin
                     write_ok <= 0;
                     we <= 1;
@@ -592,7 +610,14 @@ module lcd_id (
                     lcd_rs <= refresh_rs;
                     data_o <= lcd_data[15:0];
                 end
-
+                //write string color
+                CHAR: begin
+                    write_ok <= 0;
+                    we <= 1;
+                    wr <= 1;
+                    lcd_rs <= char_rs;
+                    data_o <= lcd_data[15:0];
+                end
                 default: begin
                     write_ok <= 1;
                     we <= 0;

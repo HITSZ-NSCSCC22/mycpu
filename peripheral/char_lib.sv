@@ -57,10 +57,13 @@ module char_lib (
                     col<=0;
                 end
                 BACK: begin
-                    if(start)
+                    state<=ADDR;
+                    if(start) begin
                         addra<=addra+1;
-                    else
+                    end
+                    else begin
                         addra<=addra;
+                    end
                     start<=1;
                 end
                 ADDR: begin
@@ -97,12 +100,12 @@ module char_lib (
         end
     end
 
-    char_lib your_instance_name (
-                 .clka(pclk),    // input wire clka
-                 .ena(1),      // input wire ena
-                 .wea(0),      // input wire [0 : 0] wea
-                 .addra(addra),  // input wire [9 : 0] addra
-                 .dina(0),    // input wire [15 : 0] dina
-                 .douta(douta)  // output wire [15 : 0] douta
-             );
+    char_library u_char_library (
+                     .clka(pclk),    // input wire clka
+                     .ena(1),      // input wire ena
+                     .wea(0),      // input wire [0 : 0] wea
+                     .addra(addra),  // input wire [9 : 0] addra
+                     .dina(0),    // input wire [15 : 0] dina
+                     .douta(douta)  // output wire [15 : 0] douta
+                 );
 endmodule //moduleName

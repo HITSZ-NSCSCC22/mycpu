@@ -259,6 +259,8 @@ import lcd_types:
     logic [31:0] graph_size;
     logic ctrl_refresh_id;
     logic ctrl_refresh_rs_id;
+    logic ctrl_char_color_id;
+    logic ctrl_char_rs_id;
     lcd_id u_lcd_id (
                .pclk(pclk),
                .rst_n(rst_n),
@@ -274,7 +276,8 @@ import lcd_types:
                .buffer_data_i(ctrl_buffer_data_id),
                .data_valid(data_valid),
                .graph_size_i(graph_size),
-
+               .char_color_i(ctrl_char_color_id),
+               .char_rs_i(ctrl_char_rs_id),
                //from lcd_core
                .cpu_work(cpu_work),
 
@@ -305,6 +308,15 @@ import lcd_types:
     logic data_ok;
     logic refresh_ok;//refresh is over
     logic refresh_rs;
+
+    //lcd_ctrl <-> char_ctrl
+    logic [31:0]cpu_code;
+    logic char_work;
+    logic char_write_ok;
+    logic [15:0]char_data;
+    logic char_color_ok;
+    logic write_str_end;
+
 `ifdef AXI
     //TODO
     lcd_ctrl u_lcd_ctrl (
@@ -359,11 +371,6 @@ import lcd_types:
                  .s_bvalid(s_bvalid),
                  .s_bready(s_bready),
 
-                 //to lcd_id
-                 .lcd_addr_buffer(ctrl_addr_id),  //store write reg addr
-                 .lcd_data_buffer(ctrl_data_id),  //store data to lcd
-                 .write_lcd(ctrl_write_lcd_id),  //write lcd enable signal
-
                  //speeder
                  .buffer_data(ctrl_buffer_data_id),  //speeder
                  .buffer_addr(ctrl_buffer_addr_id),  //speeder
@@ -389,6 +396,8 @@ import lcd_types:
                       .graph_size(graph_size),
                       .refresh(ctrl_refresh_id),
                       .refresh_rs_o(ctrl_refresh_rs_id),
+                      .char_color(ctrl_char_color_id),
+                      .char_rs(ctrl_char_rs_id),
                       //from lcd_interface
                       //TODO
                       .lcd_input_data(0),  //data form lcd input
@@ -406,9 +415,52 @@ import lcd_types:
                       //from lcd_id
                       .write_ok(write_ok),  //æ•°ï¿½?ï¿½å’ŒæŒ‡ä»¤å†™å‡ºåŽ»ï¿½?ï¿½ï¿½?èƒ½ç»§ç»­å†™
                       .debug_buffer_state(debug_buffer_state),
-                      .debug_inst_num(debug_inst_num)
+                      .debug_inst_num(debug_inst_num),
+
+                      //to char_ctrl
+                      .cpu_code(cpu_code),
+                      .char_work(char_work),
+                      .char_write_ok(char_write_ok),
+
+                      //from char_ctrl
+                      .char_data_i(char_data),
+                      .char_color_ok(char_color_ok),
+                      .write_str_end(write_str_end)
                   );
 `endif
+
+    logic [31:0]debug_col;
+    logic debug_char_req;
+    logic [15:0]debug_char_douta;
+    logic debug_char_data_ok;
+    logic debug_char_finish;
+    logic [5:0]debug_x;
+    logic [5:0]debug_y;
+    logic [31:0]debug_char_ctrl_state;
+    char_ctrl u_char_ctrl(
+                  .pclk(pclk),
+                  .rst_n(rst_n),
+
+                  //from lcd_ctrl
+                  .cpu_code(cpu_code),
+                  .char_work(char_work),
+                  .write_ok(char_write_ok),
+
+                  //to lcd_ctrl
+                  .data_o(char_data),
+                  .color_ok(char_color_ok),
+                  .write_str_end(write_str_end),
+
+                  //debug
+                  .debug_col(debug_col),
+                  .debug_char_req(debug_char_req),
+                  .debug_char_douta(debug_char_douta),
+                  .debug_char_data_ok(debug_char_data_ok),
+                  .debug_char_finish(debug_char_finish),
+                  .debug_x(debug_x),
+                  .debug_y(debug_y),
+                  .debug_char_ctrl_state(debug_char_ctrl_state)
+              );
 
     lcd_refresh u_lcd_refresh(
                     .pclk(pclk),
@@ -453,29 +505,39 @@ import lcd_types:
               .probe4(lcd_rd),  // input wire [0:0]  probe4
               .probe5(lcd_data_io),  // input wire [15:0]  probe5
               .probe6(lcd_rst),  // input wire [0:0]  probe6
-              .probe7(lcd_write_data_ctrl),  // input wire [0:0]  probe7
-              .probe8(init_mux_signal.init_data),  // input wire [31:0]  probe8
+              .probe7(char_work),  // input wire [0:0]  probe7
+              .probe8(debug_char_ctrl_state),  // input wire [31:0]  probe8
               .probe9(0),  // input wire [31:0]  probe9
               .probe10(lcd_data_o),  // input wire [15:0]  probe10
-              .probe11(0),  // input wire [31:0]  probe11
+              .probe11(debug_col),  // input wire [31:0]  probe11
               .probe12(graph_size),  // input wire [31:0]  probe12
               .probe13(lcd_data_i),  // input wire [15:0]  probe13
-              .probe14(data_i),  // input wire [15:0]  probe14
-              .probe15(ctrl_refresh_id),  // input wire [0:0]  probe15
-              .probe16(debug_is_main),  // input wire [0:0]  probe16
-              .probe17(enable),  // input wire [0:0]  probe17
-              .probe18(data_ok),  // input wire [0:0]  probe18
+              .probe14(debug_char_douta),  // input wire [15:0]  probe14
+              .probe15(char_write_ok),  // input wire [0:0]  probe15
+              .probe16(write_str_end),  // input wire [0:0]  probe16
+              .probe17(char_color_ok),  // input wire [0:0]  probe17
+              .probe18(debug_char_req),  // input wire [0:0]  probe18
               .probe19(refresh_ok),  // input wire [0:0]  probe19
-              .probe20(init_mux_signal.init_write_ok),  // input wire [0:0]  probe20
-              .probe21(init_mux_signal.init_finish),  // input wire [0:0]  probe21
-              .probe22(debug_refresh_flag),  // input wire [0:0]  probe22
-              .probe23(debug_refresh_data),  // input wire [15:0]  probe23
-              .probe24(debug_refresh_addra),  // input wire [9:0]  probe24
+              .probe20(char_data),  // input wire [15:0]  probe20
+              .probe21(debug_char_finish),  // input wire [0:0]  probe21
+              .probe22(debug_char_data_ok),  // input wire [0:0]  probe22
+              .probe23(debug_x),  // input wire [5:0]  probe23
+              .probe24(debug_y),  // input wire [5:0]  probe24
               .probe25(debug_next_state),  // input wire [31:0]  probe25
               .probe26(debug_current_state),  // input wire [31:0]  probe26
               .probe27(debug_inst_num),  // input wire [31:0]  probe27
               .probe28(debug_buffer_state),  // input wire [31:0]  probe28
-              .probe29(addra)  // input wire [16:0]  probe29
+              .probe29(addra),  // input wire [16:0]  probe29
+              .probe30(ctrl_char_color_id), // input wire [0:0]  probe30
+              .probe31(ctrl_char_rs_id), // input wire [0:0]  probe31
+              .probe32(init_mux_signal.init_finish), // input wire [0:0]  probe32
+              .probe33(enable), // input wire [0:0]  probe33
+              .probe34(data_ok), // input wire [0:0]  probe34
+              .probe35(refresh_rs), // input wire [0:0]  probe35
+              .probe36(ctrl_refresh_rs_id), // input wire [0:0]  probe36
+              .probe37(cpu_draw), // input wire [0:0]  probe37
+              .probe38(id_mux_signal.id_lcd_rs), // input wire [0:0]  probe38
+              .probe39(refresh_data) // input wire [0:0]  probe39
           );
 
 endmodule

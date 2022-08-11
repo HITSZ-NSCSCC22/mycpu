@@ -55,22 +55,51 @@ module lcd_ctrl (
         input logic s_bready,
 
         //to lcd_id
-        output logic [31:0] lcd_addr_buffer,  //store write reg addr
-        output logic [31:0] lcd_data_buffer,  //store data to lcd
-        output logic write_lcd,  //write lcd enable signal
-        output logic refresh,
-        output logic refresh_rs_o,
+        // output logic [31:0] lcd_addr_buffer,  //store write reg addr
+        // output logic [31:0] lcd_data_buffer,  //store data to lcd
+        // output logic write_lcd,  //write lcd enable signal
+
         //speeder
         output logic [31:0]buffer_data,//speeder
         output logic [31:0]buffer_addr,//speeder
         output logic data_valid,//tell lcd_id can receive data
         output logic [31:0]graph_size,
+        output logic refresh,
+        output logic refresh_rs_o,
+        output logic char_color,
+        output logic char_rs,
 
         //from lcd_interface
         input logic [31:0] lcd_input_data,  //data form lcd input
 
+        //from/to lcd_refresh
+        output logic enable,
+        output logic [6:0]refresh_req,//用于决定刷新的种类，
+        input logic [15:0]refresh_data,
+        input logic data_ok,
+        input logic refresh_ok_i,
+        input logic refresh_rs_i,
+
         //from lcd_id
-        input logic write_ok  //数据和指令写出去后才能继续写
+        input logic write_ok,  //数据和指令写出去后才能继续写
+
+        //from lcd_core
+        input logic [31:0]touch_reg,
+        input logic cpu_work,
+
+        //to char_ctrl
+        output logic [31:0]cpu_code,
+        output logic char_work,
+        output logic char_write_ok,
+
+        //from char_ctrl
+        input logic [15:0]char_data_i,
+        input logic char_color_ok,
+        input logic write_str_end,
+
+        //debug
+        output [31:0] debug_buffer_state,
+        output [31:0] debug_inst_num
     );
     enum logic [2:0] {
              R_ADDR = 3'b001,
@@ -85,7 +114,13 @@ module lcd_ctrl (
     enum int{
              IDLE,
              GRAPH,
-             DISPATCH_GRAPH//send graph inst to lcd_id
+             CHAR,
+             DISPATCH_GRAPH,//send graph inst to lcd_id
+             DISPATCH_CHAR,//send char inst to lcd_id
+             DISPATCH_CHAR_COLOR,//send char color data to lcd_id,字符的绘画需要对每个像素点进行监视
+             WAITING,
+             REFRESH
+
          } buffer_state;
     logic [31:0] addr_buffer;
     assign s_rresp = 0;
@@ -169,6 +204,9 @@ module lcd_ctrl (
     assign s_bid   = 0;
     assign s_bresp = 0;
     logic buffer_ok;//when buffer is full,drawing lcd
+    logic [31:0] lcd_addr_buffer; //store write reg addr
+    logic [31:0] lcd_data_buffer; //store data to lcd
+    logic write_lcd;  //write lcd enable signal
     //Write to lcd
     always_ff @(posedge pclk) begin
         if (~rst_n) begin
