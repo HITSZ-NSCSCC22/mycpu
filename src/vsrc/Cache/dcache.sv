@@ -83,14 +83,18 @@ module dcache
     logic [AXI_DATA_WIDTH-1:0] axi_wdata_o;
     logic [(AXI_DATA_WIDTH/8)-1:0] axi_wstrb_o;
 
+    logic bram_rdata_delay;
+
     // BRAM signals
-    logic [NWAY-1:0][DCACHELINE_WIDTH-1:0] data_bram_rdata, data_bram_wdata, p3_data_bram_rdata;
+    logic [NWAY-1:0][DCACHELINE_WIDTH-1:0]
+        data_bram_rdata, data_bram_rdata_delay, data_bram_wdata, p3_data_bram_rdata;
     logic [NWAY-1:0][NSET_WIDTH-1:0] data_bram_raddr, data_bram_waddr;
     logic [NWAY-1:0][(DCACHELINE_WIDTH/8)-1:0] data_bram_we;
 
     // Tag bram 
     // {1bit dirty,1bit valid, 20bits tag}
-    logic [NWAY-1:0][TAG_BRAM_WIDTH-1:0] tag_bram_rdata, p3_tag_bram_rdata;
+    logic [NWAY-1:0][TAG_BRAM_WIDTH-1:0]
+        tag_bram_rdata, tag_bram_rdata_delay, p3_tag_bram_rdata;
     logic [NWAY-1:0][TAG_BRAM_WIDTH-1:0] tag_bram_wdata;
     logic [NWAY-1:0][NSET_WIDTH-1:0] tag_bram_raddr, tag_bram_waddr;
     logic [NWAY-1:0] tag_bram_we, tag_bram_ren;
@@ -121,7 +125,7 @@ module dcache
 
 
     logic [DCACHELINE_WIDTH-1:0] hit_data;
-    logic fifo_full, dcache_stall;
+    logic fifo_full, dcache_stall, dcache_stall_delay;
 
     // P2
     logic p2_valid, p2_uncache_delay;
@@ -138,6 +142,10 @@ module dcache
     assign dcache_ready = ~dcache_stall;
     assign dcache_stall = (state != IDLE) || ((p3_valid & (p3_uncache_en | !hit) | cacop_req_valid) & !cpu_flush & mem_valid & !axi_valid_i_delay) || fifo_full;
     assign fifo_full = fifo_state[1];
+    always_ff @(posedge clk) begin
+        if (rst) dcache_stall_delay <= 0;
+        else dcache_stall_delay <= dcache_stall;
+    end
 
 
     //  the wstrb is not 0 means it is a write request;
@@ -303,6 +311,26 @@ module dcache
         if (rst) p2_uncache_delay <= 0;
         else if (dcache_stall) p2_uncache_delay <= uncache_en;
         else p2_uncache_delay <= 0;
+    end
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            bram_rdata_delay <= 0;
+            tag_bram_rdata_delay <= 0;
+            data_bram_rdata_delay <= 0;
+        end else if (dcache_stall & !dcache_stall_delay) begin
+            bram_rdata_delay <= 1;
+            tag_bram_rdata_delay <= tag_bram_rdata;
+            data_bram_rdata_delay <= data_bram_rdata;
+        end else if (!dcache_stall & dcache_stall_delay) begin
+            bram_rdata_delay <= 0;
+            tag_bram_rdata_delay <= 0;
+            data_bram_rdata_delay <= 0;
+        end else begin
+            bram_rdata_delay <= bram_rdata_delay;
+            tag_bram_rdata_delay <= tag_bram_rdata_delay;
+            data_bram_rdata_delay <= data_bram_rdata_delay;
+        end
     end
 
     // Stage 3
@@ -547,8 +575,8 @@ module dcache
             p3_cacop <= p2_cacop;
             p3_tag_hit <= tag_hit;
             p3_uncache_en <= uncache_en | p2_uncache_delay;
-            p3_tag_bram_rdata <= tag_bram_rdata;
-            p3_data_bram_rdata <= data_bram_rdata;
+            p3_tag_bram_rdata <= bram_rdata_delay ? tag_bram_rdata_delay : tag_bram_rdata;
+            p3_data_bram_rdata <= bram_rdata_delay ? data_bram_rdata_delay : data_bram_rdata;
             p3_cacop_way <= cacop_way;
             p3_cacop_op_mode0 <= cacop_op_mode0;
             p3_cacop_op_mode1 <= cacop_op_mode1;
