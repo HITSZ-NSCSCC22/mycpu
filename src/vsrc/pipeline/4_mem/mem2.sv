@@ -36,7 +36,9 @@ module mem2
 
     assign mem_load_op = special_info.mem_load;
 
-    assign data_forward_o = {mem2_o.wreg, !mem_load_op, mem2_o.waddr, mem2_o.wdata};
+    assign data_forward_o = {
+        mem2_o.wreg, !mem_load_op, mem2_o.waddr, mem2_o.wdata, mem2_o.csr_signal
+    };
 
 
     always_comb begin

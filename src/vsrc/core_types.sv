@@ -129,6 +129,10 @@ package core_types;
         logic data_valid;
         logic [`RegAddrBus] wreg_addr;
         logic [`RegBus] wreg_data;
+
+        logic csr_we;
+        logic [13:0] csr_addr;
+        logic [`RegBus] csr_data;
     } data_forward_t;
 
     typedef struct packed {

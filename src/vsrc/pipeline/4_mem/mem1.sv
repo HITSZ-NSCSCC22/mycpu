@@ -145,7 +145,9 @@ module mem1
     assign difftest_mem_info.timer_64 = ex_i.timer_64;
 
     // Data forward
-    assign data_forward_o = {mem2_o.wreg, !mem_load_op, mem2_o.waddr, mem2_o.wdata};
+    assign data_forward_o = {
+        mem2_o.wreg, !mem_load_op, mem2_o.waddr, mem2_o.wdata, mem2_o.csr_signal
+    };
 
     assign load_reg = {5{mem_load_op}} & mem2_o.waddr;
 

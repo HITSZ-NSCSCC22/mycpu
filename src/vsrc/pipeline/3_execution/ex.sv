@@ -169,8 +169,8 @@ module ex
     assign ex_o.oprand2 = oprand2;
 
     // Data forwarding 
-    assign data_forward_o = (muldiv_op != 0) ? {ex_o.wreg, muldiv_already_finish, ex_o.waddr, ex_o.wdata} : // Mul or Div op
-    {ex_o.wreg, ~mem_load_op, ex_o.waddr, ex_o.wdata}; // if is mem_load_op, then data is no valid, else data is valid
+    assign data_forward_o = (muldiv_op != 0) ? {ex_o.wreg, muldiv_already_finish, ex_o.waddr, ex_o.wdata,ex_o.csr_signal} : // Mul or Div op
+    {ex_o.wreg, ~mem_load_op, ex_o.waddr, ex_o.wdata,ex_o.csr_signal}; // if is mem_load_op, then data is no valid, else data is valid
 
 
     assign csr_signal_i = dispatch_i.csr_signal;

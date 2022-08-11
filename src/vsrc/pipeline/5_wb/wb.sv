@@ -106,5 +106,7 @@ module wb
 
     logic debug_redirect = special_info.redirect;
     logic debug_refetch = special_info.need_refetch;
+    logic [`RegBus] debug_pc = instr_info.pc;
+    logic [`RegBus] debug_wdata = mem_i.wdata;
 
 endmodule
