@@ -707,9 +707,12 @@ module dcache
                     axi_uncached_o = 1;
                     axi_size_o = 3'b100;
                     axi_addr_o = {
-                        p3_tag_bram_rdata[i][TAG_WIDTH-1:0], paddr[OFFSET_WIDTH+NSET_WIDTH-1:0]
+                        p3_tag_bram_rdata[i][TAG_WIDTH-1:0],
+                        p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH],
+                        4'b0
                     };
                     axi_wdata_o = p3_data_bram_rdata[i];
+                    axi_wstrb_o = 16'b1111_1111_1111_1111;
                 end
             end
             // wait for the data back
