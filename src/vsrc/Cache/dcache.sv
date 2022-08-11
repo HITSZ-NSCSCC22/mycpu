@@ -112,6 +112,8 @@ module dcache
     logic p3_cacop_op_mode0, p3_cacop_op_mode1, p3_cacop_op_mode2;
     logic [1:0] cacop_op_mode2_hit, p3_cacop_op_mode2_hit;
     logic [NWAY_WIDTH-1:0] cacop_way, p3_cacop_way;
+    logic [`DataAddrBus] cacop_req_waddr, cacop_req_waddr_delay;
+    logic [DCACHELINE_WIDTH-1:0] cacop_req_wdata, cacop_req_wdata_delay;
 
     logic [1:0] dirty;
 
@@ -325,6 +327,8 @@ module dcache
 
     always_comb begin : bram_data_gen
         cacop_req_valid = 0;
+        cacop_req_waddr = 0;
+        cacop_req_wdata = 0;
         for (integer i = 0; i < NWAY; i++) begin
             tag_bram_we[i] = 0;
             tag_bram_waddr[i] = 0;
@@ -376,6 +380,12 @@ module dcache
                         if ((p3_cacop_way == i[NWAY_WIDTH-1:0])) begin
                             if (p3_cacop_op_mode0 | p3_cacop_op_mode1) begin
                                 cacop_req_valid = 1;
+                                cacop_req_waddr = {
+                                    p3_tag_bram_rdata[i][TAG_BRAM_WIDTH-1:0],
+                                    p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH],
+                                    4'b0
+                                };
+                                cacop_req_wdata = p3_data_bram_rdata[i];
                                 tag_bram_we[i] = 1;
                                 tag_bram_waddr[i] = p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
                                 tag_bram_wdata[i] = 0;
@@ -383,6 +393,12 @@ module dcache
                         end
                         if (p3_cacop_op_mode2_hit[i]) begin
                             cacop_req_valid = 1;
+                            cacop_req_waddr = {
+                                p3_tag_bram_rdata[i][TAG_BRAM_WIDTH-1:0],
+                                p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH],
+                                4'b0
+                            };
+                            cacop_req_wdata = p3_data_bram_rdata[i];
                             tag_bram_we[i] = 1;
                             tag_bram_waddr[i] = p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH];
                             tag_bram_wdata[i] = 0;
@@ -633,6 +649,19 @@ module dcache
         endcase
     end
 
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            cacop_req_waddr_delay <= 0;
+            cacop_req_wdata_delay <= 0;
+        end else if (dcache_stall) begin
+            cacop_req_waddr_delay <= cacop_req_waddr_delay;
+            cacop_req_wdata_delay <= cacop_req_wdata_delay;
+        end else begin
+            cacop_req_waddr_delay <= cacop_req_waddr;
+            cacop_req_wdata_delay <= cacop_req_wdata;
+        end
+    end
+
     //handshake with axi
     always_comb begin
         fifo_w_accept = 0;  // which used to tell fifo if it can send data to axi
@@ -706,12 +735,8 @@ module dcache
                     axi_we_o = 1;
                     axi_uncached_o = 1;
                     axi_size_o = 3'b100;
-                    axi_addr_o = {
-                        p3_tag_bram_rdata[i][TAG_WIDTH-1:0],
-                        p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH],
-                        4'b0
-                    };
-                    axi_wdata_o = p3_data_bram_rdata[i];
+                    axi_addr_o = cacop_req_waddr_delay;
+                    axi_wdata_o = cacop_req_wdata_delay;
                     axi_wstrb_o = 16'b1111_1111_1111_1111;
                 end
             end
