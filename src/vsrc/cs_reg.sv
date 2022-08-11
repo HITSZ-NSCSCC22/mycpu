@@ -270,7 +270,7 @@ module cs_reg
                         {32{raddr[i] == `PMU_ICACHE_REQ}} & pmu_icache_req |
                         {32{raddr[i] == `PMU_ICACHE_MISS}} & pmu_icache_miss |
                         {32{raddr[i] == `PMU_DCACHE_REQ}} & pmu_dcache_req |
-                        {32{raddr[i] == `PMU_ICACHE_MISS}} & pmu_dcache_miss |
+                        {32{raddr[i] == `PMU_DCACHE_MISS}} & pmu_dcache_miss |
                         {32{raddr[i] == `PMU_BPU_VALID}} & pmu_bpu_valid |
                         {32{raddr[i] == `PMU_BPU_MISS}} & pmu_bpu_miss |
                         {32{raddr[i] == `PMU_BPU_BRANCH_INSTR}} & pmu_bpu_branch_instr |

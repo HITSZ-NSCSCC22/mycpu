@@ -53,7 +53,7 @@ module axi_master
 
     //read constants
     assign m_axi.arlen = 0;  // 1 request
-    assign m_axi.arburst = 0;  // burst type does not matter
+    assign m_axi.arburst = 1;  // burst type does not matter
     assign m_axi.rready = 1;  //always ready to receive data
 
     always_ff @(posedge clk) begin
@@ -134,5 +134,13 @@ module axi_master
         .result(m_axi.wvalid)
     );
     assign m_axi.wlast = m_axi.wvalid;
+
+    integer not_ready_cnt;
+    always_ff @(posedge clk) begin
+        if (rst | ready) not_ready_cnt <= 0;
+        else if (~ready) not_ready_cnt <= not_ready_cnt + 1;
+    end
+    logic stuck;
+    assign stuck = not_ready_cnt > 3000;
 
 endmodule
