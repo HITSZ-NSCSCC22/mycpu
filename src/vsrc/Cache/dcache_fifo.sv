@@ -70,21 +70,10 @@ module dcache_fifo
             //put it at the tail of the queue
             if (cpu_wreq_i && !write_hit_o) begin
                 tail <= tail + 1;
-<<<<<<< HEAD
-            end
-            queue_valid[tail] <= 1'b1;
-        end  // if axi is free and there is not write collsion then sent the data
-        if (axi_bvalid_i && queue_valid[head]) begin
-            queue_valid[head] <= 1'b0;
-            if (head == DEPTH[$clog2(DEPTH)-1:0] - 1) begin
-                head <= 0;
-            end else begin
-=======
                 queue_valid[tail] <= 1'b1;
                 addr_queue[tail] <= cpu_awaddr;
             end  // if axi is free and there is not write collsion then sent the data
-            if (axi_bvalid_i && !sign_rewrite && !write_hit_head && queue_valid[head]) begin
->>>>>>> origin/optim/ib
+            if (axi_bvalid_i && queue_valid[head]) begin
                 head <= head + 1;
                 queue_valid[head] <= 1'b0;
                 addr_queue[head] <= 0;
@@ -154,7 +143,7 @@ module dcache_fifo
     end
 
 
-    assign axi_wen_o = !empty & axi_bvalid_i & queue_valid[head] & ~write_hit_head;
+    assign axi_wen_o = !empty & axi_bvalid_i & queue_valid[head];
     assign axi_awaddr_o = addr_queue[head];
 
     lutram_1w_mr #(
