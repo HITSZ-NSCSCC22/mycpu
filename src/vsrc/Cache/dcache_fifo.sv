@@ -69,7 +69,7 @@ module dcache_fifo
     // then don't sent the data to the memory 
     always @(posedge clk) begin
         if (rst) sign_rewrite <= 1'b0;
-        else if (axi_bvalid_i) sign_rewrite <= 1'b0;
+        else if (axi_bvalid_i & axi_accepted) sign_rewrite <= 1'b0;
         else if (write_hit_head) sign_rewrite <= 1'b1;
         else sign_rewrite <= sign_rewrite;
     end
@@ -107,7 +107,7 @@ module dcache_fifo
         for (integer i = 0; i < DEPTH; i = i + 1) begin
             if (cpu_rreq_i)
                 read_hit[i] <= ((cpu_araddr[31:4] == addr_queue[i][31:4]) && queue_valid[i]) ? 1'b1 : 1'b0;
-            else read_hit[i] <= 0;
+            // Hold output if no rreq
         end
     end
 

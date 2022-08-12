@@ -282,6 +282,7 @@ module mem1
         mem2_o.instr_info = ex_i.instr_info;
         mem2_o.instr_info.excp = excp;
         mem2_o.instr_info.excp_num = excp_num;
+        mem2_o.instr_info.special_info.mem_store = special_info.mem_store | dcacop_en_o;
 
         mem2_o.wreg = ex_i.wreg;
         mem2_o.waddr = ex_i.waddr;
