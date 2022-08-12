@@ -156,7 +156,7 @@ module dcache_fifo
     end
 
 
-    assign axi_wen_o = !empty & axi_bvalid_i & queue_valid[head] & ~write_hit_head;
+    assign axi_wen_o = !empty & axi_bvalid_i & queue_valid[head];
     assign axi_awaddr_o = addr_queue[head];
 
     lutram_1w_mr #(

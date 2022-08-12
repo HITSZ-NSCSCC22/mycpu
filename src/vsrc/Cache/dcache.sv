@@ -840,24 +840,86 @@ module dcache
     );
 
 
-    axi_dcache_master #(
-        .ID(0)
-    ) u_axi_master (
+    // axi_dcache_master #(
+    //     .ID(0)
+    // ) u_axi_master (
+    //     .clk        (clk),
+    //     .rst        (rst),
+    //     .m_axi      (m_axi),
+    //     .new_request(axi_req_o),
+    //     .we         (axi_we_o),
+    //     .uncached   (axi_uncached_o),
+    //     .addr       (axi_addr_o),
+    //     .size       (axi_size_o),
+    //     .data_in    (axi_wdata_o),
+    //     .wstrb      (axi_wstrb_o),
+    //     .ready_out  (axi_rdy_i),
+    //     .rvalid_out (axi_rvalid_i),
+    //     .wvalid_out (axi_bvalid_i),
+    //     .data_out   (axi_data_i)
+    // );
+
+    axi_read_channel #(
+        .ID(1)
+    ) u_axi_read_channel (
         .clk        (clk),
         .rst        (rst),
-        .m_axi      (m_axi),
-        .new_request(axi_req_o),
-        .we         (axi_we_o),
-        .uncached   (axi_uncached_o),
-        .addr       (axi_addr_o),
-        .size       (axi_size_o),
-        .data_in    (axi_wdata_o),
-        .wstrb      (axi_wstrb_o),
-        .ready_out  (axi_rdy_i),
-        .rvalid_out (axi_rvalid_i),
-        .wvalid_out (axi_bvalid_i),
-        .data_out   (axi_data_i)
+        .new_request(),
+        .uncached   (),
+        .addr       (),
+        .size       (),
+        .data_out   (),
+        .ready_out  (),
+        .arready    (m_axi.arready),
+        .arvalid    (m_axi.arvalid),
+        .arid       (m_axi.arid),
+        .arlen      (m_axi.arlen),
+        .arburst    (m_axi.arburst),
+        .arsize     (m_axi.arsize),
+        .araddr     (m_axi.araddr),
+        .arcache    (m_axi.arcache),
+        .rready     (m_axi.rready),
+        .rvalid     (m_axi.rvalid),
+        .rlast      (m_axi.rlast),
+        .rid        (m_axi.rid),
+        .rdata      (m_axi.rdata),
+        .rresp      (m_axi.rresp)
     );
+
+    axi_write_channel #(
+        .ID(1)
+    ) u_axi_write_channel (
+        .clk        (clk),
+        .rst        (rst),
+        .new_request(),
+        .uncached   (),
+        .addr       (),
+        .size       (),
+        .data_in    (),
+        .wstrb_in   (),
+        .ready_out  (),
+        .bvalid_out (),
+        .awready    (m_axi.awready),
+        .awvalid    (m_axi.awvalid),
+        .awid       (m_axi.awid),
+        .awlen      (m_axi.awlen),
+        .awburst    (m_axi.awburst),
+        .awsize     (m_axi.awsize),
+        .awaddr     (m_axi.awaddr),
+        .awcache    (m_axi.awcache),
+        .wready     (m_axi.wready),
+        .wvalid     (m_axi.wvalid),
+        .wlast      (m_axi.wlast),
+        .wdata      (m_axi.wdata),
+        .wstrb      (m_axi.wstrb),
+        .wid        (m_axi.wid),
+        .bready     (m_axi.bready),
+        .bvalid     (m_axi.bvalid),
+        .bid        (m_axi.bid),
+        .bresp      (m_axi.bresp)
+    );
+
+
 
 
 
