@@ -1,5 +1,7 @@
 //char library
 //用于从字库中取出字符的点阵
+`define CHAR_WIDTH 23
+`define CHAR_HEIGHT 31
 module char_lib (
         input      logic pclk,
         input      logic rst_n,
@@ -12,7 +14,7 @@ module char_lib (
 
         //to char_ctrl
         output     logic data_ok,
-        output     logic [15:0]douta,
+        output     logic [`CHAR_WIDTH:0]douta,
         output     logic finish,
         output     logic [31:0]col
     );
@@ -25,7 +27,7 @@ module char_lib (
          } state;
     logic [31:0]count;
     logic flag;
-    assign flag=(count==31)?1:0;
+    assign flag=(count==`CHAR_HEIGHT)?1:0;
     always_ff @(posedge pclk) begin
         if(~rst_n)
             count<=0;
@@ -105,7 +107,7 @@ module char_lib (
                      .ena(1),      // input wire ena
                      .wea(0),      // input wire [0 : 0] wea
                      .addra(addra),  // input wire [9 : 0] addra
-                     .dina(0),    // input wire [15 : 0] dina
-                     .douta(douta)  // output wire [15 : 0] douta
+                     .dina(0),    // input wire [23 : 0] dina
+                     .douta(douta)  // output wire [23 : 0] douta
                  );
 endmodule //moduleName

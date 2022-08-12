@@ -1,6 +1,6 @@
 //字符绘制模块,用来绘制字符
 `define X_START 0
-`define X_END   15
+`define X_END   23
 `define Y_START 0
 `define Y_END   31
 `define BACK_COLOR 16'h5555
@@ -22,7 +22,7 @@ module char_ctrl (
         //debug
         output logic [31:0]debug_col,
         output logic debug_char_req,
-        output logic [15:0]debug_char_douta,
+        output logic [`X_END:0]debug_char_douta,
         output logic debug_char_data_ok,
         output logic debug_char_finish,
         output logic [5:0]debug_x,
@@ -39,7 +39,7 @@ module char_ctrl (
 
     //from char_lib
     logic data_ok;
-    logic [15:0]douta;
+    logic [`X_END:0]douta;
     logic finish;
     logic [31:0]col;
 
@@ -146,7 +146,7 @@ module char_ctrl (
         end
     end
 
-    logic [15:0]char_buffer[0:31];
+    logic [`X_END:0]char_buffer[0:`Y_END];
     logic [31:0]cpu_code_buffer;
     always_ff @(posedge pclk) begin
         if(~rst_n) begin
@@ -159,6 +159,7 @@ module char_ctrl (
         else begin
             case(state)
                 IDLE: begin
+                    //char_work只会拉高一个周期
                     if(char_work) begin
                         state<=GET_DATA;
                         cpu_code_buffer<=cpu_code;
@@ -209,8 +210,8 @@ module char_ctrl (
     //对lcd_ctrl的指令译码
     always_ff @(posedge pclk) begin
         if(~rst_n)  begin
-            for(integer i=0;i<=31;i++) begin
-                char_buffer[i]<=16'b0;
+            for(integer i=0;i<=`Y_END;i++) begin
+                char_buffer[i]<=0;
             end
             ascii_code<=0;
             chinese_code<=0;
@@ -222,8 +223,8 @@ module char_ctrl (
             chinese_code<=0;
             is_en<=0;
             char_req<=1;
-            for(integer i=0;i<=31;i++) begin
-                char_buffer[i]<=16'b0;
+            for(integer i=0;i<=`Y_END;i++) begin
+                char_buffer[i]<=0;
             end
         end
         else  if(state==GET_DATA) begin

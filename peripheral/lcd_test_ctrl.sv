@@ -155,9 +155,9 @@ module lcd_test_ctrl (
                     //连续缓存5条sw
                     char_buffer[0]<=32'h3600_0000;
                     char_buffer[1]<=32'h2a00_0000;
-                    char_buffer[2]<=32'h2a02_000F;
+                    char_buffer[2]<=32'h2a02_0017;
                     char_buffer[3]<=32'h2b00_0000;
-                    char_buffer[4]<=32'h2b02_0020;
+                    char_buffer[4]<=32'h2b02_001F;
                     char_buffer[5]<=32'h0;
                     char_buffer[6]<=32'h0;
                     buffer_state<=DISPATCH_CHAR;

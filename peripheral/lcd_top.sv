@@ -431,7 +431,7 @@ import lcd_types:
 
     logic [31:0]debug_col;
     logic debug_char_req;
-    logic [15:0]debug_char_douta;
+    logic [23:0]debug_char_douta;
     logic debug_char_data_ok;
     logic debug_char_finish;
     logic [5:0]debug_x;
@@ -512,7 +512,7 @@ import lcd_types:
               .probe11(debug_col),  // input wire [31:0]  probe11
               .probe12(graph_size),  // input wire [31:0]  probe12
               .probe13(lcd_data_i),  // input wire [15:0]  probe13
-              .probe14(debug_char_douta),  // input wire [15:0]  probe14
+              .probe14(debug_char_douta),  // input wire [23:0]  probe14
               .probe15(char_write_ok),  // input wire [0:0]  probe15
               .probe16(write_str_end),  // input wire [0:0]  probe16
               .probe17(char_color_ok),  // input wire [0:0]  probe17
