@@ -902,7 +902,6 @@ module dcache
                 .addrb(data_bram_raddr[i]),
                 .doutb(data_bram_rdata[i])
             );
-            // `endif
         end
     endgenerate
 
