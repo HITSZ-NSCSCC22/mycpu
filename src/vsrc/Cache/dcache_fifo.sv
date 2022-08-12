@@ -44,6 +44,7 @@ module dcache_fifo
     logic [`DataAddrBus] cpu_araddr;
 
     logic sign_rewrite;
+    logic axi_accepted;
 
     logic [DEPTH-1:0] read_hit, write_hit;
 
@@ -72,6 +73,11 @@ module dcache_fifo
         else if (write_hit_head) sign_rewrite <= 1'b1;
         else sign_rewrite <= sign_rewrite;
     end
+    always_ff @(posedge clk) begin
+        if (rst) axi_accepted <= 0;
+        else if (axi_req_accept) axi_accepted <= 1'b1;
+        else if (axi_bvalid_i) axi_accepted <= 1'b0;
+    end
 
 
     always_ff @(posedge clk) begin
@@ -88,7 +94,7 @@ module dcache_fifo
                 queue_valid[tail] <= 1'b1;
                 addr_queue[tail] <= cpu_awaddr;
             end  // if axi is free and there is not write collsion then sent the data
-            if (axi_req_accept && !sign_rewrite && !write_hit_head && queue_valid[head]) begin
+            if (axi_bvalid_i && axi_accepted && !sign_rewrite && !write_hit_head && queue_valid[head]) begin
                 head <= head + 1;
                 queue_valid[head] <= 1'b0;
                 addr_queue[head] <= 0;
@@ -157,7 +163,7 @@ module dcache_fifo
     end
 
 
-    assign axi_wen_o = !empty & axi_bvalid_i & queue_valid[head];
+    assign axi_wen_o = !empty & queue_valid[head] & (~axi_accepted);
     assign axi_awaddr_o = addr_queue[head];
 
     lutram_1w_mr #(

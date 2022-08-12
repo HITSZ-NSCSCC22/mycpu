@@ -89,7 +89,7 @@ module axi_read_channel
         if (rvalid) data_out <= rdata;
     end
     always_ff @(posedge clk) begin
-        rvalid_out <= rvalid;
+        rvalid_out <= rvalid && rid == ID;
     end
 
 
