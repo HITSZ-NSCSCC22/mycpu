@@ -1,7 +1,7 @@
 module dual_port_lutram #(
     parameter DATA_WIDTH = 128,
-    parameter ADDR_WIDTH = 8,
-    parameter DATA_DEPTH_EXP2 = 8
+    parameter DATA_DEPTH_EXP2 = 8,
+    parameter ADDR_WIDTH = DATA_DEPTH_EXP2
 ) (
     input logic clk,
 

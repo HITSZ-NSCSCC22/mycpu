@@ -236,8 +236,8 @@ module dcache
 
     // Hit signal
     always_comb begin
-        if (uncache_en) tag_hit = 0;
-        else begin
+        tag_hit = 0;
+        if (p2_valid & ~p2_uncache_en) begin
             tag_hit[0] = tag_bram_rdata[0][TAG_WIDTH-1:0] == p2_paddr[ADDR_WIDTH-1:ADDR_WIDTH-TAG_WIDTH] && tag_bram_rdata[0][TAG_WIDTH];
             tag_hit[1] = tag_bram_rdata[1][TAG_WIDTH-1:0] == p2_paddr[ADDR_WIDTH-1:ADDR_WIDTH-TAG_WIDTH] && tag_bram_rdata[1][TAG_WIDTH];
         end
@@ -250,7 +250,7 @@ module dcache
     always_comb begin : fifo_read_req
         fifo_rreq  = 0;
         fifo_raddr = 0;
-        if (state == IDLE & p2_valid & !uncache_en) begin
+        if (state == IDLE & p2_valid & !p2_uncache_en) begin
             fifo_rreq  = 1;
             fifo_raddr = p2_paddr;
         end
@@ -284,7 +284,7 @@ module dcache
     // keep the uncache_en for stage 3 when stall
     always_ff @(posedge clk) begin
         if (rst) p2_uncache_delay <= 0;
-        else if (dcache_stall) p2_uncache_delay <= uncache_en;
+        else if (dcache_stall) p2_uncache_delay <= p2_uncache_en;
         else p2_uncache_delay <= 0;
     end
 

@@ -1,8 +1,8 @@
 module byte_bram #(
     parameter DATA_WIDTH = 128,
-    parameter ADDR_WIDTH = 8,
     parameter DATA_DEPTH_EXP2 = 8,
-    parameter BYTE_NUM = 16
+    parameter ADDR_WIDTH = DATA_DEPTH_EXP2,
+    parameter BYTE_NUM = DATA_WIDTH / 8
 ) (
     input logic clk,
 
