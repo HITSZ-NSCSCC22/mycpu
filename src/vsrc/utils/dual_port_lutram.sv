@@ -16,7 +16,7 @@ module dual_port_lutram #(
 );
 
 
-    bit [DATA_WIDTH-1:0] data[2**DATA_DEPTH_EXP2];
+    (* ram_style = "block" *) logic [DATA_WIDTH-1:0] data[2**DATA_DEPTH_EXP2];
 
 
     initial begin
@@ -27,7 +27,7 @@ module dual_port_lutram #(
 
     always_ff @(posedge clk) begin
         if (enb) doutb <= data[addrb];
-        else doutb <= doutb;
+        else doutb <= 0;
     end
 
     // Write logic

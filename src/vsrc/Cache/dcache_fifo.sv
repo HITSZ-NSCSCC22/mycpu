@@ -21,6 +21,7 @@ module dcache_fifo
     output logic [1:0] state,
     //write to memory 
     input logic axi_bvalid_i,
+    input logic axi_req_accept,
     output logic axi_wen_o,
     output logic [DCACHELINE_WIDTH-1:0] axi_wdata_o,
     output logic [`DataAddrBus] axi_awaddr_o
@@ -43,12 +44,15 @@ module dcache_fifo
     logic [`DataAddrBus] cpu_araddr;
 
     logic sign_rewrite;
+    logic axi_accepted;
 
     logic [DEPTH-1:0] read_hit, write_hit;
 
     logic write_hit_head;
 
+    logic queue_wreq;
     logic [$clog2(DEPTH)-1:0] queue_waddr, queue_raddr;
+    logic [DCACHELINE_WIDTH-1:0] queue_wdata;
 
     assign state = {full, empty};
 
@@ -69,6 +73,11 @@ module dcache_fifo
         else if (write_hit_head) sign_rewrite <= 1'b1;
         else sign_rewrite <= sign_rewrite;
     end
+    always_ff @(posedge clk) begin
+        if (rst) axi_accepted <= 0;
+        else if (axi_req_accept) axi_accepted <= 1'b1;
+        else if (axi_bvalid_i) axi_accepted <= 1'b0;
+    end
 
 
     always_ff @(posedge clk) begin
@@ -76,26 +85,22 @@ module dcache_fifo
             head <= 0;
             tail <= 0;
             queue_valid <= 0;
-        end  //if dcache sent a new data which don't hit 
-             //put it at the tail of the queue
-        if (cpu_wreq_i == `WriteEnable && write_hit_o == 1'b0) begin
-            if (tail == DEPTH[$clog2(DEPTH)-1:0] - 1) begin
-                tail <= 0;
-            end else begin
+            addr_queue <= 0;
+        end else begin
+            //if dcache sent a new data which don't hit 
+            //put it at the tail of the queue
+            if (cpu_wreq_i && !write_hit_o) begin
                 tail <= tail + 1;
-            end
-            queue_valid[tail] <= 1'b1;
-        end  // if axi is free and there is not write collsion then sent the data
-        if (axi_bvalid_i && !sign_rewrite && !write_hit_head && queue_valid[head]) begin
-            queue_valid[head] <= 1'b0;
-            if (head == DEPTH[$clog2(DEPTH)-1:0] - 1) begin
-                head <= 0;
-            end else begin
+                queue_valid[tail] <= 1'b1;
+                addr_queue[tail] <= cpu_awaddr;
+            end  // if axi is free and there is not write collsion then sent the data
+            if (axi_bvalid_i && axi_accepted && !sign_rewrite && !write_hit_head && queue_valid[head]) begin
                 head <= head + 1;
+                queue_valid[head] <= 1'b0;
+                addr_queue[head] <= 0;
             end
         end
     end
-
     //Read Hit
     assign read_hit_o = |read_hit;
     always_ff @(posedge clk) begin
@@ -129,29 +134,36 @@ module dcache_fifo
     end
 
 
+
+
     always_ff @(posedge clk) begin
         if (rst) begin
-            addr_queue <= 0;
-        end else if (cpu_wreq_i & !write_hit_o) begin
-            addr_queue[tail] <= cpu_awaddr;
-        end
-    end
-
-    always_comb begin
-        queue_waddr = 0;
-        if (cpu_wreq_i) begin
+            queue_wreq  <= 0;
+            queue_waddr <= 0;
+            queue_wdata <= 0;
+        end else if (cpu_wreq_i) begin
             if (write_hit_o) begin
                 for (integer i = 0; i < DEPTH; i = i + 1) begin
-                    if (write_hit[i] == 1'b1) queue_waddr = i[$clog2(DEPTH)-1:0];
+                    if (write_hit[i] == 1'b1) begin
+                        queue_wreq  <= 1;
+                        queue_waddr <= i[$clog2(DEPTH)-1:0];
+                        queue_wdata <= cpu_wdata_i;
+                    end
                 end
             end else begin
-                queue_waddr = tail;
+                queue_wreq  <= 1;
+                queue_waddr <= tail;
+                queue_wdata <= cpu_wdata_i;
             end
+        end else begin
+            queue_wreq  <= 0;
+            queue_waddr <= 0;
+            queue_wdata <= 0;
         end
     end
 
 
-    assign axi_wen_o = !empty & axi_bvalid_i & queue_valid[head];
+    assign axi_wen_o = !empty & queue_valid[head] & (~axi_accepted);
     assign axi_awaddr_o = addr_queue[head];
 
     lutram_1w_mr #(
@@ -164,8 +176,8 @@ module dcache_fifo
         .waddr(queue_waddr),
         .raddr({queue_raddr, head}),
 
-        .ram_write(cpu_wreq_i),
-        .new_ram_data(cpu_wdata_i),
+        .ram_write(queue_wreq),
+        .new_ram_data(queue_wdata),
         .ram_data_out({cpu_rdata_o, axi_wdata_o})
     );
 
