@@ -261,8 +261,8 @@ module dcache
 
     // Hit signal
     always_comb begin
-        if (uncache_en) tag_hit = 0;
-        else if (p2_valid) begin
+        tag_hit = 0;
+        if (p2_valid & ~uncache_en) begin
             for (integer i = 0; i < NWAY; i++) begin
                 tag_hit[i] = tag_bram_rdata[i][TAG_WIDTH-1:0] == paddr[ADDR_WIDTH-1:ADDR_WIDTH-TAG_WIDTH] && tag_bram_rdata[i][TAG_WIDTH];
             end
