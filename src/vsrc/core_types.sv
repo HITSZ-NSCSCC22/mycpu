@@ -140,7 +140,6 @@ package core_types;
         // Info added from EX
         logic [`AluOpBus] aluop;
         logic [`RegBus] mem_addr;
-        logic [`RegBus] store_data;
         logic [`RegBus] oprand2;
         // EX result
         logic wreg;

@@ -68,7 +68,7 @@ module mem1
 
     logic [ADDR_WIDTH-1:0] mem_vaddr, mem_paddr;
 
-    logic [`RegBus] oprand2;
+    logic [`RegBus] oprand2, store_data;
 
     logic last_is_mem, last_is_mem_delay;
     logic [$clog2(
@@ -99,6 +99,7 @@ module mem1
     assign mem_vaddr = ex_i.mem_addr;
 
     assign oprand2 = ex_i.oprand2;
+    assign store_data = dcache_rreq_o.data;
 
     // if it is not a mem instr,we don't send the uncache en 
     assign uncache_en = access_mem ?  (ex_i.data_uncache_en || (ex_i.data_addr_trans_en && (tlb_result_i.tlb_mat == 2'b0))) : 0;
@@ -296,7 +297,7 @@ module mem1
         mem2_o.inv_i = ex_i.inv_i;
 
         mem2_o.difftest_mem_info = difftest_mem_info;
-        mem2_o.difftest_mem_info.store_data = ex_i.store_data;
+        mem2_o.difftest_mem_info.store_data = store_data;
         if (mem_access_valid) begin  // if tlb miss,then do nothing
             case (aluop_i)
                 `EXE_LL_OP: begin
@@ -308,7 +309,7 @@ module mem1
                         mem2_o.LLbit_we = 1'b1;
                         mem2_o.LLbit_value = 1'b0;
                         mem2_o.wreg = 1;
-                        mem2_o.difftest_mem_info.store_data = ex_i.store_data;
+                        mem2_o.difftest_mem_info.store_data = store_data;
                         mem2_o.wdata = 32'b1;
                     end else begin
                         mem2_o.wreg = 1;
