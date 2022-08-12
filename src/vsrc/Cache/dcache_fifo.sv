@@ -21,6 +21,7 @@ module dcache_fifo
     output logic [1:0] state,
     //write to memory 
     input logic axi_bvalid_i,
+    input logic axi_req_accept,
     output logic axi_wen_o,
     output logic [DCACHELINE_WIDTH-1:0] axi_wdata_o,
     output logic [`DataAddrBus] axi_awaddr_o
@@ -87,7 +88,7 @@ module dcache_fifo
                 queue_valid[tail] <= 1'b1;
                 addr_queue[tail] <= cpu_awaddr;
             end  // if axi is free and there is not write collsion then sent the data
-            if (axi_bvalid_i && !sign_rewrite && !write_hit_head && queue_valid[head]) begin
+            if (axi_req_accept && !sign_rewrite && !write_hit_head && queue_valid[head]) begin
                 head <= head + 1;
                 queue_valid[head] <= 1'b0;
                 addr_queue[head] <= 0;
