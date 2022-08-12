@@ -196,14 +196,15 @@ module cpu_top
     logic [1:0] wb_dcache_flush;  // flush dcache if excp
     logic [1:0][`RegBus] wb_dcache_flush_pc;
     logic dcache_ack, dcache_ready;
+    (* EQUIVALENT_REGISTER_REMOVAL="NO" *)logic [1:0] ex_dcache_ready;
     logic [1:0] mem_valid;
 
-    assign mem_cache_ce = mem_cache_signal[0].ce | mem_cache_signal[1].ce;
-    assign mem_cache_we = mem_cache_signal[0].we | mem_cache_signal[1].we;
-    assign mem_cache_sel =  mem_cache_signal[0].we ? mem_cache_signal[0].sel : mem_cache_signal[1].we ? mem_cache_signal[1].sel : 0;
-    assign mem_cache_req_type = mem_cache_signal[0].ce ? mem_cache_signal[0].req_type : mem_cache_signal[1].ce ? mem_cache_signal[1].req_type : 0;
-    assign mem_cache_addr = mem_cache_signal[0].addr | mem_cache_signal[1].addr;
-    assign mem_cache_data =  mem_cache_signal[0].we ? mem_cache_signal[0].data : mem_cache_signal[1].we ? mem_cache_signal[1].data : 0;
+    assign mem_cache_ce = mem_cache_signal[0].ce;
+    assign mem_cache_we = mem_cache_signal[0].we;
+    assign mem_cache_sel = mem_cache_signal[0].we ? mem_cache_signal[0].sel : 0;
+    assign mem_cache_req_type = mem_cache_signal[0].ce ? mem_cache_signal[0].req_type : 0;
+    assign mem_cache_addr = mem_cache_signal[0].addr;
+    assign mem_cache_data = mem_cache_signal[0].we ? mem_cache_signal[0].data : 0;
 
     // Ctrl -> Regfile
     wb_reg_t [COMMIT_WIDTH-1:0] regfile_write;
@@ -261,14 +262,10 @@ module cpu_top
 
     logic [$clog2(TLB_NUM)-1:0] rand_index_diff;
 
-    logic control_dcache_valid, control_dcache_ready;
-    logic [`RegBus] control_dcache_addr, control_dcache_wdata, control_dcache_rdata;
-    logic [3:0] control_dcache_wstrb;
-
     // PMU
     pmu_input_t pmu_data;
     assign pmu_data.ib_full = ib_frontend_stallreq;
-    assign pmu_data.ib_empty = u_instr_buffer.write_ptr == u_instr_buffer.read_ptr;
+    assign pmu_data.ib_empty = u_instr_buffer.empty;
     assign pmu_data.bpu_branch_instr = backend_commit_meta.is_branch;
     assign pmu_data.bpu_valid = ex[0].u_ex.special_info.predict_valid & ex[0].u_ex.advance;
     assign pmu_data.bpu_miss = ex_redirect[0];
@@ -630,10 +627,7 @@ module cpu_top
 
     // Instruction Buffer
     // FIFO buffer
-    instr_buffer #(
-        .IF_WIDTH(FETCH_WIDTH),
-        .ID_WIDTH(2)             // TODO: remove magic number
-    ) u_instr_buffer (
+    instr_buffer u_instr_buffer (
         .clk(clk),
         .rst(rst),
 
@@ -750,6 +744,9 @@ module cpu_top
     assign next_pc = pipeline_flush[7] ? backend_redirect_pc :
                      (ex_redirect[0]) ? ex_redirect_target[0] : 
                      (ex_redirect[1]) ? ex_redirect_target[1] : 0;
+
+    assign ex_dcache_ready[0] = dcache_ready;
+    assign ex_dcache_ready[1] = 1;
 
 
     ex_mem_struct ex_mem_signal[2];

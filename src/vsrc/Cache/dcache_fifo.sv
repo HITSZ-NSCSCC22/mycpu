@@ -136,6 +136,8 @@ module dcache_fifo
 
 
 
+
+
     always_ff @(posedge clk) begin
         if (rst) begin
             queue_wreq  <= 0;

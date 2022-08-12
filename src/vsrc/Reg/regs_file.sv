@@ -29,6 +29,7 @@ module regs_file
 
 
     // Difftest
+`ifdef SIMULATION
     logic [WRITE_PORTS-1:0][GPR_NUM-1:0][DATA_WIDTH-1:0] write_bank_regs;
     logic [DATA_WIDTH-1:0] regs[GPR_NUM-1:0];
     always_comb begin
@@ -39,6 +40,7 @@ module regs_file
             regs[i] = write_bank_regs[u_lvt.ram[i]][i];
         end
     end
+`endif
 
 
     last_valid_table u_lvt (

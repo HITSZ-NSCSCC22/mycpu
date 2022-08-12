@@ -111,8 +111,8 @@ package core_config;
     parameter DCACHELINE_WIDTH = 128;
     parameter DCACHE_FIFO_DEPTH = 8;
 
-    // LSU parameters
-    parameter LSU_STORE_QUEU_SIZE = 4;
+    parameter INSTR_BUFFER_SIZE = 32;
+    parameter INSTR_BUFFER_CHANNEL = FETCH_WIDTH;   // channel number, must be the power of 2, set to FETCH_WIDTH for now
 
     // Commit Parameters
     parameter COMMIT_WIDTH = 2;

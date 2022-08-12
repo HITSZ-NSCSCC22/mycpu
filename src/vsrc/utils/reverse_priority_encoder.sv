@@ -52,7 +52,7 @@ module reverse_priority_encoder #(
     endfunction
 
     //Initialize Table
-    localparam logic [2**MIN_WIDTH-1:0][LOG2_WIDTH-1 : 0] ENCODER_ROM = table_gen();
+    (* rom_style = "distributed" *) logic [2**MIN_WIDTH-1:0][LOG2_WIDTH-1 : 0] ENCODER_ROM = table_gen();
 
     ////////////////////////////////////////////////////
     //Implementation
