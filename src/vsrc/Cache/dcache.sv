@@ -4,7 +4,9 @@
 `include "utils/byte_bram.sv"
 `include "utils/dual_port_lutram.sv"
 `include "Cache/dcache_fifo.sv"
-`include "axi/axi_dcache_master.sv"
+// `include "axi/axi_dcache_master.sv"
+`include "axi/axi_read_channel.sv"
+`include "axi/axi_write_channel.sv"
 `include "axi/axi_interface.sv"
 
 module dcache
@@ -915,7 +917,7 @@ module dcache
         .wlast      (m_axi.wlast),
         .wdata      (m_axi.wdata),
         .wstrb      (m_axi.wstrb),
-        .wid        (m_axi.wid),
+        .wid        (),
         .bready     (m_axi.bready),
         .bvalid     (m_axi.bvalid),
         .bid        (m_axi.bid),
