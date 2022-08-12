@@ -51,7 +51,7 @@ module axi_read_channel
         if (new_request) begin
             arsize  <= size;
             araddr  <= addr;
-            arcache <= uncached ? 4'b0000 : 4'b0000;
+            arcache <= uncached ? 4'b0000 : 4'b1111;
         end
     end
 

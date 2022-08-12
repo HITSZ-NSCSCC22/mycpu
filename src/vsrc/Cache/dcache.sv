@@ -906,36 +906,36 @@ module dcache
     // BRAM instantiation
     generate
         for (genvar i = 0; i < NWAY; i++) begin : bram_ip
-`ifdef BRAM_IP
-            bram_dcache_tag_ram u_tag_bram (
-                .clka (clk),
-                .clkb (clk),
-                .ena  (1'b1),
-                .enb  (~dcache_stall),
-                .wea  (tag_bram_we[i]),
-                .web  (0),
-                .dina (tag_bram_wdata[i]),
-                .addra(tag_bram_waddr[i]),
-                .douta(),
-                .dinb (tag_bram_wdata[i]),
-                .addrb(tag_bram_raddr[i]),
-                .doutb(tag_bram_rdata[i])
-            );
-            dcache_data_bram u_data_bram (
-                .clka (clk),
-                .clkb (clk),
-                .ena  (1'b1),
-                .enb  (~dcache_stall),
-                .wea  (data_bram_we[i]),
-                .web  (0),
-                .dina (data_bram_wdata[i]),
-                .addra(data_bram_waddr[i]),
-                .douta(),
-                .dinb (data_bram_wdata[i]),
-                .addrb(data_bram_raddr[i]),
-                .doutb(data_bram_rdata[i])
-            );
-`else
+            // `ifdef BRAM_IP
+            //             bram_dcache_tag_ram u_tag_bram (
+            //                 .clka (clk),
+            //                 .clkb (clk),
+            //                 .ena  (1'b1),
+            //                 .enb  (~dcache_stall),
+            //                 .wea  (tag_bram_we[i]),
+            //                 .web  (0),
+            //                 .dina (tag_bram_wdata[i]),
+            //                 .addra(tag_bram_waddr[i]),
+            //                 .douta(),
+            //                 .dinb (tag_bram_wdata[i]),
+            //                 .addrb(tag_bram_raddr[i]),
+            //                 .doutb(tag_bram_rdata[i])
+            //             );
+            //             dcache_data_bram u_data_bram (
+            //                 .clka (clk),
+            //                 .clkb (clk),
+            //                 .ena  (1'b1),
+            //                 .enb  (~dcache_stall),
+            //                 .wea  (data_bram_we[i]),
+            //                 .web  (0),
+            //                 .dina (data_bram_wdata[i]),
+            //                 .addra(data_bram_waddr[i]),
+            //                 .douta(),
+            //                 .dinb (data_bram_wdata[i]),
+            //                 .addrb(data_bram_raddr[i]),
+            //                 .doutb(data_bram_rdata[i])
+            //             );
+            // `else
 
             dual_port_lutram #(
                 .DATA_WIDTH     (TAG_BRAM_WIDTH),
@@ -963,7 +963,7 @@ module dcache
                 .addrb(data_bram_raddr[i]),
                 .doutb(data_bram_rdata[i])
             );
-`endif
+            // `endif
         end
     endgenerate
 

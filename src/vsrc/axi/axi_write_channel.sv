@@ -57,7 +57,7 @@ module axi_write_channel
             awaddr  <= addr;
             wdata   <= data_in;
             wstrb   <= wstrb_in;
-            awcache <= uncached ? 4'b0000 : 4'b0000;
+            awcache <= uncached ? 4'b0000 : 4'b1111;
         end
     end
 

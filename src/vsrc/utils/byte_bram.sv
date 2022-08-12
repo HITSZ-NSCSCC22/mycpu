@@ -17,7 +17,7 @@ module byte_bram #(
 );
 
 
-    bit [DATA_WIDTH-1:0] data[2**DATA_DEPTH_EXP2];
+    (* ram_style = "block" *) logic [DATA_WIDTH-1:0] data[2**DATA_DEPTH_EXP2];
 
 
     initial begin
@@ -27,6 +27,25 @@ module byte_bram #(
     end
 
     always_ff @(posedge clk) begin
+        // if (enb & ena & (addra == addrb)) begin
+        //     doutb <= data[addrb];
+        //     if (wea[0]) doutb[7:0] <= dina[7:0];
+        //     if (wea[1]) doutb[15:8] <= dina[15:8];
+        //     if (wea[2]) doutb[23:16] <= dina[23:16];
+        //     if (wea[3]) doutb[31:24] <= dina[31:24];
+        //     if (wea[4]) doutb[39:32] <= dina[39:32];
+        //     if (wea[5]) doutb[47:40] <= dina[47:40];
+        //     if (wea[6]) doutb[55:48] <= dina[55:48];
+        //     if (wea[7]) doutb[63:56] <= dina[63:56];
+        //     if (wea[8]) doutb[71:64] <= dina[71:64];
+        //     if (wea[9]) doutb[79:72] <= dina[79:72];
+        //     if (wea[10]) doutb[87:80] <= dina[87:80];
+        //     if (wea[11]) doutb[95:88] <= dina[95:88];
+        //     if (wea[12]) doutb[103:96] <= dina[103:96];
+        //     if (wea[13]) doutb[111:104] <= dina[111:104];
+        //     if (wea[14]) doutb[119:112] <= dina[119:112];
+        //     if (wea[15]) doutb[127:120] <= dina[127:120];
+        // end else 
         if (enb) doutb <= data[addrb];
         else doutb <= 0;
     end
