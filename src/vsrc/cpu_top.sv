@@ -711,6 +711,7 @@ module cpu_top
         .ex_data_forward_i  (ex_data_forward),
         .mem1_data_forward_i(mem1_data_forward),
         .mem2_data_forward_i(mem2_data_forward),
+        .mem3_data_forward_i(mem3_data_forward),
         .wb_data_forward_i  (wb_data_forward),
 
         // <-> Regfile

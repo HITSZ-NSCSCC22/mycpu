@@ -123,6 +123,7 @@ module dcache
     logic [2:0] p2_req_type, p3_req_type;
     logic [3:0] p2_wstrb, p3_wstrb;
     logic [`RegBus] p2_wdata;
+    logic p2_uncache_en;
 
     // P3
     logic p3_valid, p3_uncache_en, p2_cacop, p3_cacop, p3_hit;
@@ -457,29 +458,9 @@ module dcache
             p3_cacop_op_mode1 <= 0;
             p3_cacop_op_mode2 <= 0;
             p3_cacop_op_mode2_hit <= 0;
-        end else if (dcache_stall) begin  // if the dcache is stall,keep the pipeline data
-            p2_valid <= p2_valid;
-            p2_req_type <= p2_req_type;
-            p2_cacop <= p2_cacop;
-            p2_cacop_mode <= p2_cacop_mode;
-            p2_wstrb <= p2_wstrb;
-            p2_wdata <= p2_wdata;
-            p2_paddr <= p2_paddr;
-            p3_valid <= p3_valid;
-            p3_req_type <= p3_req_type;
-            p3_paddr <= p3_paddr;
-            p3_wstrb <= p3_wstrb;
-            p3_wdata <= p3_wdata;
-            p3_cacop <= p3_cacop;
-            p3_tag_hit <= p3_tag_hit;
-            p3_uncache_en <= p3_uncache_en;
-            p3_tag_bram_rdata <= p3_tag_bram_rdata;
-            p3_data_bram_rdata <= p3_data_bram_rdata;
-            p3_cacop_way <= p3_cacop_way;
-            p3_cacop_op_mode0 <= p3_cacop_op_mode0;
-            p3_cacop_op_mode1 <= p3_cacop_op_mode1;
-            p3_cacop_op_mode2 <= p3_cacop_op_mode2;
-            p3_cacop_op_mode2_hit <= p3_cacop_op_mode2_hit;
+        end else
+        if (dcache_stall) begin  // if the dcache is stall,keep the pipeline data
+
         end else begin
             // p1 -> p2
             p2_valid <= valid;
@@ -489,6 +470,7 @@ module dcache
             p2_cacop <= cacop_i;
             p2_paddr <= paddr;
             p2_cacop_mode <= cacop_mode_i;
+            p2_uncache_en <= uncache_en;
             // p2 -> p3
             p3_valid <= p2_valid;
             p3_req_type <= p2_req_type;
@@ -497,7 +479,7 @@ module dcache
             p3_wdata <= p2_wdata;
             p3_cacop <= p2_cacop;
             p3_tag_hit <= tag_hit;
-            p3_uncache_en <= uncache_en | p2_uncache_delay;
+            p3_uncache_en <= p2_uncache_en;
             p3_tag_bram_rdata <= tag_bram_rdata;
             p3_data_bram_rdata <= data_bram_rdata;
             p3_cacop_way <= cacop_way;

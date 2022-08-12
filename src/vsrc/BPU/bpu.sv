@@ -196,7 +196,7 @@ module bpu
         // Query
         .query_pc_i(pc_i),
         .query_entry_o(ftb_entry),
-        .hit(ftb_hit),
+        .hit(),
         .hit_index_o(ftb_hit_index),
 
         // Update
