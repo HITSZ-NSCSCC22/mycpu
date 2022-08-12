@@ -296,7 +296,7 @@ module mem1
         mem2_o.inv_i = ex_i.inv_i;
 
         mem2_o.difftest_mem_info = difftest_mem_info;
-        mem2_o.difftest_mem_info.store_data = ex_i.store_data;
+        mem2_o.difftest_mem_info.store_data = dcache_rreq_o.data;
         if (mem_access_valid) begin  // if tlb miss,then do nothing
             case (aluop_i)
                 `EXE_LL_OP: begin
@@ -308,7 +308,7 @@ module mem1
                         mem2_o.LLbit_we = 1'b1;
                         mem2_o.LLbit_value = 1'b0;
                         mem2_o.wreg = 1;
-                        mem2_o.difftest_mem_info.store_data = ex_i.store_data;
+                        mem2_o.difftest_mem_info.store_data = dcache_rreq_o.data;
                         mem2_o.wdata = 32'b1;
                     end else begin
                         mem2_o.wreg = 1;
