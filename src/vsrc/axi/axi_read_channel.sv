@@ -16,6 +16,7 @@ module axi_read_channel
     input logic [2:0] size,
     output logic [AXI_DATA_WIDTH-1:0] data_out,
     output logic ready_out,
+    output logic rvalid_out,
 
     // AXI
     // ar 
@@ -86,6 +87,9 @@ module axi_read_channel
     );
     always_ff @(posedge clk) begin
         if (rvalid) data_out <= rdata;
+    end
+    always_ff @(posedge clk) begin
+        rvalid_out <= rvalid;
     end
 
 

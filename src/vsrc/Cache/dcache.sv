@@ -870,6 +870,7 @@ module dcache
         .size       (),
         .data_out   (),
         .ready_out  (),
+        .rvalid_out (),
         .arready    (m_axi.arready),
         .arvalid    (m_axi.arvalid),
         .arid       (m_axi.arid),
