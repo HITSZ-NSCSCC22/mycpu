@@ -92,6 +92,7 @@ module mem1
     assign icacop_en_o = ex_i.icache_op_en;
     assign dcacop_en_o = ex_i.dcache_op_en;
     assign icacop_mode_o = ex_i.cacop_mode;
+    assign dcacop_mode_o = ex_i.cacop_mode;
 
     assign aluop_i = ex_i.aluop;
 
