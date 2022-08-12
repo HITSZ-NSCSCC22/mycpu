@@ -73,10 +73,10 @@ module dcache
 
     // AXI
     logic [ADDR_WIDTH-1:0] axi_addr_o;
-    logic axi_req_o;
+    logic axi_wreq_o, axi_rreq_o;
     logic axi_we_o;
     logic axi_uncached_o;
-    logic axi_rdy_i;
+    logic axi_rrdy_i, axi_wrdy_i;
     logic axi_rvalid_i, axi_bvalid_i, axi_valid_i_delay;
     logic [2:0] axi_size_o;
     logic [AXI_DATA_WIDTH-1:0] axi_data_i;
@@ -174,7 +174,7 @@ module dcache
                 end else next_state = IDLE;
             end
             READ_REQ: begin
-                if (axi_rdy_i) next_state = READ_WAIT;  // If AXI ready, send request 
+                if (axi_rrdy_i) next_state = READ_WAIT;  // If AXI ready, send request 
                 else next_state = READ_REQ;
             end
             READ_WAIT: begin
@@ -186,7 +186,7 @@ module dcache
                 // If AXI is ready and write missthen write req is accept this cycle,and wait until rdata ret
                 // If flushed, back to IDLE
                 // if AXi is not ready,then wait until it ready and sent the read req
-                if (axi_rdy_i) next_state = WRITE_WAIT;
+                if (axi_rrdy_i) next_state = WRITE_WAIT;
                 else next_state = WRITE_REQ;
             end
             WRITE_WAIT: begin
@@ -195,7 +195,7 @@ module dcache
                 else next_state = WRITE_WAIT;
             end
             UNCACHE_READ_REQ: begin
-                if (axi_rdy_i) next_state = UNCACHE_READ_WAIT;  // If AXI ready, send request 
+                if (axi_rrdy_i) next_state = UNCACHE_READ_WAIT;  // If AXI ready, send request 
                 else next_state = UNCACHE_READ_REQ;
             end
             UNCACHE_READ_WAIT: begin
@@ -203,7 +203,7 @@ module dcache
                 else next_state = UNCACHE_READ_WAIT;
             end
             UNCACHE_WRITE_REQ: begin
-                if (axi_rdy_i) next_state = UNCACHE_WRITE_WAIT;  // If AXI ready, send request 
+                if (axi_wrdy_i) next_state = UNCACHE_WRITE_WAIT;  // If AXI ready, send request 
                 else next_state = UNCACHE_WRITE_REQ;
             end
             UNCACHE_WRITE_WAIT: begin
@@ -211,7 +211,7 @@ module dcache
                 else next_state = UNCACHE_WRITE_WAIT;
             end
             CACOP_REQ: begin
-                if (axi_rdy_i) next_state = CACOP_WAIT;  // If AXI ready, send request 
+                if (axi_wrdy_i) next_state = CACOP_WAIT;  // If AXI ready, send request 
                 else next_state = CACOP_REQ;
             end
             CACOP_WAIT: begin
@@ -704,7 +704,8 @@ module dcache
     //handshake with axi
     always_comb begin
         fifo_w_accept = 0;  // which used to tell fifo if it can send data to axi
-        axi_req_o = 0;
+        axi_wreq_o = 0;
+        axi_rreq_o = 0;
         axi_addr_o = 0;
         axi_size_o = 0;
         axi_wdata_o = 0;
@@ -715,8 +716,8 @@ module dcache
             // if the state is idle,then the dcache is free
             // so send the wdata in fifo to axi when axi is free
             IDLE: begin
-                if (axi_rdy_i & !fifo_state[0] & next_state == IDLE) begin
-                    axi_req_o = 1;
+                if (axi_wrdy_i & !fifo_state[0] & next_state == IDLE) begin
+                    axi_wreq_o = 1;
                     fifo_w_accept = 1;
                     axi_we_o = fifo_axi_wr_req;
                     axi_size_o = 3'b100;
@@ -727,23 +728,23 @@ module dcache
             end
             //if the axi is free then send the read request
             READ_REQ, WRITE_REQ: begin
-                if (axi_rdy_i) begin
-                    axi_req_o  = 1;
+                if (axi_rrdy_i) begin
+                    axi_rreq_o = 1;
                     axi_size_o = 3'b100;
                     axi_addr_o = {p3_paddr[31:4], 4'b0};
                 end
             end
             UNCACHE_READ_REQ: begin
-                if (axi_rdy_i) begin
-                    axi_req_o = 1;
+                if (axi_rrdy_i) begin
+                    axi_rreq_o = 1;
                     axi_uncached_o = 1;
                     axi_size_o = p3_req_type;
                     axi_addr_o = p3_paddr;
                 end
             end
             UNCACHE_WRITE_REQ: begin
-                if (axi_rdy_i) begin
-                    axi_req_o = 1;
+                if (axi_wrdy_i) begin
+                    axi_wreq_o = 1;
                     axi_we_o = 1;
                     axi_uncached_o = 1;
                     axi_size_o = p3_req_type;
@@ -769,8 +770,8 @@ module dcache
                 end
             end
             CACOP_REQ: begin
-                if (axi_rdy_i) begin
-                    axi_req_o = 1;
+                if (axi_wrdy_i) begin
+                    axi_wreq_o = 1;
                     axi_we_o = 1;
                     axi_uncached_o = 1;
                     axi_size_o = 3'b100;
@@ -784,8 +785,8 @@ module dcache
                 axi_addr_o = {p3_paddr[31:4], 4'b0};
             end
             FIFO_CLEAR: begin
-                if (axi_rdy_i & !fifo_state[0]) begin
-                    axi_req_o = 1;
+                if (axi_wrdy_i & !fifo_state[0]) begin
+                    axi_wreq_o = 1;
                     fifo_w_accept = 1;
                     axi_we_o = fifo_axi_wr_req;
                     axi_size_o = 3'b100;
@@ -796,7 +797,8 @@ module dcache
             end
             default: begin
                 fifo_w_accept = 0;
-                axi_req_o = 0;
+                axi_wreq_o = 0;
+                axi_rreq_o = 0;
                 axi_addr_o = 0;
                 axi_wdata_o = 0;
                 axi_we_o = 0;
@@ -823,7 +825,7 @@ module dcache
         //FIFO state
         .state(fifo_state),
         //write to memory 
-        .axi_bvalid_i(axi_rdy_i & (state == IDLE| state == FIFO_CLEAR) & (next_state == IDLE| next_state == FIFO_CLEAR)),
+        .axi_bvalid_i(axi_wrdy_i & (state == IDLE| state == FIFO_CLEAR) & (next_state == IDLE| next_state == FIFO_CLEAR)),
         .axi_wen_o(fifo_axi_wr_req),
         .axi_wdata_o(fifo_axi_wr_data),
         .axi_awaddr_o(fifo_axi_wr_addr)
@@ -864,13 +866,13 @@ module dcache
     ) u_axi_read_channel (
         .clk        (clk),
         .rst        (rst),
-        .new_request(),
-        .uncached   (),
-        .addr       (),
-        .size       (),
-        .data_out   (),
-        .ready_out  (),
-        .rvalid_out (),
+        .new_request(axi_rreq_o),
+        .uncached   (axi_uncached_o),
+        .addr       (axi_addr_o),
+        .size       (axi_size_o),
+        .data_out   (axi_data_i),
+        .ready_out  (axi_rrdy_i),
+        .rvalid_out (axi_rvalid_i),
         .arready    (m_axi.arready),
         .arvalid    (m_axi.arvalid),
         .arid       (m_axi.arid),
@@ -892,14 +894,14 @@ module dcache
     ) u_axi_write_channel (
         .clk        (clk),
         .rst        (rst),
-        .new_request(),
-        .uncached   (),
-        .addr       (),
-        .size       (),
-        .data_in    (),
-        .wstrb_in   (),
-        .ready_out  (),
-        .bvalid_out (),
+        .new_request(axi_wreq_o),
+        .uncached   (axi_uncached_o),
+        .addr       (axi_addr_o),
+        .size       (axi_size_o),
+        .data_in    (axi_wdata_o),
+        .wstrb_in   (axi_wstrb_o),
+        .ready_out  (axi_wrdy_i),
+        .bvalid_out (axi_bvalid_i),
         .awready    (m_axi.awready),
         .awvalid    (m_axi.awvalid),
         .awid       (m_axi.awid),
