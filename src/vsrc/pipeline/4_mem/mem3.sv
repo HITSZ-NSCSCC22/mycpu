@@ -78,6 +78,9 @@ module mem3
         mem3_o.LLbit_we = mem2_i.LLbit_we;
         mem3_o.LLbit_value = mem2_i.LLbit_value;
         mem3_o.mem_addr = mem2_i.mem_addr;
+        // Pass down TLBSRCH result
+        mem3_o.tlbsrch_found = mem2_i.tlbsrch_found;
+        mem3_o.tlbsrch_index = mem2_i.tlbsrch_index;
         mem3_o.aluop = mem2_i.aluop;
         mem3_o.csr_signal = mem2_i.csr_signal;
         mem3_o.inv_i = mem2_i.inv_i;

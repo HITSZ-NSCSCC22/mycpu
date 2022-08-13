@@ -51,6 +51,9 @@ module mem2
         mem2_o.mem_addr = mem1_i.mem_addr;
         mem2_o.aluop = mem1_i.aluop;
         mem2_o.mem_access_valid = mem1_i.mem_access_valid;
+        // Pass down TLBSRCH result
+        mem2_o.tlbsrch_found = mem1_i.tlbsrch_found;
+        mem2_o.tlbsrch_index = mem1_i.tlbsrch_index;
         mem2_o.csr_signal = mem1_i.csr_signal;
         mem2_o.inv_i = mem1_i.inv_i;
         mem2_o.difftest_mem_info = mem1_i.difftest_mem_info;

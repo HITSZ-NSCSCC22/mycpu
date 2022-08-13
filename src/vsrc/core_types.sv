@@ -187,6 +187,8 @@ package core_types;
         csr_write_signal csr_signal;
         logic mem_access_valid;
         logic [ADDR_WIDTH-1:0] mem_addr;
+        logic tlbsrch_found;
+        logic [$clog2(TLB_NUM)-1:0] tlbsrch_index;
 
         tlb_inv_t inv_i;
         difftest_mem_info_t difftest_mem_info;
@@ -205,6 +207,8 @@ package core_types;
         csr_write_signal csr_signal;
         logic mem_access_valid;
         logic [ADDR_WIDTH-1:0] mem_addr;
+        logic tlbsrch_found;
+        logic [$clog2(TLB_NUM)-1:0] tlbsrch_index;
 
         tlb_inv_t inv_i;
         difftest_mem_info_t difftest_mem_info;
@@ -219,6 +223,8 @@ package core_types;
         logic LLbit_we;
         logic LLbit_value;
         logic [ADDR_WIDTH-1:0] mem_addr;
+        logic tlbsrch_found;
+        logic [$clog2(TLB_NUM)-1:0] tlbsrch_index;
 
         logic [`AluOpBus] aluop;
         csr_write_signal  csr_signal;
@@ -273,6 +279,8 @@ package core_types;
         logic is_last_in_block;
         logic [`AluOpBus] aluop;
         logic [ADDR_WIDTH-1:0] mem_addr;
+        logic tlbsrch_found;
+        logic [$clog2(TLB_NUM)-1:0] tlbsrch_index;
         instr_info_t instr_info;
         wb_reg_t wb_reg;
         wb_llbit_t llbit;

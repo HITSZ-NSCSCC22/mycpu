@@ -57,7 +57,7 @@ module ctrl
     output logic tlbfill_en,
     output wb_llbit_t llbit_signal,
 
-    input tlb_to_mem_struct tlbsrch_result_i,
+    // input tlb_to_mem_struct tlbsrch_result_i,
 
     //invtlb signal to tlb
     output tlb_inv_t inv_o,
@@ -145,8 +145,8 @@ module ctrl
     assign tlbwr_en = wb_i[0].aluop == `EXE_TLBWR_OP | wb_i[1].aluop == `EXE_TLBWR_OP;
     assign tlbsrch_en = wb_i[0].aluop == `EXE_TLBSRCH_OP | wb_i[1].aluop == `EXE_TLBSRCH_OP;
     assign tlbfill_en = wb_i[0].aluop == `EXE_TLBFILL_OP | wb_i[1].aluop == `EXE_TLBFILL_OP;
-    assign tlbsrch_found = tlbsrch_result_i.data_tlb_found;
-    assign tlbsrch_index = tlbsrch_result_i.data_tlb_index;
+    assign tlbsrch_found = wb_i[0].tlbsrch_found;
+    assign tlbsrch_index = wb_i[0].tlbsrch_index;
     assign inv_o = wb_i[0].inv_i | wb_i[1].inv_i;
 
 

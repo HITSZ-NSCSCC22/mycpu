@@ -294,6 +294,8 @@ module mem1
         mem2_o.csr_signal = ex_i.csr_signal;
         mem2_o.mem_access_valid = mem_access_valid;
         mem2_o.mem_addr = mem_vaddr;
+        mem2_o.tlbsrch_found = tlb_result_i.found;
+        mem2_o.tlbsrch_index = tlb_result_i.tlb_index;
         mem2_o.inv_i = ex_i.inv_i;
 
         mem2_o.difftest_mem_info = difftest_mem_info;
