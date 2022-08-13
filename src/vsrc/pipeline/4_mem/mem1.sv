@@ -185,7 +185,7 @@ module mem1
         if (rst) begin
             last_is_mem_delay <= 0;
             last_mem_index_delay <= 0;
-        end else begin
+        end else if (dcache_ready_i) begin
             last_is_mem_delay <= last_is_mem;
             last_mem_index_delay <= last_mem_index;
         end

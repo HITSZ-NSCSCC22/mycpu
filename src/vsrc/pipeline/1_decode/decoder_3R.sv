@@ -198,6 +198,7 @@ module decoder_3R
                 imm_o = 0;
                 aluop_o = `EXE_NOP_OP;
                 alusel_o = `EXE_RES_NOP;
+                special_info_o.need_refetch = 1;
             end
             `EXE_INVTLB: begin
                 aluop_o = `EXE_INVTLB_OP;

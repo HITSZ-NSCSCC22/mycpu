@@ -26,7 +26,8 @@ module dual_port_lutram #(
     end
 
     always_ff @(posedge clk) begin
-        if (enb) doutb <= data[addrb];
+        if (enb & ena & wea & (addra == addrb)) doutb <= dina;
+        else if (enb) doutb <= data[addrb];
         else doutb <= 0;
     end
 
