@@ -103,7 +103,7 @@ module mem1
     assign store_data = dcache_rreq_o.data;
 
     // if it is not a mem instr,we don't send the uncache en 
-    assign uncache_en = access_mem ?  (ex_i.data_uncache_en || (ex_i.data_addr_trans_en && (tlb_result_i.tlb_mat == 2'b0))) : 0;
+    assign uncache_en = (mem_paddr[31:28] != 0) ? 1 : (ex_i.data_uncache_en || (ex_i.data_addr_trans_en && (tlb_result_i.tlb_mat == 2'b0)));
 
     assign access_mem = mem_load_op | mem_store_op;
 

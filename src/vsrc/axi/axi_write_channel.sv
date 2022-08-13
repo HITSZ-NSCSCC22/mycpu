@@ -81,7 +81,7 @@ module axi_write_channel
     assign ready_out = ready;
     always_ff @(posedge clk) begin
         if (rst) bvalid_out <= 0;
-        else bvalid_out <= bvalid;
+        else bvalid_out <= bvalid && bid == ID;
     end
 
     set_clr_reg_with_rst #(

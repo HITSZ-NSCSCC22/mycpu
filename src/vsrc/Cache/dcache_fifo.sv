@@ -46,9 +46,12 @@ module dcache_fifo
     logic sign_rewrite;
     logic axi_accepted;
 
+    logic cpu_rreq_delay;
+
     logic [DEPTH-1:0] read_hit, write_hit;
 
     logic write_hit_head;
+    logic read_hit_head;
 
     logic queue_wreq;
     logic [$clog2(DEPTH)-1:0] queue_waddr, queue_raddr;
@@ -69,16 +72,17 @@ module dcache_fifo
     // then don't sent the data to the memory 
     always @(posedge clk) begin
         if (rst) sign_rewrite <= 1'b0;
-        else if (axi_bvalid_i & axi_accepted) sign_rewrite <= 1'b0;
         else if (write_hit_head) sign_rewrite <= 1'b1;
-        else sign_rewrite <= sign_rewrite;
+        else if (axi_bvalid_i & axi_accepted) sign_rewrite <= 1'b0;
     end
     always_ff @(posedge clk) begin
         if (rst) axi_accepted <= 0;
         else if (axi_req_accept) axi_accepted <= 1'b1;
         else if (axi_bvalid_i) axi_accepted <= 1'b0;
     end
-
+    always_ff @(posedge clk) begin
+        cpu_rreq_delay <= cpu_rreq_i;
+    end
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -93,8 +97,10 @@ module dcache_fifo
                 tail <= tail + 1;
                 queue_valid[tail] <= 1'b1;
                 addr_queue[tail] <= cpu_awaddr;
-            end  // if axi is free and there is not write collsion then sent the data
-            if (axi_bvalid_i && axi_accepted && !sign_rewrite && !write_hit_head && queue_valid[head]) begin
+            end
+            // If axi is free and there is not write collsion then sent the data
+            // If read_hit_head, maybe a FIFO write is pending, so send write data again
+            if (axi_bvalid_i && axi_accepted && !sign_rewrite && !write_hit_head && !read_hit_head && queue_valid[head]) begin
                 head <= head + 1;
                 queue_valid[head] <= 1'b0;
                 addr_queue[head] <= 0;
@@ -103,6 +109,7 @@ module dcache_fifo
     end
     //Read Hit
     assign read_hit_o = |read_hit;
+    assign read_hit_head = read_hit[head] & cpu_rreq_delay;
     always_ff @(posedge clk) begin
         for (integer i = 0; i < DEPTH; i = i + 1) begin
             if (cpu_rreq_i)

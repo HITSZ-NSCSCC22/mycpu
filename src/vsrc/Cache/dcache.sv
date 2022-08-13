@@ -226,11 +226,11 @@ module dcache
     // Hit signal
     always_comb begin : p2_tag_hit_comb
         p2_tag_hit = 0;
-        if (p2_valid & ~p2_uncache_en) begin
-            for (integer i = 0; i < NWAY; i++) begin
-                p2_tag_hit[i] = tag_bram_rdata[i][TAG_WIDTH-1:0] == p2_paddr[ADDR_WIDTH-1:ADDR_WIDTH-TAG_WIDTH] && tag_bram_rdata[i][TAG_WIDTH];
-            end
-        end
+        // if (p2_valid & ~p2_uncache_en) begin
+        //     for (integer i = 0; i < NWAY; i++) begin
+        //         p2_tag_hit[i] = tag_bram_rdata[i][TAG_WIDTH-1:0] == p2_paddr[ADDR_WIDTH-1:ADDR_WIDTH-TAG_WIDTH] && tag_bram_rdata[i][TAG_WIDTH];
+        //     end
+        // end
     end
 
     // FIFO read
@@ -565,21 +565,18 @@ module dcache
             end
             // if the selected way is dirty,then sent the cacheline to the fifo
             READ_WAIT, WRITE_WAIT: begin
-                for (integer i = 0; i < NWAY; i++) begin
                     if (axi_rvalid_i | axi_rrdy_i) begin
                         // NOTICE: must be the same cycle as BRAM write
                         // to ensure random state is the same
-                        if (i[NWAY_WIDTH-1:0] == random_r[NWAY_WIDTH-1:0] && p3_tag_bram_rdata[i][TAG_WIDTH + 1] && ~fifo_full) begin
+                        if ( ~fifo_full) begin
                             fifo_wreq = 1;
                             fifo_waddr = {
-                                p3_tag_bram_rdata[i][TAG_WIDTH-1:0],
-                                p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH],
+                                p3_paddr[31:4],
                                 4'b0
                             };
-                            fifo_wdata = p3_data_bram_rdata[i];
+                            fifo_wdata = p3_refill_data;
                         end
                     end
-                end
             end
         endcase
     end
