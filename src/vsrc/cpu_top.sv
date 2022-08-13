@@ -265,7 +265,7 @@ module cpu_top
     // PMU
     pmu_input_t pmu_data;
     assign pmu_data.ib_full = ib_frontend_stallreq;
-    assign pmu_data.ib_empty = u_instr_buffer.empty;
+    // assign pmu_data.ib_empty = u_instr_buffer.empty;
     assign pmu_data.bpu_branch_instr = backend_commit_meta.is_branch;
     assign pmu_data.bpu_valid = ex[0].u_ex.special_info.predict_valid & ex[0].u_ex.advance;
     assign pmu_data.bpu_miss = ex_redirect[0];
@@ -283,7 +283,7 @@ module cpu_top
         .mem_valid(mem_valid[0]),
 
         .valid   (mem_cache_ce),
-        .paddr   ({tlb_data_result.tag, tlb_data_result.index, tlb_data_result.offset}),
+        .paddr   (mem_cache_addr),
         .req_type(mem_cache_req_type),
         .wstrb   (mem_cache_sel),
         .wdata   (mem_cache_data),
@@ -294,7 +294,7 @@ module cpu_top
         .cacop_i     (dcacop_op_en[0]),
         .cacop_mode_i(dcacop_op_mode[0]),
 
-        .cpu_flush(wb_dcache_flush[0]),
+        .cpu_flush(wb_dcache_flush[0] | pipeline_flush[7]),
 
         .dcache_ready(dcache_ready),
         .data_ok(mem_data_ok),
@@ -636,7 +636,7 @@ module cpu_top
         .frontend_stallreq_o(ib_frontend_stallreq),
 
         // <-> Backend
-        .backend_accept_i(id_ib_accept),  // FIXME: does not carefully designed
+        .backend_accept_i(id_ib_accept),
         .backend_flush_i(backend_redirect),  // Assure output is reset the next cycle
         .backend_instr_o(ib_backend_instr_info)  // -> ID
     );
@@ -1026,7 +1026,7 @@ module cpu_top
         .tlbfill_en(tlb_write_signal_i.tlbfill_en),
 
         // <- TLB
-        .tlbsrch_result_i(tlb_mem_signal),
+        // .tlbsrch_result_i(tlb_mem_signal),
 
         .regfile_o  (regfile_write),
         .csr_write_o(csr_write),
