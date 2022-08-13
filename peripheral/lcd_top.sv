@@ -2,9 +2,7 @@
 `include "axi_defines.sv"
 `include "lcd_types.sv"
 module lcd_top
-import lcd_types:
-       :
-           *;
+import lcd_types::*;
     (
         //rst and clk,clk is lower than cpu
         input logic clk,//100Mhz
@@ -90,7 +88,8 @@ import lcd_types:
     logic [15:0]debug_refresh_data;
     logic debug_refresh_flag;
     logic debug_is_main;
-
+    logic [31:0]debug_w_state;
+    logic [31:0]debug_r_state;
 
     logic pclk;
     logic ts_clk;
@@ -374,15 +373,42 @@ import lcd_types:
                  //speeder
                  .buffer_data(ctrl_buffer_data_id),  //speeder
                  .buffer_addr(ctrl_buffer_addr_id),  //speeder
-                 .data_valid(data_valid),  //tell lcd_id can write
+                 .data_valid(data_valid),  //tell lcd_id
                  .graph_size(graph_size),
-
+                 .refresh(ctrl_refresh_id),
+                 .refresh_rs_o(ctrl_refresh_rs_id),
+                 .char_color(ctrl_char_color_id),
+                 .char_rs(ctrl_char_rs_id),
                  //from lcd_interface
                  //TODO
                  .lcd_input_data(0),  //data form lcd input
 
+                //from/to lcd_refresh
+                 .enable(enable),
+                 .refresh_req(refresh_req),//用于决定刷新的种类，
+                 .refresh_data(refresh_data),
+                 .data_ok(data_ok),
+                 .refresh_ok_i(refresh_ok),
+                 .refresh_rs_i(refresh_rs),
+                 //from lcd_core
+                 .touch_reg(touch_reg),
+                 .cpu_work(cpu_work),
                  //from lcd_id
-                 .write_ok(write_ok)  //数据和指令写出去后才能继续写
+                 .write_ok(write_ok),  //æ•°ï¿½?ï¿½å’ŒæŒ‡ä»¤å†™å‡ºåŽ»ï¿½?ï¿½ï¿½?èƒ½ç»§ç»­å†™
+                 .debug_buffer_state(debug_buffer_state),
+                 .debug_inst_num(debug_inst_num),
+                 .debug_r_state(debug_r_state),
+                 .debug_w_state(debug_w_state),
+
+                 //to char_ctrl
+                 .cpu_code(cpu_code),
+                 .char_work(char_work),
+                 .char_write_ok(char_write_ok),
+
+                 //from char_ctrl
+                 .char_data_i(char_data),
+                 .char_color_ok(char_color_ok),
+                 .write_str_end(write_str_end)
              );
 `else
     lcd_test_ctrl u_lcd_ctrl (
@@ -505,39 +531,39 @@ import lcd_types:
               .probe4(lcd_rd),  // input wire [0:0]  probe4
               .probe5(lcd_data_io),  // input wire [15:0]  probe5
               .probe6(lcd_rst),  // input wire [0:0]  probe6
-              .probe7(char_work),  // input wire [0:0]  probe7
-              .probe8(debug_char_ctrl_state),  // input wire [31:0]  probe8
-              .probe9(0),  // input wire [31:0]  probe9
+              .probe7(s_arvalid),  // input wire [0:0]  probe7
+              .probe8(debug_w_state),  // input wire [31:0]  probe8
+              .probe9(debug_r_state),  // input wire [31:0]  probe9
               .probe10(lcd_data_o),  // input wire [15:0]  probe10
-              .probe11(debug_col),  // input wire [31:0]  probe11
+              .probe11(s_araddr),  // input wire [31:0]  probe11
               .probe12(graph_size),  // input wire [31:0]  probe12
               .probe13(lcd_data_i),  // input wire [15:0]  probe13
-              .probe14(debug_char_douta),  // input wire [23:0]  probe14
-              .probe15(char_write_ok),  // input wire [0:0]  probe15
-              .probe16(write_str_end),  // input wire [0:0]  probe16
-              .probe17(char_color_ok),  // input wire [0:0]  probe17
-              .probe18(debug_char_req),  // input wire [0:0]  probe18
+              .probe14(touch_reg),  // input wire [31:0]  probe14
+              .probe15(s_wstrb),  // input wire [3:0]  probe15
+              .probe16(s_awvalid),  // input wire [0:0]  probe16
+              .probe17(s_awready),  // input wire [0:0]  probe17
+              .probe18(s_wvalid),  // input wire [0:0]  probe18
               .probe19(refresh_ok),  // input wire [0:0]  probe19
-              .probe20(char_data),  // input wire [15:0]  probe20
-              .probe21(debug_char_finish),  // input wire [0:0]  probe21
-              .probe22(debug_char_data_ok),  // input wire [0:0]  probe22
-              .probe23(debug_x),  // input wire [5:0]  probe23
-              .probe24(debug_y),  // input wire [5:0]  probe24
+              .probe20(s_rdata),  // input wire [31:0]  probe20
+              .probe21(s_wready),  // input wire [0:0]  probe21
+              .probe22(s_wlast),  // input wire [0:0]  probe22
+              .probe23(s_wdata),  // input wire [31:0]  probe23
+              .probe24(s_awaddr),  // input wire [31:0]  probe24
               .probe25(debug_next_state),  // input wire [31:0]  probe25
               .probe26(debug_current_state),  // input wire [31:0]  probe26
               .probe27(debug_inst_num),  // input wire [31:0]  probe27
               .probe28(debug_buffer_state),  // input wire [31:0]  probe28
-              .probe29(addra),  // input wire [16:0]  probe29
-              .probe30(ctrl_char_color_id), // input wire [0:0]  probe30
-              .probe31(ctrl_char_rs_id), // input wire [0:0]  probe31
+              .probe29(0),  // input wire [16:0]  probe29
+              .probe30(s_bvalid), // input wire [0:0]  probe30
+              .probe31(s_bready), // input wire [0:0]  probe31
               .probe32(init_mux_signal.init_finish), // input wire [0:0]  probe32
-              .probe33(enable), // input wire [0:0]  probe33
-              .probe34(data_ok), // input wire [0:0]  probe34
-              .probe35(refresh_rs), // input wire [0:0]  probe35
-              .probe36(ctrl_refresh_rs_id), // input wire [0:0]  probe36
+              .probe33(s_arready), // input wire [0:0]  probe33
+              .probe34(s_rlast), // input wire [0:0]  probe34
+              .probe35(s_rvalid), // input wire [0:0]  probe35
+              .probe36(s_rready), // input wire [0:0]  probe36
               .probe37(cpu_draw), // input wire [0:0]  probe37
-              .probe38(id_mux_signal.id_lcd_rs), // input wire [0:0]  probe38
-              .probe39(refresh_data) // input wire [0:0]  probe39
+              .probe38(0), // input wire [0:0]  probe38
+              .probe39(0) // input wire [15:0]  probe39
           );
 
 endmodule

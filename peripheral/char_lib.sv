@@ -1,7 +1,7 @@
 //char library
 //用于从字库中取出字符的点阵
 `define CHAR_WIDTH 23
-`define CHAR_HEIGHT 31
+`define CHAR_HEIGHT 39
 module char_lib (
         input      logic pclk,
         input      logic rst_n,

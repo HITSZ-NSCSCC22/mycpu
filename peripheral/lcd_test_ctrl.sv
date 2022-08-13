@@ -157,7 +157,7 @@ module lcd_test_ctrl (
                     char_buffer[1]<=32'h2a00_0000;
                     char_buffer[2]<=32'h2a02_0017;
                     char_buffer[3]<=32'h2b00_0000;
-                    char_buffer[4]<=32'h2b02_001F;
+                    char_buffer[4]<=32'h2b02_0027;
                     char_buffer[5]<=32'h0;
                     char_buffer[6]<=32'h0;
                     buffer_state<=DISPATCH_CHAR;

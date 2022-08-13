@@ -2,8 +2,8 @@
 `define X_START 0
 `define X_END   23
 `define Y_START 0
-`define Y_END   31
-`define BACK_COLOR 16'h5555
+`define Y_END   39
+`define BACK_COLOR 16'hffff
 `define CHAR_COLOR 16'h0000
 module char_ctrl (
         input logic pclk,
