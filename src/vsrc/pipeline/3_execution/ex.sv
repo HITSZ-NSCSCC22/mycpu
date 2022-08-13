@@ -164,7 +164,6 @@ module ex
 
     assign debug_mem_addr_o = ex_o.mem_addr;
 
-    // TODO:fix vppn select
     assign ex_o.mem_addr = oprand1 + imm;
     assign ex_o.oprand2 = oprand2;
 
@@ -236,7 +235,7 @@ module ex
 
     always_comb begin
         if (flush) tlb_rreq_o = 0;
-        else if (advance | icacop_op_en) begin
+        else if (advance) begin
             tlb_rreq_o.fetch = data_fetch;
             tlb_rreq_o.trans_en = trans_en;
             tlb_rreq_o.dmw0_en = dmw0_en;
