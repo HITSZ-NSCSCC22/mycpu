@@ -141,8 +141,10 @@ module dcache
     logic p3_hit;
     logic [NWAY-1:0] p3_tag_hit;
     logic p3_cpu_wreq;
+    logic [15:0] p3_idle_back_wstrb;
     logic [DCACHELINE_WIDTH-1:0] p3_hit_data;
     logic [DCACHELINE_WIDTH-1:0] p3_refill_data;
+    logic [DCACHELINE_WIDTH-1:0] p3_idle_back_data;
     // CACOP
     logic p3_cacop;
     logic p3_cacop_op_mode0, p3_cacop_op_mode1, p3_cacop_op_mode2;
@@ -153,6 +155,7 @@ module dcache
     logic [DCACHELINE_WIDTH-1:0] p3_cacop_writeback_wdata;
 
     logic write_back_req;
+    logic [15:0] write_back_wstrb;
     logic [ADDR_WIDTH-1:0] write_back_addr;
     logic [DCACHELINE_WIDTH-1:0] write_back_data;
 
@@ -339,9 +342,9 @@ module dcache
                     // Cached request, but miss
                     if (p3_cpu_wreq) next_state = WRITE_REQ;
                     else next_state = READ_REQ;
-                end else 
+                end else if(p3_cpu_wreq)next_state = WRITE_BACK_REQ;
                     // P3 is a hit request
-                    next_state = IDLE;
+                    else next_state = IDLE;
             end
             READ_REQ: begin
                 if (axi_rrdy_i)  // If AXI ready, send request
@@ -349,11 +352,8 @@ module dcache
                 else next_state = READ_REQ;
             end
             READ_WAIT: begin
-                if ((axi_rvalid_i | axi_rrdy_i) ) begin
-                    if(write_back_req)next_state = WRITE_BACK_REQ;
-                    else next_state = IDLE;
-                end// If return valid, back to IDLE
-                    
+                if ((axi_rvalid_i | axi_rrdy_i) ) next_state = IDLE;
+                // If return valid, back to IDLE
                 else next_state = READ_WAIT;
             end
             WRITE_REQ: begin
@@ -545,7 +545,7 @@ module dcache
     always_comb begin 
         write_back_req = 0;
         case (state)
-            READ_WAIT,WRITE_WAIT:begin
+            WRITE_WAIT:begin
                 for (integer i = 0; i < NWAY; i++) begin
                     if (axi_rvalid_i | axi_rrdy_i) begin
                             write_back_req = 1;
@@ -559,77 +559,35 @@ module dcache
 
     // write back to memory
     always_ff @(posedge clk) begin : write_back_ff
-        // fifo_wreq = 0;
-        // fifo_waddr = 0;
-        // fifo_wdata = 0;
-        // fifo_wreq_sel_data = 0;
+        if(rst)begin
+            write_back_wstrb <= 0;
+            write_back_addr <= 0;
+            write_back_data <= 0;
+        end else begin
             case(state)
-            // IDLE: begin
-            //     // If a write request hit the cacheline in the fifo 
-            //     // then rewrite the cacheline in the fifo. 
-            //     // Must check request since FIFO write has side effect
-            //     if (fifo_r_hit & p3_cpu_wreq & ~p3_uncache_en & ~cpu_flush & mem_valid) begin
-            //         fifo_wreq = 1;
-            //         fifo_waddr = p3_paddr;
-            //         fifo_wdata = fifo_rdata;
-            //         fifo_wreq_sel_data = 0;
-            //         case (p3_paddr[3:2])
-            //             2'b00: fifo_wreq_sel_data = fifo_wdata[31:0];
-            //             2'b01: fifo_wreq_sel_data = fifo_wdata[63:32];
-            //             2'b10: fifo_wreq_sel_data = fifo_wdata[95:64];
-            //             2'b11: fifo_wreq_sel_data = fifo_wdata[127:96];
-            //         endcase
-            //         case (p3_wstrb)
-            //             //st.b 
-            //             4'b0001: fifo_wreq_sel_data[7:0] = p3_wdata[7:0];
-            //             4'b0010: fifo_wreq_sel_data[15:8] = p3_wdata[15:8];
-            //             4'b0100: fifo_wreq_sel_data[23:16] = p3_wdata[23:16];
-            //             4'b1000: fifo_wreq_sel_data[31:24] = p3_wdata[31:24];
-            //             //st.h
-            //             4'b0011: fifo_wreq_sel_data[15:0] = p3_wdata[15:0];
-            //             4'b1100: fifo_wreq_sel_data[31:16] = p3_wdata[31:16];
-            //             //st.w
-            //             4'b1111: fifo_wreq_sel_data = p3_wdata;
-            //         endcase
-            //         case (p3_paddr[3:2])
-            //             2'b00: fifo_wdata[31:0] = fifo_wreq_sel_data;
-            //             2'b01: fifo_wdata[63:32] = fifo_wreq_sel_data;
-            //             2'b10: fifo_wdata[95:64] = fifo_wreq_sel_data;
-            //             2'b11: fifo_wdata[127:96] = fifo_wreq_sel_data;
-            //         endcase
-            //     end
-            // end
-            // if the selected way is dirty,then sent the cacheline to the fifo
-            READ_WAIT,WRITE_WAIT:begin
-                for (integer i = 0; i < NWAY; i++) begin
-                    if (axi_rvalid_i | axi_rrdy_i) begin
-                        // NOTICE: must be the same cycle as BRAM write
-                        // to ensure random state is the same
-                        if (i[NWAY_WIDTH-1:0] == random_r[NWAY_WIDTH-1:0] && p3_tag_bram_rdata[i][TAG_WIDTH + 1] ) begin
-                            write_back_addr <= {
-                                 p3_tag_bram_rdata[i][TAG_WIDTH-1:0],
-                                 p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH],
-                                 4'b0
-                             };
-                             write_back_data <= p3_data_bram_rdata[i];
-                            // fifo_wreq = 1;
-                            // fifo_waddr = {
-                            //     p3_tag_bram_rdata[i][TAG_WIDTH-1:0],
-                            //     p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH],
-                            //     4'b0
-                            // };
-                            // fifo_wdata = p3_data_bram_rdata[i];
-                        end
-                    end
+            IDLE:begin
+                if(p3_cpu_wreq)begin
+                    write_back_wstrb <= p3_idle_back_wstrb;
+                    write_back_addr <= {p3_paddr[31:OFFSET_WIDTH],4'b0};
+                    write_back_data <= p3_idle_back_data;
+                end
+            end
+            WRITE_WAIT:begin
+                if (axi_rvalid_i | axi_rrdy_i) begin
+                    write_back_wstrb <= 16'b1111_1111_1111_1111;
+                    write_back_addr <= {p3_paddr[31:OFFSET_WIDTH],4'b0};
+                    write_back_data <= p3_refill_data;
                 end
             end
             WRITE_BACK_WAIT:begin
                 if(axi_bvalid_i)begin
+                    write_back_wstrb <= 0;
                     write_back_addr <= 0;
                     write_back_data <= 0;
                 end
             end
-        endcase
+            endcase
+        end
     end
 
     // BRAM write
@@ -642,6 +600,8 @@ module dcache
             data_bram_we[i] = 0;
             data_bram_waddr[i] = 0;
             data_bram_wdata[i] = 0;
+            p3_idle_back_wstrb = 0;
+            p3_idle_back_data = 0;
         end
 
         case (state)
@@ -680,6 +640,8 @@ module dcache
                                 data_bram_wdata[i] = {4{p3_wdata}};
                             end
                         endcase
+                        p3_idle_back_wstrb = data_bram_we[i]; 
+                        p3_idle_back_data = data_bram_wdata[i];
                     end
                     else if (p3_cacop & ~cpu_flush & mem_valid) begin
                         if (p3_cacop_op_mode0 | p3_cacop_op_mode1) begin
@@ -760,7 +722,7 @@ module dcache
                     axi_size_o = 3'b100;
                     axi_addr_o = write_back_addr;
                     axi_wdata_o = write_back_data;
-                    axi_wstrb_o = 16'b1111_1111_1111_1111;
+                    axi_wstrb_o = write_back_wstrb;
                 end
             end
             UNCACHE_READ_REQ: begin
