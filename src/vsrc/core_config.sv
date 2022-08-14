@@ -108,7 +108,7 @@ package core_config;
     // DCache parameters
     parameter DCACHE_NWAY = 2;
     parameter DCACHE_NSET = 512;
-    parameter DCACHELINE_WIDTH = 128;
+    parameter DCACHELINE_WIDTH = 256;
 
     parameter INSTR_BUFFER_SIZE = 32;
     parameter INSTR_BUFFER_CHANNEL = FETCH_WIDTH;   // channel number, must be the power of 2, set to FETCH_WIDTH for now

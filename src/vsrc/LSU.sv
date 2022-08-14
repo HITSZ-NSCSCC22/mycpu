@@ -220,16 +220,16 @@ module LSU #(
     assign cpu_ready = state == IDLE & (~p1_valid_reg | dcache_ready);
     // CPU handshake
     always_comb begin
-        cpu_rdata = 0;
-        cpu_data_valid = 0;
+        cpu_rdata <= 0;
+        cpu_data_valid <= 0;
         case (state)
             IDLE: begin
-                cpu_rdata = dcache_rdata;
-                cpu_data_valid = dcache_ready;
+                cpu_rdata <= dcache_rdata;
+                cpu_data_valid <= dcache_ready;
             end
             UNCACHE_REQ_WAIT: begin
-                cpu_rdata = uncache_rdata;
-                cpu_data_valid = uncache_data_ok;
+                cpu_rdata <= uncache_rdata;
+                cpu_data_valid <= uncache_data_ok;
             end
         endcase
     end
