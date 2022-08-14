@@ -39,3 +39,11 @@ TAGE tagged predictor BRAM:
 - width: 18
 - depth: 1024
 - operating mode: Write First
+
+## L2 Cache
+3 Optimized AXI Port, data width 128
+M0_AXI data width 128, ID width 4
+
+- 4-way associated
+- 512K size
+- 32K Cachline size
