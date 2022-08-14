@@ -23,6 +23,7 @@ module dispatch
     // <- EXE
     // Data forwarding
     input data_forward_t [ISSUE_WIDTH-1:0] ex_data_forward_i,
+    input data_forward_t [ISSUE_WIDTH-1:0] mem0_data_forward_i,
     input data_forward_t [ISSUE_WIDTH-1:0] mem1_data_forward_i,
     input data_forward_t [ISSUE_WIDTH-1:0] mem2_data_forward_i,
     input data_forward_t [ISSUE_WIDTH-1:0] wb_data_forward_i,
@@ -128,6 +129,13 @@ module dispatch
                 else if (mem1_data_forward_i[i].wreg & ~mem1_data_forward_i[i].data_valid)
                     regs_available[mem1_data_forward_i[i].wreg_addr] <= 0;
             end
+            // MEM0 data available
+            for (integer i = 0; i < ISSUE_WIDTH; i++) begin
+                if (mem0_data_forward_i[i].wreg & mem0_data_forward_i[i].data_valid)
+                    regs_available[mem0_data_forward_i[i].wreg_addr] <= 1;
+                else if (mem0_data_forward_i[i].wreg & ~mem0_data_forward_i[i].data_valid)
+                    regs_available[mem0_data_forward_i[i].wreg_addr] <= 0;
+            end
             // EX data available
             for (integer i = 0; i < ISSUE_WIDTH; i++) begin
                 if (ex_data_forward_i[i].wreg & ex_data_forward_i[i].data_valid)
@@ -206,6 +214,11 @@ module dispatch
                         for (integer i = 0; i < ISSUE_WIDTH; i++) begin
                             if (mem1_data_forward_i[i].wreg && mem1_data_forward_i[i].wreg_addr == regfile_reg_read_addr_o[issue_idx][op_idx])
                                 oprands[issue_idx][op_idx] = mem1_data_forward_i[i].wreg_data;
+                        end
+                        // MEM0 data forward overide
+                        for (integer i = 0; i < ISSUE_WIDTH; i++) begin
+                            if (mem0_data_forward_i[i].wreg && mem0_data_forward_i[i].wreg_addr == regfile_reg_read_addr_o[issue_idx][op_idx])
+                                oprands[issue_idx][op_idx] = mem0_data_forward_i[i].wreg_data;
                         end
                         // EX data forward overide
                         for (integer i = 0; i < ISSUE_WIDTH; i++) begin

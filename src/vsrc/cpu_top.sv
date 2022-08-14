@@ -20,6 +20,7 @@
 `include "pipeline/1_decode/id_dispatch.sv"
 `include "pipeline/2_dispatch/dispatch.sv"
 `include "pipeline/3_execution/ex.sv"
+`include "pipeline/4_mem/mem0.sv"
 `include "pipeline/4_mem/mem1.sv"
 `include "pipeline/4_mem/mem2.sv"
 `include "pipeline/5_wb/wb.sv"
@@ -102,7 +103,7 @@ module cpu_top
     assign rst   = ~aresetn | l2_cache_initialing;
 
     // Pipeline control signal
-    logic [6:0] pipeline_advance, pipeline_flush, pipeline_clear;
+    logic [7:0] pipeline_advance, pipeline_flush, pipeline_clear;
     logic [ISSUE_WIDTH-1:0] ex_advance_ready, mem1_advance_ready, mem2_advance_ready;
 
     // Frontend <-> ICache
@@ -153,6 +154,9 @@ module cpu_top
     logic [ISSUE_WIDTH-1:0][ADDR_WIDTH-1:0] ex_fall_through_addr;
     logic [ISSUE_WIDTH-1:0][$clog2(FRONTEND_FTQ_SIZE)-1:0] ex_ftq_query_addr;
     logic [ISSUE_WIDTH-1:0][ADDR_WIDTH-1:0] ex_ftq_query_pc;
+
+    // MEM0
+    tlb_data_t [ISSUE_WIDTH-1:0] mem0_mem1_tlb_result;
 
 
     // AXI
@@ -375,62 +379,6 @@ module cpu_top
         .m_axi_bresp  (dcache_axi.bresp),
         .m_axi_bready (dcache_axi.bready)
     );
-    // dcache_top u_dcache (
-    //     .clk  (clk),
-    //     .rst  (rst),
-    //     .valid(control_dcache_valid),
-    //     .addr (control_dcache_addr),
-    //     .wdata(control_dcache_wdata),
-    //     .wstrb(control_dcache_wstrb),
-    //     .rdata(control_dcache_rdata),
-    //     .ready(control_dcache_ready),
-
-    //     .dcacop_en_o  (dcacop_op_en[0]),
-    //     .dcacop_mode_o(dcacop_op_mode[0]),
-    //     .dcacop_ack_i (dcache_ack),
-
-    //     .force_inv_i(),
-    //     .force_inv_o(),
-    //     .wtb_empty_i(wtb_empty_i),
-    //     .wtb_empty_o(wtb_empty_o),
-
-
-    //     .axi_arvalid(dcache_axi.arvalid),
-    //     .axi_araddr (dcache_axi.araddr),
-    //     .axi_arlen  (dcache_axi.arlen),
-    //     .axi_arsize (dcache_axi.arsize),
-    //     .axi_arburst(dcache_axi.arburst),
-    //     .axi_arlock (),
-    //     .axi_arcache(dcache_axi.arcache),
-    //     .axi_arprot (),
-    //     .axi_arqos  (),
-    //     .axi_arid   (dcache_axi.arid),
-    //     .axi_arready(dcache_axi.arready),
-    //     .axi_rvalid (dcache_axi.rvalid),
-    //     .axi_rdata  (dcache_axi.rdata),
-    //     .axi_rresp  (dcache_axi.rresp),
-    //     .axi_rlast  (dcache_axi.rlast),
-    //     .axi_rready (dcache_axi.rready),
-    //     .axi_awvalid(dcache_axi.awvalid),
-    //     .axi_awaddr (dcache_axi.awaddr),
-    //     .axi_awlen  (dcache_axi.awlen),
-    //     .axi_awsize (dcache_axi.awsize),
-    //     .axi_awburst(dcache_axi.awburst),
-    //     .axi_awlock (),
-    //     .axi_awcache(dcache_axi.awcache),
-    //     .axi_awprot (),
-    //     .axi_awqos  (),
-    //     .axi_awid   (dcache_axi.awid),
-    //     .axi_awready(dcache_axi.awready),
-    //     .axi_wvalid (dcache_axi.wvalid),
-    //     .axi_wdata  (dcache_axi.wdata),
-    //     .axi_wstrb  (dcache_axi.wstrb),
-    //     .axi_wlast  (dcache_axi.wlast),
-    //     .axi_wready (dcache_axi.wready),
-    //     .axi_bvalid (dcache_axi.bvalid),
-    //     .axi_bresp  (dcache_axi.bresp),
-    //     .axi_bready (dcache_axi.bready)
-    // );
 
 
     icache u_icache (
@@ -873,7 +821,7 @@ module cpu_top
     id_dispatch u_id_dispatch (
         .clk                 (clk),
         .rst                 (rst),
-        .stall               (~pipeline_advance[5]),
+        .stall               (~pipeline_advance[6]),
         .flush               (backend_redirect),
         .id_i                (id_id_dispatch),
         .id_dispatch_accept_o(id_ib_accept),
@@ -886,8 +834,11 @@ module cpu_top
     dispatch_ex_struct [1:0] dispatch_exe;
 
     // Data forwarding
-    data_forward_t [ISSUE_WIDTH-1:0]
-        ex_data_forward, mem1_data_forward, mem2_data_forward, wb_data_forward;
+    data_forward_t [ISSUE_WIDTH-1:0] ex_data_forward;
+    data_forward_t [ISSUE_WIDTH-1:0] mem0_data_forward;
+    data_forward_t [ISSUE_WIDTH-1:0] mem1_data_forward;
+    data_forward_t [ISSUE_WIDTH-1:0] mem2_data_forward;
+    data_forward_t [ISSUE_WIDTH-1:0] wb_data_forward;
 
     // Dispatch Stage, Sequential logic
     dispatch u_dispatch (
@@ -898,11 +849,12 @@ module cpu_top
         .id_i(id_dispatch_dispatch),
 
         // <-> Ctrl
-        .stall(~pipeline_advance[4]),
+        .stall(~pipeline_advance[5]),
         .flush(backend_redirect),
 
         // Data forwarding    
         .ex_data_forward_i  (ex_data_forward),
+        .mem0_data_forward_i(mem0_data_forward),
         .mem1_data_forward_i(mem1_data_forward),
         .mem2_data_forward_i(mem2_data_forward),
         .wb_data_forward_i  (wb_data_forward),
@@ -934,13 +886,13 @@ module cpu_top
     logic [$clog2(FRONTEND_FTQ_SIZE)-1:0] ctrl_frontend_ftq_id;
 
     // Redirect signal for frontend
-    assign backend_redirect = ex_redirect[0] | pipeline_flush[6];
+    assign backend_redirect = ex_redirect[0] | pipeline_flush[7];
 
     assign backend_redirect_ftq_id = (pipeline_flush[6]) ? ctrl_frontend_ftq_id :
                                 (ex_redirect[0]) ? ex_redirect_ftq_id[0] : 
                                 (ex_redirect[1] ) ? ex_redirect_ftq_id[1] : 0;
 
-    assign next_pc = pipeline_flush[6] ? backend_redirect_pc :
+    assign next_pc = pipeline_flush[7] ? backend_redirect_pc :
                      (ex_redirect[0]) ? ex_redirect_target[0] : 
                      (ex_redirect[1]) ? ex_redirect_target[1] : 0;
 
@@ -956,9 +908,9 @@ module cpu_top
                 .rst(rst),
 
                 // Pipeline control signals
-                .flush(pipeline_flush[3]),
-                .clear(pipeline_clear[3]),
-                .advance(pipeline_advance[3]),
+                .flush(pipeline_flush[4]),
+                .clear(pipeline_clear[4]),
+                .advance(pipeline_advance[4]),
                 .advance_ready(ex_advance_ready[i]),
 
                 // Previous stage
@@ -994,7 +946,7 @@ module cpu_top
         end
     endgenerate
 
-
+    ex_mem_struct mem0_mem1_signal[ISSUE_WIDTH];
     mem1_mem2_struct mem1_mem2_signal[2];
     mem2_wb_struct mem2_wb_signal[2];
     tlb_inv_t tlb_inv_signal_i;
@@ -1012,10 +964,42 @@ module cpu_top
     assign csr_mem_signal = {csr_pg, csr_da, csr_dmw0, csr_dmw1, csr_plv, csr_datm};
 
     ////////////////////////////////////////////////////////////////
+    // MEM0
+    ////////////////////////////////////////////////////////////////
+
+    generate
+        for (genvar i = 0; i < ISSUE_WIDTH; i++) begin
+            mem0 u_mem0 (
+                .clk(clk),
+                .rst(rst),
+
+                // Pipeline control signals
+                .flush  (pipeline_flush[3]),
+                .clear  (pipeline_clear[3]),
+                .advance(pipeline_advance[3]),
+
+                // Previous stage
+                .ex_i(ex_mem_signal[i]),
+                // Next stage
+                .mem1_o_buffer(mem0_mem1_signal[i]),
+                .tlb_result_o(mem0_mem1_tlb_result[i]),
+
+                // <- TLB
+                .tlb_result_i(tlb_data_result),
+
+                // Data forward
+                // -> Dispatch
+                .data_forward_o(mem0_data_forward[i])
+
+            );
+        end
+    endgenerate
+
+    ////////////////////////////////////////////////////////////////
     // MEM1
     ////////////////////////////////////////////////////////////////
     generate
-        for (genvar i = 0; i < 2; i++) begin : mem1
+        for (genvar i = 0; i < ISSUE_WIDTH; i++) begin : mem1
             mem1 u_mem1 (
                 .clk(clk),
                 .rst(rst),
@@ -1027,7 +1011,7 @@ module cpu_top
                 .advance_ready(mem1_advance_ready[i]),
 
                 // Previous stage
-                .ex_i(ex_mem_signal[i]),
+                .ex_i(mem0_mem1_signal[i]),
                 // Next stage
                 .mem2_o_buffer(mem1_mem2_signal[i]),
 
@@ -1046,7 +1030,7 @@ module cpu_top
                 .dcacop_ack_i (dcacop_ack),
 
                 // <- TLB
-                .tlb_result_i(tlb_data_result),
+                .tlb_result_i(mem0_mem1_tlb_result[i]),
 
                 // <- CSR
                 .LLbit_i(LLbit_o),

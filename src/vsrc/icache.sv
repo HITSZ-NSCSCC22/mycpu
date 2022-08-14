@@ -480,7 +480,7 @@ module icache
         .m_axi      (m_axi),
         .new_request(axi_rreq_o),
         .we         (1'b0),
-        .uncached   (1'b1),
+        .uncached   (axi_uncached_o),
         .addr       (axi_addr_o),
         .size       (3'b100),
         .data_in    (0),

@@ -29,9 +29,9 @@ module ctrl
     input logic [ISSUE_WIDTH-1:0] ex_advance_ready_i,  //执行阶段完成信号
     input logic [ISSUE_WIDTH-1:0] mem1_advance_ready_i,
     input logic [ISSUE_WIDTH-1:0] mem2_advance_ready_i,  //访存阶段暂停请求信号
-    output logic [6:0] flush_o,  // flush signal {frontend, id_dispatch, dispatch, ex, mem1, mem2, wb}
-    output logic [6:0] advance_o,  // {frontend, id_dispatch, dispatch, ex, mem1, mem2, wb}
-    output logic [6:0] clear_o,  // {frontend, id_dispatch, dispatch, ex, mem1, mem2, wb}
+    output logic [7:0] flush_o,  // flush signal {frontend, id_dispatch, dispatch, ex, mem1, mem2, wb}
+    output logic [7:0] advance_o,  // {frontend, id_dispatch, dispatch, ex, mem1, mem2, wb}
+    output logic [7:0] clear_o,  // {frontend, id_dispatch, dispatch, ex, mem1, mem2, wb}
     output logic [ADDR_WIDTH-1:0] backend_redirect_pc_o,
 
     // <-> CSR
@@ -173,18 +173,22 @@ module ctrl
     end
     assign flush_all = excp_flush | ertn_flush | refetch_flush | idle_flush;
     // Frontend
+    assign advance_o[7] = advance;
+    assign flush_o[7] = flush_all;
+    assign clear_o[7] = (advance_o[6] & ~advance_o[7]);
+    // ID -> Dispatch
     assign advance_o[6] = advance;
     assign flush_o[6] = flush_all;
     assign clear_o[6] = (advance_o[5] & ~advance_o[6]);
-    // ID -> Dispatch
+    // Dispatch
     assign advance_o[5] = advance;
     assign flush_o[5] = flush_all;
     assign clear_o[5] = (advance_o[4] & ~advance_o[5]);
-    // Dispatch
+    // EX
     assign advance_o[4] = advance;
     assign flush_o[4] = flush_all;
     assign clear_o[4] = (advance_o[3] & ~advance_o[4]);
-    // EX
+    // MEM0
     assign advance_o[3] = advance;
     assign flush_o[3] = flush_all;
     assign clear_o[3] = (advance_o[2] & ~advance_o[3]);
