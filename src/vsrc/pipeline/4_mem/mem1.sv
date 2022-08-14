@@ -165,7 +165,7 @@ module mem1
     // DCache memory access request
     always_comb begin
         dcache_rreq_o = 0;
-        if (advance & access_mem & mem_access_valid & dcache_ready_i & ~dcache_ack_r) begin
+        if (advance & (access_mem | dcache_op_en) & mem_access_valid & dcache_ready_i & ~dcache_ack_r) begin
             dcache_rreq_o.ce = 1;
             dcache_rreq_o.uncache = uncache_en;
             dcache_rreq_o.pc = ex_i.instr_info.pc;
@@ -220,6 +220,16 @@ module mem1
                         dcache_rreq_o.data = reg2_i;
                     end else begin
                         dcache_rreq_o = 0;
+                    end
+                end
+                `EXE_CACOP_OP: begin
+                    if (dcacop_mode_o == 2) begin
+                        dcache_rreq_o.addr = mem_paddr;
+                        dcache_rreq_o.we = 1;
+                        dcache_rreq_o.uncache = 1;
+                        dcache_rreq_o.req_type = 3'b000;
+                        dcache_rreq_o.sel = 4'b0000;
+                        dcache_rreq_o.data = 0;
                     end
                 end
                 default: begin
