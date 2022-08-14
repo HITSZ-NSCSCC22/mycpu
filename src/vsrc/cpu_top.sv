@@ -324,8 +324,8 @@ module cpu_top
         .WRITE_POL    (0),
         .AXI_ID_W     (2),
         .AXI_ID       (0),
-        .CTRL_CACHE   (1),
-        .CTRL_CNT     (1)
+        .CTRL_CACHE   (0),
+        .CTRL_CNT     (0)
     ) u_iob_cache_axi (
         .clk          (clk),
         .reset        (rst),
@@ -1085,7 +1085,8 @@ module cpu_top
 
                 // <- DCache
                 .data_ok(mem_data_ok),
-                .cache_data_i(cache_mem_data)
+                .cache_data_i(cache_mem_data),
+                .mem_valid(dcache_store_commit[i])
             );
         end
     endgenerate
@@ -1109,7 +1110,6 @@ module cpu_top
 
                 // -> DCache
                 .dcache_flush_o(wb_dcache_flush[i]),
-                .dcache_store_commit_o(dcache_store_commit[i]),
 
                 // -> Dispatch
                 .data_forward_o(wb_data_forward[i]),

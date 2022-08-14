@@ -20,6 +20,7 @@ module mem2
     // <- DCache
     input logic data_ok,
     input logic [`RegBus] cache_data_i,
+    output logic mem_valid,
 
     // Dispatch
     output data_forward_t data_forward_o,
@@ -57,12 +58,14 @@ module mem2
         else if (data_ok) data_already_ok <= 1;
     end
 
+    // DCache
     assign cache_data = cache_data_delay | cache_data_i;
     always_ff @(posedge clk) begin
         if (rst) cache_data_delay <= 0;
         else if (advance | flush) cache_data_delay <= 0;
         else if (data_ok) cache_data_delay <= cache_data_i;
     end
+    assign mem_valid = ~instr_info.excp & instr_info.valid;
 
     assign advance_ready = (mem_load_op & mem1_i.mem_access_valid & (data_ok | data_already_ok)) | ~(mem_load_op  & mem1_i.mem_access_valid);
 

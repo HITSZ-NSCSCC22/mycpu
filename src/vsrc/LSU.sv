@@ -87,8 +87,8 @@ module LSU #(
             end
             STORE_COMMIT_WAIT: begin
                 if (cpu_store_commit & p1_uncache) next_state = UNCACHE_REQ_SEND;
-                else if (cpu_store_commit) next_state = STORE_REQ_SEND;
                 else if (cpu_flush) next_state = IDLE;
+                else if (cpu_store_commit) next_state = STORE_REQ_SEND;
                 else next_state = STORE_COMMIT_WAIT;
             end
             STORE_REQ_SEND: begin
@@ -133,6 +133,14 @@ module LSU #(
             REFILL_WAIT: begin
                 dcache_valid = p1_valid_reg;
                 dcache_addr  = p1_addr_reg;
+            end
+            STORE_COMMIT_WAIT: begin
+                if (cpu_store_commit & ~cpu_flush & ~p1_uncache) begin
+                    dcache_valid = 1;
+                    dcache_addr  = p1_addr_reg;
+                    dcache_wdata = p1_wdata_reg;
+                    dcache_wstrb = p1_wstrb_reg;
+                end
             end
             STORE_REQ_SEND: begin
                 dcache_valid = 1;
@@ -180,8 +188,9 @@ module LSU #(
     end
 
     // P1 signal
+    // P1 is equivalent to MEM2
     always_ff @(posedge clk) begin
-        if (cpu_flush & ~cpu_store_commit & state == STORE_COMMIT_WAIT) begin
+        if (cpu_flush & state == STORE_COMMIT_WAIT) begin
             p1_req_type  <= 0;
             p1_cpu_store <= 0;
             p1_uncache   <= 0;
