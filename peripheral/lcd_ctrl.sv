@@ -1,5 +1,5 @@
 //to connect with CPU and translate AXI to lcd signal
-`include "axi_defines.sv"
+`include "lcd_axi_defines.sv"
 `define LCD_INPUT 32'h1fd0c000
 `define TOUCH_INPUT 32'h1fd0c004
 `define WRITE_GRAPH   32'h1fd0c008
@@ -48,7 +48,7 @@ module lcd_ctrl (
         //w
         input logic [`ID] s_wid,
         input logic [31:0] s_wdata,
-        input logic [3:0] s_wstrb,  //字节选通位和sel差不多
+        input logic [3:0] s_wstrb,  //字节选�?�位和sel差不�?
         input logic s_wlast,
         input logic s_wvalid,
         output logic s_wready,
@@ -119,7 +119,7 @@ module lcd_ctrl (
              CHAR,
              DISPATCH_GRAPH,//send graph inst to lcd_id
              DISPATCH_CHAR,//send char inst to lcd_id
-             DISPATCH_CHAR_COLOR,//send char color data to lcd_id,字符的绘画需要对每个像素点进行监视
+             DISPATCH_CHAR_COLOR,//send char color data to lcd_id,字符的绘画需要对每个像素点进行监�?
              WAITING,
              REFRESH
 
@@ -302,7 +302,7 @@ module lcd_ctrl (
     /**lcd buffer to store the wdata form AXI**/
     /*******************************************/
     logic dispatch_ok;//表示能够发射inst到lcd_id
-    logic [3:0]delay_time;//匹配lcd_ctrl和lcd_id的握手
+    logic [3:0]delay_time;//匹配lcd_ctrl和lcd_id的握�?
     assign dispatch_ok=(delay_time==2)?1:0;
 
     logic [31:0]inst_num;
@@ -312,7 +312,7 @@ module lcd_ctrl (
     logic [31:0]char_buffer[0:6];
     logic [31:0]char_addr[0:6];
     logic refresh_ok;
-    /**画一次图需要6条连续的sw指令，所以绘图时只需要存储连续的6条sw指令即可**/
+    /**画一次图�?�?6条连续的sw指令，所以绘图时只需要存储连续的6条sw指令即可**/
     always_ff @( posedge pclk ) begin : lcd_buffer
         if(~rst_n||~cpu_work) begin
             for(integer i=0;i<7;i++) begin
@@ -322,7 +322,7 @@ module lcd_ctrl (
                 char_buffer[i]<=32'b0;
             end
             buffer_state<=IDLE;
-            buffer_ok<=1;//复位状态下不能接受CPU的任何写请求
+            buffer_ok<=1;//复位状�?�下不能接受CPU的任何写请求
             count<=0;
             buffer_data<=0;
             buffer_addr<=0;
@@ -423,7 +423,7 @@ module lcd_ctrl (
                                 char_addr[4]<=lcd_addr_buffer;
                                 char_buffer[4]<=s_wdata;
                             end
-                        //存储字符的信息，用来选择字符，目前只存储ASCII码
+                        //存储字符的信息，用来选择字符，目前只存储ASCII�?
                             5:begin
                                 char_addr[5]<=lcd_addr_buffer;
                                 char_buffer[5]<=s_wdata;
@@ -495,7 +495,7 @@ module lcd_ctrl (
                         data_valid<=1;
                         delay_time<=0;
                     end
-                    //发射完后必须要延迟两秒等待id工作，不然会捕获到上一次的write_ok
+                    //发射完后必须要延迟两秒等待id工作，不然会捕获到上�?次的write_ok
                     else if(~dispatch_ok&&inst_num<=5) begin
                         delay_time<=delay_time+1;
                         data_valid<=0;
@@ -522,7 +522,7 @@ module lcd_ctrl (
                 end
                 //to dispatch char color data to lcd_id
                 DISPATCH_CHAR_COLOR: begin
-                    char_work<=0;//char_work只会保持一个时钟周期
+                    char_work<=0;//char_work只会保持�?个时钟周�?
                     refresh<=0;
                     if(char_color_ok) begin
                         char_write_ok<=0;
@@ -540,7 +540,7 @@ module lcd_ctrl (
                     end
                     else if(write_str_end) begin
                         buffer_state<=IDLE;
-                        buffer_ok<=0;//复位状态下不能接受CPU的任何写请求
+                        buffer_ok<=0;//复位状�?�下不能接受CPU的任何写请求
                         buffer_data<=0;
                         buffer_addr<=0;
                         inst_num<=0;

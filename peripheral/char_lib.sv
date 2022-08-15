@@ -37,7 +37,7 @@ module char_lib (
             count<=0;
     end
     logic start;//read from bram start
-    logic [9:0]addra;
+    logic [11:0]addra;
     always_ff @(posedge pclk) begin
         if(~rst_n) begin
             addra<=0;
@@ -51,7 +51,7 @@ module char_lib (
             case(state)
                 IDLE: begin
                     if(char_req) begin
-                        addra<=0;
+                        addra<=(ascii_code-32)*40;
                         state<=BACK;
                         start<=0;
                     end
@@ -106,7 +106,7 @@ module char_lib (
                      .clka(pclk),    // input wire clka
                      .ena(1),      // input wire ena
                      .wea(0),      // input wire [0 : 0] wea
-                     .addra(addra),  // input wire [9 : 0] addra
+                     .addra(addra),  // input wire [11 : 0] addra
                      .dina(0),    // input wire [23 : 0] dina
                      .douta(douta)  // output wire [23 : 0] douta
                  );

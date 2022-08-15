@@ -19,7 +19,7 @@ char_library  字库
 
 + 选择bram IP
 + Basic 无需改动
-+ Port A 字宽为24，深度为1024，取消Primitives Output Register
++ Port A 字宽为24，深度为4096，取消Primitives Output Register
 + Other Options 从peripheral initial code中导入char_lib.coe
 
 lcd_init  显示屏初始化和开机Logo

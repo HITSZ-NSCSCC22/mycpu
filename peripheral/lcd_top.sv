@@ -1,6 +1,7 @@
 //lcd top to connect lcd to cpu
 `include "lcd_axi_defines.sv"
 `include "lcd_types.sv"
+`define AXI
 module lcd_top
 import lcd_types::*;
     (

@@ -344,20 +344,20 @@ module lcd_interface #(
 
     end
 
-    ila_1 lcd_interface_debug (
-              .clk(pclk), // input wire clk
-              .probe0(lcd_data_i), // input wire [14:0]  probe0
-              .probe1(lcd_data_o), // input wire [14:0]  probe1
-              .probe2(0), // input wire [14:0]  probe2
-              .probe3(current_state), // input wire [31:0]  probe3
-              .probe4(next_state), // input wire [31:0]  probe4
-              .probe5(write_color_ok), // input wire [0:0]  probe5
-              .probe6(init_write_ok), // input wire [0:0]  probe6
-              .probe7(we), // input wire [0:0]  probe7
-              .probe8(lcd_rs_i), // input wire [0:0]  probe8
-              .probe9(0), // input wire [0:0]  probe9
-              .probe10(0), // input wire [0:0]  probe10
-              .probe11(0) // input wire [0:0]  probe11
-          );
+    // ila_1 lcd_interface_debug (
+    //           .clk(pclk), // input wire clk
+    //           .probe0(lcd_data_i), // input wire [14:0]  probe0
+    //           .probe1(lcd_data_o), // input wire [14:0]  probe1
+    //           .probe2(0), // input wire [14:0]  probe2
+    //           .probe3(current_state), // input wire [31:0]  probe3
+    //           .probe4(next_state), // input wire [31:0]  probe4
+    //           .probe5(write_color_ok), // input wire [0:0]  probe5
+    //           .probe6(init_write_ok), // input wire [0:0]  probe6
+    //           .probe7(we), // input wire [0:0]  probe7
+    //           .probe8(lcd_rs_i), // input wire [0:0]  probe8
+    //           .probe9(0), // input wire [0:0]  probe9
+    //           .probe10(0), // input wire [0:0]  probe10
+    //           .probe11(0) // input wire [0:0]  probe11
+    //       );
 
 endmodule

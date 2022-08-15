@@ -219,7 +219,7 @@ module char_ctrl (
             char_req<=0;
         end
         else if(char_work&&state==IDLE) begin
-            ascii_code<=0;
+            ascii_code<=cpu_code[7:0];
             chinese_code<=0;
             is_en<=0;
             char_req<=1;
