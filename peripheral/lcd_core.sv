@@ -9,6 +9,9 @@ module lcd_core (
         //to lcd_ctrl
         output logic [31:0]touch_reg,
         output logic cpu_work,//cpu can send message to lcd
+        output logic [31:0]game,//tell cpu which game working
+        output logic rand_num,//是否生成随机数
+        output logic [9:0]core_random,//随机数
         //to lcd_mux
         output logic cpu_draw,//cpu can draw the LCD now
         //from lcd_touch_scanner
@@ -56,7 +59,10 @@ module lcd_core (
              IDLE,
              INITIAL,
              MAIN,
-             GAME
+             GAME1,
+             GAME2,
+             GAME3,
+             GAME4
          } core_state;
     always_ff @(posedge pclk) begin
         if(~rst_n) begin
@@ -65,6 +71,8 @@ module lcd_core (
             core_state<=IDLE;
             cpu_draw<=0;
             cpu_work<=0;
+            game<=0;
+            rand_num<=0;
         end
         else begin
             case(core_state)
@@ -74,6 +82,8 @@ module lcd_core (
                     init_main<=0;
                     cpu_draw<=0;
                     cpu_work<=0;
+                    game<=0;
+                    rand_num<=0;
                 end
                 INITIAL: begin
                     if(init_finish) begin
@@ -83,45 +93,97 @@ module lcd_core (
                     end
                     cpu_draw<=0;
                     init_main<=0;
+                    game<=0;
+                    rand_num<=0;
                 end
                 MAIN: begin
                     //TITLE 1
+                    //正方形动画
                     if(touch_valid&&release_flag&&cx>=16'h3C&&cx<=16'hD1&&cy>=16'h46&&cy<=16'h171) begin
-                        core_state<=GAME;
+                        core_state<=GAME1;
                         cpu_draw<=1;
                         init_main<=0;
+                        game<=1;
                     end
                     //TITLE 2
+                    //刷新
                     else if(touch_valid&&release_flag&&cx>=16'h10E&&cx<=16'h1A3&&cy>=16'h46&&cy<=16'h171) begin
                         core_state<=INITIAL;
                         cpu_draw<=0;
                         init_main<=1;//test yi xia
+                        game<=0;
                     end
                     //TITLE 3
+                    //随机数生成器
                     else if(touch_valid&&release_flag&&cx>=16'h3C&&cx<=16'hD1&&cy>=16'h1AE&&cy<=16'h2D9) begin
-                        core_state<=GAME;
+                        core_state<=GAME3;
                         cpu_draw<=1;
                         init_main<=0;
+                        game<=3;
+                        rand_num<=0;
                     end
                     //TITLE 4
+                    //字符库展示，名字
                     else if(touch_valid&&release_flag&&cx>=16'h10E&&cx<=16'h1A3&&cy>=16'h1AE&&cy<=16'h2D9) begin
-                        core_state<=GAME;
+                        core_state<=GAME4;
                         cpu_draw<=1;
                         init_main<=0;
+                        game<=4;
                     end
                 end
-                GAME: begin
+                GAME1: begin
                     if(touch_valid&&release_flag&&cx>=16'h28&&cx<=16'h1B7&&cy>=16'h28&&cy<=16'h2f7) begin
                         core_state<=INITIAL;
                         init_main<=1;
                         cpu_draw<=0;
                         cpu_work<=0;
+                        game<=0;
                     end
                     else begin
                         core_state<=core_state;
                         init_main<=0;
                     end
                 end
+                GAME3:begin
+                    if(touch_valid&&release_flag&&cx>=16'hA5&&cx<=16'h13A&&cy>=16'h2a8&&cy<=16'h2d9) begin
+                        core_state<=INITIAL;
+                        init_main<=1;
+                        cpu_draw<=0;
+                        cpu_work<=0;
+                        game<=0;
+                    end
+                    else if(rand_num)begin
+                        core_state<=core_state;
+                        init_main<=0;
+                        rand_num<=0;
+                    end
+                    //检测是否生成随机数
+                    //TODO
+                    else if(touch_valid&&release_flag&&cx>=16'hA5&&cx<=16'h13A&&cy>=16'h1f4&&cy<=16'h225)
+                    begin
+                        core_state<=core_state;
+                        init_main<=0;
+                        rand_num<=1;
+                    end
+                    else begin
+                        core_state<=core_state;
+                        init_main<=0;
+                    end
+                end
+                GAME4:begin
+                    if(touch_valid&&release_flag&&cx>=16'h28&&cx<=16'h1B7&&cy>=16'h28&&cy<=16'h2f7) begin
+                        core_state<=INITIAL;
+                        init_main<=1;
+                        cpu_draw<=0;
+                        cpu_work<=0;
+                        game<=0;
+                    end
+                    else begin
+                        core_state<=core_state;
+                        init_main<=0;
+                    end
+                end
+
                 default: begin
                     enable<=0;
                     init_main<=0;
@@ -132,4 +194,11 @@ module lcd_core (
             endcase
         end
     end
+
+    always @(posedge pclk) begin
+        if(~rst_n)  core_random<=0;
+        else if(core_random==999)  core_random<=0;
+        else core_random<=core_random+1;
+    end
+
 endmodule

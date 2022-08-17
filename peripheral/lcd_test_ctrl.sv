@@ -69,7 +69,7 @@ module lcd_test_ctrl (
              CHAR,
              DISPATCH_GRAPH,//send graph inst to lcd_id
              DISPATCH_CHAR,//send char inst to lcd_id
-             DISPATCH_CHAR_COLOR,//send char color data to lcd_id,字符的绘画需要对每个像素点进行监�?
+             DISPATCH_CHAR_COLOR,//send char color data to lcd_id,字符的绘画需要对每个像素点进行监�?
              WAITING,
              REFRESH
 
@@ -79,7 +79,7 @@ module lcd_test_ctrl (
     /*******************************************/
     /**lcd buffer to store the wdata form AXI**/
     /*******************************************/
-    logic dispatch_ok;//表示能够�??�射inst到lcd_id
+    logic dispatch_ok;//表示能够�??�射inst到lcd_id
     logic [3:0]delay_time;//匹�?lcd_ctrl和lcd_id的�?�手
     assign dispatch_ok=(delay_time==2)?1:0;
 
@@ -91,7 +91,7 @@ module lcd_test_ctrl (
     logic [31:0]char_addr[0:6];
     logic buffer_ok;//when buffer is full,drawing lcd
     logic refresh_ok;
-    /**画一次图�?�??6�??�连续的sw指令，所以绘图时�??�需�??存储连续�?6�??�sw指令�??��?�?**/
+    /**画一次图�?�??6�??�连续的sw指令，所以绘图时�??�需�??存储连续�?6�??�sw指令�??��?�?**/
     always_ff @( posedge pclk ) begin : lcd_buffer
         // if(~rst_n||~cpu_work) begin
         if(~rst_n||~cpu_work) begin
@@ -102,7 +102,7 @@ module lcd_test_ctrl (
                 char_buffer[i]<=32'b0;
             end
             buffer_state<=IDLE;
-            buffer_ok<=1;//复位状�?�下不能接受CPU的任何写请求
+            buffer_ok<=1;//复位状�?�下不能接受CPU的任何写请求
             count<=0;
             buffer_data<=0;
             buffer_addr<=0;
@@ -183,7 +183,7 @@ module lcd_test_ctrl (
                         data_valid<=1;
                         delay_time<=0;
                     end
-                    //发射完后必须要延迟两秒等待id工作，不然会捕获到上�?次的write_ok
+                    //发射完后必须要延迟两秒等待id工作，不然会捕获到上�?次的write_ok
                     else if(~dispatch_ok&&inst_num<=5) begin
                         delay_time<=delay_time+1;
                         data_valid<=0;
@@ -228,7 +228,7 @@ module lcd_test_ctrl (
                     end
                     else if(write_str_end) begin
                         buffer_state<=WAITING;
-                        buffer_ok<=1;//复位状�?�下不能接受CPU的任何写请求
+                        buffer_ok<=1;//复位状�?�下不能接受CPU的任何写请求
                         buffer_data<=0;
                         buffer_addr<=0;
                         inst_num<=0;
@@ -253,7 +253,7 @@ module lcd_test_ctrl (
                         data_valid<=1;
                         delay_time<=0;
                     end
-                    //发射完后必须要延迟两秒等待id工作，不然会捕获到上�?次的write_ok
+                    //发射完后必须要延迟两秒等待id工作，不然会捕获到上�?次的write_ok
                     else if(~dispatch_ok&&inst_num<=6) begin
                         delay_time<=delay_time+1;
                         data_valid<=0;

@@ -74,12 +74,6 @@ import lcd_types::*;
         output logic lcd_ct_scl,
         output logic lcd_ct_rstn //lcd触摸屏幕复位信号
 
-        // /**VGA**/
-        // output logic vga_wen,
-        // output logic [3:0] vga_wrow,
-        // output logic [3:0] vga_wcol,
-        // output logic [11:0] vga_wcolor
-
     );
     //debug signal
     logic [31:0]debug_buffer_state;
@@ -92,16 +86,8 @@ import lcd_types::*;
     logic debug_is_main;
     logic [31:0]debug_w_state;
     logic [31:0]debug_r_state;
-
-    // logic pclk;
-    // logic ts_clk;
-    // clk_wiz_0 clk_pll
-    //           (
-    //               // Clock out ports
-    //               .clk_out1(ts_clk),     // 10Mhz
-    //               .clk_out2(pclk),     // 50Mhz
-    //               // Clock in ports
-    //               .clk_in1(clk));      // input clk_in1
+    logic debug_buffer_ok;
+    logic [31:0]debug_count;
 
     //core <-> *
     logic touch_flag;
@@ -113,6 +99,11 @@ import lcd_types::*;
     logic init_main_core;
     logic init_finish_core;
     logic cpu_work;
+
+    logic [31:0]game;
+    logic rand_num;
+    logic [9:0]core_random;
+
     lcd_core u_lcd_core(
                  .pclk(pclk),
                  .rst_n(rst_n),
@@ -125,6 +116,9 @@ import lcd_types::*;
                  //to lcd_ctrl
                  .touch_reg(touch_reg),
                  .cpu_work(cpu_work),
+                 .game(game),
+                 .rand_num(rand_num),
+                 .core_random(core_random),
                  //to lcd_mux
                  .cpu_draw(cpu_draw),
 
@@ -395,12 +389,17 @@ import lcd_types::*;
                  //from lcd_core
                  .touch_reg(touch_reg),
                  .cpu_work(cpu_work),
+                 .game(game),
+                 .rand_num(rand_num),
+                 .core_random(core_random),
                  //from lcd_id
                  .write_ok(write_ok),  //æ•°ï¿½?ï¿½å’ŒæŒ‡ä»¤å†™å‡ºåŽ»ï¿½?ï¿½ï¿½?èƒ½ç»§ç»­å†™
                  .debug_buffer_state(debug_buffer_state),
                  .debug_inst_num(debug_inst_num),
                  .debug_r_state(debug_r_state),
                  .debug_w_state(debug_w_state),
+                 .debug_buffer_ok(debug_buffer_ok),
+                 .debug_count(debug_count),
 
                  //to char_ctrl
                  .cpu_code(cpu_code),
@@ -564,8 +563,8 @@ import lcd_types::*;
               .probe35(s_rvalid), // input wire [0:0]  probe35
               .probe36(s_rready), // input wire [0:0]  probe36
               .probe37(cpu_draw), // input wire [0:0]  probe37
-              .probe38(0), // input wire [0:0]  probe38
-              .probe39(0) // input wire [15:0]  probe39
+              .probe38(debug_buffer_ok), // input wire [0:0]  probe38
+              .probe39(debug_count) // input wire [15:0]  probe39
           );
 
 endmodule

@@ -86,6 +86,9 @@ module lcd_ctrl (
         //from lcd_core
         input logic [31:0]touch_reg,
         input logic cpu_work,
+        input logic [31:0]game,
+        input logic rand_num,
+        input logic [9:0]core_random,
 
         //to char_ctrl
         output logic [31:0]cpu_code,//选择字符
@@ -101,7 +104,9 @@ module lcd_ctrl (
         output logic [31:0]debug_buffer_state,
         output logic [31:0]debug_inst_num,
         output logic [31:0]debug_r_state,
-        output logic [31:0]debug_w_state
+        output logic [31:0]debug_w_state,
+        output logic debug_buffer_ok,
+        output logic [31:0]debug_count
     );
     enum logic [2:0] {
              R_ADDR = 3'b001,
@@ -114,6 +119,7 @@ module lcd_ctrl (
              W_RESP = 3'b110
          } w_state;
     enum int{
+             MAIN,//the lcd in main table
              IDLE,
              GRAPH,
              CHAR,
@@ -121,7 +127,10 @@ module lcd_ctrl (
              DISPATCH_CHAR,//send char inst to lcd_id
              DISPATCH_CHAR_COLOR,//send char color data to lcd_id,字符的绘画需要对每个像素点进行监�?
              WAITING,
-             REFRESH
+             REFRESH,
+             GAME3,//hardware complete game3
+             HARD_CHAR,
+             HARD_GRAPH
 
          } buffer_state;
     logic [31:0] addr_buffer;
@@ -176,9 +185,9 @@ module lcd_ctrl (
                         case (addr_buffer)
                             //TODO
                             `LCD_INPUT:
-                                s_rdata <= touch_reg;
+                                s_rdata <=  32'hffff_ffff ;
                             `TOUCH_INPUT:
-                                s_rdata <= 32'hffff_ffff;
+                                s_rdata <= touch_reg;
                             default:
                                 s_rdata <= 0;
                         endcase
@@ -312,6 +321,19 @@ module lcd_ctrl (
     logic [31:0]char_buffer[0:6];
     logic [31:0]char_addr[0:6];
     logic refresh_ok;
+
+    /**用于实现硬件控制的代码**/
+    logic [31:0]game_kind;
+    logic [31:0]game3_ctrl;//用来自动控制随机数生成的情况
+    logic [9:0]my_random;//用于记录随机数
+    logic [31:0]char_count;//用来记录已经绘制了的字符数量
+    logic [31:0]x_l;
+    logic [31:0]x_h;
+    logic [31:0]y_l;
+    logic [31:0]y_h;
+    logic rand_flush;//对随机数生成位刷屏
+    logic random_work;
+    logic [31:0]my_number;//生成的随机数
     /**画一次图�?�?6条连续的sw指令，所以绘图时只需要存储连续的6条sw指令即可**/
     always_ff @( posedge pclk ) begin : lcd_buffer
         if(~rst_n||~cpu_work) begin
@@ -321,7 +343,7 @@ module lcd_ctrl (
                 char_addr[i]<=32'b0;
                 char_buffer[i]<=32'b0;
             end
-            buffer_state<=IDLE;
+            buffer_state<=MAIN;
             buffer_ok<=1;//复位状�?�下不能接受CPU的任何写请求
             count<=0;
             buffer_data<=0;
@@ -340,9 +362,64 @@ module lcd_ctrl (
             char_work<=0;
             char_write_ok<=0;
             char_rs<=0;
+            game_kind<=0;
+            game3_ctrl<=0;
+            my_random<=0;
+            char_count<=0;
+            x_l<=0;
+            x_h<=0;
+            y_l<=0;
+            y_h<=0;
+            rand_flush<=0;
+            random_work<=0;
+            my_number<=0;
         end
         else begin
             case(buffer_state)
+                MAIN:begin
+                     for(integer i=0;i<7;i++) begin
+                         graph_buffer[i]<=32'b0;
+                         graph_addr[i]<=32'b0;
+                         char_addr[i]<=32'b0;
+                         char_buffer[i]<=32'b0;
+                     end
+                     buffer_ok<=1;//复位状�?�下不能接受CPU的任何写请求
+                     count<=0;
+                     buffer_data<=0;
+                     buffer_addr<=0;
+                     inst_num<=0;
+                     data_valid<=0;
+                     delay_time<=2;
+                     graph_size<=0;
+                     enable<=0;
+                     refresh_req<=0;
+                     refresh_ok<=0;
+                     refresh<=0;
+                     refresh_rs_o<=0;
+                     char_color<=0;
+                     cpu_code<=0;
+                     char_work<=0;
+                     char_write_ok<=0;
+                     char_rs<=0;
+                     game_kind<=game;
+                     game3_ctrl<=0;
+                     my_random<=0;
+                     char_count<=0;
+                     x_l<=0;
+                     x_h<=0;
+                     y_l<=0;
+                     y_h<=0;
+                     rand_flush<=0;
+                     random_work<=0;
+                     my_number<=0;
+                     case (game)
+                        1:buffer_state<=IDLE;
+                        2:buffer_state<=MAIN;
+                        3:buffer_state<=GAME3;
+                        4:buffer_state<=MAIN; 
+                        default:buffer_state<=MAIN; 
+                     endcase
+                end
                 IDLE: begin
                     count<=0;
                     buffer_addr<=0;
@@ -360,6 +437,17 @@ module lcd_ctrl (
                     char_work<=0;
                     char_write_ok<=0;
                     char_rs<=0;
+                    game_kind<=1;
+                    game3_ctrl<=0;
+                    my_random<=0;
+                    char_count<=0;
+                    x_l<=0;
+                    x_h<=0;
+                    y_l<=0;
+                    y_h<=0;
+                    rand_flush<=0;
+                    random_work<=0;
+                    my_number<=0;
                     if(s_awvalid&&s_awready) begin
                         case(s_awaddr)
                             `WRITE_GRAPH: begin
@@ -507,7 +595,7 @@ module lcd_ctrl (
                             char_addr[i]<=32'b0;
                         end
                         buffer_state<=DISPATCH_CHAR_COLOR;
-                        buffer_ok<=1;
+                        buffer_ok<=0;
                         char_color<=1;
                         char_rs<=0;
                         buffer_data<={{16{1'b0}},16'h2c00};
@@ -539,8 +627,12 @@ module lcd_ctrl (
                         char_color<=0;
                     end
                     else if(write_str_end) begin
-                        buffer_state<=IDLE;
-                        buffer_ok<=0;//复位状�?�下不能接受CPU的任何写请求
+                        case(game_kind)
+                            1:buffer_state<=IDLE;
+                            3:buffer_state<=GAME3;
+                            default:buffer_state<=IDLE;
+                        endcase
+                        buffer_ok<=1;//复位状�?�下不能接受CPU的任何写请求
                         buffer_data<=0;
                         buffer_addr<=0;
                         inst_num<=0;
@@ -575,8 +667,12 @@ module lcd_ctrl (
                             graph_buffer[i]<=32'b0;
                             graph_addr[i]<=32'b0;
                         end
-                        buffer_state<=IDLE;
-                        buffer_ok<=0;
+                        case(game_kind)
+                            1:buffer_state<=IDLE;
+                            3:buffer_state<=GAME3;
+                            default:buffer_state<=IDLE;
+                        endcase
+                        buffer_ok<=1;
                         count<=0;
                         buffer_data<=0;
                         buffer_addr<=0;
@@ -635,6 +731,145 @@ module lcd_ctrl (
                         end
                     end
                 end
+                
+                /**以下时随机数生成器的硬件实现代码**/
+                GAME3:begin
+                    //先刷屏
+                    if(game3_ctrl==0)       buffer_state<=HARD_GRAPH;
+                    //绘制返回键
+                    else if(game3_ctrl==1)  buffer_state<=HARD_GRAPH;
+                    //绘制生成建
+                    else if(game3_ctrl==2)  buffer_state<=HARD_GRAPH;
+                    //绘制默认的字符0000
+                    else if(game3_ctrl==3)  begin
+                        if(char_count==0)begin
+                            x_l<=32'd192;
+                            x_h<=32'd215;
+                            y_l<=32'd300;
+                            y_h<=32'd339;
+                        end
+                        buffer_state<=HARD_CHAR;
+                    end
+                    //等待点击生成随机数
+                    else if(game3_ctrl==4)
+                    begin
+                        if(char_count==0)begin
+                            x_l<=32'd192;
+                            x_h<=32'd215;
+                            y_l<=32'd300;
+                            y_h<=32'd339;
+                        end
+                        //刷屏
+                        if(rand_num&&random_work==0)begin
+                            random_work<=1;
+                            rand_flush<=1;
+                            my_random<=core_random;
+                            buffer_state<=HARD_GRAPH;
+                        end
+                        //写数字
+                        else if(random_work)begin
+                            buffer_state<=HARD_CHAR;
+                            case(char_count)
+                                3:my_number<=(my_random[3:0]<=9)?my_random[3:0]:9;
+                                2:my_number<=my_random[6:4];
+                                1:my_number<=my_random[9:7];
+                                0:my_number<=(my_random[2:0]>=5)?my_random[8:6]:my_random[2:0];
+                                default:my_number<=0;
+                            endcase
+                        end
+                    end 
+                end
+                HARD_GRAPH:begin
+                    if(game3_ctrl==0)begin
+                        graph_buffer[0]<=32'h3600_0000;
+                        graph_buffer[1]<=32'h2a00_0000;
+                        graph_buffer[2]<=32'h2a02_01df;
+                        graph_buffer[3]<=32'h2b00_0000;
+                        graph_buffer[4]<=32'h2b02_031f;
+                        graph_buffer[5]<=32'h2c00_ffff;
+                        graph_buffer[6]<=32'h0005_dc00;
+                        buffer_state<=DISPATCH_GRAPH;
+                        game_kind<=3;
+                        game3_ctrl=game3_ctrl+1;    
+                    end
+                    else if(game3_ctrl==1)begin
+                        graph_buffer[0]<=32'h3600_0000;
+                        graph_buffer[1]<=32'h2a00_00a5;
+                        graph_buffer[2]<=32'h2a02_013a;
+                        graph_buffer[3]<=32'h2b00_02a8;
+                        graph_buffer[4]<=32'h2b02_02d9;
+                        graph_buffer[5]<=32'h2c00_ff45;
+                        graph_buffer[6]<=32'h0000_1d4c;
+                        buffer_state<=DISPATCH_GRAPH;
+                        game_kind<=3;
+                        game3_ctrl=game3_ctrl+1;  
+                    end
+                    else if(game3_ctrl==2)begin
+                        graph_buffer[0]<=32'h3600_0000;
+                        graph_buffer[1]<=32'h2a00_00a5;
+                        graph_buffer[2]<=32'h2a02_013a;
+                        graph_buffer[3]<=32'h2b00_01f4;
+                        graph_buffer[4]<=32'h2b02_0225;
+                        graph_buffer[5]<=32'h2c00_E5d5;
+                        graph_buffer[6]<=32'h0000_1d4c;
+                        buffer_state<=DISPATCH_GRAPH;
+                        game_kind<=3;
+                        game3_ctrl=game3_ctrl+1;  
+                    end
+                    else if(game3_ctrl==4)begin
+                        graph_buffer[0]<=32'h3600_0000;
+                        graph_buffer[1]<=32'h2a00_00c0;
+                        graph_buffer[2]<=32'h2a02_011f;
+                        graph_buffer[3]<=32'h2b00_012c;
+                        graph_buffer[4]<=32'h2b02_0153;
+                        graph_buffer[5]<=32'h2c00_ffff;
+                        graph_buffer[6]<=32'h0000_0f00;
+                        buffer_state<=DISPATCH_GRAPH;
+                        game_kind<=3;
+                    end
+
+                end
+                HARD_CHAR:begin
+                    game_kind<=3;
+                    if(game3_ctrl==3)begin
+                        char_buffer[0]<=32'h3600_0000;
+                        char_buffer[1]<=32'h2a00_0000+x_l;
+                        char_buffer[2]<=32'h2a02_0000+x_h;
+                        char_buffer[3]<=32'h2b00_012c;
+                        char_buffer[4]<=32'h2b02_0153;
+                        char_buffer[5]<=32'd48;//0
+                        char_buffer[6]<=32'h0;
+                        buffer_state<=DISPATCH_CHAR;
+                        x_l<=x_l+24;
+                        x_h<=x_h+24;
+                        
+                        if(char_count==3)begin
+                            game3_ctrl<=game3_ctrl+1;
+                            char_count<=0;
+                        end
+                        else char_count<=char_count+1;
+                    end
+                    else if(game3_ctrl==4)begin
+                        char_buffer[0]<=32'h3600_0000;
+                        char_buffer[1]<=32'h2a00_0000+x_l;
+                        char_buffer[2]<=32'h2a02_0000+x_h;
+                        char_buffer[3]<=32'h2b00_012c;
+                        char_buffer[4]<=32'h2b02_0153;
+                        char_buffer[5]<=my_number+48;//0
+                        char_buffer[6]<=32'h0;
+                        buffer_state<=DISPATCH_CHAR;
+                        x_l<=x_l+24;
+                        x_h<=x_h+24;
+                        if(char_count==3)begin
+                            game3_ctrl<=4;
+                            char_count<=0;
+                            random_work<=0;
+                            rand_flush<=0;
+                            my_random<=0;
+                        end
+                        else char_count<=char_count+1;
+                    end
+                end
                 default: begin
                     for(integer i=0;i<7;i++) begin
                         graph_buffer[i]<=32'b0;
@@ -670,4 +905,6 @@ module lcd_ctrl (
     assign debug_inst_num=inst_num;
     assign debug_w_state=w_state;
     assign debug_r_state=r_state;
+    assign debug_buffer_ok=buffer_ok;
+    assign debug_count=count;
 endmodule
