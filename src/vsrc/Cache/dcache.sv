@@ -36,6 +36,7 @@ module dcache
     output logic [NWAY-1:0] tag_hit_o,
 
     output logic dcache_ready,
+    output logic dcache_clearing,
     output logic data_ok,
     output logic [31:0] rdata,
 
@@ -143,6 +144,7 @@ module dcache
     assign dcache_ready = ~dcache_stall;
     assign dcache_stall = (state != IDLE) || ((p3_valid & (p3_uncache_en | !hit) | cacop_req_valid) & !cpu_flush & mem_valid & !axi_valid_i_delay) || (fifo_full & !axi_valid_i_delay);
     assign fifo_full = fifo_state[1];
+    assign dcache_clearing = state == FIFO_CLEAR || fifo_full;
     always_ff @(posedge clk) begin
         if (rst) dcache_stall_delay <= 0;
         else dcache_stall_delay <= dcache_stall;

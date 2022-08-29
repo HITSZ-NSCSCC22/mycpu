@@ -194,7 +194,7 @@ module cpu_top
     logic [`RegBus] mem_cache_pc;
     logic [1:0] wb_dcache_flush;  // flush dcache if excp
     logic [1:0][`RegBus] wb_dcache_flush_pc;
-    logic dcache_ack, dcache_ready;
+    logic dcache_ack, dcache_ready, dcache_clearing;
     (* EQUIVALENT_REGISTER_REMOVAL="NO" *)logic [1:0] ex_dcache_ready;
     logic [1:0] mem_valid;
 
@@ -296,6 +296,7 @@ module cpu_top
         .cpu_flush(wb_dcache_flush[0]),
 
         .dcache_ready(dcache_ready),
+        .dcache_clearing(dcache_clearing),
         .data_ok(mem_data_ok),
         .rdata(cache_mem_data),
 
@@ -778,8 +779,9 @@ module cpu_top
                 .ftq_query_addr_o(ex_ftq_query_addr[i]),
                 .ftq_query_pc_i  (ex_ftq_query_pc[i]),
 
-                .dcache_rreq_o (mem_cache_signal[i]),
+                .dcache_rreq_o(mem_cache_signal[i]),
                 .dcache_ready_i(ex_dcache_ready[i]),
+                .dcache_clearing_i(dcache_clearing),
 
                 .icacop_en_o  (icacop_op_en[i]),
                 .icacop_mode_o(icacop_op_mode[i]),

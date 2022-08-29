@@ -53,6 +53,7 @@ module ex
     //<-> Dcache
     output mem_dcache_rreq_t dcache_rreq_o,
     input logic dcache_ready_i,
+    input logic dcache_clearing_i,
 
     // <-> ICache, CACOP
     output logic icacop_en_o,
@@ -238,7 +239,7 @@ module ex
     assign mem_h_op = special_info.mem_h_op;
 
     // notify ctrl is ready to advance
-    assign advance_ready = access_mem | dcacop_op_en ? (dcache_ready_i & ~access_mem_after_mem & ~access_mem_after_mem_delay) :
+    assign advance_ready = access_mem | dcacop_op_en ? (dcache_ready_i & ~dcache_clearing_i & ~access_mem_after_mem & ~access_mem_after_mem_delay) :
                             icacop_op_en ? icacop_ack_i : ~muldiv_stall;
 
     always_ff @(posedge clk) begin
@@ -254,7 +255,8 @@ module ex
             )-1:$clog2(
                 DCACHELINE_WIDTH/8
             )];
-        end else if (!dcache_ready_i) begin
+            //if the dcache is not ready
+        end else if (!dcache_ready_i || dcache_clearing_i) begin
             last_is_mem <= last_is_mem;
             last_mem_index <= last_mem_index;
         end else begin
