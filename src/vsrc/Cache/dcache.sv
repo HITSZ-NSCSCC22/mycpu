@@ -337,7 +337,7 @@ module dcache
                     next_state = IDLE;
             end
             READ_REQ: begin
-                if (axi_rrdy_i)  // If AXI ready, send request
+                if (axi_rrdy_i & axi_wrdy_i)  // If AXI ready, send request
                     next_state = READ_WAIT;  
                 else next_state = READ_REQ;
             end
@@ -347,7 +347,7 @@ module dcache
                 else next_state = READ_WAIT;
             end
             WRITE_REQ: begin
-                if (axi_rrdy_i) // If AXI ready, send request
+                if (axi_rrdy_i & axi_wrdy_i) // If AXI ready, send request
                     next_state = WRITE_WAIT;
                 else next_state = WRITE_REQ;
             end
@@ -367,7 +367,7 @@ module dcache
                 else next_state = UNCACHE_READ_WAIT;
             end
             UNCACHE_WRITE_REQ: begin
-                if (axi_wrdy_i)  // If AXI ready, send request 
+                if (axi_wrdy_i & fifo_state[0])  // If AXI ready and FIFO empty, send request 
                     next_state = UNCACHE_WRITE_WAIT; 
                 else next_state = UNCACHE_WRITE_REQ;
             end
@@ -696,7 +696,7 @@ module dcache
             end
             READ_REQ, WRITE_REQ: begin
                 //if the axi is free then send the read request
-                if (axi_rrdy_i) begin
+                if (axi_rrdy_i & axi_wrdy_i) begin
                     axi_rreq_o = 1;
                     axi_size_o = 3'b100;
                     axi_addr_o = {p3_paddr[31:4], 4'b0};
@@ -724,7 +724,7 @@ module dcache
                 end
             end
             UNCACHE_WRITE_REQ: begin
-                if (axi_wrdy_i) begin
+                if (axi_wrdy_i & fifo_state[0]) begin // Only send uncache request when FIFO is cleared
                     axi_wreq_o = 1;
                     axi_uncached_o = 1;
                     axi_size_o = p3_req_type;
@@ -747,6 +747,13 @@ module dcache
                             axi_wstrb_o = {p3_wstrb, 12'b0};
                         end
                     endcase
+                end else if (axi_wrdy_i) begin
+                    axi_wreq_o = 1;
+                    fifo_w_accept = 1;
+                    axi_size_o = 3'b100;
+                    axi_addr_o = fifo_axi_wr_addr;
+                    axi_wdata_o = fifo_axi_wr_data;
+                    axi_wstrb_o = 16'b1111_1111_1111_1111; 
                 end
             end
             CACOP_REQ: begin
