@@ -164,7 +164,8 @@ module dcache
         case (state)
             IDLE: begin
                 // if the fifo is full ,we keep the state 
-                if (fifo_state[1]) next_state = FIFO_CLEAR;
+                if (fifo_state[1] || (p3_valid & p3_uncache_en & !cpu_flush & mem_valid & !axi_valid_i_delay & !fifo_state[0]))
+                    next_state = FIFO_CLEAR;
                 else if (cacop_req_valid & !cpu_flush & mem_valid & !axi_valid_i_delay)
                     next_state = CACOP_REQ;
                 // if the dcache is idle,then accept the new request
