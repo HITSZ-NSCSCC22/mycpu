@@ -217,8 +217,9 @@ module dcache
             p2_cacop_mode <= 0;
             p2_uncache_en <= 0;
             p2_cacop <= 0;
-            p2_paddr <= 0; 
-        end else if (dcache_stall) begin  // if the dcache is stall,keep the pipeline data
+            p2_paddr <= 0;
+        end else
+        if (dcache_stall) begin  // if the dcache is stall,keep the pipeline data
         end else begin
             // p1 -> p2
             p2_valid <= valid;
@@ -231,7 +232,7 @@ module dcache
             p2_uncache_en <= uncache_en;
         end
     end
-    
+
     // P2 comb
     // Hit signal
     always_comb begin : p2_tag_hit_comb
@@ -327,14 +328,14 @@ module dcache
     always_comb begin : transition_comb
         case (state)
             IDLE: begin
-                if (~mem_valid | cpu_flush)
+                if (~mem_valid | cpu_flush) begin
                     // Remain IDLE if P3 request is invalid
                     // IMPORTANT! assume P3 request is valid in other state
                     next_state = IDLE;
-                else if (p3_cacop_writeback_valid)
+                end else if (p3_cacop_writeback_valid) begin
                     // CACOP cause a state change
                     next_state = CACOP_REQ;
-                else if (p3_valid & p3_uncache_en) begin
+                end else if (p3_valid & p3_uncache_en) begin
                     // Uncached request
                     if (p3_cpu_wreq) next_state = UNCACHE_WRITE_REQ;
                     else next_state = UNCACHE_READ_REQ;
@@ -342,55 +343,47 @@ module dcache
                     // Cached request, but miss
                     if (p3_cpu_wreq) next_state = WRITE_REQ;
                     else next_state = READ_REQ;
-                end else if(p3_cpu_wreq)next_state = WRITE_BACK_REQ;
-                    // P3 is a hit request
-                    else next_state = IDLE;
+                end else next_state = IDLE;
             end
             READ_REQ: begin
                 if (axi_rrdy_i)  // If AXI ready, send request
-                    next_state = READ_WAIT;  
+                    next_state = READ_WAIT;
                 else next_state = READ_REQ;
             end
             READ_WAIT: begin
-                if ((axi_rvalid_i | axi_rrdy_i) ) next_state = IDLE;
-                // If return valid, back to IDLE
-                else next_state = READ_WAIT;
+                if ((axi_rvalid_i | axi_rrdy_i)) begin
+                    if (fifo_wreq) next_state = WRITE_BACK_WAIT;
+                    else next_state = IDLE;
+                end else next_state = READ_WAIT;
             end
             WRITE_REQ: begin
-                if (axi_rrdy_i) // If AXI ready, send request
+                if (axi_rrdy_i)  // If AXI ready, send request
                     next_state = WRITE_WAIT;
                 else next_state = WRITE_REQ;
             end
             WRITE_WAIT: begin
-                if ((axi_rvalid_i | axi_rrdy_i) ) begin
-                    if(write_back_req)next_state = WRITE_BACK_REQ;
+                if ((axi_rvalid_i | axi_rrdy_i)) begin
+                    if (fifo_wreq) next_state = WRITE_BACK_WAIT;
                     else next_state = IDLE;
-                end
-                else next_state = WRITE_WAIT;
+                end else next_state = WRITE_WAIT;
             end
-            WRITE_BACK_REQ:begin
-                if (axi_wrdy_i) // If return valid, back to IDLE
-                    next_state = WRITE_BACK_WAIT;
-                else next_state = WRITE_BACK_REQ;
-            end
-            WRITE_BACK_WAIT:begin
-                if (axi_bvalid_i) // If return valid, back to IDLE
+            WRITE_BACK_WAIT: begin
+                if (axi_bvalid_i)  // If return valid, back to IDLE
                     next_state = IDLE;
                 else next_state = WRITE_BACK_WAIT;
             end
             UNCACHE_READ_REQ: begin
                 if (axi_rrdy_i)  // If AXI ready, send request 
-                    next_state = UNCACHE_READ_WAIT; 
+                    next_state = UNCACHE_READ_WAIT;
                 else next_state = UNCACHE_READ_REQ;
             end
             UNCACHE_READ_WAIT: begin
-                if (axi_rvalid_i) 
-                    next_state = IDLE;
+                if (axi_rvalid_i) next_state = IDLE;
                 else next_state = UNCACHE_READ_WAIT;
             end
             UNCACHE_WRITE_REQ: begin
                 if (axi_wrdy_i)  // If AXI ready, send request 
-                    next_state = UNCACHE_WRITE_WAIT; 
+                    next_state = UNCACHE_WRITE_WAIT;
                 else next_state = UNCACHE_WRITE_REQ;
             end
             UNCACHE_WRITE_WAIT: begin
@@ -399,13 +392,11 @@ module dcache
                 else next_state = UNCACHE_WRITE_WAIT;
             end
             CACOP_REQ: begin
-                if (axi_wrdy_i)
-                    next_state = CACOP_WAIT;
+                if (axi_wrdy_i) next_state = CACOP_WAIT;
                 else next_state = CACOP_REQ;
             end
             CACOP_WAIT: begin
-                if (axi_bvalid_i) 
-                    next_state = IDLE;
+                if (axi_bvalid_i) next_state = IDLE;
                 else next_state = CACOP_WAIT;
             end
             default: begin
@@ -432,7 +423,8 @@ module dcache
             p3_cacop_op_mode1 <= 0;
             p3_cacop_op_mode2 <= 0;
             p3_cacop_op_mode2_hit <= 0;
-        end else if (dcache_stall) begin
+        end else
+        if (dcache_stall) begin
         end else begin
             p3_valid <= p2_valid;
             p3_req_type <= p2_req_type;
@@ -457,7 +449,7 @@ module dcache
     assign p3_cpu_wreq = p3_wstrb != 4'b0;
 
     // P3 hit
-    always_comb begin: p3_hit_comb
+    always_comb begin : p3_hit_comb
         p3_hit = 0;
         p3_hit_data = 0;
         for (integer i = 0; i < NWAY; i++) begin
@@ -542,52 +534,32 @@ module dcache
     // Stage 3 END
     ///////////////////////////////////////////////////////////////////////////////////
 
-    always_comb begin 
-        write_back_req = 0;
+    // FIFO write
+    always_comb begin : fifo_write_comb
+        fifo_wreq = 0;
+        fifo_waddr = 0;
+        fifo_wdata = 0;
+        fifo_wreq_sel_data = 0;
         case (state)
-            WRITE_WAIT:begin
+            // if the selected way is dirty,then sent the cacheline to the fifo
+            READ_WAIT, WRITE_WAIT: begin
                 for (integer i = 0; i < NWAY; i++) begin
                     if (axi_rvalid_i | axi_rrdy_i) begin
-                            write_back_req = 1;
-                        end 
+                        // NOTICE: must be the same cycle as BRAM write
+                        // to ensure random state is the same
+                        if (i[NWAY_WIDTH-1:0] == random_r[NWAY_WIDTH-1:0] && p3_tag_bram_rdata[i][TAG_WIDTH + 1] && ~fifo_full) begin
+                            fifo_wreq = 1;
+                            fifo_waddr = {
+                                p3_tag_bram_rdata[i][TAG_WIDTH-1:0],
+                                p3_paddr[OFFSET_WIDTH+NSET_WIDTH-1:OFFSET_WIDTH],
+                                4'b0
+                            };
+                            fifo_wdata = p3_data_bram_rdata[i];
+                        end
                     end
                 end
-            default: begin     
             end
         endcase
-    end
-
-    // write back to memory
-    always_ff @(posedge clk) begin : write_back_ff
-        if(rst)begin
-            write_back_wstrb <= 0;
-            write_back_addr <= 0;
-            write_back_data <= 0;
-        end else begin
-            case(state)
-            IDLE:begin
-                if(p3_cpu_wreq)begin
-                    write_back_wstrb <= p3_idle_back_wstrb;
-                    write_back_addr <= {p3_paddr[31:OFFSET_WIDTH],4'b0};
-                    write_back_data <= p3_idle_back_data;
-                end
-            end
-            WRITE_WAIT:begin
-                if (axi_rvalid_i | axi_rrdy_i) begin
-                    write_back_wstrb <= 16'b1111_1111_1111_1111;
-                    write_back_addr <= {p3_paddr[31:OFFSET_WIDTH],4'b0};
-                    write_back_data <= p3_refill_data;
-                end
-            end
-            WRITE_BACK_WAIT:begin
-                if(axi_bvalid_i)begin
-                    write_back_wstrb <= 0;
-                    write_back_addr <= 0;
-                    write_back_data <= 0;
-                end
-            end
-            endcase
-        end
     end
 
     // BRAM write
@@ -640,10 +612,9 @@ module dcache
                                 data_bram_wdata[i] = {4{p3_wdata}};
                             end
                         endcase
-                        p3_idle_back_wstrb = data_bram_we[i]; 
-                        p3_idle_back_data = data_bram_wdata[i];
-                    end
-                    else if (p3_cacop & ~cpu_flush & mem_valid) begin
+                        p3_idle_back_wstrb = data_bram_we[i];
+                        p3_idle_back_data  = data_bram_wdata[i];
+                    end else if (p3_cacop & ~cpu_flush & mem_valid) begin
                         if (p3_cacop_op_mode0 | p3_cacop_op_mode1) begin
                             if ((p3_cacop_way == i[NWAY_WIDTH-1:0])) begin
                                 tag_bram_we[i] = 1;
@@ -658,7 +629,7 @@ module dcache
                     end
                 end
             end
-            WRITE_WAIT, READ_WAIT: begin // Refill
+            WRITE_WAIT, READ_WAIT: begin  // Refill
                 for (integer i = 0; i < NWAY; i++) begin
                     // select a line to write back 
                     if (axi_rvalid_i | axi_rrdy_i) begin
@@ -712,17 +683,17 @@ module dcache
                     axi_addr_o = {p3_paddr[31:4], 4'b0};
                 end
             end
-            WRITE_BACK_REQ: begin
+            READ_WAIT, WRITE_WAIT: begin
                 // If write channel is free, can send write request
                 // necessary because refill wait on FIFO full
                 // allow fifo send request to avoid deadlock
-                if (axi_rvalid_i | axi_rrdy_i) begin
-                    axi_wreq_o = 1;
-                    fifo_w_accept = 1;
-                    axi_size_o = 3'b100;
-                    axi_addr_o = write_back_addr;
-                    axi_wdata_o = write_back_data;
-                    axi_wstrb_o = write_back_wstrb;
+                if (fifo_wreq) begin
+                    axi_wreq_o  = 1;
+                    // fifo_w_accept = 1;
+                    axi_size_o  = 3'b100;
+                    axi_addr_o  = fifo_waddr;
+                    axi_wdata_o = fifo_wdata;
+                    axi_wstrb_o = 16'hffff;
                 end
             end
             UNCACHE_READ_REQ: begin
@@ -771,7 +742,7 @@ module dcache
             end
         endcase
 
-    end 
+    end
 
     // CPU handshake
     always_comb begin : cpu_handshake_comb
@@ -809,31 +780,7 @@ module dcache
     /////////////////////////////////////////////////////////////////////////////////
     // Implementation END
     /////////////////////////////////////////////////////////////////////////////////
-    
 
-
-    dcache_fifo u_dcache_fifo (
-        .clk(clk),
-        .rst(rst),
-        //CPU write request
-        .cpu_wreq_i(fifo_wreq),
-        .cpu_awaddr_i(fifo_waddr),
-        .cpu_wdata_i(fifo_wdata),
-        .write_hit_o(fifo_w_hit),
-        //CPU read request and response
-        .cpu_rreq_i(fifo_rreq),
-        .cpu_araddr_i(fifo_raddr),
-        .read_hit_o(fifo_r_hit),
-        .cpu_rdata_o(fifo_rdata),
-        //FIFO state
-        .state(fifo_state),
-        //write to memory 
-        .axi_bvalid_i(axi_bvalid_i),
-        .axi_req_accept(fifo_w_accept),
-        .axi_wen_o(fifo_axi_wr_req),
-        .axi_wdata_o(fifo_axi_wr_data),
-        .axi_awaddr_o(fifo_axi_wr_addr)
-    );
 
     // LSFR
     lfsr #(
