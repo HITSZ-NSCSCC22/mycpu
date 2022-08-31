@@ -468,36 +468,33 @@ module dcache
     always_comb begin : p3_refill_data_comb
         wreq_sel_data  = 0;
         p3_refill_data = 0;
-        case (p3_paddr[3:2])
-            2'b00: wreq_sel_data = axi_data_i[31:0];
-            2'b01: wreq_sel_data = axi_data_i[63:32];
-            2'b10: wreq_sel_data = axi_data_i[95:64];
-            2'b11: wreq_sel_data = axi_data_i[127:96];
-            default: begin
-            end
-        endcase
-        case (p3_wstrb)
-            //st.b 
-            4'b0001: wreq_sel_data[7:0] = p3_wdata[7:0];
-            4'b0010: wreq_sel_data[15:8] = p3_wdata[15:8];
-            4'b0100: wreq_sel_data[23:16] = p3_wdata[23:16];
-            4'b1000: wreq_sel_data[31:24] = p3_wdata[31:24];
-            //st.h
-            4'b0011: wreq_sel_data[15:0] = p3_wdata[15:0];
-            4'b1100: wreq_sel_data[31:16] = p3_wdata[31:16];
-            //st.w
-            4'b1111: wreq_sel_data = p3_wdata;
-            default: begin
-            end
-        endcase
-        case (p3_paddr[3:2])
-            2'b00: p3_refill_data = {axi_data_i[127:32], wreq_sel_data};
-            2'b01: p3_refill_data = {axi_data_i[127:64], wreq_sel_data, axi_data_i[31:0]};
-            2'b10: p3_refill_data = {axi_data_i[127:96], wreq_sel_data, axi_data_i[63:0]};
-            2'b11: p3_refill_data = {wreq_sel_data, axi_data_i[95:0]};
-            default: begin
-            end
-        endcase
+        if (p3_wstrb == 0) begin
+            p3_refill_data = axi_data_i;
+        end else begin
+            wreq_sel_data = axi_data_i[p3_paddr[3:2]*32+:32];
+            case (p3_wstrb)
+                //st.b 
+                4'b0001: wreq_sel_data[7:0] = p3_wdata[7:0];
+                4'b0010: wreq_sel_data[15:8] = p3_wdata[15:8];
+                4'b0100: wreq_sel_data[23:16] = p3_wdata[23:16];
+                4'b1000: wreq_sel_data[31:24] = p3_wdata[31:24];
+                //st.h
+                4'b0011: wreq_sel_data[15:0] = p3_wdata[15:0];
+                4'b1100: wreq_sel_data[31:16] = p3_wdata[31:16];
+                //st.w
+                4'b1111: wreq_sel_data = p3_wdata;
+                default: begin
+                end
+            endcase
+            case (p3_paddr[3:2])
+                2'b00: p3_refill_data = {axi_data_i[127:32], wreq_sel_data};
+                2'b01: p3_refill_data = {axi_data_i[127:64], wreq_sel_data, axi_data_i[31:0]};
+                2'b10: p3_refill_data = {axi_data_i[127:96], wreq_sel_data, axi_data_i[63:0]};
+                2'b11: p3_refill_data = {wreq_sel_data, axi_data_i[95:0]};
+                default: begin
+                end
+            endcase
+        end
     end
     // CACOP writeback
     always_comb begin : p3_cacop_writeback_comb
@@ -687,7 +684,7 @@ module dcache
                 // If write channel is free, can send write request
                 // necessary because refill wait on FIFO full
                 // allow fifo send request to avoid deadlock
-                if (fifo_wreq) begin
+                if (fifo_wreq & axi_rvalid_i) begin
                     axi_wreq_o  = 1;
                     // fifo_w_accept = 1;
                     axi_size_o  = 3'b100;
@@ -783,14 +780,14 @@ module dcache
 
 
     // LSFR
-    lfsr #(
-        .WIDTH(16)
-    ) u_lfsr (
-        .clk  (clk),
-        .rst  (rst),
-        .en   (1'b1),
-        .value(random_r)
-    );
+    // lfsr #(
+    //     .WIDTH(16)
+    // ) u_lfsr (
+    //     .clk  (clk),
+    //     .rst  (rst),
+    //     .en   (1'b1),
+    //     .value(random_r)
+    // );
 
 
     axi_read_channel #(
