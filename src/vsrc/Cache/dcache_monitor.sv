@@ -52,13 +52,13 @@ module dcache_monitor
     always_ff @(posedge clk) begin
         if (read_ongoing) begin
             if (store_valid) begin
-                ram[store_paddr[5:4]] <= read_data;
-                replaced_data <= ram[store_paddr[5:4]];
+                ram[store_paddr[$clog2(DCACHE_NSET)+3:4]] <= read_data;
+                replaced_data <= ram[store_paddr[$clog2(DCACHE_NSET)+3:4]];
             end else if (load_valid) begin
-                ram[load_paddr[5:4]] <= read_data;
-                replaced_data <= ram[load_paddr[5:4]];
+                ram[load_paddr[$clog2(DCACHE_NSET)+3:4]] <= read_data;
+                replaced_data <= ram[load_paddr[$clog2(DCACHE_NSET)+3:4]];
             end
-        end else if (store_valid) ram[store_paddr[5:4]] <= store_data;
+        end else if (store_valid) ram[store_paddr[$clog2(DCACHE_NSET)+3:4]] <= store_data;
     end
 
 

@@ -12,6 +12,7 @@
 `include "instr_buffer.sv"
 `include "icache.sv"
 `include "Cache/dcache.sv"
+`include "Cache/dcache_monitor.sv"
 `include "ctrl.sv"
 `include "Reg/regs_file.sv"
 `include "pipeline/1_decode/id.sv"
@@ -301,6 +302,24 @@ module cpu_top
         .rdata(cache_mem_data),
 
         .m_axi(dcache_axi)
+    );
+
+    dcache_monitor u_dcache_monitor (
+        .clk(clk),
+        .rst(rst),
+
+        .store_valid(difftest_commit_info_delay1[0].inst_st_en[0]),
+        .store_paddr(difftest_commit_info_delay1[0].st_paddr),
+        .store_data (difftest_commit_info_delay1[0].st_data),
+
+        .load_valid(difftest_commit_info_delay1[0].inst_ld_en[0]),
+        .load_paddr(difftest_commit_info_delay1[0].ld_paddr),
+
+        .axi_rvalid(dcache_axi.rvalid),
+        .axi_rdata (dcache_axi.rdata),
+
+        .axi_wvalid(dcache_axi.wvalid),
+        .axi_wdata (dcache_axi.wdata)
     );
 
     icache u_icache (
