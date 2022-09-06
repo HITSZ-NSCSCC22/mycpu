@@ -114,6 +114,10 @@ package core_config;
     parameter INSTR_BUFFER_SIZE = 32;
     parameter INSTR_BUFFER_CHANNEL = FETCH_WIDTH;   // channel number, must be the power of 2, set to FETCH_WIDTH for now
 
+    // Rename Parameters
+    parameter RENAME_WIDTH = 4;
+    parameter PHYREG = 64;
+
     // Commit Parameters
     parameter COMMIT_WIDTH = 2;
 
