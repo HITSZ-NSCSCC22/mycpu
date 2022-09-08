@@ -17,15 +17,15 @@ module free_list
     output logic stallreq_o
 );
 
-    logic [PHYREG-1:0] free_prf_queue, next_free_prf_queue, commit_queue, next_commit_queue;
+    logic [PHYREG-1:0] free_prf_queue, next_free_prf_queue;
     logic [$clog2(PHYREG)-1:0] rename_ptr, commit_ptr;
+
+    assign stallreq_o = rename_ptr == commit_ptr && free_prf_queue[rename_ptr];
 
 
     always_ff @(posedge clk) begin
-        if (rst) begin
+        if (rst | recover) begin
             free_prf_queue <= 0;
-        end else if (recover) begin
-            free_prf_queue <= commit_queue;
         end else begin
             free_prf_queue <= next_free_prf_queue;
         end
@@ -49,7 +49,7 @@ module free_list
     end
 
     always_ff @(posedge clk) begin
-        if (rst) begin
+        if (rst | recover) begin
             rename_ptr <= 0;
             commit_ptr <= 0;
         end else begin
