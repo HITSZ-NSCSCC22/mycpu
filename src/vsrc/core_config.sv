@@ -116,7 +116,8 @@ package core_config;
 
     // Rename Parameters
     parameter RENAME_WIDTH = 4;
-    parameter PHYREG = 64;
+    parameter PHYREG = 32;
+    parameter REGNUM = PHYREG;
 
     // Commit Parameters
     parameter COMMIT_WIDTH = 2;

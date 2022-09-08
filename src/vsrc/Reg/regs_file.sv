@@ -21,7 +21,7 @@ module regs_file
     // Read signals, all packed
     input logic [READ_PORTS-1:0] read_valid_i,
     input logic [READ_PORTS-1:0][`RegAddrBus] read_addr_i,
-    output logic [READ_PORTS-1:0][`RegBus] read_data_o
+    output logic [READ_PORTS-1:0][DATA_WIDTH-1:0] read_data_o
 );
 
     logic [READ_PORTS-1:0] read_valid_bit;  // Indicates where the "live" value is in
